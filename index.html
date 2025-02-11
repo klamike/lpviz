@@ -125,13 +125,13 @@
 
     // Zoom button: recenter and scale using computedVertices.
     zoomButton.addEventListener('click', function() {
-      if (computedVertices && computedVertices.length > 0) {
+      if (vertices && vertices.length > 0) {
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        computedVertices.forEach(v => {
-          if (v[0] < minX) minX = v[0];
-          if (v[0] > maxX) maxX = v[0];
-          if (v[1] < minY) minY = v[1];
-          if (v[1] > maxY) maxY = v[1];
+        vertices.forEach(v => {
+          if (v.x < minX) minX = v.x;
+          if (v.x > maxX) maxX = v.x;
+          if (v.y < minY) minY = v.y;
+          if (v.y > maxY) maxY = v.y;
         });
         let polyWidth = maxX - minX;
         let polyHeight = maxY - minY;
@@ -147,7 +147,7 @@
                                     availHeight / (polyHeight * gridSpacing));
         }
         scaleFactor = newScaleFactor;
-        console.log("New scaleFactor:", scaleFactor);
+        // console.log("New scaleFactor:", scaleFactor);
         draw();
       }
     });
@@ -279,59 +279,112 @@
       ctx.stroke();
     }
 
-    // Draw the polygon. When complete, each edge is drawn individually (red if highlighted).
+    // Add event listeners for dragging points and double-clicking on lines
+    let draggingPointIndex = null;
+    let newPoint = null;
+
+    canvas.addEventListener('mousedown', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const logicalMouse = toLogicalCoords(mouseX, mouseY);
+
+      // Check if a vertex is clicked for dragging
+      vertices.forEach((vertex, index) => {
+        if (distance(logicalMouse, vertex) < 0.5) {
+          draggingPointIndex = index;
+        }
+      });
+    });
+
+    canvas.addEventListener('mousemove', function(event) {
+      if (draggingPointIndex !== null) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        vertices[draggingPointIndex] = toLogicalCoords(mouseX, mouseY);
+        draw();
+      }
+    });
+
+    canvas.addEventListener('mouseup', function() {
+      if (draggingPointIndex !== null) {
+        draggingPointIndex = null;
+        sendPolytope(); // Update backend with new polygon data
+      }
+    });
+
+    canvas.addEventListener('dblclick', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const logicalMouse = toLogicalCoords(mouseX, mouseY);
+
+      // Check if double-click is near a line to add a new point
+      for (let i = 0; i < vertices.length; i++) {
+        let v1 = vertices[i];
+        let v2 = vertices[(i + 1) % vertices.length];
+        if (isPointNearLine(logicalMouse, v1, v2)) {
+          // Calculate the normal vector of the line
+          let dx = v2.x - v1.x;
+          let dy = v2.y - v1.y;
+          let length = Math.sqrt(dx * dx + dy * dy);
+          let normal = { x: -dy / length, y: dx / length };
+
+          // Adjust the new point slightly along the normal vector
+          let adjustmentFactor = 0.1; // Adjust this factor as needed
+          newPoint = {
+            x: logicalMouse.x - normal.x * adjustmentFactor,
+            y: logicalMouse.y - normal.y * adjustmentFactor
+          };
+
+          vertices.splice(i + 1, 0, newPoint);
+          draw();
+          sendPolytope(); // Update backend with new polygon data
+          break;
+        }
+      }
+    });
+
+    function isPointNearLine(point, v1, v2) {
+      const dist = Math.abs((v2.y - v1.y) * point.x - (v2.x - v1.x) * point.y + v2.x * v1.y - v2.y * v1.x) /
+                  Math.sqrt((v2.y - v1.y) ** 2 + (v2.x - v1.x) ** 2);
+      return dist < 0.5;
+    }
+
+    // Update drawPolygon to handle non-convex polygons
     function drawPolygon() {
       if (vertices.length > 0) {
-        if (polygonComplete) {
-          for (let i = 0; i < vertices.length; i++) {
-            let v1 = vertices[i];
-            let v2 = vertices[(i + 1) % vertices.length];
-            let cp1 = toCanvasCoords(v1.x, v1.y);
-            let cp2 = toCanvasCoords(v2.x, v2.y);
-            ctx.beginPath();
-            if (highlightIndex === i) {
-              ctx.strokeStyle = 'red';
-              ctx.lineWidth = 4;
-            } else {
-              ctx.strokeStyle = 'blue';
-              ctx.lineWidth = 2;
-            }
-            ctx.moveTo(cp1.x, cp1.y);
-            ctx.lineTo(cp2.x, cp2.y);
-            ctx.stroke();
-            ctx.fillStyle = 'red';
-            ctx.beginPath();
-            ctx.arc(cp1.x, cp1.y, 4, 0, 2 * Math.PI);
-            ctx.fill();
-          }
-        } else {
-          ctx.strokeStyle = 'blue';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          let start = toCanvasCoords(vertices[0].x, vertices[0].y);
-          ctx.moveTo(start.x, start.y);
-          for (let i = 1; i < vertices.length; i++) {
-            let cp = toCanvasCoords(vertices[i].x, vertices[i].y);
-            ctx.lineTo(cp.x, cp.y);
-          }
-          ctx.stroke();
-          vertices.forEach(pt => {
-            let cp = toCanvasCoords(pt.x, pt.y);
-            ctx.fillStyle = 'red';
-            ctx.beginPath();
-            ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
-            ctx.fill();
-          });
-          if (currentMouse !== null) {
-            let last = vertices[vertices.length - 1];
-            let lastC = toCanvasCoords(last.x, last.y);
-            let mouseC = toCanvasCoords(currentMouse.x, currentMouse.y);
-            ctx.beginPath();
-            ctx.moveTo(lastC.x, lastC.y);
-            ctx.lineTo(mouseC.x, mouseC.y);
-            ctx.stroke();
-          }
+        ctx.beginPath();
+        let start = toCanvasCoords(vertices[0].x, vertices[0].y);
+        ctx.moveTo(start.x, start.y);
+        for (let i = 1; i < vertices.length; i++) {
+          let cp = toCanvasCoords(vertices[i].x, vertices[i].y);
+          ctx.lineTo(cp.x, cp.y);
         }
+        if (!polygonComplete && currentMouse) {
+          // Draw rubberband line to current mouse position
+          let rubberbandEnd = toCanvasCoords(currentMouse.x, currentMouse.y);
+          ctx.lineTo(rubberbandEnd.x, rubberbandEnd.y);
+        }
+        ctx.closePath();
+
+        if (!isPolygonConvex(vertices)) {
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red with 30% opacity
+          ctx.fill();
+        }
+
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        vertices.forEach(pt => {
+          let cp = toCanvasCoords(pt.x, pt.y);
+          ctx.fillStyle = 'red';
+          ctx.beginPath();
+          ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
+          ctx.fill();
+        });
       }
     }
 
@@ -419,6 +472,7 @@
       drawAnalyticCenter();
       drawObjective();
       drawCentralPath();
+      updateTraceButtonState();
     }
 
     // Ray-casting algorithm.
@@ -509,6 +563,14 @@
         }
       }
       return true;
+    }
+    // Function to update the state of the Trace Central Path button
+    function updateTraceButtonState() {
+      if (isPolygonConvex(vertices)) {
+        traceButton.disabled = false;
+      } else {
+        traceButton.disabled = true;
+      }
     }
 
     function sendPolytope() {
