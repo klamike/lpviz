@@ -282,6 +282,23 @@
     // Add event listeners for dragging points and double-clicking on lines
     let draggingPointIndex = null;
     let newPoint = null;
+    let draggingObjective = false;
+
+    canvas.addEventListener('mousedown', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const logicalMouse = toLogicalCoords(mouseX, mouseY);
+
+      // Check if the click is near the objective arrow
+      if (objectiveVector) {
+        const arrowEnd = toCanvasCoords(objectiveVector.x, objectiveVector.y);
+        const distToArrow = distance({ x: mouseX, y: mouseY }, arrowEnd);
+        if (distToArrow < 10) { // Adjust this threshold as needed
+          draggingObjective = true;
+        }
+      }
+    });
 
     canvas.addEventListener('mousedown', function(event) {
       const rect = canvas.getBoundingClientRect();
@@ -307,10 +324,36 @@
       }
     });
 
+    canvas.addEventListener('mousemove', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      if (draggingObjective) {
+        // Update the objective vector based on mouse position
+        const logicalMouse = toLogicalCoords(mouseX, mouseY);
+        objectiveVector = logicalMouse;
+        updateObjectiveDisplay();
+        draw();
+      } else if (!polygonComplete) {
+        currentMouse = toLogicalCoords(mouseX, mouseY);
+        draw();
+      } else if (polygonComplete && objectiveVector === null) {
+        currentObjective = toLogicalCoords(mouseX, mouseY);
+        draw();
+      }
+    });
+
     canvas.addEventListener('mouseup', function() {
       if (draggingPointIndex !== null) {
         draggingPointIndex = null;
         sendPolytope(); // Update backend with new polygon data
+      }
+    });
+
+    canvas.addEventListener('mouseup', function() {
+      if (draggingObjective) {
+        draggingObjective = false;
+        // Optionally, send updated objective vector to backend if needed
       }
     });
 
