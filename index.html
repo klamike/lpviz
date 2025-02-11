@@ -26,13 +26,8 @@
 <body>
   <div id="sidebar">
     <h2>Constraints</h2>
-    <div id="inequalities">
-      Draw a polytope by clicking on the canvas.
-      To complete it, either click near the first vertex
-      or click inside the shape to complete it.
-      After the polytope, set the objective.<br>
-      <br><br><br><br>
-    </div>
+    <div id="inequalities"></div>
+  
     <!-- New Objective section -->
     <h2>Objective</h2>
     <div id="objectiveDisplay">No objective defined.</div>
@@ -41,7 +36,16 @@
     <button id="unzoomButton">Unzoom</button>
     <button id="traceButton">Trace Central Path</button>
     <div id="analyticResult"></div>
-    <div><br><br> Press the <strong>S</strong> key to toggle snapping to the grid.</div>
+    <div><br><br><br><br><br><h4>Usage Tips</h4>
+      <div style="font-size: 0.7em;">
+        <strong>Draw:</strong> Click to add vertices. Click an interior point to complete the polygon.<br>
+        <strong>Move:</strong> Drag vertices to reshape the polygon.<br>
+        <strong>Add:</strong> Double-click edges to insert new vertices.<br>
+        <strong>Red Overlay:</strong> If polygon is non-convex, adjust it so it's convex.<br>
+        <strong>Zoom:</strong> Centers and scales the polygon to fit the view.<br>
+        <strong>Objective:</strong> Drag the green arrow to adjust direction.<br>
+        <strong>Press S:</strong> Toggle snapping to the grid.<br>
+      </div><br><br><br><br><br></div>
   </div>
   <div id="canvas-container">
     <canvas id="gridCanvas"></canvas>
@@ -82,6 +86,60 @@
     let highlightIndex = null;
     let analyticCenter = null;
     let centralPath = [];  // To store the central path (an array of points)
+
+    let historyStack = [];
+    let redoStack = [];
+
+    // Function to save the current state to the history stack
+    function saveState() {
+      historyStack.push({
+        vertices: JSON.parse(JSON.stringify(vertices)), // Deep copy of vertices
+        objectiveVector: objectiveVector ? { ...objectiveVector } : null
+      });
+      redoStack = []; // Clear the redo stack whenever a new action is performed
+    }
+
+    // Function to undo the last action
+    function undo() {
+      if (historyStack.length > 0) {
+        const lastState = historyStack.pop();
+        redoStack.push({
+          vertices: JSON.parse(JSON.stringify(vertices)),
+          objectiveVector: objectiveVector ? { ...objectiveVector } : null
+        });
+        vertices = lastState.vertices;
+        objectiveVector = lastState.objectiveVector;
+        draw();
+        sendPolytope(); // Update backend with reverted polygon data
+      }
+    }
+
+    // Function to redo the last undone action
+    function redo() {
+      if (redoStack.length > 0) {
+        const nextState = redoStack.pop();
+        historyStack.push({
+          vertices: JSON.parse(JSON.stringify(vertices)),
+          objectiveVector: objectiveVector ? { ...objectiveVector } : null
+        });
+        vertices = nextState.vertices;
+        objectiveVector = nextState.objectiveVector;
+        draw();
+        sendPolytope(); // Update backend with redone polygon data
+      }
+    }
+
+    // Add event listener for undo (Command + Z or Ctrl + Z)
+    window.addEventListener('keydown', function(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault(); // Prevent default undo behavior
+        undo();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && e.shiftKey) {
+        e.preventDefault(); // Prevent default redo behavior
+        redo();
+      }
+    });
 
     // Toggle snapping with S key.
     window.addEventListener('keydown', function(e) {
@@ -197,7 +255,9 @@
           analyticResultDiv.innerHTML = "Error: " + result.error;
         } else {
           centralPath = result.central_path;
-          analyticResultDiv.innerHTML = "Central Path (points): " + JSON.stringify(centralPath);
+          // Format the central path nicely
+          const formattedPath = centralPath.map(point => `(${point[0].toFixed(2)}, ${point[1].toFixed(2)})`).join('<br>');
+          analyticResultDiv.innerHTML = "Central Path:<br> " + formattedPath;
           draw();
         }
       })
@@ -342,18 +402,15 @@
         draw();
       }
     });
-
     canvas.addEventListener('mouseup', function() {
       if (draggingPointIndex !== null) {
+        saveState(); // Save state after dragging a point
         draggingPointIndex = null;
         sendPolytope(); // Update backend with new polygon data
       }
-    });
-
-    canvas.addEventListener('mouseup', function() {
       if (draggingObjective) {
+        saveState(); // Save state after dragging the objective
         draggingObjective = false;
-        // Optionally, send updated objective vector to backend if needed
       }
     });
 
@@ -377,10 +434,11 @@
           // Adjust the new point slightly along the normal vector
           let adjustmentFactor = 0.1; // Adjust this factor as needed
           newPoint = {
-            x: logicalMouse.x - normal.x * adjustmentFactor,
-            y: logicalMouse.y - normal.y * adjustmentFactor
+            x: logicalMouse.x + normal.x * adjustmentFactor,
+            y: logicalMouse.y + normal.y * adjustmentFactor
           };
 
+          saveState(); // Save state before adding a new point
           vertices.splice(i + 1, 0, newPoint);
           draw();
           sendPolytope(); // Update backend with new polygon data
@@ -578,9 +636,11 @@
           alert("Adding this vertex would make the polygon nonconvex. Please choose another point.");
           return;
         }
+        saveState(); // Save state before adding a new vertex
         vertices.push(pt);
         draw();
       } else if (polygonComplete && objectiveVector === null) {
+        saveState(); // Save state before fixing the objective vector
         // Fix the objective vector using the current rubberband candidate.
         objectiveVector = currentObjective ? currentObjective : pt;
         updateObjectiveDisplay(); // Update the Objective section
