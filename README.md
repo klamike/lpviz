@@ -3,10 +3,7 @@
 
 To run, install Julia (recommended [juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#mac-linux-and-freebsd)).
 
-Then clone this repo, cd into it, and run
-```julia
-julia --project=.
-```
+Then clone this repo, cd into it, and run `julia --project=.`
 
 Then in the julia REPL, type `] instantiate`
 
