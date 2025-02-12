@@ -41,8 +41,6 @@ function trace_central_path(req::HTTP.Request)
     central_path = []
     for mu in mu_values
         model = Model(Clarabel.Optimizer)
-        set_optimizer_attribute(model, "tol_gap_abs", 1e-12)
-        set_optimizer_attribute(model, "tol_infeas_abs", 1e-12)
         @variable(model, x[1:2])
         @variable(model, s[1:m] ≥ 0)
         @variable(model, t[1:m])
