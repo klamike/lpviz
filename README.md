@@ -1,4 +1,4 @@
-# JuMPGUI
+# lpviz
 
 
 To run, install Julia (recommended [juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#mac-linux-and-freebsd)).
@@ -21,10 +21,14 @@ Since this video, I've added a bunch of new features. Try it out for yourself!
 
 ## To-do:
 
-- Objective visualization (ideally 3D)
-- Barrier contours
 - Add option to plot iterates of solver instead of central path
 - Reset button so you don't have to refresh to clear
+- URL-based problem/weight sharing
+- Save problem/weights to localStorage
 - Example/random problems
+- 3D objective visualization
+- Barrier contours
+- Add simplex mode
 - Allow inequality inputs (currently forced to draw)
+- Circle tool?
 - Make julia package to include in sysimage, to reduce TTFP
