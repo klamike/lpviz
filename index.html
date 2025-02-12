@@ -45,6 +45,16 @@
     .inequality-item:hover { background-color: #e0e0ff; }
     .objective-item { padding: 4px; cursor: pointer; }
     .objective-item:hover { background-color: #e0e0ff; }
+    #sidebarHandle {
+      position: fixed;
+      top: 0;
+      left: 300px;        /* starts at the sidebar's initial width */
+      width: 5px;         /* a slim handle */
+      height: 100%;
+      cursor: ew-resize;   /* east-west resize cursor */
+      z-index: 20;        /* above the sidebar */
+      background: rgba(0, 0, 0, 0.1); /* subtle visual cue (optional) */
+    }
   </style>
 </head>
 <body>
@@ -64,13 +74,13 @@
     <div id="analyticResult"></div>
     <div style="margin-top:20px; font-size:0.8em;">
       <strong>Usage Tips:</strong><br>
-      Draw: click to add vertices. Click an interior point or near the first vertex to complete.<br>
-      Move: drag vertices to reshape.<br>
-      Add: double-click an edge to insert a vertex.<br>
-      Red Overlay: indicates non-convexity.<br>
-      Zoom: fits the polygon in view.<br>
-      Objective: drag the red arrow to adjust direction.<br>
-      Press S: toggle snapping to the grid.
+      <strong>Draw</strong>: click to add vertices, click inside when done.<br>
+      <strong>Move</strong>: drag vertices to reshape.<br>
+      <strong>Add</strong>: double-click an edge to insert a vertex.<br>
+      <strong>Red Overlay</strong>: indicates non-convexity, must adjust.<br>
+      <strong>Zoom</strong>: fits the polygon in view.<br>
+      <strong>Objective</strong>: drag the objective arrow to adjust direction.<br>
+      <strong>Press S</strong>: toggle snapping to the grid.
     </div>
   </div>
   
@@ -263,14 +273,36 @@
           analyticResultDiv.innerHTML = "Error: " + result.error;
         } else {
           centralPath = result.central_path;
-          const formattedPath = centralPath.map(([point, mu]) => {
-            const logMu = parseFloat(Math.log10(mu).toFixed(1));
+          const formattedPath = centralPath.map((entry, i, arr) => {
+            const [point, mu] = entry;
+            const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
             const x = point[0].toFixed(2);
             const y = point[1].toFixed(2);
-            const logstr = `log(μ)=${logMu}`;
+
+            const logstr = `log(μ)=${logMuRounded}`;
             const pointstr = `(${x}, ${y})`;
-            const padding = '&nbsp;'.repeat(12 - logstr.length)
-            return `${logstr}:${padding}${pointstr}`;
+
+            const logpadding = '&nbsp;'.repeat(12 - logstr.length);
+            const pointpadding = '&nbsp;'.repeat(14 - pointstr.length);
+            
+            let extra = "";
+            if (i > 0) {
+              // Get the previous point and its mu value.
+              const [prevPoint, prevMu] = arr[i - 1];
+              // Compute the (absolute) difference in log(mu)
+              const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
+              // Compute the Euclidean distance between the points.
+              const dx = point[0] - prevPoint[0];
+              const dy = point[1] - prevPoint[1];
+              const stepDistance = Math.sqrt(dx * dx + dy * dy);
+              if (deltaLog > 1e-6) { // avoid division by zero
+                const ratio = stepDistance / deltaLog;
+                extra = `,${pointpadding}Δx: ${ratio.toFixed(2)}`;
+              }
+            }
+            
+
+            return `${logstr}:${logpadding}${pointstr}${extra}`;
           }).join('<br>');
           analyticResultDiv.innerHTML = formattedPath;
           draw();
@@ -744,5 +776,41 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
   </script>
+  <div id="sidebarHandle"></div>
+  <script>
+    const sidebar = document.getElementById('sidebar');
+    const handle = document.getElementById('sidebarHandle');
+  
+    let isResizing = false;
+  
+    handle.addEventListener('mousedown', function(e) {
+      isResizing = true;
+      e.preventDefault(); // Prevent text selection, etc.
+    });
+  
+    document.addEventListener('mousemove', function(e) {
+      if (!isResizing) return;
+      
+      // Determine the new width. Here, e.clientX is the horizontal coordinate.
+      let newWidth = e.clientX;
+      
+      // Enforce minimum and maximum widths (in pixels)
+      if (newWidth < 200) newWidth = 200;
+      if (newWidth > 600) newWidth = 600;
+      
+      // Apply the new width to the sidebar
+      sidebar.style.width = newWidth + 'px';
+      
+      // Reposition the handle to match the sidebar's new right edge
+      handle.style.left = newWidth + 'px';
+    });
+  
+    document.addEventListener('mouseup', function(e) {
+      if (isResizing) {
+        isResizing = false;
+      }
+    });
+  </script>
+  
 </body>
 </html>
