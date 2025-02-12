@@ -349,7 +349,7 @@
             const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
             const x = point[0].toFixed(2);
             const y = point[1].toFixed(2);
-            const logmupadding = `&nbsp;`.repeat(5 - logMuRounded.toString().length)
+            const logmupadding = `&nbsp;`.repeat(Math.max(0, 5 - logMuRounded.toString().length))
 
             let extra = "";
             if (i > 0) {
@@ -360,7 +360,7 @@
               const stepDistance = Math.sqrt(dx * dx + dy * dy);
               if (deltaLog > 1e-6) {
                 const ratio = stepDistance / deltaLog;
-                const pointpadding = `&nbsp;`.repeat(15-`(${x}, ${y})`.length)
+                const pointpadding = `&nbsp;`.repeat(Math.max(0, 15-`(${x}, ${y})`.length))
                 extra = `,${pointpadding}Δx: ${ratio.toFixed(2)}`;
               }
             }
