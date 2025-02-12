@@ -94,7 +94,7 @@ function polytope(req::HTTP.Request)
         B_disp = round(B_norm, digits=2)
         C_disp = round(C, digits=2)
         push!(inequalities, string(A_disp, "x + ", B_disp, "y ≤ ", C_disp))
-        push!(lines, [A_disp, B_disp, C_disp])
+        push!(lines, [A_norm, B_norm, C])
     end
 
     # Compute intersection vertices.
