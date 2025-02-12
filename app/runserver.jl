@@ -4,8 +4,6 @@ using LPViz
 
 const CORS_OPT_HEADERS = ["Access-Control-Allow-Origin"  => "*", "Access-Control-Allow-Headers" => "*", "Access-Control-Allow-Methods" => "POST, GET, OPTIONS"]
 const CORS_RES_HEADERS = ["Access-Control-Allow-Origin" => "*"]
-cors404(::HTTP.Request) = HTTP.Response(404, CORS_RES_HEADERS, "")
-cors405(::HTTP.Request) = HTTP.Response(405, CORS_RES_HEADERS, "")
 CorsMiddleware(handler) = (req::HTTP.Request) -> HTTP.method(req) == "OPTIONS" ? HTTP.Response(200, CORS_OPT_HEADERS) : handler(req)
 JSONMiddleware(handler) = (req::HTTP.Request) -> begin
     if !isempty(req.body)
@@ -34,11 +32,11 @@ function serve_static(path_suffix::String; suffix=true)
     end
 end
 
-function runserver(ROUTER, port=8080)
+function runserver(ROUTER; port=8080)
     HTTP.register!(ROUTER, "GET", "/", (req::HTTP.Request) -> serve_static("index.html"))
     HTTP.register!(ROUTER, "GET", "/style.css", (req::HTTP.Request) -> serve_static("style.css"))
     HTTP.register!(ROUTER, "GET", "/main.js", (req::HTTP.Request) -> serve_static("main.js"))
-    HTTP.register!(ROUTER, "GET", "/JuliaMono-Light.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", suffix=false))
+    HTTP.register!(ROUTER, "GET", "/font.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", suffix=false))
 
     HTTP.register!(ROUTER, "POST", "/polytope", LPViz.polytope_handler)
     HTTP.register!(ROUTER, "POST", "/trace_central_path", LPViz.trace_central_path_handler)
@@ -46,6 +44,9 @@ function runserver(ROUTER, port=8080)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    const ROUTER = HTTP.Router(cors404, cors405)
-    runserver(ROUTER)
+    const ROUTER = HTTP.Router(
+        HTTP.Response(404, CORS_RES_HEADERS, ""),
+        HTTP.Response(405, CORS_RES_HEADERS, ""),
+    )
+    runserver(ROUTER; port=get(ARGS, 1, 8080))
 end
