@@ -7,8 +7,6 @@
   <style>
     @font-face {
       font-family: 'JuliaMono';
-      /* Uncomment one of the following lines to choose a font weight: */
-      /* src: url("https://cdn.jsdelivr.net/gh/cormullion/juliamono-webfonts/JuliaMono-Black.woff2") format('woff2'); */
       src: url("https://cdn.jsdelivr.net/gh/cormullion/juliamono-webfonts/JuliaMono-Light.woff2") format('woff2');
     }
 
@@ -51,11 +49,6 @@
       display: flex;
       flex-direction: column;
     }
-
-    /* Main sidebar content */
-    /* #sidebarContent { */
-      /* No special flex properties here so that it sizes naturally */
-    /* } */
 
     /* The spacer will expand when there’s little content and shrink when content is tall */
     .spacer {
@@ -122,9 +115,14 @@
 
       <h2>Objective</h2>
       <div id="objectiveDisplay">No objective defined.</div>
+      <br>
+      <br>
+      <button id="traceButton">Trace Central Path</button>
+      <br>
+      <button id="rotateObjectiveButton">Toggle Rotate Objective</button>
+      <br><br>
       <button id="zoomButton">Zoom</button>
       <button id="unzoomButton">Unzoom</button>
-      <button id="traceButton">Trace Central Path</button>
       <br><br>
       <h2>Central Path</h2>
       <div id="analyticResult"></div>
@@ -141,7 +139,6 @@
       <strong>Press S</strong>: toggle snapping to the grid.
     </div>
   </div>
-
 
   <canvas id="gridCanvas"></canvas>
 
@@ -180,6 +177,7 @@
     let redoStack = [];
 
     let highlightCentralPathIndex = null;
+    let isCentralPathComputing = false;
 
     function saveState() {
       historyStack.push({
@@ -295,17 +293,22 @@
     });
 
     function computeCentralPath() {
+      if (isCentralPathComputing) return Promise.resolve();
+      isCentralPathComputing = true;
       if (!isPolygonConvex(vertices)) {
         analyticResultDiv.innerHTML = "Nonconvex";
-        return;
+        isCentralPathComputing = false;
+        return Promise.resolve();
       }
       if (!computedLines || computedLines.length === 0) {
         analyticResultDiv.innerHTML = "No computed lines available.";
-        return;
+        isCentralPathComputing = false;
+        return Promise.resolve();
       }
       if (objectiveVector == null) {
         analyticResultDiv.innerHTML = "Objective vector not defined.";
-        return;
+        isCentralPathComputing = false;
+        return Promise.resolve();
       }
 
       let weights = [];
@@ -314,7 +317,7 @@
         weights.push(input ? parseFloat(input.value) : 1);
       });
 
-      fetch('/trace_central_path', {
+      return fetch('/trace_central_path', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -328,6 +331,7 @@
         .then(result => {
           if (result.error) {
             analyticResultDiv.innerHTML = "Error: " + result.error;
+            isCentralPathComputing = false;
             return;
           }
 
@@ -367,16 +371,59 @@
           });
 
           draw();
+          isCentralPathComputing = false;
         })
         .catch(error => {
           console.error('Error:', error);
           analyticResultDiv.innerHTML = "Error computing central path.";
+          isCentralPathComputing = false;
         });
     }
 
     traceButton.addEventListener('click', function () {
       computeCentralPath();
       centralPathComputed = true;
+    });
+
+    let rotateObjectiveMode = false;
+    const rotateObjectiveButton = document.getElementById('rotateObjectiveButton');
+
+    function rotateAndComputeStep() {
+      const MIN_WAIT = 30;
+      if (!isPolygonConvex(vertices)) {
+        // Polygon is nonconvex: skip rotation and computation until it becomes convex.
+        setTimeout(rotateAndComputeStep, MIN_WAIT);
+        return;
+      }
+      if (!rotateObjectiveMode) return;
+      let angle = Math.atan2(objectiveVector.y, objectiveVector.x);
+      let magnitude = Math.sqrt(objectiveVector.x ** 2 + objectiveVector.y ** 2);
+      angle += 0.1; // radians
+      objectiveVector = { x: magnitude * Math.cos(angle), y: magnitude * Math.sin(angle) };
+      updateObjectiveDisplay();
+      draw();
+      if (polygonComplete && computedLines && computedLines.length > 0) {
+        computeCentralPath().then(() => {
+          if (rotateObjectiveMode) {
+            setTimeout(rotateAndComputeStep, MIN_WAIT);
+          }
+        });
+      } else {
+        if (rotateObjectiveMode) {
+          setTimeout(rotateAndComputeStep, MIN_WAIT);
+        }
+      }
+    }
+
+    rotateObjectiveButton.addEventListener('click', function () {
+      rotateObjectiveMode = !rotateObjectiveMode;
+      if (rotateObjectiveMode) {
+        if (objectiveVector == null) {
+          objectiveVector = { x: 1, y: 0 };
+          updateObjectiveDisplay();
+        }
+        rotateAndComputeStep();
+      }
     });
 
     function resizeCanvas() {
