@@ -23,7 +23,7 @@ function trace_central_path(req::HTTP.Request)
     data = req.body
     lines = data["lines"]
     objective = data["objective"]
-    mu_values = haskey(data, "mu_values") ? data["mu_values"] : [10.0^p for p in [5, 3, 2, 1.5, 1, 0.5, 0, -0.5, -1, -3, -5]]
+    mu_values = haskey(data, "mu_values") ? data["mu_values"] : [10.0^p for p in [3, 2, 1.5, 1, 0.5, 0, -0.5, -1, -3, -5]]
     
     # Get weights if provided; otherwise, use ones.
     weights = haskey(data, "weights") ? data["weights"] : ones(length(lines))
