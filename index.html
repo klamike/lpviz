@@ -39,14 +39,33 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 350px;
+      width: 380px;
       height: 100%;
-      background-color: rgba(240, 240, 240, 0.9);
       padding: 10px;
       box-sizing: border-box;
+      background-color: rgba(240, 240, 240, 1);
+      border-right: 1px solid #ccc;
       overflow-y: auto;
       z-index: 10;
-      border-right: 1px solid #ccc;
+      /* Use flex layout to push the usage tips to the bottom if there's little content */
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Main sidebar content */
+    /* #sidebarContent { */
+      /* No special flex properties here so that it sizes naturally */
+    /* } */
+
+    /* The spacer will expand when there’s little content and shrink when content is tall */
+    .spacer {
+      flex-grow: 1;
+      min-height: 0; /* Helps in some browsers (e.g., Firefox) */
+    }
+
+    /* Usage tips appear after the spacer */
+    #usageTips {
+      font-size: 0.8em;
     }
 
     #sidebar h2 {
@@ -85,38 +104,34 @@
     #sidebarHandle {
       position: fixed;
       top: 0;
-      left: 350px;
-      /* starts at the sidebar's initial width */
+      left: 380px;
       width: 5px;
-      /* a slim handle */
       height: 100%;
       cursor: ew-resize;
-      /* east-west resize cursor */
       z-index: 20;
-      /* above the sidebar */
       background: rgba(0, 0, 0, 0.1);
-      /* subtle visual cue (optional) */
     }
   </style>
 </head>
 
 <body>
-  <!-- Overlaid sidebar -->
   <div id="sidebar">
-    <h2>Constraints</h2>
-    <div id="inequalities"></div>
+    <div id="sidebarContent">
+      <h2>Constraints</h2>
+      <div id="inequalities"></div>
 
-    <!-- Objective section -->
-    <h2>Objective</h2>
-    <div id="objectiveDisplay">No objective defined.</div>
-    <button id="zoomButton">Zoom</button>
-    <button id="unzoomButton">Unzoom</button>
-    <button id="traceButton">Trace Central Path</button>
-    <br><br>
-    <h2>Central Path</h2>
-    <div id="analyticResult"></div>
-    <div style="margin-top:20px; font-size:0.8em;">
-      <strong style="font-size: 1.25em;">Usage Tips:</strong><br><br>
+      <h2>Objective</h2>
+      <div id="objectiveDisplay">No objective defined.</div>
+      <button id="zoomButton">Zoom</button>
+      <button id="unzoomButton">Unzoom</button>
+      <button id="traceButton">Trace Central Path</button>
+      <br><br>
+      <h2>Central Path</h2>
+      <div id="analyticResult"></div>
+    </div>
+    <div class="spacer"></div>
+    <div id="usageTips">
+      <br><br><br><br><strong style="font-size: 1.25em;">Usage Tips:</strong><br><br>
       <strong>Draw</strong>: click to add vertices, click inside when done.<br>
       <strong>Move</strong>: drag vertices to reshape.<br>
       <strong>Add</strong>: double-click an edge to insert a vertex.<br>
@@ -127,11 +142,10 @@
     </div>
   </div>
 
-  <!-- Fullscreen canvas -->
+
   <canvas id="gridCanvas"></canvas>
 
   <script>
-    // Get references to elements.
     const canvas = document.getElementById('gridCanvas');
     const ctx = canvas.getContext('2d');
     const inequalitiesDiv = document.getElementById('inequalities');
@@ -141,15 +155,12 @@
     const analyticResultDiv = document.getElementById('analyticResult');
     const objectiveDisplay = document.getElementById('objectiveDisplay');
 
-    // Global drawing variables.
     let centerX, centerY;
-    const gridSpacing = 20; // base pixels per grid unit
+    const gridSpacing = 20;
 
-    // Transformation parameters (in grid units).
     let offset = { x: 0, y: 0 };
     let scaleFactor = 1;
 
-    // Polygon and objective (all coordinates in grid units).
     let vertices = [];
     let currentMouse = null;
     let polygonComplete = false;
@@ -157,24 +168,19 @@
     let objectiveVector = null;
     let currentObjective = null;
 
-    // Backend-computed values.
     let computedVertices = [];
     let computedLines = [];
 
-    // Additional flags and undo/redo history.
     let snapToGrid = false;
     let highlightIndex = null;
     let analyticCenter = null;
     let centralPath = [];
-    // New flag to indicate if a central path has already been computed.
     let centralPathComputed = false;
     let historyStack = [];
     let redoStack = [];
 
     let highlightCentralPathIndex = null;
 
-
-    // --- Undo/Redo Functions ---
     function saveState() {
       historyStack.push({
         vertices: JSON.parse(JSON.stringify(vertices)),
@@ -221,11 +227,9 @@
     window.addEventListener('keydown', function (e) {
       if (e.key.toLowerCase() === 's') {
         snapToGrid = !snapToGrid;
-        // console.log("Snap to grid:", snapToGrid);
       }
     });
 
-    // --- Helper Functions ---
     function distance(p1, p2) {
       return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
     }
@@ -250,10 +254,8 @@
       }
     }
 
-    // --- Zoom/Unzoom ---
     zoomButton.addEventListener('click', function () {
       if (vertices.length > 0) {
-        // Compute the bounding box of the polygon.
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         vertices.forEach(v => {
           if (v.x < minX) minX = v.x;
@@ -265,28 +267,19 @@
         let polyHeight = maxY - minY;
         let centroid = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
 
-        // Set the offset so that the polygon's centroid goes to the origin.
         offset.x = -centroid.x;
         offset.y = -centroid.y;
 
-        // Define a padding in pixels.
         const padding = 50;
-
-        // Get the current sidebar width.
         const sidebarWidth = document.getElementById('sidebar').offsetWidth;
-
-        // Compute the available width for drawing (exclude the sidebar and padding).
         let availWidth = (window.innerWidth - sidebarWidth) - 2 * padding;
         let availHeight = window.innerHeight - 2 * padding;
 
-        // Set the new scaleFactor so the polygon fits within the available space.
         if (polyWidth > 0 && polyHeight > 0) {
           scaleFactor = Math.min(availWidth / (polyWidth * gridSpacing),
             availHeight / (polyHeight * gridSpacing));
         }
 
-        // Adjust the canvas center so that drawing appears centered in the visible area.
-        // The new centerX is halfway into the area to the right of the sidebar.
         centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
         centerY = window.innerHeight / 2;
 
@@ -298,12 +291,9 @@
       scaleFactor = 1;
       offset.x = 0;
       offset.y = 0;
-      // console.log("View reset (unzoom).");
       draw();
     });
 
-    // --- Central Path Computation ---
-    // This function encapsulates the central path request.
     function computeCentralPath() {
       if (!isPolygonConvex(vertices)) {
         analyticResultDiv.innerHTML = "Nonconvex";
@@ -342,15 +332,12 @@
           }
 
           centralPath = result.central_path;
-
-          // Create HTML with each central path point wrapped in a div
           const formattedPath = centralPath.map((entry, i, arr) => {
             const [point, mu] = entry;
             const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
             const x = point[0].toFixed(2);
             const y = point[1].toFixed(2);
             const logmupadding = `&nbsp;`.repeat(Math.max(0, 5 - logMuRounded.toString().length))
-
             let extra = "";
             if (i > 0) {
               const [prevPoint, prevMu] = arr[i - 1];
@@ -360,17 +347,14 @@
               const stepDistance = Math.sqrt(dx * dx + dy * dy);
               if (deltaLog > 1e-6) {
                 const ratio = stepDistance / deltaLog;
-                const pointpadding = `&nbsp;`.repeat(Math.max(0, 15 - `(${x}, ${y})`.length))
-                extra = `,${pointpadding}Δx: ${ratio.toFixed(2)}`;
+                const pointpadding = `&nbsp;`.repeat(Math.max(0, 17 - `(${x}, ${y})`.length))
+                extra = `${pointpadding}Δx: ${ratio.toFixed(2)}`;
               }
             }
-            // Wrap each iteration in a div with a data-index attribute.
             return `<div class="central-path-item" data-index="${i}">log(μ)=${logMuRounded}:${logmupadding}(${x}, ${y})${extra}</div>`;
           }).join('');
 
           analyticResultDiv.innerHTML = formattedPath;
-
-          // Add event listeners to each central path item for highlighting.
           document.querySelectorAll('.central-path-item').forEach(item => {
             item.addEventListener('mouseenter', function () {
               highlightCentralPathIndex = parseInt(this.getAttribute('data-index'));
@@ -390,14 +374,11 @@
         });
     }
 
-
-    // --- Trace Central Path (button and auto-update) ---
     traceButton.addEventListener('click', function () {
       computeCentralPath();
-      centralPathComputed = true; // remember that the user requested the central path
+      centralPathComputed = true;
     });
 
-    // --- Retina Canvas Resizing ---
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
@@ -415,8 +396,6 @@
       centerY = window.innerHeight / 2;
     }
 
-
-    // --- Coordinate Conversion ---
     function toLogicalCoords(x, y) {
       let logical = {
         x: (x - centerX) / (gridSpacing * scaleFactor) - offset.x,
@@ -435,7 +414,6 @@
       };
     }
 
-    // --- Drawing Functions ---
     function drawGrid() {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -443,7 +421,6 @@
       const originY = centerY - offset.y * gridSpacing * scaleFactor;
       ctx.strokeStyle = '#e0e0e0';
       ctx.lineWidth = 0.5;
-      // Vertical lines.
       for (let x = originX; x <= width; x += gridSpacing * scaleFactor) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
@@ -456,7 +433,6 @@
         ctx.lineTo(x, height);
         ctx.stroke();
       }
-      // Horizontal lines.
       for (let y = originY; y <= height; y += gridSpacing * scaleFactor) {
         ctx.beginPath();
         ctx.moveTo(0, y);
@@ -469,7 +445,6 @@
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-      // Draw axes.
       ctx.strokeStyle = '#707070';
       ctx.lineWidth = 0.8;
       ctx.beginPath();
@@ -485,7 +460,6 @@
     function drawPolygon() {
       if (vertices.length > 0) {
         if (polygonComplete) {
-          // Draw each edge one by one.
           for (let i = 0; i < vertices.length; i++) {
             let v1 = vertices[i];
             let v2 = vertices[(i + 1) % vertices.length];
@@ -503,7 +477,6 @@
             ctx.lineTo(cp2.x, cp2.y);
             ctx.stroke();
           }
-          // Draw vertices.
           vertices.forEach(pt => {
             let cp = toCanvasCoords(pt.x, pt.y);
             ctx.fillStyle = 'red';
@@ -511,7 +484,6 @@
             ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
             ctx.fill();
           });
-          // If the polygon is nonconvex, fill it with a red overlay.
           if (!isPolygonConvex(vertices)) {
             ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
             ctx.beginPath();
@@ -525,7 +497,6 @@
             ctx.fill();
           }
         } else {
-          // When the polygon is not complete, draw a single continuous path.
           ctx.beginPath();
           let start = toCanvasCoords(vertices[0].x, vertices[0].y);
           ctx.moveTo(start.x, start.y);
@@ -540,7 +511,6 @@
           ctx.strokeStyle = 'black';
           ctx.lineWidth = 2;
           ctx.stroke();
-          // Draw vertices.
           vertices.forEach(pt => {
             let cp = toCanvasCoords(pt.x, pt.y);
             ctx.fillStyle = 'red';
@@ -551,7 +521,6 @@
         }
       }
     }
-
 
     function drawAnalyticCenter() {
       if (analyticCenter != null) {
@@ -601,7 +570,6 @@
 
     function drawCentralPath() {
       if (centralPath && centralPath.length > 0) {
-        // Draw the path lines in purple.
         ctx.strokeStyle = 'purple';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -612,12 +580,9 @@
           ctx.lineTo(pt.x, pt.y);
         }
         ctx.stroke();
-
-        // Draw each central path point.
         centralPath.forEach((pt, i) => {
           let cp = toCanvasCoords(pt[0][0], pt[0][1]);
           ctx.beginPath();
-          // If this point is highlighted, draw it green and with a larger radius.
           if (highlightCentralPathIndex === i) {
             ctx.fillStyle = 'green';
             ctx.arc(cp.x, cp.y, 5, 0, 2 * Math.PI);
@@ -629,7 +594,6 @@
         });
       }
     }
-
 
     function draw() {
       const width = window.innerWidth;
@@ -643,7 +607,6 @@
       updateTraceButtonState();
     }
 
-    // --- Ray-Casting for Point-in-Polygon ---
     function isPointInsidePolygon(point, poly) {
       let inside = false;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -656,7 +619,6 @@
       return inside;
     }
 
-    // --- Mouse Events ---
     let draggingPointIndex = null;
     let draggingObjective = false;
     canvas.addEventListener('mousedown', function (event) {
@@ -664,14 +626,12 @@
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
       const logicalMouse = toLogicalCoords(mouseX, mouseY);
-      // Check if a vertex is clicked.
       for (let i = 0; i < vertices.length; i++) {
         if (distance(logicalMouse, vertices[i]) < 0.5) {
           draggingPointIndex = i;
           return;
         }
       }
-      // Check if clicking near the objective arrow tip.
       if (polygonComplete && objectiveVector !== null) {
         const tip = toCanvasCoords(objectiveVector.x, objectiveVector.y);
         if (pixelDistance({ x: mouseX, y: mouseY }, tip) < 10) {
@@ -815,7 +775,6 @@
       traceButton.disabled = !isPolygonConvex(vertices);
     }
 
-    // --- Send Polytope and Auto-update Central Path ---
     function sendPolytope() {
       const data = {
         points: vertices.map(pt => [pt.x, pt.y]),
@@ -856,8 +815,6 @@
           }
           computedVertices = result.vertices;
           computedLines = result.lines;
-          // If a central path was already computed and we have an objective vector,
-          // automatically recompute the central path.
           if (centralPathComputed && objectiveVector != null && computedLines && computedLines.length > 0) {
             computeCentralPath();
           }
@@ -880,23 +837,15 @@
 
     handle.addEventListener('mousedown', function (e) {
       isResizing = true;
-      e.preventDefault(); // Prevent text selection, etc.
+      e.preventDefault();
     });
 
     document.addEventListener('mousemove', function (e) {
       if (!isResizing) return;
-
-      // Determine the new width. Here, e.clientX is the horizontal coordinate.
       let newWidth = e.clientX;
-
-      // Enforce minimum and maximum widths (in pixels)
       if (newWidth < 200) newWidth = 200;
       if (newWidth > 600) newWidth = 600;
-
-      // Apply the new width to the sidebar
       sidebar.style.width = newWidth + 'px';
-
-      // Reposition the handle to match the sidebar's new right edge
       handle.style.left = newWidth + 'px';
       updateCenter();
       draw();
@@ -908,7 +857,5 @@
       }
     });
   </script>
-
 </body>
-
 </html>
