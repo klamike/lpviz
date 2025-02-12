@@ -4,102 +4,127 @@
   <meta charset="utf-8">
   <title>JuMPGUI</title>
   <style>
-    html, body { margin: 0; height: 100%; }
-    body { display: flex; font-family: sans-serif; }
-    /* Sidebar for instructions and controls */
+    @font-face {
+      font-family: 'JuliaMono';
+      /* Uncomment one of the following lines to choose a font weight: */
+      /* src: url("https://cdn.jsdelivr.net/gh/cormullion/juliamono-webfonts/JuliaMono-Black.woff2") format('woff2'); */
+      src: url("https://cdn.jsdelivr.net/gh/cormullion/juliamono-webfonts/JuliaMono-Light.woff2") format('woff2');
+    }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body { font-family: 'JuliaMono', monospace; font-size: 10pt; }
+    /* Fullscreen canvas */
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+    /* Sidebar overlaid on top of the canvas */
     #sidebar {
-      width: 250px;
-      background-color: #f0f0f0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 300px;
+      height: 100%;
+      background-color: rgba(240,240,240,0.9);
       padding: 10px;
       box-sizing: border-box;
       overflow-y: auto;
+      z-index: 10;
       border-right: 1px solid #ccc;
+    }
+    #sidebar h2 {
+      margin-bottom: 5px;
+      letter-spacing: -0.5px;
+      font-family: sans-serif;
     }
     #sidebar button { margin-top: 10px; padding: 5px 10px; }
     .inequality-item { padding: 4px; cursor: pointer; }
     .inequality-item:hover { background-color: #e0e0ff; }
-    /* Main container for the canvas */
-    #canvas-container { flex-grow: 1; position: relative; }
-    canvas { display: block; width: 100%; height: 100%; }
+    .objective-item { padding: 4px; cursor: pointer; }
+    .objective-item:hover { background-color: #e0e0ff; }
   </style>
 </head>
 <body>
+  <!-- Overlaid sidebar -->
   <div id="sidebar">
+    <h2>Constraints</h2>
     <h2>Constraints</h2>
     <div id="inequalities"></div>
   
-    <!-- New Objective section -->
+    <!-- Objective section -->
     <h2>Objective</h2>
     <div id="objectiveDisplay">No objective defined.</div>
     <button id="zoomButton">Zoom</button>
-    <!-- Added Unzoom button below -->
     <button id="unzoomButton">Unzoom</button>
     <button id="traceButton">Trace Central Path</button>
+    <br><br>
+    <h2>Central Path</h2>
     <div id="analyticResult"></div>
-    <div><br><br><br><br><br><h4>Usage Tips</h4>
-      <div style="font-size: 0.7em;">
-        <strong>Draw:</strong> Click to add vertices. Click an interior point to complete the polygon.<br>
-        <strong>Move:</strong> Drag vertices to reshape the polygon.<br>
-        <strong>Add:</strong> Double-click edges to insert new vertices.<br>
-        <strong>Red Overlay:</strong> If polygon is non-convex, adjust it so it's convex.<br>
-        <strong>Zoom:</strong> Centers and scales the polygon to fit the view.<br>
-        <strong>Objective:</strong> Drag the green arrow to adjust direction.<br>
-        <strong>Press S:</strong> Toggle snapping to the grid.<br>
-      </div><br><br><br><br><br></div>
+    <div style="margin-top:20px; font-size:0.8em;">
+      <strong>Usage Tips:</strong><br>
+      Draw: click to add vertices. Click an interior point or near the first vertex to complete.<br>
+      Move: drag vertices to reshape.<br>
+      Add: double-click an edge to insert a vertex.<br>
+      Red Overlay: indicates non-convexity.<br>
+      Zoom: fits the polygon in view.<br>
+      Objective: drag the red arrow to adjust direction.<br>
+      Press S: toggle snapping to the grid.
+    </div>
   </div>
-  <div id="canvas-container">
-    <canvas id="gridCanvas"></canvas>
-  </div>
+  
+  <!-- Fullscreen canvas -->
+  <canvas id="gridCanvas"></canvas>
+  
   <script>
+    // Get references to elements.
     const canvas = document.getElementById('gridCanvas');
     const ctx = canvas.getContext('2d');
     const inequalitiesDiv = document.getElementById('inequalities');
     const zoomButton = document.getElementById('zoomButton');
-    const unzoomButton = document.getElementById('unzoomButton'); // New button element
+    const unzoomButton = document.getElementById('unzoomButton');
     const traceButton = document.getElementById('traceButton');
     const analyticResultDiv = document.getElementById('analyticResult');
-    const objectiveDisplay = document.getElementById('objectiveDisplay'); // New element for objective display
+    const objectiveDisplay = document.getElementById('objectiveDisplay');
 
+    // Global drawing variables.
     let centerX, centerY;
     const gridSpacing = 20; // base pixels per grid unit
 
-    // Global transformation variables:
+    // Transformation parameters (in grid units).
     let offset = { x: 0, y: 0 };
     let scaleFactor = 1;
 
-    // Variables for polygon drawing (in grid units)
-    let vertices = [];       // User-clicked vertices [{x, y}, ...]
-    let currentMouse = null; // Current mouse position (in grid units) while drawing vertices
+    // Polygon and objective (all coordinates in grid units).
+    let vertices = [];
+    let currentMouse = null;
     let polygonComplete = false;
-    let interiorPoint = null; // The interior point when polygon is complete
-
-    // New: objective vector (fixed by click) and currentObjective (rubberband candidate)
+    let interiorPoint = null;
     let objectiveVector = null;
     let currentObjective = null;
 
-    // These will be filled from the backend.
-    let computedVertices = [];  // Computed intersection vertices
-    let computedLines = [];     // Array of line parameters [A, B, C]
+    // Backend-computed values.
+    let computedVertices = [];
+    let computedLines = [];
 
-    // Global flags.
+    // Additional flags and undo/redo history.
     let snapToGrid = false;
     let highlightIndex = null;
     let analyticCenter = null;
-    let centralPath = [];  // To store the central path (an array of points)
-
+    let centralPath = [];
     let historyStack = [];
     let redoStack = [];
 
-    // Function to save the current state to the history stack
+    // --- Undo/Redo Functions ---
     function saveState() {
       historyStack.push({
-        vertices: JSON.parse(JSON.stringify(vertices)), // Deep copy of vertices
+        vertices: JSON.parse(JSON.stringify(vertices)),
         objectiveVector: objectiveVector ? { ...objectiveVector } : null
       });
-      redoStack = []; // Clear the redo stack whenever a new action is performed
+      redoStack = [];
     }
-
-    // Function to undo the last action
     function undo() {
       if (historyStack.length > 0) {
         const lastState = historyStack.pop();
@@ -110,11 +135,9 @@
         vertices = lastState.vertices;
         objectiveVector = lastState.objectiveVector;
         draw();
-        sendPolytope(); // Update backend with reverted polygon data
+        sendPolytope();
       }
     }
-
-    // Function to redo the last undone action
     function redo() {
       if (redoStack.length > 0) {
         const nextState = redoStack.pop();
@@ -125,23 +148,19 @@
         vertices = nextState.vertices;
         objectiveVector = nextState.objectiveVector;
         draw();
-        sendPolytope(); // Update backend with redone polygon data
+        sendPolytope();
       }
     }
-
-    // Add event listener for undo (Command + Z or Ctrl + Z)
     window.addEventListener('keydown', function(e) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-        e.preventDefault(); // Prevent default undo behavior
+        e.preventDefault();
         undo();
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && e.shiftKey) {
-        e.preventDefault(); // Prevent default redo behavior
+        e.preventDefault();
         redo();
       }
     });
-
-    // Toggle snapping with S key.
     window.addEventListener('keydown', function(e) {
       if (e.key.toLowerCase() === 's') {
         snapToGrid = !snapToGrid;
@@ -149,8 +168,11 @@
       }
     });
 
-    // Helper functions.
+    // --- Helper Functions ---
     function distance(p1, p2) {
+      return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+    }
+    function pixelDistance(p1, p2) {
       return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
     }
     function computeCentroid(pts) {
@@ -158,32 +180,21 @@
       pts.forEach(pt => { sumX += pt.x; sumY += pt.y; });
       return { x: sumX / pts.length, y: sumY / pts.length };
     }
-
-    // Function to update the normalized objective display.
     function updateObjectiveDisplay() {
       if (objectiveVector != null) {
-        // let norm = Math.sqrt(objectiveVector.x**2 + objectiveVector.y**2);
-        // if (norm === 0) norm = 1;
-        let a = objectiveVector.x;// / norm;
-        let b = objectiveVector.y;// / norm;
-        // Round to three decimals
-        a = Math.round(a * 1000) / 1000;
-        b = Math.round(b * 1000) / 1000;
-        let str = "" + a + "x";
-        if (b >= 0) {
-          str += " + " + b + "y";
-        } else {
-          str += " - " + (-b) + "y";
-        }
+        let a = Math.round(objectiveVector.x * 1000) / 1000;
+        let b = Math.round(objectiveVector.y * 1000) / 1000;
+        let str = a + "x" + (b >= 0 ? " + " + b + "y" : " - " + (-b) + "y");
+        objectiveDisplay.classList.add('objective-item');
         objectiveDisplay.innerHTML = str;
       } else {
         objectiveDisplay.innerHTML = "No objective defined.";
       }
     }
 
-    // Zoom button: recenter and scale using computedVertices.
+    // --- Zoom/Unzoom ---
     zoomButton.addEventListener('click', function() {
-      if (vertices && vertices.length > 0) {
+      if (vertices.length > 0) {
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         vertices.forEach(v => {
           if (v.x < minX) minX = v.x;
@@ -197,20 +208,15 @@
         offset.x = -centroid.x;
         offset.y = -centroid.y;
         const padding = 50;
-        let availWidth = canvas.width - 2 * padding;
-        let availHeight = canvas.height - 2 * padding;
-        let newScaleFactor = scaleFactor;
+        let availWidth = window.innerWidth - 2 * padding;
+        let availHeight = window.innerHeight - 2 * padding;
         if (polyWidth > 0 && polyHeight > 0) {
-          newScaleFactor = Math.min(availWidth / (polyWidth * gridSpacing),
-                                    availHeight / (polyHeight * gridSpacing));
+          scaleFactor = Math.min(availWidth / (polyWidth * gridSpacing),
+                                 availHeight / (polyHeight * gridSpacing));
         }
-        scaleFactor = newScaleFactor;
-        // console.log("New scaleFactor:", scaleFactor);
         draw();
       }
     });
-
-    // Unzoom button: reset the view to the default (scaleFactor 1 and centered offset).
     unzoomButton.addEventListener('click', function() {
       scaleFactor = 1;
       offset.x = 0;
@@ -219,7 +225,7 @@
       draw();
     });
 
-    // Trace Central Path button: send computedLines, objective vector, weights, and mu to backend.
+    // --- Trace Central Path (backend call) ---
     traceButton.addEventListener('click', function() {
       if (!computedLines || computedLines.length === 0) {
         analyticResultDiv.innerHTML = "No computed lines available.";
@@ -229,15 +235,10 @@
         analyticResultDiv.innerHTML = "Objective vector not defined.";
         return;
       }
-      // Collect the weights from each inequality input.
       let weights = [];
       document.querySelectorAll('.inequality-item').forEach(item => {
         let input = item.querySelector("input");
-        if (input) {
-          weights.push(parseFloat(input.value));
-        } else {
-          weights.push(1);
-        }
+        weights.push(input ? parseFloat(input.value) : 1);
       });
       fetch('/trace_central_path', {
         method: 'POST',
@@ -246,7 +247,7 @@
           lines: computedLines,
           objective: [objectiveVector.x, objectiveVector.y],
           weights: weights,
-          mu: 100  // This parameter is not used directly, as the backend uses powers of 10.
+          mu: 100
         })
       })
       .then(response => response.json())
@@ -255,9 +256,15 @@
           analyticResultDiv.innerHTML = "Error: " + result.error;
         } else {
           centralPath = result.central_path;
-          // Format the central path nicely
-          const formattedPath = centralPath.map(point => `(${point[0].toFixed(2)}, ${point[1].toFixed(2)})`).join('<br>');
-          analyticResultDiv.innerHTML = "Central Path:<br> " + formattedPath;
+          const formattedPath = centralPath.map(([point, mu]) => {
+            const logMu = parseFloat(Math.log10(mu).toFixed(1));
+            const x = point[0].toFixed(2);
+            const y = point[1].toFixed(2);
+            const logstr = `log(μ)=${logMu}`;
+            const pointstr = `(${x}, ${y})`;
+            return `${logstr}: ${pointstr}`;
+          }).join('<br>');
+          analyticResultDiv.innerHTML = formattedPath;
           draw();
         }
       })
@@ -267,16 +274,21 @@
       });
     });
 
+    // --- Retina Canvas Resizing ---
     function resizeCanvas() {
-      const container = document.getElementById('canvas-container');
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
-      centerX = canvas.width / 2;
-      centerY = canvas.height / 2;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      centerX = window.innerWidth / 2;
+      centerY = window.innerHeight / 2;
       draw();
     }
 
-    // Conversion functions.
+    // --- Coordinate Conversion ---
+    // (All mouse coordinates are now relative to the full window.)
     function toLogicalCoords(x, y) {
       let logical = {
         x: (x - centerX) / (gridSpacing * scaleFactor) - offset.x,
@@ -295,14 +307,15 @@
       };
     }
 
-    // Draw the grid.
+    // --- Drawing Functions ---
     function drawGrid() {
-      const width = canvas.width;
-      const height = canvas.height;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
       const originX = centerX + offset.x * gridSpacing * scaleFactor;
       const originY = centerY - offset.y * gridSpacing * scaleFactor;
       ctx.strokeStyle = '#e0e0e0';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 0.5;
+      // Vertical lines.
       for (let x = originX; x <= width; x += gridSpacing * scaleFactor) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
@@ -315,6 +328,7 @@
         ctx.lineTo(x, height);
         ctx.stroke();
       }
+      // Horizontal lines.
       for (let y = originY; y <= height; y += gridSpacing * scaleFactor) {
         ctx.beginPath();
         ctx.moveTo(0, y);
@@ -327,8 +341,9 @@
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
+      // Draw axes.
+      ctx.strokeStyle = '#707070';
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.moveTo(originX, 0);
       ctx.lineTo(originX, height);
@@ -339,121 +354,6 @@
       ctx.stroke();
     }
 
-    // Add event listeners for dragging points and double-clicking on lines
-    let draggingPointIndex = null;
-    let newPoint = null;
-    let draggingObjective = false;
-
-    canvas.addEventListener('mousedown', function(event) {
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-      const logicalMouse = toLogicalCoords(mouseX, mouseY);
-
-      // Check if the click is near the objective arrow
-      if (objectiveVector) {
-        const arrowEnd = toCanvasCoords(objectiveVector.x, objectiveVector.y);
-        const distToArrow = distance({ x: mouseX, y: mouseY }, arrowEnd);
-        if (distToArrow < 10) { // Adjust this threshold as needed
-          draggingObjective = true;
-        }
-      }
-    });
-
-    canvas.addEventListener('mousedown', function(event) {
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-      const logicalMouse = toLogicalCoords(mouseX, mouseY);
-
-      // Check if a vertex is clicked for dragging
-      vertices.forEach((vertex, index) => {
-        if (distance(logicalMouse, vertex) < 0.5) {
-          draggingPointIndex = index;
-        }
-      });
-    });
-
-    canvas.addEventListener('mousemove', function(event) {
-      if (draggingPointIndex !== null) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-        vertices[draggingPointIndex] = toLogicalCoords(mouseX, mouseY);
-        draw();
-      }
-    });
-
-    canvas.addEventListener('mousemove', function(event) {
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-      if (draggingObjective) {
-        // Update the objective vector based on mouse position
-        const logicalMouse = toLogicalCoords(mouseX, mouseY);
-        objectiveVector = logicalMouse;
-        updateObjectiveDisplay();
-        draw();
-      } else if (!polygonComplete) {
-        currentMouse = toLogicalCoords(mouseX, mouseY);
-        draw();
-      } else if (polygonComplete && objectiveVector === null) {
-        currentObjective = toLogicalCoords(mouseX, mouseY);
-        draw();
-      }
-    });
-    canvas.addEventListener('mouseup', function() {
-      if (draggingPointIndex !== null) {
-        saveState(); // Save state after dragging a point
-        draggingPointIndex = null;
-        sendPolytope(); // Update backend with new polygon data
-      }
-      if (draggingObjective) {
-        saveState(); // Save state after dragging the objective
-        draggingObjective = false;
-      }
-    });
-
-    canvas.addEventListener('dblclick', function(event) {
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-      const logicalMouse = toLogicalCoords(mouseX, mouseY);
-
-      // Check if double-click is near a line to add a new point
-      for (let i = 0; i < vertices.length; i++) {
-        let v1 = vertices[i];
-        let v2 = vertices[(i + 1) % vertices.length];
-        if (isPointNearLine(logicalMouse, v1, v2)) {
-          // Calculate the normal vector of the line
-          let dx = v2.x - v1.x;
-          let dy = v2.y - v1.y;
-          let length = Math.sqrt(dx * dx + dy * dy);
-          let normal = { x: -dy / length, y: dx / length };
-
-          // Adjust the new point slightly along the normal vector
-          let adjustmentFactor = 0.1; // Adjust this factor as needed
-          newPoint = {
-            x: logicalMouse.x + normal.x * adjustmentFactor,
-            y: logicalMouse.y + normal.y * adjustmentFactor
-          };
-
-          saveState(); // Save state before adding a new point
-          vertices.splice(i + 1, 0, newPoint);
-          draw();
-          sendPolytope(); // Update backend with new polygon data
-          break;
-        }
-      }
-    });
-
-    function isPointNearLine(point, v1, v2) {
-      const dist = Math.abs((v2.y - v1.y) * point.x - (v2.x - v1.x) * point.y + v2.x * v1.y - v2.y * v1.x) /
-                  Math.sqrt((v2.y - v1.y) ** 2 + (v2.x - v1.x) ** 2);
-      return dist < 0.5;
-    }
-
-    // Update drawPolygon to handle non-convex polygons
     function drawPolygon() {
       if (vertices.length > 0) {
         ctx.beginPath();
@@ -464,21 +364,18 @@
           ctx.lineTo(cp.x, cp.y);
         }
         if (!polygonComplete && currentMouse) {
-          // Draw rubberband line to current mouse position
           let rubberbandEnd = toCanvasCoords(currentMouse.x, currentMouse.y);
           ctx.lineTo(rubberbandEnd.x, rubberbandEnd.y);
         }
         ctx.closePath();
-
         if (!isPolygonConvex(vertices)) {
-          ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red with 30% opacity
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
           ctx.fill();
         }
-
-        ctx.strokeStyle = 'blue';
+        ctx.strokeStyle = 'black';
         ctx.lineWidth = 2;
         ctx.stroke();
-
+        // Draw vertices.
         vertices.forEach(pt => {
           let cp = toCanvasCoords(pt.x, pt.y);
           ctx.fillStyle = 'red';
@@ -489,7 +386,6 @@
       }
     }
 
-    // Draw the analytic center as a black circle.
     function drawAnalyticCenter() {
       if (analyticCenter != null) {
         let ac = toCanvasCoords(analyticCenter[0], analyticCenter[1]);
@@ -500,9 +396,6 @@
       }
     }
 
-    // Draw the objective arrow.
-    // If objectiveVector is fixed, draw that.
-    // Otherwise, if the polytope is complete and no objective is fixed, use the rubberband arrow from currentObjective.
     function drawObjective() {
       let target = null;
       if (objectiveVector != null) {
@@ -519,7 +412,6 @@
         ctx.moveTo(origin.x, origin.y);
         ctx.lineTo(end.x, end.y);
         ctx.stroke();
-        // Draw arrowhead.
         let dx = end.x - origin.x, dy = end.y - origin.y;
         let angle = Math.atan2(dy, dx);
         let headLength = 10;
@@ -538,24 +430,21 @@
       }
     }
 
-    // Draw the central path returned by the backend.
     function drawCentralPath() {
       if (centralPath && centralPath.length > 0) {
         ctx.strokeStyle = 'purple';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        // Assume each element of centralPath is a 2-element array [x, y]
-        let start = toCanvasCoords(centralPath[0][0], centralPath[0][1]);
+        let start = toCanvasCoords(centralPath[0][0][0], centralPath[0][0][1]);
         ctx.moveTo(start.x, start.y);
         for (let i = 1; i < centralPath.length; i++) {
-          let pt = toCanvasCoords(centralPath[i][0], centralPath[i][1]);
+          let pt = toCanvasCoords(centralPath[i][0][0], centralPath[i][0][1]);
           ctx.lineTo(pt.x, pt.y);
         }
         ctx.stroke();
-        // Draw small circles at each central path point.
         ctx.fillStyle = 'purple';
         centralPath.forEach(pt => {
-          let cp = toCanvasCoords(pt[0], pt[1]);
+          let cp = toCanvasCoords(pt[0][0], pt[0][1]);
           ctx.beginPath();
           ctx.arc(cp.x, cp.y, 3, 0, 2 * Math.PI);
           ctx.fill();
@@ -563,10 +452,9 @@
       }
     }
 
-    // Redraw the entire canvas.
     function draw() {
-      const width = canvas.width;
-      const height = canvas.height;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
       ctx.clearRect(0, 0, width, height);
       drawGrid();
       drawPolygon();
@@ -576,7 +464,7 @@
       updateTraceButtonState();
     }
 
-    // Ray-casting algorithm.
+    // --- Ray-Casting for Point-in-Polygon ---
     function isPointInsidePolygon(point, poly) {
       let inside = false;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -589,24 +477,100 @@
       return inside;
     }
 
-    // Mousemove handler:
-    // - If the polytope is not complete, update currentMouse.
-    // - If the polytope is complete and objectiveVector is not fixed, update currentObjective.
+    // --- Mouse Events ---
+    let draggingPointIndex = null;
+    let draggingObjective = false;
+    canvas.addEventListener('mousedown', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const logicalMouse = toLogicalCoords(mouseX, mouseY);
+      // Check if a vertex is clicked.
+      for (let i = 0; i < vertices.length; i++) {
+        if (distance(logicalMouse, vertices[i]) < 0.5) {
+          draggingPointIndex = i;
+          return;
+        }
+      }
+      // Check if clicking near the objective arrow tip.
+      if (polygonComplete && objectiveVector !== null) {
+        const tip = toCanvasCoords(objectiveVector.x, objectiveVector.y);
+        if (pixelDistance({ x: mouseX, y: mouseY }, tip) < 10) {
+          draggingObjective = true;
+          return;
+        }
+      }
+    });
+
     canvas.addEventListener('mousemove', function(event) {
       const rect = canvas.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
+      if (draggingPointIndex !== null) {
+        vertices[draggingPointIndex] = toLogicalCoords(mouseX, mouseY);
+        draw();
+        return;
+      }
+      if (draggingObjective) {
+        objectiveVector = toLogicalCoords(mouseX, mouseY);
+        updateObjectiveDisplay();
+        draw();
+        return;
+      }
       if (!polygonComplete) {
         currentMouse = toLogicalCoords(mouseX, mouseY);
+        draw();
       } else if (polygonComplete && objectiveVector === null) {
         currentObjective = toLogicalCoords(mouseX, mouseY);
+        draw();
       }
-      draw();
     });
 
-    // Click handler:
-    // - Before polygon completion, add vertices or complete the polygon.
-    // - Once polygon is complete and objectiveVector is null, fix the objective vector.
+    canvas.addEventListener('mouseup', function() {
+      if (draggingPointIndex !== null) {
+        saveState();
+        draggingPointIndex = null;
+        sendPolytope();
+      }
+      if (draggingObjective) {
+        saveState();
+        draggingObjective = false;
+      }
+    });
+
+    canvas.addEventListener('dblclick', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const logicalMouse = toLogicalCoords(mouseX, mouseY);
+      for (let i = 0; i < vertices.length; i++) {
+        let v1 = vertices[i];
+        let v2 = vertices[(i + 1) % vertices.length];
+        if (isPointNearLine(logicalMouse, v1, v2)) {
+          let dx = v2.x - v1.x;
+          let dy = v2.y - v1.y;
+          let length = Math.sqrt(dx * dx + dy * dy);
+          let normal = { x: -dy / length, y: dx / length };
+          let adjustmentFactor = 0.1;
+          const newPoint = {
+            x: logicalMouse.x + normal.x * adjustmentFactor,
+            y: logicalMouse.y + normal.y * adjustmentFactor
+          };
+          saveState();
+          vertices.splice(i + 1, 0, newPoint);
+          draw();
+          sendPolytope();
+          break;
+        }
+      }
+    });
+
+    function isPointNearLine(point, v1, v2) {
+      const dist = Math.abs((v2.y - v1.y) * point.x - (v2.x - v1.x) * point.y + v2.x * v1.y - v2.y * v1.x) /
+                   Math.sqrt((v2.y - v1.y) ** 2 + (v2.x - v1.x) ** 2);
+      return dist < 0.5;
+    }
+
     canvas.addEventListener('click', function(event) {
       const rect = canvas.getBoundingClientRect();
       const clickX = event.clientX - rect.left;
@@ -636,14 +600,13 @@
           alert("Adding this vertex would make the polygon nonconvex. Please choose another point.");
           return;
         }
-        saveState(); // Save state before adding a new vertex
+        saveState();
         vertices.push(pt);
         draw();
       } else if (polygonComplete && objectiveVector === null) {
-        saveState(); // Save state before fixing the objective vector
-        // Fix the objective vector using the current rubberband candidate.
+        saveState();
         objectiveVector = currentObjective ? currentObjective : pt;
-        updateObjectiveDisplay(); // Update the Objective section
+        updateObjectiveDisplay();
         draw();
         return;
       }
@@ -667,19 +630,13 @@
       }
       return true;
     }
-    // Function to update the state of the Trace Central Path button
     function updateTraceButtonState() {
-      if (isPolygonConvex(vertices)) {
-        traceButton.disabled = false;
-      } else {
-        traceButton.disabled = true;
-      }
+      traceButton.disabled = !isPolygonConvex(vertices);
     }
-
     function sendPolytope() {
       const data = {
         points: vertices.map(pt => [pt.x, pt.y]),
-        interior: [interiorPoint.x, interiorPoint.y]
+        interior: interiorPoint ? [interiorPoint.x, interiorPoint.y] : null
       };
       fetch('/polytope', {
         method: 'POST',
@@ -692,7 +649,8 @@
           let html = "";
           result.inequalities.forEach((ineq, index) => {
             html += `<div class="inequality-item" data-index="${index}">
-                       ${ineq} <br> Barrier weight: <input type="number" id="weight-${index}" value="1" step="any" style="width:60px" />
+                       ${ineq}<br><span style="font-family: sans-serif;">Barrier weight:</span>
+                       <input type="number" id="weight-${index}" value="1" step="any" style="width:60px" />
                      </div>`;
           });
           inequalitiesDiv.innerHTML = html;
@@ -710,7 +668,7 @@
           inequalitiesDiv.textContent = "No inequalities returned.";
         }
         computedVertices = result.vertices;
-        computedLines = result.lines;  // each element is [A, B, C]
+        computedLines = result.lines;
       })
       .catch(error => {
         console.error('Error:', error);
