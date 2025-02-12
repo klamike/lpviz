@@ -27,3 +27,4 @@ Since this video, I've added a bunch of new features. Try it out for yourself!
 - Reset button so you don't have to refresh to clear
 - Example/random problems
 - Allow inequality inputs (currently forced to draw)
+- Make julia package to include in sysimage, to reduce TTFP
