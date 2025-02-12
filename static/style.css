@@ -1,0 +1,114 @@
+@font-face {
+  font-family: 'JuliaMono';
+  src: url("JuliaMono-Light.woff2") format('woff2');
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: 'JuliaMono', monospace;
+  font-size: 10pt;
+}
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 380px;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  background-color: rgba(240, 240, 240, 1);
+  border-right: 1px solid #ccc;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+#sidebarContent {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.spacer {
+  flex-grow: 1;
+  min-height: 0;
+}
+
+#usageTips {
+  font-size: 0.8em;
+}
+
+#sidebar h2 {
+  margin-bottom: 5px;
+  letter-spacing: -0.5px;
+  font-family: sans-serif;
+}
+
+#sidebar button {
+  margin-top: 10px;
+  padding: 5px 10px;
+}
+
+hr {
+  margin-top: 10px;
+  color: #e5e5e5;
+  background-color: #e5e5e5;
+}
+
+.inequality-item {
+  padding: 4px;
+  cursor: pointer;
+}
+
+.inequality-item:hover {
+  background-color: #e0e0ff;
+}
+
+.objective-item {
+  padding: 4px;
+  cursor: pointer;
+}
+
+.objective-item:hover {
+  background-color: #e0e0ff;
+}
+
+.central-path-item:hover {
+  background-color: #e0e0ff;
+}
+
+#sidebarHandle {
+  position: fixed;
+  top: 0;
+  left: 380px;
+  width: 5px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+#nullStateMessage {
+  text-align: center;
+  font-size: 1.25em;
+  margin: 20px 0;
+}
+
+#uiContainer {
+  display: none;
+}
