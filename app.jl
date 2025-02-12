@@ -59,7 +59,7 @@ function trace_central_path(req::HTTP.Request)
         if !(stat in [MOI.OPTIMAL, MOI.LOCALLY_SOLVED])
             println("Optimization did not solve optimally for mu = $mu")
         else
-            push!(central_path, value.(x))
+            push!(central_path, (value.(x), mu))
         end
     end
     return Dict("central_path" => central_path)
