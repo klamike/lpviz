@@ -22,6 +22,8 @@ Since this video, I've added a bunch of new features. Try it out for yourself!
 ## To-do:
 
 - Add option to plot iterates of solver instead of central path
+- "Center" button so analytic center is at 0,0
+- Support equality constraint (line)
 - Reset button so you don't have to refresh to clear
 - URL-based problem/weight sharing
 - Save problem/weights to localStorage
