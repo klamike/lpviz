@@ -36,15 +36,13 @@ function solve_for_mu(lines, objective, weights, mu)
     set_silent(model)
 
     @variable(model, x[1:2])
-    @variable(model, s[1:m] ≥ 0)
     @variable(model, t[1:m])
 
     for i in 1:m
         A = lines[i][1]
         B = lines[i][2]
         C = lines[i][3]
-        @constraint(model, s[i] == C - (A * x[1] + B * x[2]))
-        @constraint(model, [t[i], 1, s[i]] in MOI.ExponentialCone())
+        @constraint(model, [t[i], 1, C - (A * x[1] + B * x[2])] in MOI.ExponentialCone())
     end
 
     @objective(model, Max,
@@ -57,7 +55,8 @@ function solve_for_mu(lines, objective, weights, mu)
     if stat in [MOI.OPTIMAL, MOI.LOCALLY_SOLVED]
         return value.(x)
     else
-        println("Optimization did not solve optimally for μ = $mu")
+        println("Failed μ = $mu with status $stat for model:")
+        println(model)
         return nothing
     end
 end
