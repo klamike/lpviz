@@ -40,7 +40,9 @@ function runserver(ROUTER; port=8080)
 
     HTTP.register!(ROUTER, "POST", "/polytope", LPViz.polytope_handler)
     HTTP.register!(ROUTER, "POST", "/trace_central_path", LPViz.trace_central_path_handler)
-    HTTP.serve(ROUTER |> JSONMiddleware |> CorsMiddleware, Sockets.localhost, port)
+    HTTP.serve(ROUTER |> JSONMiddleware |> CorsMiddleware, Sockets.localhost, port,
+        # access_log=logfmt"[$time_local] $request_method $request_uri $status ($body_bytes_sent bytes)"
+    )
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
