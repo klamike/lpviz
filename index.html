@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <title>JuMPGUI</title>
@@ -10,8 +11,19 @@
       /* src: url("https://cdn.jsdelivr.net/gh/cormullion/juliamono-webfonts/JuliaMono-Black.woff2") format('woff2'); */
       src: url("https://cdn.jsdelivr.net/gh/cormullion/juliamono-webfonts/JuliaMono-Light.woff2") format('woff2');
     }
-    html, body { margin: 0; padding: 0; height: 100%; }
-    body { font-family: 'JuliaMono', monospace; font-size: 10pt; }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    body {
+      font-family: 'JuliaMono', monospace;
+      font-size: 10pt;
+    }
+
     /* Fullscreen canvas */
     canvas {
       position: fixed;
@@ -21,6 +33,7 @@
       height: 100%;
       z-index: 0;
     }
+
     /* Sidebar overlaid on top of the canvas */
     #sidebar {
       position: fixed;
@@ -28,42 +41,71 @@
       left: 0;
       width: 350px;
       height: 100%;
-      background-color: rgba(240,240,240,0.9);
+      background-color: rgba(240, 240, 240, 0.9);
       padding: 10px;
       box-sizing: border-box;
       overflow-y: auto;
       z-index: 10;
       border-right: 1px solid #ccc;
     }
+
     #sidebar h2 {
       margin-bottom: 5px;
       letter-spacing: -0.5px;
       font-family: sans-serif;
     }
-    #sidebar button { margin-top: 10px; padding: 5px 10px; }
-    .inequality-item { padding: 4px; cursor: pointer; }
-    .inequality-item:hover { background-color: #e0e0ff; }
-    .objective-item { padding: 4px; cursor: pointer; }
-    .objective-item:hover { background-color: #e0e0ff; }
-    .central-path-item:hover { background-color: #e0e0ff; }
+
+    #sidebar button {
+      margin-top: 10px;
+      padding: 5px 10px;
+    }
+
+    .inequality-item {
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    .inequality-item:hover {
+      background-color: #e0e0ff;
+    }
+
+    .objective-item {
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    .objective-item:hover {
+      background-color: #e0e0ff;
+    }
+
+    .central-path-item:hover {
+      background-color: #e0e0ff;
+    }
+
     #sidebarHandle {
       position: fixed;
       top: 0;
-      left: 350px;        /* starts at the sidebar's initial width */
-      width: 5px;         /* a slim handle */
+      left: 350px;
+      /* starts at the sidebar's initial width */
+      width: 5px;
+      /* a slim handle */
       height: 100%;
-      cursor: ew-resize;   /* east-west resize cursor */
-      z-index: 20;        /* above the sidebar */
-      background: rgba(0, 0, 0, 0.1); /* subtle visual cue (optional) */
+      cursor: ew-resize;
+      /* east-west resize cursor */
+      z-index: 20;
+      /* above the sidebar */
+      background: rgba(0, 0, 0, 0.1);
+      /* subtle visual cue (optional) */
     }
   </style>
 </head>
+
 <body>
   <!-- Overlaid sidebar -->
   <div id="sidebar">
     <h2>Constraints</h2>
     <div id="inequalities"></div>
-  
+
     <!-- Objective section -->
     <h2>Objective</h2>
     <div id="objectiveDisplay">No objective defined.</div>
@@ -84,10 +126,10 @@
       <strong>Press S</strong>: toggle snapping to the grid.
     </div>
   </div>
-  
+
   <!-- Fullscreen canvas -->
   <canvas id="gridCanvas"></canvas>
-  
+
   <script>
     // Get references to elements.
     const canvas = document.getElementById('gridCanvas');
@@ -166,7 +208,7 @@
         sendPolytope();
       }
     }
-    window.addEventListener('keydown', function(e) {
+    window.addEventListener('keydown', function (e) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -176,7 +218,7 @@
         redo();
       }
     });
-    window.addEventListener('keydown', function(e) {
+    window.addEventListener('keydown', function (e) {
       if (e.key.toLowerCase() === 's') {
         snapToGrid = !snapToGrid;
         // console.log("Snap to grid:", snapToGrid);
@@ -185,10 +227,10 @@
 
     // --- Helper Functions ---
     function distance(p1, p2) {
-      return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+      return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
     }
     function pixelDistance(p1, p2) {
-      return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+      return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
     }
     function computeCentroid(pts) {
       let sumX = 0, sumY = 0;
@@ -209,7 +251,7 @@
     }
 
     // --- Zoom/Unzoom ---
-    zoomButton.addEventListener('click', function() {
+    zoomButton.addEventListener('click', function () {
       if (vertices.length > 0) {
         // Compute the bounding box of the polygon.
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -240,7 +282,7 @@
         // Set the new scaleFactor so the polygon fits within the available space.
         if (polyWidth > 0 && polyHeight > 0) {
           scaleFactor = Math.min(availWidth / (polyWidth * gridSpacing),
-                                availHeight / (polyHeight * gridSpacing));
+            availHeight / (polyHeight * gridSpacing));
         }
 
         // Adjust the canvas center so that drawing appears centered in the visible area.
@@ -252,7 +294,7 @@
       }
     });
 
-    unzoomButton.addEventListener('click', function() {
+    unzoomButton.addEventListener('click', function () {
       scaleFactor = 1;
       offset.x = 0;
       offset.y = 0;
@@ -263,92 +305,92 @@
     // --- Central Path Computation ---
     // This function encapsulates the central path request.
     function computeCentralPath() {
-  if (!isPolygonConvex(vertices)) {
-    analyticResultDiv.innerHTML = "Nonconvex";
-    return;
-  }
-  if (!computedLines || computedLines.length === 0) {
-    analyticResultDiv.innerHTML = "No computed lines available.";
-    return;
-  }
-  if (objectiveVector == null) {
-    analyticResultDiv.innerHTML = "Objective vector not defined.";
-    return;
-  }
-  
-  let weights = [];
-  document.querySelectorAll('.inequality-item').forEach(item => {
-    let input = item.querySelector("input");
-    weights.push(input ? parseFloat(input.value) : 1);
-  });
-  
-  fetch('/trace_central_path', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      lines: computedLines,
-      objective: [objectiveVector.x, objectiveVector.y],
-      weights: weights,
-      mu: 100
-    })
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.error) {
-      analyticResultDiv.innerHTML = "Error: " + result.error;
-      return;
-    }
-    
-    centralPath = result.central_path;
-    
-    // Create HTML with each central path point wrapped in a div
-    const formattedPath = centralPath.map((entry, i, arr) => {
-      const [point, mu] = entry;
-      const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
-      const x = point[0].toFixed(2);
-      const y = point[1].toFixed(2);
-      
-      let extra = "";
-      if (i > 0) {
-        const [prevPoint, prevMu] = arr[i - 1];
-        const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
-        const dx = point[0] - prevPoint[0];
-        const dy = point[1] - prevPoint[1];
-        const stepDistance = Math.sqrt(dx * dx + dy * dy);
-        if (deltaLog > 1e-6) {
-          const ratio = stepDistance / deltaLog;
-          extra = `, Δx: ${ratio.toFixed(2)}`;
-        }
+      if (!isPolygonConvex(vertices)) {
+        analyticResultDiv.innerHTML = "Nonconvex";
+        return;
       }
-      // Wrap each iteration in a div with a data-index attribute.
-      return `<div class="central-path-item" data-index="${i}">log(μ)=${logMuRounded}: (${x}, ${y})${extra}</div>`;
-    }).join('');
-    
-    analyticResultDiv.innerHTML = formattedPath;
-    
-    // Add event listeners to each central path item for highlighting.
-    document.querySelectorAll('.central-path-item').forEach(item => {
-      item.addEventListener('mouseenter', function() {
-        highlightCentralPathIndex = parseInt(this.getAttribute('data-index'));
-        draw();
+      if (!computedLines || computedLines.length === 0) {
+        analyticResultDiv.innerHTML = "No computed lines available.";
+        return;
+      }
+      if (objectiveVector == null) {
+        analyticResultDiv.innerHTML = "Objective vector not defined.";
+        return;
+      }
+
+      let weights = [];
+      document.querySelectorAll('.inequality-item').forEach(item => {
+        let input = item.querySelector("input");
+        weights.push(input ? parseFloat(input.value) : 1);
       });
-      item.addEventListener('mouseleave', function() {
-        highlightCentralPathIndex = null;
-        draw();
-      });
-    });
-    
-    draw();
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    analyticResultDiv.innerHTML = "Error computing central path.";
-  });
-}
+
+      fetch('/trace_central_path', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lines: computedLines,
+          objective: [objectiveVector.x, objectiveVector.y],
+          weights: weights,
+          mu: 100
+        })
+      })
+        .then(response => response.json())
+        .then(result => {
+          if (result.error) {
+            analyticResultDiv.innerHTML = "Error: " + result.error;
+            return;
+          }
+
+          centralPath = result.central_path;
+
+          // Create HTML with each central path point wrapped in a div
+          const formattedPath = centralPath.map((entry, i, arr) => {
+            const [point, mu] = entry;
+            const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
+            const x = point[0].toFixed(2);
+            const y = point[1].toFixed(2);
+
+            let extra = "";
+            if (i > 0) {
+              const [prevPoint, prevMu] = arr[i - 1];
+              const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
+              const dx = point[0] - prevPoint[0];
+              const dy = point[1] - prevPoint[1];
+              const stepDistance = Math.sqrt(dx * dx + dy * dy);
+              if (deltaLog > 1e-6) {
+                const ratio = stepDistance / deltaLog;
+                extra = `, Δx: ${ratio.toFixed(2)}`;
+              }
+            }
+            // Wrap each iteration in a div with a data-index attribute.
+            return `<div class="central-path-item" data-index="${i}">log(μ)=${logMuRounded}: (${x}, ${y})${extra}</div>`;
+          }).join('');
+
+          analyticResultDiv.innerHTML = formattedPath;
+
+          // Add event listeners to each central path item for highlighting.
+          document.querySelectorAll('.central-path-item').forEach(item => {
+            item.addEventListener('mouseenter', function () {
+              highlightCentralPathIndex = parseInt(this.getAttribute('data-index'));
+              draw();
+            });
+            item.addEventListener('mouseleave', function () {
+              highlightCentralPathIndex = null;
+              draw();
+            });
+          });
+
+          draw();
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          analyticResultDiv.innerHTML = "Error computing central path.";
+        });
+    }
 
 
     // --- Trace Central Path (button and auto-update) ---
-    traceButton.addEventListener('click', function() {
+    traceButton.addEventListener('click', function () {
       computeCentralPath();
       centralPathComputed = true; // remember that the user requested the central path
     });
@@ -439,74 +481,74 @@
     }
 
     function drawPolygon() {
-  if (vertices.length > 0) {
-    if (polygonComplete) {
-      // Draw each edge one by one.
-      for (let i = 0; i < vertices.length; i++) {
-        let v1 = vertices[i];
-        let v2 = vertices[(i + 1) % vertices.length];
-        let cp1 = toCanvasCoords(v1.x, v1.y);
-        let cp2 = toCanvasCoords(v2.x, v2.y);
-        ctx.beginPath();
-        if (highlightIndex === i) {
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 4;
+      if (vertices.length > 0) {
+        if (polygonComplete) {
+          // Draw each edge one by one.
+          for (let i = 0; i < vertices.length; i++) {
+            let v1 = vertices[i];
+            let v2 = vertices[(i + 1) % vertices.length];
+            let cp1 = toCanvasCoords(v1.x, v1.y);
+            let cp2 = toCanvasCoords(v2.x, v2.y);
+            ctx.beginPath();
+            if (highlightIndex === i) {
+              ctx.strokeStyle = 'red';
+              ctx.lineWidth = 4;
+            } else {
+              ctx.strokeStyle = 'black';
+              ctx.lineWidth = 2;
+            }
+            ctx.moveTo(cp1.x, cp1.y);
+            ctx.lineTo(cp2.x, cp2.y);
+            ctx.stroke();
+          }
+          // Draw vertices.
+          vertices.forEach(pt => {
+            let cp = toCanvasCoords(pt.x, pt.y);
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+          });
+          // If the polygon is nonconvex, fill it with a red overlay.
+          if (!isPolygonConvex(vertices)) {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.beginPath();
+            let start = toCanvasCoords(vertices[0].x, vertices[0].y);
+            ctx.moveTo(start.x, start.y);
+            for (let i = 1; i < vertices.length; i++) {
+              let cp = toCanvasCoords(vertices[i].x, vertices[i].y);
+              ctx.lineTo(cp.x, cp.y);
+            }
+            ctx.closePath();
+            ctx.fill();
+          }
         } else {
+          // When the polygon is not complete, draw a single continuous path.
+          ctx.beginPath();
+          let start = toCanvasCoords(vertices[0].x, vertices[0].y);
+          ctx.moveTo(start.x, start.y);
+          for (let i = 1; i < vertices.length; i++) {
+            let cp = toCanvasCoords(vertices[i].x, vertices[i].y);
+            ctx.lineTo(cp.x, cp.y);
+          }
+          if (currentMouse) {
+            let rubberbandEnd = toCanvasCoords(currentMouse.x, currentMouse.y);
+            ctx.lineTo(rubberbandEnd.x, rubberbandEnd.y);
+          }
           ctx.strokeStyle = 'black';
           ctx.lineWidth = 2;
+          ctx.stroke();
+          // Draw vertices.
+          vertices.forEach(pt => {
+            let cp = toCanvasCoords(pt.x, pt.y);
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+          });
         }
-        ctx.moveTo(cp1.x, cp1.y);
-        ctx.lineTo(cp2.x, cp2.y);
-        ctx.stroke();
       }
-      // Draw vertices.
-      vertices.forEach(pt => {
-        let cp = toCanvasCoords(pt.x, pt.y);
-        ctx.fillStyle = 'red';
-        ctx.beginPath();
-        ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
-        ctx.fill();
-      });
-      // If the polygon is nonconvex, fill it with a red overlay.
-      if (!isPolygonConvex(vertices)) {
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-        ctx.beginPath();
-        let start = toCanvasCoords(vertices[0].x, vertices[0].y);
-        ctx.moveTo(start.x, start.y);
-        for (let i = 1; i < vertices.length; i++) {
-          let cp = toCanvasCoords(vertices[i].x, vertices[i].y);
-          ctx.lineTo(cp.x, cp.y);
-        }
-        ctx.closePath();
-        ctx.fill();
-      }
-    } else {
-      // When the polygon is not complete, draw a single continuous path.
-      ctx.beginPath();
-      let start = toCanvasCoords(vertices[0].x, vertices[0].y);
-      ctx.moveTo(start.x, start.y);
-      for (let i = 1; i < vertices.length; i++) {
-        let cp = toCanvasCoords(vertices[i].x, vertices[i].y);
-        ctx.lineTo(cp.x, cp.y);
-      }
-      if (currentMouse) {
-        let rubberbandEnd = toCanvasCoords(currentMouse.x, currentMouse.y);
-        ctx.lineTo(rubberbandEnd.x, rubberbandEnd.y);
-      }
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      // Draw vertices.
-      vertices.forEach(pt => {
-        let cp = toCanvasCoords(pt.x, pt.y);
-        ctx.fillStyle = 'red';
-        ctx.beginPath();
-        ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
-        ctx.fill();
-      });
     }
-  }
-}
 
 
     function drawAnalyticCenter() {
@@ -566,7 +608,7 @@
           ctx.lineTo(pt.x, pt.y);
         }
         ctx.stroke();
-        
+
         // Draw each central path point.
         centralPath.forEach((pt, i) => {
           let cp = toCanvasCoords(pt[0][0], pt[0][1]);
@@ -604,7 +646,7 @@
         let xi = poly[i].x, yi = poly[i].y;
         let xj = poly[j].x, yj = poly[j].y;
         let intersect = ((yi > point.y) !== (yj > point.y)) &&
-                        (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
       }
       return inside;
@@ -613,7 +655,7 @@
     // --- Mouse Events ---
     let draggingPointIndex = null;
     let draggingObjective = false;
-    canvas.addEventListener('mousedown', function(event) {
+    canvas.addEventListener('mousedown', function (event) {
       const rect = canvas.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
@@ -635,7 +677,7 @@
       }
     });
 
-    canvas.addEventListener('mousemove', function(event) {
+    canvas.addEventListener('mousemove', function (event) {
       const rect = canvas.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
@@ -659,7 +701,7 @@
       }
     });
 
-    canvas.addEventListener('mouseup', function() {
+    canvas.addEventListener('mouseup', function () {
       if (draggingPointIndex !== null) {
         saveState();
         draggingPointIndex = null;
@@ -672,7 +714,7 @@
       }
     });
 
-    canvas.addEventListener('dblclick', function(event) {
+    canvas.addEventListener('dblclick', function (event) {
       const rect = canvas.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
@@ -701,11 +743,11 @@
 
     function isPointNearLine(point, v1, v2) {
       const dist = Math.abs((v2.y - v1.y) * point.x - (v2.x - v1.x) * point.y + v2.x * v1.y - v2.y * v1.x) /
-                   Math.sqrt((v2.y - v1.y) ** 2 + (v2.x - v1.x) ** 2);
+        Math.sqrt((v2.y - v1.y) ** 2 + (v2.x - v1.x) ** 2);
       return dist < 0.5;
     }
 
-    canvas.addEventListener('click', function(event) {
+    canvas.addEventListener('click', function (event) {
       const rect = canvas.getBoundingClientRect();
       const clickX = event.clientX - rect.left;
       const clickY = event.clientY - rect.top;
@@ -780,46 +822,46 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
-      .then(response => response.json())
-      .then(result => {
-        if (result.inequalities) {
-          let html = "";
-          if (!isPolygonConvex(vertices)) {
-            inequalitiesDiv.innerHTML = "Nonconvex"
-            return;
-          }
-          result.inequalities.forEach((ineq, index) => {
-            html += `<div class="inequality-item" data-index="${index}">
+        .then(response => response.json())
+        .then(result => {
+          if (result.inequalities) {
+            let html = "";
+            if (!isPolygonConvex(vertices)) {
+              inequalitiesDiv.innerHTML = "Nonconvex"
+              return;
+            }
+            result.inequalities.forEach((ineq, index) => {
+              html += `<div class="inequality-item" data-index="${index}">
                        ${ineq}<br><span style="font-family: sans-serif;">Barrier weight:</span>
                        <input type="number" id="weight-${index}" value="1" step="any" style="width:60px" />
                      </div>`;
-          });
-          inequalitiesDiv.innerHTML = html;
-          document.querySelectorAll('.inequality-item').forEach(item => {
-            item.addEventListener('mouseenter', function() {
-              highlightIndex = parseInt(this.getAttribute('data-index'));
-              draw();
             });
-            item.addEventListener('mouseleave', function() {
-              highlightIndex = null;
-              draw();
+            inequalitiesDiv.innerHTML = html;
+            document.querySelectorAll('.inequality-item').forEach(item => {
+              item.addEventListener('mouseenter', function () {
+                highlightIndex = parseInt(this.getAttribute('data-index'));
+                draw();
+              });
+              item.addEventListener('mouseleave', function () {
+                highlightIndex = null;
+                draw();
+              });
             });
-          });
-        } else {
-          inequalitiesDiv.textContent = "No inequalities returned.";
-        }
-        computedVertices = result.vertices;
-        computedLines = result.lines;
-        // If a central path was already computed and we have an objective vector,
-        // automatically recompute the central path.
-        if (centralPathComputed && objectiveVector != null && computedLines && computedLines.length > 0) {
-          computeCentralPath();
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        inequalitiesDiv.textContent = "Error computing inequalities.";
-      });
+          } else {
+            inequalitiesDiv.textContent = "No inequalities returned.";
+          }
+          computedVertices = result.vertices;
+          computedLines = result.lines;
+          // If a central path was already computed and we have an objective vector,
+          // automatically recompute the central path.
+          if (centralPathComputed && objectiveVector != null && computedLines && computedLines.length > 0) {
+            computeCentralPath();
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          inequalitiesDiv.textContent = "Error computing inequalities.";
+        });
     }
 
     window.addEventListener('resize', resizeCanvas);
@@ -829,39 +871,40 @@
   <script>
     const sidebar = document.getElementById('sidebar');
     const handle = document.getElementById('sidebarHandle');
-  
+
     let isResizing = false;
-  
-    handle.addEventListener('mousedown', function(e) {
+
+    handle.addEventListener('mousedown', function (e) {
       isResizing = true;
       e.preventDefault(); // Prevent text selection, etc.
     });
-  
-    document.addEventListener('mousemove', function(e) {
+
+    document.addEventListener('mousemove', function (e) {
       if (!isResizing) return;
-      
+
       // Determine the new width. Here, e.clientX is the horizontal coordinate.
       let newWidth = e.clientX;
-      
+
       // Enforce minimum and maximum widths (in pixels)
       if (newWidth < 200) newWidth = 200;
       if (newWidth > 600) newWidth = 600;
-      
+
       // Apply the new width to the sidebar
       sidebar.style.width = newWidth + 'px';
-      
+
       // Reposition the handle to match the sidebar's new right edge
       handle.style.left = newWidth + 'px';
       updateCenter();
       draw();
     });
-  
-    document.addEventListener('mouseup', function(e) {
+
+    document.addEventListener('mouseup', function (e) {
       if (isResizing) {
         isResizing = false;
       }
     });
   </script>
-  
+
 </body>
+
 </html>
