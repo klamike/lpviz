@@ -73,6 +73,17 @@ function polytope(req::HTTP.Request)
     lines = []
     tol = 1e-6
 
+    if interior === nothing
+        # Compute an interior point by averaging the given points
+        if n > 0
+            x_sum = sum(p[1] for p in points)
+            y_sum = sum(p[2] for p in points)
+            interior = [x_sum / n, y_sum / n]
+        else
+            return Dict("error" => "No points provided to compute an interior point")
+        end
+    end
+
     for i in 1:n
         p1 = points[i]
         p2 = points[i == n ? 1 : i+1]  # wrap-around
@@ -91,7 +102,13 @@ function polytope(req::HTTP.Request)
         A_disp = round(A_norm, digits=2)
         B_disp = round(B_norm, digits=2)
         C_disp = round(C, digits=2)
-        push!(inequalities, string(A_disp, "x + ", B_disp, "y ≤ ", C_disp))
+        if A_disp ≈ 0
+            push!(inequalities, string(B_disp, "y ≤ ", C_disp))
+        elseif B_disp ≈ 0
+            push!(inequalities, string(A_disp, "x ≤ ", C_disp))
+        else
+            push!(inequalities, string(A_disp, "x + ", B_disp, "y ≤ ", C_disp))
+        end
         push!(lines, [A_norm, B_norm, C])
     end
 
