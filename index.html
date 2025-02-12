@@ -71,6 +71,12 @@
       margin-top: 10px;
       padding: 5px 10px;
     }
+    #sidebar hr {
+      margin-top: 10px;
+      /* border-top: 1px solid #e5e5e5; */
+      color: #e5e5e5;
+      background-color: #e5e5e5;
+    }
 
     .inequality-item {
       padding: 4px;
@@ -110,22 +116,26 @@
 <body>
   <div id="sidebar">
     <div id="sidebarContent">
+      <h1> lpviz </h1><hr>
+      <h2>Objective</h2>
+      <div id="objectiveDisplay"></div>
       <h2>Constraints</h2>
       <div id="inequalities"></div>
 
-      <h2>Objective</h2>
-      <div id="objectiveDisplay">No objective defined.</div>
+
       <br>
       <br>
+      <hr>
       <button id="traceButton">Trace Central Path</button>
       <br>
       <button id="rotateObjectiveButton">Toggle Rotate Objective</button>
-      <br><br>
+      <br>
       <button id="zoomButton">Zoom</button>
       <button id="unzoomButton">Unzoom</button>
-      <br><br>
+      <br><br><hr>
       <h2>Central Path</h2>
       <div id="analyticResult"></div>
+      <hr>
     </div>
     <div class="spacer"></div>
     <div id="usageTips">
@@ -248,7 +258,7 @@
         objectiveDisplay.innerHTML = str;
       } else {
         objectiveDisplay.classList.remove('objective-item');
-        objectiveDisplay.innerHTML = "No objective defined.";
+        objectiveDisplay.innerHTML = "";
       }
     }
 
