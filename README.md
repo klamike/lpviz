@@ -20,6 +20,9 @@
 
 ## To-do:
 
+- Double-click bug (rare)
+- Click to hide objective, click to keep constraint highlighted (stacking), same for iterates
+- Normalize weights button (sum to #constraints)
 - Add option to plot iterates of solver instead of central path
 - "Center" button so analytic center is at 0,0
 - Support equality constraint (line)
@@ -32,3 +35,4 @@
 - Add simplex mode
 - Allow inequality inputs (currently forced to draw)
 - Circle tool?
+- Improve installation process
