@@ -360,7 +360,7 @@
               const stepDistance = Math.sqrt(dx * dx + dy * dy);
               if (deltaLog > 1e-6) {
                 const ratio = stepDistance / deltaLog;
-                const pointpadding = `&nbsp;`.repeat(Math.max(0, 15-`(${x}, ${y})`.length))
+                const pointpadding = `&nbsp;`.repeat(Math.max(0, 15 - `(${x}, ${y})`.length))
                 extra = `,${pointpadding}Δx: ${ratio.toFixed(2)}`;
               }
             }
