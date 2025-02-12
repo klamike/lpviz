@@ -26,7 +26,7 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 300px;
+      width: 350px;
       height: 100%;
       background-color: rgba(240,240,240,0.9);
       padding: 10px;
@@ -45,10 +45,11 @@
     .inequality-item:hover { background-color: #e0e0ff; }
     .objective-item { padding: 4px; cursor: pointer; }
     .objective-item:hover { background-color: #e0e0ff; }
+    .central-path-item:hover { background-color: #e0e0ff; }
     #sidebarHandle {
       position: fixed;
       top: 0;
-      left: 300px;        /* starts at the sidebar's initial width */
+      left: 350px;        /* starts at the sidebar's initial width */
       width: 5px;         /* a slim handle */
       height: 100%;
       cursor: ew-resize;   /* east-west resize cursor */
@@ -73,7 +74,7 @@
     <h2>Central Path</h2>
     <div id="analyticResult"></div>
     <div style="margin-top:20px; font-size:0.8em;">
-      <strong>Usage Tips:</strong><br>
+      <strong style="font-size: 1.25em;">Usage Tips:</strong><br><br>
       <strong>Draw</strong>: click to add vertices, click inside when done.<br>
       <strong>Move</strong>: drag vertices to reshape.<br>
       <strong>Add</strong>: double-click an edge to insert a vertex.<br>
@@ -127,6 +128,9 @@
     let centralPathComputed = false;
     let historyStack = [];
     let redoStack = [];
+
+    let highlightCentralPathIndex = null;
+
 
     // --- Undo/Redo Functions ---
     function saveState() {
@@ -207,6 +211,7 @@
     // --- Zoom/Unzoom ---
     zoomButton.addEventListener('click', function() {
       if (vertices.length > 0) {
+        // Compute the bounding box of the polygon.
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         vertices.forEach(v => {
           if (v.x < minX) minX = v.x;
@@ -217,18 +222,36 @@
         let polyWidth = maxX - minX;
         let polyHeight = maxY - minY;
         let centroid = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+
+        // Set the offset so that the polygon's centroid goes to the origin.
         offset.x = -centroid.x;
         offset.y = -centroid.y;
+
+        // Define a padding in pixels.
         const padding = 50;
-        let availWidth = window.innerWidth - 2 * padding;
+
+        // Get the current sidebar width.
+        const sidebarWidth = document.getElementById('sidebar').offsetWidth;
+
+        // Compute the available width for drawing (exclude the sidebar and padding).
+        let availWidth = (window.innerWidth - sidebarWidth) - 2 * padding;
         let availHeight = window.innerHeight - 2 * padding;
+
+        // Set the new scaleFactor so the polygon fits within the available space.
         if (polyWidth > 0 && polyHeight > 0) {
           scaleFactor = Math.min(availWidth / (polyWidth * gridSpacing),
-                                 availHeight / (polyHeight * gridSpacing));
+                                availHeight / (polyHeight * gridSpacing));
         }
+
+        // Adjust the canvas center so that drawing appears centered in the visible area.
+        // The new centerX is halfway into the area to the right of the sidebar.
+        centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
+        centerY = window.innerHeight / 2;
+
         draw();
       }
     });
+
     unzoomButton.addEventListener('click', function() {
       scaleFactor = 1;
       offset.x = 0;
@@ -240,79 +263,89 @@
     // --- Central Path Computation ---
     // This function encapsulates the central path request.
     function computeCentralPath() {
-      if (!isPolygonConvex(vertices)) {
-        analyticResultDiv.innerHTML = "Nonconvex"
-        return;
-      }
-      if (!computedLines || computedLines.length === 0) {
-        analyticResultDiv.innerHTML = "No computed lines available.";
-        return;
-      }
-      if (objectiveVector == null) {
-        analyticResultDiv.innerHTML = "Objective vector not defined.";
-        return;
-      }
-      let weights = [];
-      document.querySelectorAll('.inequality-item').forEach(item => {
-        let input = item.querySelector("input");
-        weights.push(input ? parseFloat(input.value) : 1);
-      });
-      fetch('/trace_central_path', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lines: computedLines,
-          objective: [objectiveVector.x, objectiveVector.y],
-          weights: weights,
-          mu: 100
-        })
-      })
-      .then(response => response.json())
-      .then(result => {
-        if (result.error) {
-          analyticResultDiv.innerHTML = "Error: " + result.error;
-        } else {
-          centralPath = result.central_path;
-          const formattedPath = centralPath.map((entry, i, arr) => {
-            const [point, mu] = entry;
-            const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
-            const x = point[0].toFixed(2);
-            const y = point[1].toFixed(2);
-
-            const logstr = `log(μ)=${logMuRounded}`;
-            const pointstr = `(${x}, ${y})`;
-
-            const logpadding = '&nbsp;'.repeat(12 - logstr.length);
-            const pointpadding = '&nbsp;'.repeat(14 - pointstr.length);
-            
-            let extra = "";
-            if (i > 0) {
-              // Get the previous point and its mu value.
-              const [prevPoint, prevMu] = arr[i - 1];
-              // Compute the (absolute) difference in log(mu)
-              const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
-              // Compute the Euclidean distance between the points.
-              const dx = point[0] - prevPoint[0];
-              const dy = point[1] - prevPoint[1];
-              const stepDistance = Math.sqrt(dx * dx + dy * dy);
-              if (deltaLog > 1e-6) { // avoid division by zero
-                const ratio = stepDistance / deltaLog;
-                extra = `,${pointpadding}Δx: ${ratio.toFixed(2)}`;
-              }
-            }
-            
-
-            return `${logstr}:${logpadding}${pointstr}${extra}`;
-          }).join('<br>');
-          analyticResultDiv.innerHTML = formattedPath;
-          draw();
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        analyticResultDiv.innerHTML = "Error computing central path.";
-      });
+  if (!isPolygonConvex(vertices)) {
+    analyticResultDiv.innerHTML = "Nonconvex";
+    return;
+  }
+  if (!computedLines || computedLines.length === 0) {
+    analyticResultDiv.innerHTML = "No computed lines available.";
+    return;
+  }
+  if (objectiveVector == null) {
+    analyticResultDiv.innerHTML = "Objective vector not defined.";
+    return;
+  }
+  
+  let weights = [];
+  document.querySelectorAll('.inequality-item').forEach(item => {
+    let input = item.querySelector("input");
+    weights.push(input ? parseFloat(input.value) : 1);
+  });
+  
+  fetch('/trace_central_path', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      lines: computedLines,
+      objective: [objectiveVector.x, objectiveVector.y],
+      weights: weights,
+      mu: 100
+    })
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.error) {
+      analyticResultDiv.innerHTML = "Error: " + result.error;
+      return;
     }
+    
+    centralPath = result.central_path;
+    
+    // Create HTML with each central path point wrapped in a div
+    const formattedPath = centralPath.map((entry, i, arr) => {
+      const [point, mu] = entry;
+      const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
+      const x = point[0].toFixed(2);
+      const y = point[1].toFixed(2);
+      
+      let extra = "";
+      if (i > 0) {
+        const [prevPoint, prevMu] = arr[i - 1];
+        const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
+        const dx = point[0] - prevPoint[0];
+        const dy = point[1] - prevPoint[1];
+        const stepDistance = Math.sqrt(dx * dx + dy * dy);
+        if (deltaLog > 1e-6) {
+          const ratio = stepDistance / deltaLog;
+          extra = `, Δx: ${ratio.toFixed(2)}`;
+        }
+      }
+      // Wrap each iteration in a div with a data-index attribute.
+      return `<div class="central-path-item" data-index="${i}">log(μ)=${logMuRounded}: (${x}, ${y})${extra}</div>`;
+    }).join('');
+    
+    analyticResultDiv.innerHTML = formattedPath;
+    
+    // Add event listeners to each central path item for highlighting.
+    document.querySelectorAll('.central-path-item').forEach(item => {
+      item.addEventListener('mouseenter', function() {
+        highlightCentralPathIndex = parseInt(this.getAttribute('data-index'));
+        draw();
+      });
+      item.addEventListener('mouseleave', function() {
+        highlightCentralPathIndex = null;
+        draw();
+      });
+    });
+    
+    draw();
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    analyticResultDiv.innerHTML = "Error computing central path.";
+  });
+}
+
 
     // --- Trace Central Path (button and auto-update) ---
     traceButton.addEventListener('click', function() {
@@ -328,10 +361,16 @@
       canvas.style.width = window.innerWidth + 'px';
       canvas.style.height = window.innerHeight + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      centerX = window.innerWidth / 2;
-      centerY = window.innerHeight / 2;
+
+      updateCenter();
       draw();
     }
+    function updateCenter() {
+      const sidebarWidth = document.getElementById('sidebar').offsetWidth;
+      centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
+      centerY = window.innerHeight / 2;
+    }
+
 
     // --- Coordinate Conversion ---
     function toLogicalCoords(x, y) {
@@ -516,6 +555,7 @@
 
     function drawCentralPath() {
       if (centralPath && centralPath.length > 0) {
+        // Draw the path lines in purple.
         ctx.strokeStyle = 'purple';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -526,15 +566,24 @@
           ctx.lineTo(pt.x, pt.y);
         }
         ctx.stroke();
-        ctx.fillStyle = 'purple';
-        centralPath.forEach(pt => {
+        
+        // Draw each central path point.
+        centralPath.forEach((pt, i) => {
           let cp = toCanvasCoords(pt[0][0], pt[0][1]);
           ctx.beginPath();
-          ctx.arc(cp.x, cp.y, 3, 0, 2 * Math.PI);
+          // If this point is highlighted, draw it green and with a larger radius.
+          if (highlightCentralPathIndex === i) {
+            ctx.fillStyle = 'green';
+            ctx.arc(cp.x, cp.y, 5, 0, 2 * Math.PI);
+          } else {
+            ctx.fillStyle = 'purple';
+            ctx.arc(cp.x, cp.y, 3, 0, 2 * Math.PI);
+          }
           ctx.fill();
         });
       }
     }
+
 
     function draw() {
       const width = window.innerWidth;
@@ -803,6 +852,8 @@
       
       // Reposition the handle to match the sidebar's new right edge
       handle.style.left = newWidth + 'px';
+      updateCenter();
+      draw();
     });
   
     document.addEventListener('mouseup', function(e) {
