@@ -52,7 +52,7 @@ function solve_for_mu(lines, objective, weights, mu)
     
     optimize!(model)
     stat = termination_status(model)
-    if stat in [MOI.OPTIMAL, MOI.LOCALLY_SOLVED]
+    if is_solved_and_feasible(model, allow_almost=true)
         return value.(x)
     else
         println("Failed μ = $mu with status $stat for model:")
