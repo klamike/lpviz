@@ -6,21 +6,16 @@
 
 ## Installation
 
-To run, install Julia (recommended [juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#mac-linux-and-freebsd)).
-
-Then clone this repo, cd into it, and run `julia --project=.`
-
-Then in the julia REPL, type `] instantiate`
-
-Then exit the REPL (ctrl+D) and run `julia --project=. app.jl`
-
-Then open `localhost:8080` in your browser.
-
-
-
-
-
-
+1. Install Julia (recommended [juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#mac-linux-and-freebsd))
+1. Clone this repo, cd into it, and run `julia`
+1. Run `] activate .`
+1. Run `] instantiate`
+1. Run `] activate app`
+1. Run `] instantiate`
+1. Run `] dev .`
+1. Press `Ctrl-D` to exit
+1. Run `julia --project=app app/runserver.jl`
+1. Go to `localhost:8080` in your browser
 
 
 ## To-do:
@@ -37,4 +32,3 @@ Then open `localhost:8080` in your browser.
 - Add simplex mode
 - Allow inequality inputs (currently forced to draw)
 - Circle tool?
-- Make julia package to include in sysimage, to reduce TTFP
