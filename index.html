@@ -573,6 +573,8 @@
         let end = toCanvasCoords(target.x, target.y);
         ctx.strokeStyle = 'green';
         ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.beginPath();
         ctx.moveTo(origin.x, origin.y);
         ctx.lineTo(end.x, end.y);
