@@ -21,6 +21,7 @@
 ## To-do:
 
 - Weights cache doesn't support undo/redo
+- If you are adversarial about how you move points, it can break
 - Click to hide objective, click to keep constraint highlighted (stacking), same for iterates
 - Normalize weights button (sum to #constraints)
 - Add option to plot iterates of solver instead of central path
