@@ -1,13 +1,6 @@
 using LinearAlgebra
 using Printf
 
-struct IPMData
-    A::Matrix{Float64}
-    b::Vector{Float64}
-    c::Vector{Float64}
-    w::Vector{Float64}
-end
-
 """
     ipm(A, b, c, w)
 
