@@ -35,6 +35,8 @@
   let barrierWeightsVisible = false;
   let draggingPointIndex = null;
   let draggingObjective = false;
+  let barrierWeights = [];
+
 
   const distance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
   const computeCentroid = pts =>
@@ -514,19 +516,32 @@
             inequalitiesDiv.innerHTML = "Nonconvex";
             return;
           }
-          inequalitiesDiv.innerHTML = result.inequalities.slice(0, polygonComplete ? result.inequalities.length : result.inequalities.length - 1).map((ineq, index) => `
+          inequalitiesDiv.innerHTML = result.inequalities
+          .slice(0, polygonComplete ? result.inequalities.length : result.inequalities.length - 1)
+          .map((ineq, index) => {
+            // Use the stored weight if available, otherwise default to 1.
+            const currentWeight = barrierWeights[index] !== undefined ? barrierWeights[index] : 1;
+            return `
               <div class="inequality-item" data-index="${index}">
                 ${ineq}<br>
-                <span class="barrier-weight-container" style="display: none;">
+                <span class="barrier-weight-container" style="display: ${barrierWeightsVisible ? "inline" : "none"};">
                   <span style="font-family: sans-serif;">Barrier weight:</span>
-                  <input type="number" id="weight-${index}" value="1" step="any" style="width:60px" />
+                  <input type="number" id="weight-${index}" value="${currentWeight}" step="any" style="width:60px" />
                 </span>
               </div>
-            `).join('');
+            `;
+          })
+          .join('');
           document.querySelectorAll('.inequality-item').forEach(item => {
             item.addEventListener('mouseenter', () => {
               highlightIndex = parseInt(item.getAttribute('data-index'));
               draw();
+            });
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+              input.addEventListener('change', () => {
+                const index = parseInt(input.id.split('-')[1]);
+                barrierWeights[index] = parseFloat(input.value);
+              });
             });
             item.addEventListener('mouseleave', () => {
               highlightIndex = null;
