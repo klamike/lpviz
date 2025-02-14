@@ -20,7 +20,6 @@
 
 ## To-do:
 
-- Double-click bug (rare)
 - Click to hide objective, click to keep constraint highlighted (stacking), same for iterates
 - Normalize weights button (sum to #constraints)
 - Add option to plot iterates of solver instead of central path
