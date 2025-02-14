@@ -69,11 +69,16 @@
     }
     return inside;
   };
-  const isPointNearLine = (point, v1, v2) => {
-    const num = Math.abs((v2.y - v1.y) * point.x - (v2.x - v1.x) * point.y + v2.x * v1.y - v2.y * v1.x);
-    const den = Math.hypot(v2.y - v1.y, v2.x - v1.x);
-    return num / den < 0.5;
-  };
+  const isPointNearSegment = (point, v1, v2) => {
+    const dx = v2.x - v1.x;
+    const dy = v2.y - v1.y;
+    const len2 = dx * dx + dy * dy;
+    const t = ((point.x - v1.x) * dx + (point.y - v1.y) * dy) / len2;
+    if (t < 0 || t > 1) return false;
+    const proj = { x: v1.x + t * dx, y: v1.y + t * dy };
+    const dist = Math.hypot(point.x - proj.x, point.y - proj.y);
+    return dist < 0.5;
+  };  
   const toLogicalCoords = (x, y) => {
     let logical = {
       x: (x - centerX) / (gridSpacing * scaleFactor) - offset.x,
@@ -431,14 +436,16 @@
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     const logicalMouse = toLogicalCoords(mouseX, mouseY);
+  
     for (let i = 0; i < vertices.length; i++) {
       const v1 = vertices[i];
       const v2 = vertices[(i + 1) % vertices.length];
-      if (isPointNearLine(logicalMouse, v1, v2)) {
+      if (isPointNearSegment(logicalMouse, v1, v2)) {
         const dx = v2.x - v1.x;
         const dy = v2.y - v1.y;
         const len = Math.hypot(dx, dy);
         const normal = { x: -dy / len, y: dx / len };
+        // Adjust the new point slightly along the normal direction.
         const newPoint = { x: logicalMouse.x - normal.x * 0.1, y: logicalMouse.y - normal.y * 0.1 };
         saveState();
         vertices.splice(i + 1, 0, newPoint);
@@ -449,6 +456,7 @@
       }
     }
   });
+  
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const pt = toLogicalCoords(e.clientX - rect.left, e.clientY - rect.top);
