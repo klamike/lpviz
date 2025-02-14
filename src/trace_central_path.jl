@@ -24,6 +24,10 @@ function default_weights(weights, num_lines)
 end
 
 function filter_lines_and_weights(lines, weights)
+    if length(lines) != length(weights)
+        # error("Length of lines and weights must be the same")
+        return [], nothing
+    end
     nonzero_indices = [i for i in 1:length(lines) if weights[i] != 0]
     filtered_lines = [lines[i] for i in nonzero_indices]
     filtered_weights = [weights[i] for i in nonzero_indices]
