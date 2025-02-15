@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8">
   <title>lpviz</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
   <div id="sidebar">
     <div id="sidebarContent">
@@ -37,7 +35,15 @@
         <br>
         <button id="traceButton">Trace</button>
         <br>
-        <button id="rotateObjectiveButton">Toggle Rotate Objective</button>
+        <button id="startRotateObjectiveButton">Rotate Objective</button>
+        <button id="stopRotateObjectiveButton" disabled>Stop Rotation</button>
+        <div id="objectiveRotationSettings" style="display:none; margin-top: 1em;">
+          <h3>Objective Rotation Settings</h3>
+          <label for="objectiveAngleStepSlider">
+            Angle Step (radians): <span id="objectiveAngleStepValue">0.10</span>
+          </label>
+          <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1">
+        </div>
         <br>
         <button id="zoomButton">Zoom</button>
         <button id="unzoomButton">Unzoom</button>
