@@ -6,7 +6,7 @@ using LinearAlgebra
 
 include("polytope.jl")
 include("trace_central_path.jl")
-include("ipm.jl")
+include("ipm_static.jl")
 include("simplex.jl")
 
 end # module
