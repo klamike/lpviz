@@ -11,6 +11,7 @@
   const toggleBarrierWeightsButton = document.getElementById('toggleBarrierWeightsButton');
   const centralPathButton = document.getElementById('centralPathButton');
   const ipmButton = document.getElementById('ipmButton');
+  const ipmSettingsDiv = document.getElementById('ipmSettings');
 
   let centerX, centerY;
   const gridSpacing = 20;
@@ -383,6 +384,23 @@
     updateZoomButtonsState();
     updateIPMButtonState();
   });
+  centralPathButton.addEventListener('click', () => {
+    ipmMode = false;
+    centralPathButton.disabled = true;
+    ipmButton.disabled = false;
+    ipmSettingsDiv.style.display = 'none';
+  });
+  
+  ipmButton.addEventListener('click', () => {
+    ipmMode = true;
+    ipmButton.disabled = true;
+    centralPathButton.disabled = false;
+    ipmSettingsDiv.style.display = 'block';
+  });
+  document.getElementById('alphaMaxSlider').addEventListener('input', function() {
+    document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(2);
+  });
+  
 
   canvas.addEventListener('mousedown', e => {
     const rect = canvas.getBoundingClientRect();
@@ -667,6 +685,9 @@
       const input = item.querySelector("input");
       return input ? parseFloat(input.value) : 1;
     });
+    const alphaMax = parseFloat(document.getElementById('alphaMaxSlider').value);
+    const nitermax = parseInt(document.getElementById('nitermaxInput').value, 10);
+    
     return fetch('/ipm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -674,6 +695,8 @@
         lines: computedLines,
         objective: [objectiveVector.x, objectiveVector.y],
         weights: weights,
+        αmax: alphaMax,
+        nitermax: nitermax,
       })
     })
       .then(res => res.json())
