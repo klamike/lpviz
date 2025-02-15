@@ -164,7 +164,7 @@ function ipm(A, b, c, w;
         # Skip correction if affine-scaling direction is good enough
         γcor = !(αp_aff >= 0.9 && αd_aff >= 0.9)
         αp = αmax * (γcor ? αp_cor : αp_aff)
-        αd = αmax * (γcor ? αp_cor : αd_aff)
+        αd = αmax * (γcor ? αd_cor : αd_aff)
 
         # Make step
         x .+= αp .* (δx_aff .+ (γcor .* δx_cor))
@@ -197,7 +197,7 @@ function max_step_length(x::AbstractVector, dx::AbstractVector)
     return min(1.0, minimum(max_step_length.(x, dx)))
 end
 
-function test_ipm(; kwargs...)
+function test_ipm1(; kwargs...)
     A = [
          1.0 -1.0;
         -2.0  1.0;
@@ -207,6 +207,33 @@ function test_ipm(; kwargs...)
     ]
     b = [-2.0, -4.0, -7.0, 0.0, 0.0]
     c = [-2.0, -1.0]
+    m, n = size(A)
+    w = ones(m)
+
+    ipm(A, b, c, w; kwargs...)
+end
+
+function test_ipm2(; kwargs...)
+    A = [
+         1.000 -0.952;
+         1.000 -0.377;
+         1.000  0.821;
+        -0.080  1.000;
+        -1.000  0.194;
+        -1.000 -0.568;
+        -0.731 -1.000;
+    ]
+    b = [
+        -14.213,
+        -10.793,
+        -10.973,
+        -5.519,
+        -3.781,
+        -3.857,
+        -6.737,
+    ]
+    c = [5.75, -0.65]
+
     m, n = size(A)
     w = ones(m)
 
