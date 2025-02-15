@@ -21,7 +21,21 @@
         <div id="inequalities"></div>
         <br><br>
         <hr>
-        <button id="traceButton">Trace Central Path</button>
+        <button id="centralPathButton">Central Path Mode</button>
+        <button id="ipmButton">IPM Mode</button>
+        <div id="ipmSettings" style="display:none; margin-top: 1em;">
+          <h3>IPM Settings</h3>
+          <label for="alphaMaxSlider">
+            αmax: <span id="alphaMaxValue">0.1</span>
+          </label>
+          <input style="position: relative; top: 7px;" type="range" id="alphaMaxSlider" min="0" max="1" step="0.01" value="0.1">
+          <br>
+          <br>
+          <label for="nitermaxInput">nitermax:</label>
+          <input type="number" id="nitermaxInput" value="100" min="1" step="1">
+        </div>
+        <br>
+        <button id="traceButton">Trace</button>
         <br>
         <button id="rotateObjectiveButton">Toggle Rotate Objective</button>
         <br>
@@ -31,7 +45,7 @@
         <button id="toggleBarrierWeightsButton">Show Barrier Weights</button>
         <br><br>
         <hr>
-        <h2>Central Path</h2>
+        <h2>Iterates</h2>
         <div id="analyticResult"></div>
         <hr>
       </div>
