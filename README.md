@@ -1,5 +1,5 @@
 # `lpviz`
-`lpviz` is an interactive web app for visualizing linear programming solvers. It's not hosted on the internet yet, so check the installation instructions below to get started running it locally.
+`lpviz` is an interactive web app for visualizing [linear programming](https://youtu.be/kV1ru-Inzl4?si=KgasYrhSbqa_6Orh&t=3153) solvers. It's not hosted on the internet yet, so check the installation instructions below to get started running it locally.
 
 
 <p align="center">
