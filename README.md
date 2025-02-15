@@ -16,7 +16,7 @@
 
 ## Installation
 
-First, make sure you have [Julia](https://julialang.org/) installed ([juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#mac-linux-and-freebsd) is recommended).
+First, make sure you have [Julia](https://julialang.org/) installed ([juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#installation) is recommended).
 Then, to install `lpviz`, run:
 
 ```sh
