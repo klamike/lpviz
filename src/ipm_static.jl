@@ -1,9 +1,6 @@
 using StaticTools
 using Printf
 
-# ----------------------------------------------------
-# Helper Functions
-# ----------------------------------------------------
 
 @inline function max_step_length_scalar(x::Float64, dx::Float64)
     return (dx ≥ 0.0) ? 1.0 : (-x / dx)
@@ -81,9 +78,6 @@ end
     end
 end
 
-# ----------------------------------------------------
-# Interior-Point Method with Full Iteration Logging
-# ----------------------------------------------------
 
 """
     ipm(A, b, c, w; ϵ_p, ϵ_d, ϵ_opt, nitermax, αmax, verbose)
@@ -106,7 +100,7 @@ function ipm(A::AbstractMatrix{Float64}, b::AbstractVector{Float64},
     N = n + 2*m  # size of the KKT system
 
     # ---------------------------
-    # Allocate Primal/Dual Variables
+    # Primal/Dual Variables
     # ---------------------------
     x = MallocArray{Float64}(undef, n)
     s = MallocArray{Float64}(undef, m)
@@ -120,7 +114,7 @@ function ipm(A::AbstractMatrix{Float64}, b::AbstractVector{Float64},
     end
 
     # ---------------------------
-    # Preallocate Temporary Buffers (for residuals, KKT system, etc.)
+    # Temporary Buffers
     # ---------------------------
     Ax   = MallocArray{Float64}(undef, m)
     rp   = MallocArray{Float64}(undef, m)   # primal residual
@@ -143,8 +137,6 @@ function ipm(A::AbstractMatrix{Float64}, b::AbstractVector{Float64},
     combined_dy = MallocArray{Float64}(undef, m)
 
     # ---------------------------
-    # Preallocate Logging Buffers for Iterates
-    # We log:
     #   solution: x, s, y, µ  (nitermax+1 entries)
     #   predictor: δx_aff, δs_aff, δy_aff, µ_aff  (nitermax entries)
     #   corrector: δx_cor, δs_cor, δy_cor, µ  (nitermax entries)
@@ -384,10 +376,7 @@ function ipm(A::AbstractMatrix{Float64}, b::AbstractVector{Float64},
         iter += 1
     end
 
-    # ----------------------------------------------------
-    # Convert Logged Buffers to Standard Julia Structures
-    # (We convert each column of our preallocated matrices into a Vector.)
-    # ----------------------------------------------------
+    # Prepare output
     num_sol = iter + 1   # solution iterates: from 1 to iter+1
     num_steps = iter     # predictor and corrector steps recorded from 1 to iter
 
@@ -424,7 +413,7 @@ function ipm(A::AbstractMatrix{Float64}, b::AbstractVector{Float64},
         corr_mu_list[k] = corr_mu[k]
     end
 
-    # Build the final dictionary mimicking the original output.
+    # NOTE: dict{string} is not WASM compatible. Need to pass an array back. But keeping this for now.
     output = Dict(
         "iterates" => Dict(
             "solution" => Dict("x" => sol_x_list, "s" => sol_s_list, "y" => sol_y_list, "µ" => sol_mu_list),
@@ -433,9 +422,6 @@ function ipm(A::AbstractMatrix{Float64}, b::AbstractVector{Float64},
         )
     )
 
-    # ----------------------------------------------------
-    # Free All Manually Allocated Buffers
-    # ----------------------------------------------------
     free(x); free(s); free(y)
     free(Ax); free(rp); free(Aty); free(rd)
     free(KKT); free(rhs); free(sol_vec); free(KKT_backup)
