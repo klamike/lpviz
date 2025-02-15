@@ -1,8 +1,7 @@
 function polytope_handler(req::HTTP.Request)
     data = req.body
     points = data["points"]
-    interior = get(data, "interior", nothing)
-    return compute_polytope(points, interior)
+    return compute_polytope(points)
 end
 
 function compute_interior_point(points, interior)
@@ -126,8 +125,8 @@ function compute_intersections(lines; tol=1e-6)
     return poly_vertices
 end
 
-function compute_polytope(points, interior=nothing)
-    interior = compute_interior_point(points, interior)
+function compute_polytope(points)
+    interior = compute_interior_point(points, nothing)
     inequalities, lines = compute_polygon_edges(points, interior)
     vertices = compute_intersections(lines)
     return Dict("inequalities" => inequalities, "vertices" => vertices, "lines" => lines)

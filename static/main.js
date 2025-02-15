@@ -9,6 +9,9 @@
   const objectiveDisplay = document.getElementById('objectiveDisplay');
   const rotateObjectiveButton = document.getElementById('rotateObjectiveButton');
   const toggleBarrierWeightsButton = document.getElementById('toggleBarrierWeightsButton');
+  const centralPathButton = document.getElementById('centralPathButton');
+  const ipmButton = document.getElementById('ipmButton');
+  const ipmSettingsDiv = document.getElementById('ipmSettings');
 
   let centerX, centerY;
   const gridSpacing = 20;
@@ -36,7 +39,7 @@
   let draggingPointIndex = null;
   let draggingObjective = false;
   let barrierWeights = [];
-
+  let ipmMode = false;
 
   const distance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
   const computeCentroid = pts =>
@@ -49,8 +52,8 @@
     let prevCross = 0;
     for (let i = 0, n = pts.length; i < n; i++) {
       const p0 = pts[i];
-      const p1 = pts[(i + 1) % n];
-      const p2 = pts[(i + 2) % n];
+      const p1 = pts[(i + 1) % pts.length];
+      const p2 = pts[(i + 2) % pts.length];
       const cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
       if (cross !== 0) {
         if (prevCross === 0) prevCross = cross;
@@ -80,7 +83,7 @@
     const proj = { x: v1.x + t * dx, y: v1.y + t * dy };
     const dist = Math.hypot(point.x - proj.x, point.y - proj.y);
     return dist < 0.5;
-  };  
+  };
   const toLogicalCoords = (x, y) => {
     let logical = {
       x: (x - centerX) / (gridSpacing * scaleFactor) - offset.x,
@@ -370,6 +373,7 @@
 
       draw();
       updateZoomButtonsState();
+      updateIPMButtonState();
     }
   });
   unzoomButton.addEventListener('click', () => {
@@ -378,7 +382,25 @@
     offset.y = 0;
     draw();
     updateZoomButtonsState();
+    updateIPMButtonState();
   });
+  centralPathButton.addEventListener('click', () => {
+    ipmMode = false;
+    centralPathButton.disabled = true;
+    ipmButton.disabled = false;
+    ipmSettingsDiv.style.display = 'none';
+  });
+  
+  ipmButton.addEventListener('click', () => {
+    ipmMode = true;
+    ipmButton.disabled = true;
+    centralPathButton.disabled = false;
+    ipmSettingsDiv.style.display = 'block';
+  });
+  document.getElementById('alphaMaxSlider').addEventListener('input', function() {
+    document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(2);
+  });
+  
 
   canvas.addEventListener('mousedown', e => {
     const rect = canvas.getBoundingClientRect();
@@ -458,7 +480,7 @@
       }
     }
   });
-  
+
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const pt = toLogicalCoords(e.clientX - rect.left, e.clientY - rect.top);
@@ -554,7 +576,7 @@
         computedVertices = result.vertices;
         computedLines = result.lines;
         if (centralPathComputed && objectiveVector && computedLines.length > 0) {
-          computeCentralPath();
+          computePath();
         }
       })
       .catch(err => {
@@ -592,7 +614,6 @@
         lines: computedLines,
         objective: [objectiveVector.x, objectiveVector.y],
         weights: weights,
-        mu: 100
       })
     })
       .then(res => res.json())
@@ -615,7 +636,7 @@
             const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
             const stepDistance = Math.hypot(point[0] - prevPoint[0], point[1] - prevPoint[1]);
             if (deltaLog > 1e-6) {
-              const ratio = stepDistance / deltaLog;
+              const ratio = stepDistance;
               const pointpadding = '&nbsp;'.repeat(Math.max(0, 17 - `(${x}, ${y})`.length));
               extra = `${pointpadding}Δx: ${ratio.toFixed(2)}`;
             }
@@ -642,8 +663,107 @@
       });
   };
 
+  const computeIPMIterates = () => {
+    if (isCentralPathComputing) return Promise.resolve();
+    isCentralPathComputing = true;
+    if (!isPolygonConvex(vertices)) {
+      analyticResultDiv.innerHTML = "Nonconvex";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    if (!computedLines || computedLines.length === 0) {
+      analyticResultDiv.innerHTML = "No computed lines available.";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    if (!objectiveVector) {
+      analyticResultDiv.innerHTML = "Objective vector not defined.";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    const weights = Array.from(document.querySelectorAll('.inequality-item')).map(item => {
+      const input = item.querySelector("input");
+      return input ? parseFloat(input.value) : 1;
+    });
+    const alphaMax = parseFloat(document.getElementById('alphaMaxSlider').value);
+    const nitermax = parseInt(document.getElementById('nitermaxInput').value, 10);
+    
+    return fetch('/ipm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lines: computedLines,
+        objective: [objectiveVector.x, objectiveVector.y],
+        weights: weights,
+        αmax: alphaMax,
+        nitermax: nitermax,
+      })
+    })
+      .then(res => res.json())
+      .then(result => {
+        if (result.error) {
+          analyticResultDiv.innerHTML = "Error: " + result.error;
+          isCentralPathComputing = false;
+          return;
+        }
+        // Convert the new iterates structure into the expected array format.
+        // Here we assume you want the "solution" iterates.
+        const sol = result.iterates.solution;
+        // Build an array of iterates: [ [x1, x2], µ ]
+        const iteratesArray = sol.x.map((val, i) => {
+          return [ sol.x[i], sol["µ"][i] ];
+        });
+        // Assign the iterates array to centralPath (which your draw functions use)
+        centralPath = iteratesArray;
+  
+        analyticResultDiv.innerHTML = iteratesArray.map((entry, i, arr) => {
+          const [point, mu] = entry;
+          const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
+          const x = point[0].toFixed(2);
+          const y = point[1].toFixed(2);
+          let extra = "";
+          if (i > 0) {
+            const [prevPoint, prevMu] = arr[i - 1];
+            const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
+            const stepDistance = Math.hypot(point[0] - prevPoint[0], point[1] - prevPoint[1]);
+            if (deltaLog > 1e-6) {
+              const ratio = stepDistance;
+              extra = ` Δx: ${ratio.toFixed(2)}`;
+            }
+          }
+          return `<div class="central-path-item" data-index="${i}">log(μ)=${logMuRounded}: (${x}, ${y})${extra}</div>`;
+        }).join('');
+        document.querySelectorAll('.central-path-item').forEach(item => {
+          item.addEventListener('mouseenter', () => {
+            highlightCentralPathIndex = parseInt(item.getAttribute('data-index'));
+            draw();
+          });
+          item.addEventListener('mouseleave', () => {
+            highlightCentralPathIndex = null;
+            draw();
+          });
+        });
+        draw();
+        isCentralPathComputing = false;
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        analyticResultDiv.innerHTML = "Error computing IPM iterates.";
+        isCentralPathComputing = false;
+      });
+  };
+  
+
+  const computePath = () => {
+    if (ipmMode) {
+      return computeIPMIterates();
+    } else {
+      return computeCentralPath();
+    }
+  };
+
   traceButton.addEventListener('click', () => {
-    computeCentralPath();
+    computePath();
     centralPathComputed = true;
   });
   const rotateAndComputeStep = () => {
@@ -659,7 +779,7 @@
     updateObjectiveDisplay();
     draw();
     if (polygonComplete && computedLines.length > 0) {
-      computeCentralPath().then(() => {
+      computePath().then(() => {
         if (rotateObjectiveMode) setTimeout(rotateAndComputeStep, MIN_WAIT);
       });
     } else {
@@ -676,6 +796,21 @@
       rotateAndComputeStep();
     }
   });
+  centralPathButton.addEventListener('click', () => {
+    ipmMode = false;
+    centralPathButton.disabled = true;
+    ipmButton.disabled = false;
+  });
+  ipmButton.addEventListener('click', () => {
+    ipmMode = true;
+    ipmButton.disabled = true;
+    centralPathButton.disabled = false;
+  });
+  const updateIPMButtonState = () => {
+    if (computedLines.length === 0) {
+      centralPathButton.disabled = true;
+    }
+  };
 
   const updateCenter = () => {
     const sidebarWidth = document.getElementById('sidebar').offsetWidth;
@@ -692,6 +827,7 @@
     updateCenter();
     draw();
     updateZoomButtonsState();
+    updateIPMButtonState();
   };
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
