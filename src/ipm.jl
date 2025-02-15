@@ -118,9 +118,9 @@ function ipm(A, b, c, w;
         μaff = dot(s + αp_aff .* δs_aff, y + αd_aff .* δy_aff) / m
         σ = clamp((μaff / μ)^3, 1e-8, 1 - 1e-8)
         ξc = vcat(
-            b - (A*x - s),
-            c - A'y,
-            σ .* μ .* ones(m) - (δs_aff .* δy_aff - s .* y),
+            zeros(m),
+            zeros(n),
+            σ .* μ .* ones(m) - (δs_aff .* δy_aff),
         )
         Δ_cor .= K \ ξc
         δx_cor = Δ_cor[1:n]
@@ -131,7 +131,8 @@ function ipm(A, b, c, w;
         αp_cor = max_step_length(s, δs_aff + δs_cor)
         αd_cor = max_step_length(y, δy_aff + δy_cor)
 
-        # Compute final step length, and skip corrector if needed
+        # Compute final step length
+        # Skip correction if affine-scaling direction is good enough
         γcor = !(αp_aff >= 0.9 && αd_aff >= 0.9)
         αp = αmax * (γcor ? αp_cor : αp_aff)
         αd = αmax * (γcor ? αp_cor : αd_aff)
@@ -141,8 +142,7 @@ function ipm(A, b, c, w;
         s .+= αp .* (δs_aff .+ (γcor .* δs_cor))
         y .+= αd .* (δy_aff .+ (γcor .* δy_cor))
 
-        # Update iterates
-        # Note: 
+        # Keep track of predictor/corrector directions
         push!(res["iterates"]["predictor"]["x"], copy(δx_aff))
         push!(res["iterates"]["predictor"]["s"], copy(δs_aff))
         push!(res["iterates"]["predictor"]["y"], copy(δy_aff))
