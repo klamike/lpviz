@@ -7,11 +7,15 @@
   const traceButton = document.getElementById('traceButton');
   const analyticResultDiv = document.getElementById('analyticResult');
   const objectiveDisplay = document.getElementById('objectiveDisplay');
-  const rotateObjectiveButton = document.getElementById('rotateObjectiveButton');
-  const toggleBarrierWeightsButton = document.getElementById('toggleBarrierWeightsButton');
   const centralPathButton = document.getElementById('centralPathButton');
   const ipmButton = document.getElementById('ipmButton');
   const ipmSettingsDiv = document.getElementById('ipmSettings');
+
+  const startRotateObjectiveButton = document.getElementById('startRotateObjectiveButton');
+  const stopRotateObjectiveButton = document.getElementById('stopRotateObjectiveButton');
+  const objectiveRotationSettings = document.getElementById('objectiveRotationSettings');
+  const objectiveAngleStepSlider = document.getElementById('objectiveAngleStepSlider');
+  const objectiveAngleStepValue = document.getElementById('objectiveAngleStepValue');
 
   let centerX, centerY;
   const gridSpacing = 20;
@@ -397,11 +401,12 @@
     centralPathButton.disabled = false;
     ipmSettingsDiv.style.display = 'block';
   });
-  document.getElementById('alphaMaxSlider').addEventListener('input', function() {
+  document.getElementById('alphaMaxSlider').addEventListener('input', function () {
     document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(2);
   });
-  
-
+  objectiveAngleStepSlider.addEventListener('input', function () {
+    objectiveAngleStepValue.textContent = parseFloat(this.value).toFixed(2);
+  });
   canvas.addEventListener('mousedown', e => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -460,7 +465,7 @@
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     const logicalMouse = toLogicalCoords(mouseX, mouseY);
-  
+
     for (let i = 0; i < vertices.length; i++) {
       const v1 = vertices[i];
       const v2 = vertices[(i + 1) % vertices.length];
@@ -539,11 +544,10 @@
             return;
           }
           inequalitiesDiv.innerHTML = result.inequalities
-          .slice(0, polygonComplete ? result.inequalities.length : result.inequalities.length - 1)
-          .map((ineq, index) => {
-            // Use the stored weight if available, otherwise default to 1.
-            const currentWeight = barrierWeights[index] !== undefined ? barrierWeights[index] : 1;
-            return `
+            .slice(0, polygonComplete ? result.inequalities.length : result.inequalities.length - 1)
+            .map((ineq, index) => {
+              const currentWeight = barrierWeights[index] !== undefined ? barrierWeights[index] : 1;
+              return `
               <div class="inequality-item" data-index="${index}">
                 ${ineq}<br>
                 <span class="barrier-weight-container" style="display: ${barrierWeightsVisible ? "inline" : "none"};">
@@ -551,9 +555,9 @@
                   <input type="number" id="weight-${index}" value="${currentWeight}" step="any" style="width:60px" />
                 </span>
               </div>
-            `;
-          })
-          .join('');
+              `;
+            })
+            .join('');
           document.querySelectorAll('.inequality-item').forEach(item => {
             item.addEventListener('mouseenter', () => {
               highlightIndex = parseInt(item.getAttribute('data-index'));
@@ -687,7 +691,7 @@
     });
     const alphaMax = parseFloat(document.getElementById('alphaMaxSlider').value);
     const nitermax = parseInt(document.getElementById('nitermaxInput').value, 10);
-    
+
     return fetch('/ipm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -706,16 +710,12 @@
           isCentralPathComputing = false;
           return;
         }
-        // Convert the new iterates structure into the expected array format.
-        // Here we assume you want the "solution" iterates.
         const sol = result.iterates.solution;
-        // Build an array of iterates: [ [x1, x2], µ ]
         const iteratesArray = sol.x.map((val, i) => {
-          return [ sol.x[i], sol["µ"][i] ];
+          return [sol.x[i], sol["µ"][i]];
         });
-        // Assign the iterates array to centralPath (which your draw functions use)
         centralPath = iteratesArray;
-  
+
         analyticResultDiv.innerHTML = iteratesArray.map((entry, i, arr) => {
           const [point, mu] = entry;
           const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
@@ -727,8 +727,7 @@
             const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
             const stepDistance = Math.hypot(point[0] - prevPoint[0], point[1] - prevPoint[1]);
             if (deltaLog > 1e-6) {
-              const ratio = stepDistance;
-              extra = ` Δx: ${ratio.toFixed(2)}`;
+              extra = ` Δx: ${stepDistance.toFixed(2)}`;
             }
           }
           return `<div class="central-path-item" data-index="${i}">log(μ)=${logMuRounded}: (${x}, ${y})${extra}</div>`;
@@ -752,7 +751,6 @@
         isCentralPathComputing = false;
       });
   };
-  
 
   const computePath = () => {
     if (ipmMode) {
@@ -766,6 +764,7 @@
     computePath();
     centralPathComputed = true;
   });
+
   const rotateAndComputeStep = () => {
     const MIN_WAIT = 30;
     if (!isPolygonConvex(vertices)) {
@@ -775,7 +774,8 @@
     if (!rotateObjectiveMode) return;
     const angle = Math.atan2(objectiveVector.y, objectiveVector.x);
     const magnitude = Math.hypot(objectiveVector.x, objectiveVector.y);
-    objectiveVector = { x: magnitude * Math.cos(angle + 0.1), y: magnitude * Math.sin(angle + 0.1) };
+    const angleStep = parseFloat(objectiveAngleStepSlider.value);
+    objectiveVector = { x: magnitude * Math.cos(angle + angleStep), y: magnitude * Math.sin(angle + angleStep) };
     updateObjectiveDisplay();
     draw();
     if (polygonComplete && computedLines.length > 0) {
@@ -786,26 +786,27 @@
       if (rotateObjectiveMode) setTimeout(rotateAndComputeStep, MIN_WAIT);
     }
   };
-  rotateObjectiveButton.addEventListener('click', () => {
-    rotateObjectiveMode = !rotateObjectiveMode;
-    if (rotateObjectiveMode) {
-      if (!objectiveVector) {
-        objectiveVector = { x: 1, y: 0 };
-        updateObjectiveDisplay();
-      }
+
+  startRotateObjectiveButton.addEventListener('click', () => {
+    rotateObjectiveMode = true;
+    if (!objectiveVector) {
+      objectiveVector = { x: 1, y: 0 };
+      updateObjectiveDisplay();
+    }
+    objectiveRotationSettings.style.display = 'block';
+    startRotateObjectiveButton.disabled = true;
+    stopRotateObjectiveButton.disabled = false;
+      rotateAndComputeStep();
       rotateAndComputeStep();
     }
+  );
+  stopRotateObjectiveButton.addEventListener('click', () => {
+    rotateObjectiveMode = false;
+    objectiveRotationSettings.style.display = 'none';
+    startRotateObjectiveButton.disabled = false;
+    stopRotateObjectiveButton.disabled = true;
   });
-  centralPathButton.addEventListener('click', () => {
-    ipmMode = false;
-    centralPathButton.disabled = true;
-    ipmButton.disabled = false;
-  });
-  ipmButton.addEventListener('click', () => {
-    ipmMode = true;
-    ipmButton.disabled = true;
-    centralPathButton.disabled = false;
-  });
+
   const updateIPMButtonState = () => {
     if (computedLines.length === 0) {
       centralPathButton.disabled = true;
