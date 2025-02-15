@@ -9,7 +9,7 @@
   const objectiveDisplay = document.getElementById('objectiveDisplay');
   const centralPathButton = document.getElementById('centralPathButton');
   const ipmButton = document.getElementById('ipmButton');
-  const simplexButton = document.getElementById('simplexButton'); // NEW BUTTON
+  const simplexButton = document.getElementById('simplexButton');
   const ipmSettingsDiv = document.getElementById('ipmSettings');
 
   const startRotateObjectiveButton = document.getElementById('startRotateObjectiveButton');
