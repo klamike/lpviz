@@ -11,7 +11,7 @@
 </p>
 
 
-<p align="right"><i>Inspired by <a href="https://www.youtube.com/watch?v=ijD2KSXWDyo">advanced methods for establishing convexity</a></i></p>.
+<p align="right"><i>Inspired by <a href="https://www.youtube.com/watch?v=ijD2KSXWDyo">advanced methods for establishing convexity</a>.</i></p>
 
 
 ## Installation
