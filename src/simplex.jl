@@ -1,6 +1,6 @@
 using Printf
 
-function simplex_handler(lines, objective)
+function simplex_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64})
     m = length(lines)
     A = zeros(m, 2)
     b = zeros(m)
@@ -13,14 +13,14 @@ function simplex_handler(lines, objective)
 end
 
 
-function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
+@inline function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
                          basis::Vector{Int}; tol=1e-8, verbose=false)
     m, n = size(A)
     x = zeros(n)
 
     verbose && @printf "%4s  %13s %13s  %8s %8s  %7s\n" "Iter" "PObj" "DObj"
     
-    iterations = []
+    iterations = Vector{Vector{Float64}}(undef, 0)
     while true
         B = A[:, basis]
         Binv = inv(B)
@@ -74,7 +74,7 @@ function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float
 end
 
 
-function simplex_solver(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}; tol=1e-8)
+@inline function simplex_solver(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}; tol=1e-8)
     m, n = size(A)
 
     iterations = revised_simplex(

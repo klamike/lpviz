@@ -1,19 +1,23 @@
-function compute_interior_point(points, interior)
-    if interior === nothing
-        n = length(points)
-        if n > 0
-            x_sum = sum(p[1] for p in points)
-            y_sum = sum(p[2] for p in points)
-            return [x_sum / n, y_sum / n]
-        else
-            error("No points provided to compute an interior point")
-        end
+function compute_polytope(points::Vector{Vector{Float64}})
+    interior = compute_interior_point(points)
+    inequalities, lines = compute_polygon_edges(points, interior)
+    vertices = compute_intersections(lines)
+    return Dict("inequalities" => inequalities, "vertices" => vertices, "lines" => lines)
+end
+
+
+@inline function compute_interior_point(points::Vector{Vector{Float64}})
+    n = length(points)
+    if n > 0
+        x_sum = sum(p[1] for p in points)
+        y_sum = sum(p[2] for p in points)
+        return [x_sum / n, y_sum / n]
     else
-        return interior
+        error("No points provided to compute an interior point")
     end
 end
 
-function process_coeff(x)
+@inline function process_coeff(x::Float64)
     if x == 0
         x1 = abs(x)
     else
@@ -27,9 +31,9 @@ function process_coeff(x)
     end
 end
 
-function compute_polygon_edges(points, interior; tol=1e-6)
+@inline function compute_polygon_edges(points::Vector{Vector{Float64}}, interior::Vector{Float64}; tol=1e-6)
     inequalities = String[]
-    lines = []
+    lines = Vector{Vector{Float64}}()
     n = length(points)
 
     for i in 1:n
@@ -91,7 +95,7 @@ function compute_polygon_edges(points, interior; tol=1e-6)
 end
 
 
-function compute_intersections(lines; tol=1e-6)
+@inline function compute_intersections(lines::Vector{Vector{Float64}}; tol=1e-6)
     poly_vertices = []
     n = length(lines)
     for i in 1:(n-1)
@@ -117,11 +121,4 @@ function compute_intersections(lines; tol=1e-6)
         end
     end
     return poly_vertices
-end
-
-function compute_polytope(points)
-    interior = compute_interior_point(points, nothing)
-    inequalities, lines = compute_polygon_edges(points, interior)
-    vertices = compute_intersections(lines)
-    return Dict("inequalities" => inequalities, "vertices" => vertices, "lines" => lines)
 end
