@@ -1,17 +1,13 @@
 using Printf
 
 
-function ipm_handler(req::HTTP.Request)
-    data = req.body
-    lines = data["lines"]
-    objective = data["objective"]
-    weights = get(data, "weights", nothing)
-    ϵ_p = get(data, "ϵ_p", 1e-6)
-    ϵ_d = get(data, "ϵ_d", 1e-6)
-    ϵ_opt = get(data, "ϵ_opt", 1e-6)
-    nitermax = get(data, "nitermax", 30)
-    αmax = get(data, "αmax", 0.9990)
-
+function ipm_handler(lines, objective, weights;
+    ϵ_p=1e-6,
+    ϵ_d=1e-6,
+    ϵ_opt=1e-6,
+    nitermax=30,
+    αmax=0.9990,
+)
     m = length(lines)
     A = zeros(m, 2)
     b = zeros(m)
@@ -112,7 +108,7 @@ function ipm(A, b, c, w;
     
         if norm(rp, Inf) <= ϵ_p && norm(rd, Inf) <= ϵ_d && gap <= ϵ_opt
             # optimal solution found!
-            println("Converged to primal-dual optimal solution")
+            verbose && println("Converged to primal-dual optimal solution")
             converged = true
             break
         end
@@ -195,47 +191,4 @@ max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
 
 function max_step_length(x::AbstractVector, dx::AbstractVector)
     return min(1.0, minimum(max_step_length.(x, dx)))
-end
-
-function test_ipm1(; kwargs...)
-    A = [
-         1.0 -1.0;
-        -2.0  1.0;
-        -1.0 -2.0;
-         1.0  0.0;
-         0.0  1.0;
-    ]
-    b = [-2.0, -4.0, -7.0, 0.0, 0.0]
-    c = [-2.0, -1.0]
-    m, n = size(A)
-    w = ones(m)
-
-    ipm(A, b, c, w; kwargs...)
-end
-
-function test_ipm2(; kwargs...)
-    A = [
-         1.000 -0.952;
-         1.000 -0.377;
-         1.000  0.821;
-        -0.080  1.000;
-        -1.000  0.194;
-        -1.000 -0.568;
-        -0.731 -1.000;
-    ]
-    b = [
-        -14.213,
-        -10.793,
-        -10.973,
-        -5.519,
-        -3.781,
-        -3.857,
-        -6.737,
-    ]
-    c = [5.75, -0.65]
-
-    m, n = size(A)
-    w = ones(m)
-
-    ipm(A, b, c, w; kwargs...)
 end

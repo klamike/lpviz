@@ -1,9 +1,3 @@
-function polytope_handler(req::HTTP.Request)
-    data = req.body
-    points = data["points"]
-    return compute_polytope(points)
-end
-
 function compute_interior_point(points, interior)
     if interior === nothing
         n = length(points)

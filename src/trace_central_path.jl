@@ -1,12 +1,3 @@
-function trace_central_path_handler(req::HTTP.Request)
-    data = req.body
-    lines = data["lines"]
-    objective = data["objective"]
-    mu_values = get(data, "mu_values", nothing)
-    weights = get(data, "weights", nothing)
-    return compute_central_path(lines, objective; mu_values=mu_values, weights=weights)
-end
-
 function default_mu_values(mu_values)
     if mu_values === nothing
         return [10.0^p for p in [3, 2, 1.5, 1, 0.5, 0, -0.5, -1, -3, -5]]
