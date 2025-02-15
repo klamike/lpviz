@@ -1,6 +1,5 @@
 module LPViz
 
-using HTTP
 using JuMP
 using Clarabel
 using LinearAlgebra

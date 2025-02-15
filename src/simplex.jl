@@ -1,10 +1,6 @@
 using Printf
 
-function simplex_handler(req::HTTP.Request)
-    data = req.body
-
-    lines = data["lines"]
-    objective = convert(Vector{Float64}, data["objective"])
+function simplex_handler(lines, objective)
     m = length(lines)
     A = zeros(m, 2)
     b = zeros(m)
@@ -13,7 +9,6 @@ function simplex_handler(req::HTTP.Request)
         A[i, 2] = lines[i][2]
         b[i]    = lines[i][3]
     end
-
     return simplex_solver(A, b, objective)
 end
 

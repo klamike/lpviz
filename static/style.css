@@ -122,15 +122,15 @@ hr {
   margin: 0;
   font-weight: normal;
 }
-/* GitHub Icon styling */
+
 .github-icon {
-  width: 32px;  /* Adjust size as needed */
+  width: 32px;
   height: 32px;
-  color: #ccc;  /* Light color by default */
+  color: #ccc;
   transition: color 0.3s ease;
   background: transparent;
   display: block;
 }
 .github-icon:hover {
-  color: #333;  /* Turns dark on hover */
+  color: #333;
 }
