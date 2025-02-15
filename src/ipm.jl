@@ -1,6 +1,34 @@
 using LinearAlgebra
 using Printf
 
+
+function ipm_handler(req::HTTP.Request)
+    data = req.body
+    lines = data["lines"]
+    objective = data["objective"]
+    weights = get(data, "weights", nothing)
+    ϵ_p = get(data, "ϵ_p", 1e-6)
+    ϵ_d = get(data, "ϵ_d", 1e-6)
+    ϵ_opt = get(data, "ϵ_opt", 1e-6)
+    nitermax = get(data, "nitermax", 30)
+    αmax = get(data, "αmax", 0.9990)
+
+    m = length(lines)
+    A = zeros(m, 2)
+    b = zeros(m)
+    for i in 1:m
+        A[i, 1] = lines[i][1]
+        A[i, 2] = lines[i][2]
+        b[i] = lines[i][3]
+    end
+
+    return ipm(
+        -A, -b, -objective, weights;
+        ϵ_p=ϵ_p, ϵ_d=ϵ_d, ϵ_opt=ϵ_opt,
+        nitermax=nitermax, αmax=αmax,
+    )
+end
+
 """
     ipm(A, b, c, w)
 
@@ -28,7 +56,6 @@ function ipm(A, b, c, w;
     αmax=0.9990,
 )
     m, n = size(A)
-    A_ = hcat(A, -I)  # to be in standard form
 
     res = Dict{String,Any}(
         "iterates" => Dict{String,Any}(
@@ -36,20 +63,21 @@ function ipm(A, b, c, w;
                 "x" => [],
                 "s" => [],
                 "y" => [],
+                "µ" => [],
             ),
             "predictor" => Dict{String,Any}(
                 "x" => [],
                 "s" => [],
                 "y" => [],
+                "µ" => [],
             ),
             "corrector" => Dict{String,Any}(
                 "x" => [],
                 "s" => [],
                 "y" => [],
+                "µ" => [],
             ),
         ),
-        "primal_objective" => NaN,
-        "dual_objective" => NaN,
     )
 
     # Working memory
@@ -80,6 +108,7 @@ function ipm(A, b, c, w;
         push!(res["iterates"]["solution"]["x"], copy(x))
         push!(res["iterates"]["solution"]["s"], copy(s))
         push!(res["iterates"]["solution"]["y"], copy(y))
+        push!(res["iterates"]["solution"]["µ"], copy(μ))
     
         if norm(rp, Inf) <= ϵ_p && norm(rd, Inf) <= ϵ_d && gap <= ϵ_opt
             # optimal solution found!
@@ -146,10 +175,12 @@ function ipm(A, b, c, w;
         push!(res["iterates"]["predictor"]["x"], copy(δx_aff))
         push!(res["iterates"]["predictor"]["s"], copy(δs_aff))
         push!(res["iterates"]["predictor"]["y"], copy(δy_aff))
+        push!(res["iterates"]["predictor"]["µ"], copy(μaff))
 
         push!(res["iterates"]["corrector"]["x"], copy(δx_cor))
         push!(res["iterates"]["corrector"]["s"], copy(δs_cor))
         push!(res["iterates"]["corrector"]["y"], copy(δy_cor))
+        push!(res["iterates"]["corrector"]["µ"], copy(μ))
     end
 
     return res
