@@ -1,39 +1,35 @@
-# lpviz
+# `lpviz`
+`lpviz` is an interactive web app for visualizing linear programming solvers. It's not hosted on the internet yet, so check the installation instructions below to get started running it locally.
 
 
-[![demo](https://github.com/user-attachments/assets/1cfa5ef2-16d6-40cc-a157-84fb04ba56f2)](https://github.com/user-attachments/assets/1cfa5ef2-16d6-40cc-a157-84fb04ba56f2)
+<p align="center">
+  <img width="291" alt="Screenshot 2025-02-14 at 10 50 20 PM" src="https://github.com/user-attachments/assets/8039ae4d-09f5-49f9-96fa-a52e1d62b9af" />
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img width="290" alt="Screenshot 2025-02-14 at 10 50 38 PM" src="https://github.com/user-attachments/assets/9b545634-9cc6-488e-82b4-6ce46b8294ff" />
+
+  <br>
+</p>
+
+
+<p align="right"><i>Inspired by <a href="https://www.youtube.com/watch?v=ijD2KSXWDyo">advanced methods for establishing convexity</a></i></p>.
 
 
 ## Installation
 
-1. Install Julia (recommended [juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#mac-linux-and-freebsd))
-1. Clone this repo, cd into it, and run `julia`
-1. Run `] activate .`
-1. Run `] instantiate`
-1. Run `] activate app`
-1. Run `] instantiate`
-1. Run `] dev .`
-1. Press `Ctrl-D` to exit
-1. Run `julia --project=app app/runserver.jl`
-1. Go to `localhost:8080` in your browser
+First, make sure you have [Julia](https://julialang.org/) installed ([juliaup](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#mac-linux-and-freebsd) is recommended).
+Then, to install `lpviz`, run:
+
+```sh
+git clone https://github.com/klamike/lpviz  # clone the repo
+cd lpviz                                    # cd into it, and run the command below to install dependencies
+julia -e 'import Pkg: activate as a, instantiate as i, develop as d; a("."); i(); a("app"); i(); d(path=".");'
+```
 
 
-## To-do:
+## Usage
 
-- Weights cache doesn't support undo/redo
-- If you are adversarial about how you move points, it can break
-- Click to hide objective, click to keep constraint highlighted (stacking), same for iterates
-- Normalize weights button (sum to #constraints)
-- Add option to plot iterates of solver instead of central path
-- "Center" button so analytic center is at 0,0
-- Support equality constraint (line)
-- Reset button so you don't have to refresh to clear
-- URL-based problem/weight sharing
-- Save problem/weights to localStorage
-- Example/random problems
-- 3D objective visualization
-- Barrier contours
-- Add simplex mode
-- Allow inequality inputs (currently forced to draw)
-- Circle tool?
-- Improve installation process
+Run the command below, then go to [localhost:8080](http://localhost:8080) in your browser.
+```sh
+cd lpviz                                 # cd into the repo
+julia --project=app app/runserver.jl     # run the Julia server
+```
