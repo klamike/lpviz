@@ -424,7 +424,7 @@
   };
 
   document.getElementById('alphaMaxSlider').addEventListener('input', function () {
-    document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(2);
+    document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(3);
   });
   objectiveAngleStepSlider.addEventListener('input', function () {
     objectiveAngleStepValue.textContent = parseFloat(this.value).toFixed(2);

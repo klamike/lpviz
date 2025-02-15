@@ -3,44 +3,58 @@ using LPViz
 
 
 function polytope_handler(req::HTTP.Request)
-    points = req.body["points"]
-    return LPViz.compute_polytope(points)
+    # tserve = @elapsed begin
+    points = convert(Vector{Vector{Float64}}, req.body["points"])
+    ret = LPViz.compute_polytope(points)
+    # end
+    # @info "polytope: $tserve"
+    return ret
 end
 
 
 function simplex_handler(req::HTTP.Request)
+    # tserve = @elapsed begin
     data = req.body
-    lines = data["lines"]
+    lines = convert(Vector{Vector{Float64}}, data["lines"])
     objective = convert(Vector{Float64}, data["objective"])
-    return LPViz.simplex_handler(lines, objective)
+    ret = LPViz.simplex_handler(lines, objective)
+    # end
+    # @info "simplex: $tserve"
+    return ret
 end
 
 
 function ipm_handler(req::HTTP.Request)
+    # tserve = @elapsed begin
     data = req.body
-    lines = data["lines"]
-    objective = data["objective"]
-    weights = get(data, "weights", nothing)
+    lines = convert(Vector{Vector{Float64}}, data["lines"])
+    objective = convert(Vector{Float64}, data["objective"])
     ϵ_p = get(data, "ϵ_p", 1e-6)
     ϵ_d = get(data, "ϵ_d", 1e-6)
     ϵ_opt = get(data, "ϵ_opt", 1e-6)
     nitermax = get(data, "nitermax", 30)
     αmax = get(data, "αmax", 0.9990)
 
-    return LPViz.ipm_handler(lines, objective, weights;
+    ret = LPViz.ipm_handler(lines, objective, ones(length(lines));
         ϵ_p=ϵ_p, ϵ_d=ϵ_d, ϵ_opt=ϵ_opt,
         nitermax=nitermax, αmax=αmax
     )
+    # end
+    # @info "ipm: $tserve"
+    return ret
 end
 
 
 function trace_central_path_handler(req::HTTP.Request)
+    # tserve = @elapsed begin
     data = req.body
-    lines = data["lines"]
-    objective = data["objective"]
-    mu_values = get(data, "mu_values", nothing)
-    weights = get(data, "weights", nothing)
-    return LPViz.compute_central_path(lines, objective; mu_values=mu_values, weights=weights)
+    lines = convert(Vector{Vector{Float64}}, data["lines"])
+    objective = convert(Vector{Float64}, data["objective"])
+    weights = convert(Vector{Float64}, get(data, "weights", ones(length(lines))))
+    ret = LPViz.compute_central_path(lines, objective; weights=weights)
+    # end
+    # @info "trace_central_path: $tserve"
+    return ret
 end
 
 

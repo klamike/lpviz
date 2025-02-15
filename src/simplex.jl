@@ -12,7 +12,7 @@ function simplex_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float
     return simplex_solver(A, b, objective)
 end
 
-
+# max c'x s.t. Ax = b, x ≥ 0
 @inline function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
                          basis::Vector{Int}; tol=1e-8, verbose=false)
     m, n = size(A)
@@ -32,10 +32,8 @@ end
         end
         push!(iterations, (copy(x)))
         y = c[basis]' * Binv
-        pobj = dot(c[basis], x_B)
-        dobj = dot(c, x)
 
-        verbose && @printf "%4d  %+.6e %+.6e \n" length(iterations) pobj dobj
+        verbose && @printf "%4d  %+.6e %+.6e \n" length(iterations) dot(c[basis], x_B) dot(c, x)
 
         entering = nothing
         max_reduced = -Inf
@@ -73,18 +71,23 @@ end
     return iterations
 end
 
-
+# max c'x s.t. Ax ≤ b
 @inline function simplex_solver(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}; tol=1e-8)
     m, n = size(A)
 
+    # transform to Ax = b and x ≥ 0 by adding slacks and x free via x1 and x2 ≥ 0
+    # so we have
+    # max c'(x1 - x2) s.t. A(x1 - x2) = b, x1, x2 ≥ 0
+    # or 
+    # max c'x1 - c'x2 s.t. Ax1 - Ax2 = b, x1, x2 ≥ 0
     iterations = revised_simplex(
-        vcat(c, -c, zeros(m)),
-        [A  -A Matrix{Float64}(I, m, m)],
-        b,
-        collect(2*n + 1 : 2*n + m);
+        vcat(c, -c, zeros(m)),            # [ c -c 0 ]
+        [A  -A Matrix{Float64}(I, m, m)], # [ A -A I ]
+        b,                                # [ b ]
+        collect(2*n + 1 : 2*n + m);       # initial basis is all slack variables
         tol=tol
     )
-    iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations]
+    iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations] # x = x1 - x2
     
     return iterations_original
 end
