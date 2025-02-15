@@ -112,3 +112,25 @@ hr {
 #uiContainer {
   display: none;
 }
+
+#sidebarContent .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#sidebarContent .header h1 {
+  margin: 0;
+  font-weight: normal;
+}
+/* GitHub Icon styling */
+.github-icon {
+  width: 32px;  /* Adjust size as needed */
+  height: 32px;
+  color: #ccc;  /* Light color by default */
+  transition: color 0.3s ease;
+  background: transparent;
+  display: block;
+}
+.github-icon:hover {
+  color: #333;  /* Turns dark on hover */
+}
