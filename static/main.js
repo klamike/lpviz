@@ -618,7 +618,7 @@
             const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
             const stepDistance = Math.hypot(point[0] - prevPoint[0], point[1] - prevPoint[1]);
             if (deltaLog > 1e-6) {
-              const ratio = stepDistance / deltaLog;
+              const ratio = stepDistance;
               const pointpadding = '&nbsp;'.repeat(Math.max(0, 17 - `(${x}, ${y})`.length));
               extra = `${pointpadding}Δx: ${ratio.toFixed(2)}`;
             }
@@ -704,7 +704,7 @@
             const deltaLog = Math.abs(Math.log10(mu) - Math.log10(prevMu));
             const stepDistance = Math.hypot(point[0] - prevPoint[0], point[1] - prevPoint[1]);
             if (deltaLog > 1e-6) {
-              const ratio = stepDistance / deltaLog;
+              const ratio = stepDistance;
               extra = ` Δx: ${ratio.toFixed(2)}`;
             }
           }
