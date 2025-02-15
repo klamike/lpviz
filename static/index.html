@@ -25,9 +25,12 @@
         <h2>Constraints</h2>
         <div id="inequalities"></div>
         <br><br>
+        <button id="toggleBarrierWeightsButton" style="display:block;">Show Barrier Weights</button>
         <hr>
-        <button id="centralPathButton">Central Path Mode</button>
-        <button id="ipmButton">IPM Mode</button>
+        <p>Solver:
+        <button id="ipmButton">IPM</button>
+        <button id="simplexButton">Simplex</button>
+        <button id="centralPathButton">Central Path</button>
         <div id="ipmSettings" style="display:none; margin-top: 1em;">
           <h3>IPM Settings</h3>
           <label for="alphaMaxSlider">
@@ -39,8 +42,9 @@
           <label for="nitermaxInput">nitermax:</label>
           <input type="number" id="nitermaxInput" value="100" min="1" step="1">
         </div>
+        </p>
         <br>
-        <button id="traceButton">Trace</button>
+        <button id="traceButton">Solve</button>
         <br>
         <button id="startRotateObjectiveButton">Rotate Objective</button>
         <button id="stopRotateObjectiveButton" disabled>Stop Rotation</button>
@@ -55,7 +59,7 @@
         <button id="zoomButton">Zoom</button>
         <button id="unzoomButton">Unzoom</button>
         <br>
-        <button id="toggleBarrierWeightsButton">Show Barrier Weights</button>
+        
         <br><br>
         <hr>
         <h2>Iterates</h2>

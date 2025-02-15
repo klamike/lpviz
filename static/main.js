@@ -9,6 +9,7 @@
   const objectiveDisplay = document.getElementById('objectiveDisplay');
   const centralPathButton = document.getElementById('centralPathButton');
   const ipmButton = document.getElementById('ipmButton');
+  const simplexButton = document.getElementById('simplexButton'); // NEW BUTTON
   const ipmSettingsDiv = document.getElementById('ipmSettings');
 
   const startRotateObjectiveButton = document.getElementById('startRotateObjectiveButton');
@@ -43,7 +44,7 @@
   let draggingPointIndex = null;
   let draggingObjective = false;
   let barrierWeights = [];
-  let ipmMode = false;
+  let solverMode = "central";
 
   const distance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
   const computeCentroid = pts =>
@@ -377,7 +378,7 @@
 
       draw();
       updateZoomButtonsState();
-      updateIPMButtonState();
+      updateSolverModeButtons();
     }
   });
   unzoomButton.addEventListener('click', () => {
@@ -386,21 +387,42 @@
     offset.y = 0;
     draw();
     updateZoomButtonsState();
-    updateIPMButtonState();
+    updateSolverModeButtons();
   });
   centralPathButton.addEventListener('click', () => {
-    ipmMode = false;
+    solverMode = "central";
     centralPathButton.disabled = true;
     ipmButton.disabled = false;
+    simplexButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
   });
-  
   ipmButton.addEventListener('click', () => {
-    ipmMode = true;
+    solverMode = "ipm";
     ipmButton.disabled = true;
     centralPathButton.disabled = false;
+    simplexButton.disabled = false;
     ipmSettingsDiv.style.display = 'block';
   });
+  simplexButton.addEventListener('click', () => {
+    solverMode = "simplex";
+    simplexButton.disabled = true;
+    ipmButton.disabled = false;
+    centralPathButton.disabled = false;
+    ipmSettingsDiv.style.display = 'none';
+  });
+
+  const updateSolverModeButtons = () => {
+    if (!computedLines || computedLines.length === 0) {
+      centralPathButton.disabled = true;
+      ipmButton.disabled = true;
+      simplexButton.disabled = true;
+    } else {
+      if (solverMode !== "central") centralPathButton.disabled = false;
+      if (solverMode !== "ipm") ipmButton.disabled = false;
+      if (solverMode !== "simplex") simplexButton.disabled = false;
+    }
+  };
+
   document.getElementById('alphaMaxSlider').addEventListener('input', function () {
     document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(2);
   });
@@ -579,6 +601,7 @@
         }
         computedVertices = result.vertices;
         computedLines = result.lines;
+        updateSolverModeButtons();
         if (centralPathComputed && objectiveVector && computedLines.length > 0) {
           computePath();
         }
@@ -667,6 +690,73 @@
       });
   };
 
+  const computeSimplexIterates = () => {
+    if (isCentralPathComputing) return Promise.resolve();
+    isCentralPathComputing = true;
+    if (!isPolygonConvex(vertices)) {
+      analyticResultDiv.innerHTML = "Nonconvex";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    if (!computedLines || computedLines.length === 0) {
+      analyticResultDiv.innerHTML = "No computed lines available.";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    if (!objectiveVector) {
+      analyticResultDiv.innerHTML = "Objective vector not defined.";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    const weights = Array.from(document.querySelectorAll('.inequality-item')).map(item => {
+      const input = item.querySelector("input");
+      return input ? parseFloat(input.value) : 1;
+    });
+    return fetch('/simplex', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lines: computedLines,
+        objective: [objectiveVector.x, objectiveVector.y],
+        weights: weights,
+      })
+    })
+      .then(res => res.json())
+      .then(result => {
+        if (result.error) {
+          analyticResultDiv.innerHTML = "Error: " + result.error;
+          isCentralPathComputing = false;
+          return;
+        }
+        const iteratesArray = result;
+        centralPath = iteratesArray.map(entry => [entry, 1]);
+        analyticResultDiv.innerHTML = iteratesArray.map((entry, i, arr) => {
+          const point = entry;
+          const x = point[0].toFixed(2);
+          const y = point[1].toFixed(2);
+          return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
+        }).join('');
+        document.querySelectorAll('.central-path-item').forEach(item => {
+          item.addEventListener('mouseenter', () => {
+            highlightCentralPathIndex = parseInt(item.getAttribute('data-index'));
+            draw();
+          });
+          item.addEventListener('mouseleave', () => {
+            highlightCentralPathIndex = null;
+            draw();
+          });
+        });
+        draw();
+        isCentralPathComputing = false;
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        analyticResultDiv.innerHTML = "Error computing simplex iterates.";
+        isCentralPathComputing = false;
+      });
+  };
+
+
   const computeIPMIterates = () => {
     if (isCentralPathComputing) return Promise.resolve();
     isCentralPathComputing = true;
@@ -753,8 +843,10 @@
   };
 
   const computePath = () => {
-    if (ipmMode) {
+    if (solverMode === "ipm") {
       return computeIPMIterates();
+    } else if (solverMode === "simplex") {
+      return computeSimplexIterates();
     } else {
       return computeCentralPath();
     }
@@ -796,22 +888,14 @@
     objectiveRotationSettings.style.display = 'block';
     startRotateObjectiveButton.disabled = true;
     stopRotateObjectiveButton.disabled = false;
-      rotateAndComputeStep();
-      rotateAndComputeStep();
-    }
-  );
+    rotateAndComputeStep();
+  });
   stopRotateObjectiveButton.addEventListener('click', () => {
     rotateObjectiveMode = false;
     objectiveRotationSettings.style.display = 'none';
     startRotateObjectiveButton.disabled = false;
     stopRotateObjectiveButton.disabled = true;
   });
-
-  const updateIPMButtonState = () => {
-    if (computedLines.length === 0) {
-      centralPathButton.disabled = true;
-    }
-  };
 
   const updateCenter = () => {
     const sidebarWidth = document.getElementById('sidebar').offsetWidth;
@@ -828,7 +912,7 @@
     updateCenter();
     draw();
     updateZoomButtonsState();
-    updateIPMButtonState();
+    updateSolverModeButtons();
   };
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();

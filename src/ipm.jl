@@ -1,4 +1,3 @@
-using LinearAlgebra
 using Printf
 
 
@@ -54,6 +53,7 @@ function ipm(A, b, c, w;
     ϵ_opt=1e-6,
     nitermax=30,
     αmax=0.9990,
+    verbose=false,
 )
     m, n = size(A)
 
@@ -88,7 +88,7 @@ function ipm(A, b, c, w;
     Δ_cor = zeros(n+m+m)  # centrality (corrector)
 
     # Main loop
-    @printf "%4s  %13s %13s  %8s %8s  %7s\n" "Iter" "PObj" "DObj" "pfeas" "dfeas" "mu"
+    verbose && @printf "%4s  %13s %13s  %8s %8s  %7s\n" "Iter" "PObj" "DObj" "pfeas" "dfeas" "mu"
     niter = 0
     converged = false
     while niter <= nitermax
@@ -102,7 +102,7 @@ function ipm(A, b, c, w;
         gap  = abs(pobj - dobj) / (1 + abs(pobj))
 
         # Log
-        @printf "%4d  %+.6e %+.6e  %.2e %.2e  %.1e\n" niter pobj dobj norm(rp, Inf) norm(rd, Inf) μ
+        verbose && @printf "%4d  %+.6e %+.6e  %.2e %.2e  %.1e\n" niter pobj dobj norm(rp, Inf) norm(rd, Inf) μ
 
         # Keep track of iterates
         push!(res["iterates"]["solution"]["x"], copy(x))
