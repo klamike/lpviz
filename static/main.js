@@ -316,27 +316,58 @@
     }
   };
 
-  const drawCentralPath = () => {
-    if (centralPath && centralPath.length > 0) {
-      ctx.strokeStyle = 'purple';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      const start = toCanvasCoords(centralPath[0][0][0], centralPath[0][0][1]);
-      ctx.moveTo(start.x, start.y);
-      for (let i = 1; i < centralPath.length; i++) {
-        const pt = toCanvasCoords(centralPath[i][0][0], centralPath[i][0][1]);
-        ctx.lineTo(pt.x, pt.y);
-      }
-      ctx.stroke();
-      centralPath.forEach((entry, i) => {
-        const cp = toCanvasCoords(entry[0][0], entry[0][1]);
+const drawStar = (ctx, cx, cy, spikes, outerRadius, innerRadius, fillStyle) => {
+  let rot = Math.PI / 2 * 3;
+  let x = cx;
+  let y = cy;
+  const step = Math.PI / spikes;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - outerRadius);
+  
+  for (let i = 0; i < spikes; i++) {
+    x = cx + Math.cos(rot) * outerRadius;
+    y = cy + Math.sin(rot) * outerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+
+    x = cx + Math.cos(rot) * innerRadius;
+    y = cy + Math.sin(rot) * innerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+  }
+  ctx.closePath();
+  ctx.fillStyle = fillStyle;
+  ctx.fill();
+};
+
+const drawCentralPath = () => {
+  if (centralPath && centralPath.length > 0) {
+    ctx.strokeStyle = 'purple';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const start = toCanvasCoords(centralPath[0][0][0], centralPath[0][0][1]);
+    ctx.moveTo(start.x, start.y);
+    for (let i = 1; i < centralPath.length; i++) {
+      const pt = toCanvasCoords(centralPath[i][0][0], centralPath[i][0][1]);
+      ctx.lineTo(pt.x, pt.y);
+    }
+    ctx.stroke();
+
+    centralPath.forEach((entry, i) => {
+      const cp = toCanvasCoords(entry[0][0], entry[0][1]);
+      if (i === centralPath.length - 1) {
+        drawStar(ctx, cp.x, cp.y, 5, 8, 4, 'green');
+      } else {
         ctx.beginPath();
         ctx.fillStyle = highlightCentralPathIndex === i ? 'green' : 'purple';
         ctx.arc(cp.x, cp.y, highlightCentralPathIndex === i ? 5 : 3, 0, 2 * Math.PI);
         ctx.fill();
-      });
-    }
-  };
+      }
+    });
+  }
+};
+
 
   const draw = () => {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
