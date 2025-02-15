@@ -30,10 +30,34 @@ function ipm(A, b, c, w;
     m, n = size(A)
     A_ = hcat(A, -I)  # to be in standard form
 
-    # Initial point
+    res = Dict{String,Any}(
+        "iterates" => Dict{String,Any}(
+            "solution" => Dict{String,Any}(
+                "x" => [],
+                "s" => [],
+                "y" => [],
+            ),
+            "predictor" => Dict{String,Any}(
+                "x" => [],
+                "s" => [],
+                "y" => [],
+            ),
+            "corrector" => Dict{String,Any}(
+                "x" => [],
+                "s" => [],
+                "y" => [],
+            ),
+        ),
+        "primal_objective" => NaN,
+        "dual_objective" => NaN,
+    )
+
+    # Working memory
     x = zeros(n)
     s = ones(m)
     y = ones(m)  # dual multiplier of inequality constraints
+    Δ_aff = zeros(n+m+m)  # affine-scaling (predictor)
+    Δ_cor = zeros(n+m+m)  # centrality (corrector)
 
     # Main loop
     @printf "%4s  %13s %13s  %8s %8s  %7s\n" "Iter" "PObj" "DObj" "pfeas" "dfeas" "mu"
@@ -44,9 +68,6 @@ function ipm(A, b, c, w;
         rp = b - (A*x - s)
         rd = c - A'y
         μ  = dot(s, y) / m
-        # @info "residuals" 
-        # @show rp
-        # @show rd
 
         pobj = dot(c, x)
         dobj = dot(b, y)
@@ -54,13 +75,16 @@ function ipm(A, b, c, w;
 
         # Log
         @printf "%4d  %+.6e %+.6e  %.2e %.2e  %.1e\n" niter pobj dobj norm(rp, Inf) norm(rd, Inf) μ
+
+        # Keep track of iterates
+        push!(res["iterates"]["solution"]["x"], copy(x))
+        push!(res["iterates"]["solution"]["s"], copy(s))
+        push!(res["iterates"]["solution"]["y"], copy(y))
     
         if norm(rp, Inf) <= ϵ_p && norm(rd, Inf) <= ϵ_d && gap <= ϵ_opt
             # optimal solution found!
+            println("Converged to primal-dual optimal solution")
             converged = true
-            break
-        elseif niter > nitermax
-            converged = false
             break
         end
 
@@ -69,65 +93,66 @@ function ipm(A, b, c, w;
         # Compute search direction
         Y = Diagonal(y)
         S = Diagonal(s)
+        # Newton system
         K = [
             A           -I          zeros(m, m);
             zeros(n, n) zeros(n, m) A';
             zeros(m, n)  Y          S;
         ]
 
+        # Affine scaling direction (predictor)
         ξa = vcat(
             b - (A*x - s),
             c - A'y,
             -s .* y,
         )
+        Δ_aff .= K \ ξa
+        δx_aff = Δ_aff[1:n]
+        δs_aff = Δ_aff[(n+1):(n+m)]
+        δy_aff = Δ_aff[(n+m+1):(n+m+m)]
+        αp_aff = max_step_length(s, δs_aff)
+        αd_aff = max_step_length(y, δy_aff)
 
-        # Affine scaling direction
-        Δa = K \ ξa
-        δa_x = Δa[1:n]
-        δa_s = Δa[(n+1):(n+m)]
-        δa_y = Δa[(n+m+1):(n+m+m)]
-        αa_p = max_step_length(s, δa_s)
-        αa_d = max_step_length(y, δa_y)
-        # @info "Affine steps" αa_p αa_d
-
-        if αa_p >= 0.9 && αa_d >= 0.9
-            α_p = αmax * αa_p
-            α_d = αmax * αa_d
-    
-            # Make step
-            x .+= α_p .* δa_x
-            s .+= α_p .* δa_s
-            y .+= α_d .* δa_y
-
-            continue
-        end
-
-        # Centering direction
-        μaff = dot(s + αa_p .* δa_s, y + αa_d .* δa_y) / m
+        # Centering direction (corrector)
+        # Note: always computed, even if we end up discarding it
+        μaff = dot(s + αp_aff .* δs_aff, y + αd_aff .* δy_aff) / m
         σ = clamp((μaff / μ)^3, 1e-8, 1 - 1e-8)
         ξc = vcat(
             b - (A*x - s),
             c - A'y,
-            σ .* μ .* ones(m) - δa_s .* δa_y #- s .* y,
+            σ .* μ .* ones(m) - (δs_aff .* δy_aff - s .* y),
         )
-        Δc = K \ ξc
-        δc_x = δa_x + Δc[1:n]
-        δc_s = δa_s + Δc[(n+1):(n+m)]
-        δc_y = δa_y + Δc[(n+m+1):(n+m+m)]
-        αc_p = max_step_length(s, δc_s)
-        αc_d = max_step_length(y, δc_y)
-        # @info "Corrected" αc_p αc_d
+        Δ_cor .= K \ ξc
+        δx_cor = Δ_cor[1:n]
+        δs_cor = Δ_cor[(n+1):(n+m)]
+        δy_cor = Δ_cor[(n+m+1):(n+m+m)]
 
-        α_p = αmax * αc_p
-        α_d = αmax * αc_d
+        # Compute combined step length
+        αp_cor = max_step_length(s, δs_aff + δs_cor)
+        αd_cor = max_step_length(y, δy_aff + δy_cor)
+
+        # Compute final step length, and skip corrector if needed
+        γcor = !(αp_aff >= 0.9 && αd_aff >= 0.9)
+        αp = αmax * (γcor ? αp_cor : αp_aff)
+        αd = αmax * (γcor ? αp_cor : αd_aff)
 
         # Make step
-        x .+= α_p .* δc_x
-        s .+= α_p .* δc_s
-        y .+= α_d .* δc_y
+        x .+= αp .* (δx_aff .+ (γcor .* δx_cor))
+        s .+= αp .* (δs_aff .+ (γcor .* δs_cor))
+        y .+= αd .* (δy_aff .+ (γcor .* δy_cor))
+
+        # Update iterates
+        # Note: 
+        push!(res["iterates"]["predictor"]["x"], copy(δx_aff))
+        push!(res["iterates"]["predictor"]["s"], copy(δs_aff))
+        push!(res["iterates"]["predictor"]["y"], copy(δy_aff))
+
+        push!(res["iterates"]["corrector"]["x"], copy(δx_cor))
+        push!(res["iterates"]["corrector"]["s"], copy(δs_cor))
+        push!(res["iterates"]["corrector"]["y"], copy(δy_cor))
     end
 
-    return x, s, y
+    return res
 end
 
 """
@@ -150,7 +175,7 @@ function test_ipm(; kwargs...)
          0.0  1.0;
     ]
     b = [-2.0, -4.0, -7.0, 0.0, 0.0]
-    c = 0 .* [-2.0, -1.0]
+    c = [-2.0, -1.0]
     m, n = size(A)
     w = ones(m)
 
