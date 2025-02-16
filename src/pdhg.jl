@@ -24,7 +24,7 @@ end
 function PDHGState(problem, η, τ)
     m, n = problem.m, problem.n
     x₀, y₀ = zeros(n), zeros(m)
-    return PDHGState(x_0, y_0, η, τ, 1)
+    return PDHGState(x₀, y₀, η, τ, 1)
 end
 
 function project_nonnegative!(x)
@@ -52,7 +52,7 @@ function tolerance_LP(problem::PDHGProblem, state::PDHGState)
 end
 
 
-function pdhg_step(problem::PDHGProblem, state::PDHGState)
+function pdhg_step!(problem::PDHGProblem, state::PDHGState)
     A, b, c = problem.A, problem.b, problem.c
     xₖ, yₖ = state.x, state.y
     η, τ = state.η, state.τ
