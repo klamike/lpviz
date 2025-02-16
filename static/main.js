@@ -471,13 +471,38 @@
   };
 
   document.getElementById('alphaMaxSlider').addEventListener('input', function () {
-    document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(3);
+    const value = parseFloat(this.value).toFixed(3);
+    document.getElementById('alphaMaxValue').textContent = value;
+    // Trigger computePath() if IPM is active
+    if (solverMode === 'ipm') {
+      computePath();
+    }
   });
   document.getElementById('pdhgEtaSlider').addEventListener('input', function () {
-    document.getElementById('pdhgEtaValue').textContent = parseFloat(this.value).toFixed(3);
+    const value = parseFloat(this.value).toFixed(3);
+    document.getElementById('pdhgEtaValue').textContent = value;
+    // Trigger computePath() if PDHG is active
+    if (solverMode === 'pdhg') {
+      computePath();
+    }
   });
   document.getElementById('pdhgTauSlider').addEventListener('input', function () {
-    document.getElementById('pdhgTauValue').textContent = parseFloat(this.value).toFixed(3);
+    const value = parseFloat(this.value).toFixed(3);
+    document.getElementById('pdhgTauValue').textContent = value;
+    // Trigger computePath() if PDHG is active
+    if (solverMode === 'pdhg') {
+      computePath();
+    }
+  });
+  document.getElementById('nitermaxInput').addEventListener('input', function () {
+    if (solverMode === 'ipm') {
+      computePath();
+    }
+  });
+  document.getElementById('nitermaxInputPDHG').addEventListener('input', function () {
+    if (solverMode === 'pdhg') {
+      computePath();
+    }
   });
   objectiveAngleStepSlider.addEventListener('input', function () {
     objectiveAngleStepValue.textContent = parseFloat(this.value).toFixed(2);
