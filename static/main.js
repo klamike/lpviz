@@ -628,7 +628,7 @@ const drawCentralPath = () => {
                 ${ineq}<br>
                 <span class="barrier-weight-container" style="display: ${barrierWeightsVisible ? "inline" : "none"};">
                   <span style="font-family: sans-serif;">Barrier weight:</span>
-                  <input type="number" id="weight-${index}" value="${currentWeight}" step="any" style="width:60px" />
+                  <input type="number" id="weight-${index}" value="${currentWeight}" step="any" autocomplete="off" style="width:60px" />
                 </span>
               </div>
               `;
