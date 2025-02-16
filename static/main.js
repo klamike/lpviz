@@ -1006,6 +1006,10 @@
 
   const computePath = () => {
     animateButton.disabled = false;
+    if (animationIntervalId !== null) {
+      clearInterval(animationIntervalId);
+      animationIntervalId = null;
+    }
     if (solverMode === "ipm") {
       return computeIPMIterates();
     } else if (solverMode === "simplex") {
