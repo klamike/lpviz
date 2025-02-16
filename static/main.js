@@ -11,6 +11,8 @@
   const ipmButton = document.getElementById('ipmButton');
   const simplexButton = document.getElementById('simplexButton');
   const pdhgButton = document.getElementById('pdhgButton');
+  const animateButton = document.getElementById('animateButton');
+  const replaySpeedSlider = document.getElementById('replaySpeedSlider');
   const ipmSettingsDiv = document.getElementById('ipmSettings');
   const pdhgSettingsDiv = document.getElementById('pdhgSettings');
 
@@ -47,6 +49,10 @@
   let draggingObjective = false;
   let barrierWeights = [];
   let solverMode = "central";
+  let animationIntervalId = null;
+  let originalCentralPath = [];
+
+
 
   const distance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
   const computeCentroid = pts =>
@@ -463,10 +469,13 @@
       centralPathButton.disabled = true;
       ipmButton.disabled = true;
       simplexButton.disabled = true;
+      pdhgButton.disabled = true;
+      animateButton.disabled = true;
     } else {
       if (solverMode !== "central") centralPathButton.disabled = false;
       if (solverMode !== "ipm") ipmButton.disabled = false;
       if (solverMode !== "simplex") simplexButton.disabled = false;
+      if (solverMode !== "pdhg") pdhgButton.disabled = false;
     }
   };
 
@@ -729,6 +738,7 @@
           return;
         }
         centralPath = result.central_path;
+        originalCentralPath = [...centralPath];
         analyticResultDiv.innerHTML = centralPath.map((entry, i, arr) => {
           const [point, mu] = entry;
           const logMuRounded = parseFloat(Math.log10(mu).toFixed(1));
@@ -808,6 +818,7 @@
         }
         const iteratesArray = result;
         centralPath = iteratesArray.map(entry => [entry, 1]);
+        originalCentralPath = [...centralPath];
         analyticResultDiv.innerHTML = iteratesArray.map((entry, i, arr) => {
           const point = entry;
           const x = point[0].toFixed(2);
@@ -882,6 +893,7 @@
           return [sol.x[i], sol["µ"][i]];
         });
         centralPath = iteratesArray;
+        originalCentralPath = [...centralPath];
 
         analyticResultDiv.innerHTML = iteratesArray.map((entry, i, arr) => {
           const [point, mu] = entry;
@@ -964,6 +976,8 @@
         }
         const iteratesArray = result;
         centralPath = iteratesArray.map(entry => [entry, 1]);
+        originalCentralPath = [...centralPath];
+
         analyticResultDiv.innerHTML = iteratesArray.map((entry, i, arr) => {
           const point = entry;
           const x = point[0].toFixed(2);
@@ -991,6 +1005,7 @@
   };
 
   const computePath = () => {
+    animateButton.disabled = false;
     if (solverMode === "ipm") {
       return computeIPMIterates();
     } else if (solverMode === "simplex") {
@@ -1035,9 +1050,14 @@
       objectiveVector = { x: 1, y: 0 };
       updateObjectiveDisplay();
     }
+    if (animationIntervalId !== null) {
+      clearInterval(animationIntervalId);
+      animationIntervalId = null;
+    }
     objectiveRotationSettings.style.display = 'block';
     startRotateObjectiveButton.disabled = true;
     stopRotateObjectiveButton.disabled = false;
+    animateButton.disabled = true;
     rotateAndComputeStep();
   });
   stopRotateObjectiveButton.addEventListener('click', () => {
@@ -1045,7 +1065,47 @@
     objectiveRotationSettings.style.display = 'none';
     startRotateObjectiveButton.disabled = false;
     stopRotateObjectiveButton.disabled = true;
+    animateButton.disabled = false;
   });
+  animateButton.addEventListener('click', () => {
+    // Prevent animation if rotate objective mode is active.
+    if (rotateObjectiveMode) return;
+    
+    // Cancel any existing animation.
+    if (animationIntervalId !== null) {
+      clearInterval(animationIntervalId);
+      animationIntervalId = null;
+    }
+    
+    // Use the slider's value as the interval (in milliseconds)
+    const intervalTime = parseInt(replaySpeedSlider.value, 10) || 500;
+    
+    // Use the complete set of iterates from originalCentralPath
+    const iteratesToAnimate = [...originalCentralPath];
+    
+    // Clear the displayed central path and reset any highlight
+    centralPath = [];
+    highlightCentralPathIndex = null;
+    draw();
+    
+    let currentIndex = 0;
+    
+    // Start the animation: add one dot at a time
+    animationIntervalId = setInterval(() => {
+      if (currentIndex >= iteratesToAnimate.length) {
+        clearInterval(animationIntervalId);
+        animationIntervalId = null;
+        return;
+      }
+      // Add the next iterate (dot) to the centralPath array so it gets drawn
+      centralPath.push(iteratesToAnimate[currentIndex]);
+      highlightCentralPathIndex = currentIndex;
+      currentIndex++;
+      draw();
+    }, intervalTime);
+  });
+  
+  
 
   const updateCenter = () => {
     const sidebarWidth = document.getElementById('sidebar').offsetWidth;
