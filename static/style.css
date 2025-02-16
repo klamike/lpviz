@@ -134,3 +134,8 @@ hr {
 .github-icon:hover {
   color: #333;
 }
+
+#analyticResult {
+  max-height: 300px;
+  overflow-y: auto;
+}
