@@ -29,7 +29,9 @@ function pdhg_handler(req::HTTP.Request)
     lines = convert(Vector{Vector{Float64}}, data["lines"])
     objective = convert(Vector{Float64}, data["objective"])
     maxit = get(data, "maxit", 100000)
-    ret = LPViz.pdhg_handler(lines, objective, maxit=maxit)
+    η = get(data, "eta", nothing)
+    τ = get(data, "tau", nothing)
+    ret = LPViz.pdhg_handler(lines, objective, maxit=maxit, η=η, τ=τ)
     # end
     # @info "pdhg: $tserve"
     return ret

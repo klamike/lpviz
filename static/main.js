@@ -474,6 +474,12 @@ const drawCentralPath = () => {
   document.getElementById('alphaMaxSlider').addEventListener('input', function () {
     document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(3);
   });
+  document.getElementById('pdhgEtaSlider').addEventListener('input', function () {
+    document.getElementById('pdhgEtaValue').textContent = parseFloat(this.value).toFixed(3);
+  });
+  document.getElementById('pdhgTauSlider').addEventListener('input', function () {
+    document.getElementById('pdhgTauValue').textContent = parseFloat(this.value).toFixed(3);
+  });
   objectiveAngleStepSlider.addEventListener('input', function () {
     objectiveAngleStepValue.textContent = parseFloat(this.value).toFixed(2);
   });
@@ -913,6 +919,8 @@ const drawCentralPath = () => {
       return input ? parseFloat(input.value) : 1;
     });
     const nitermax = parseInt(document.getElementById('nitermaxInputPDHG').value, 10);
+    const eta = parseFloat(document.getElementById('pdhgEtaSlider').value);
+    const tau = parseFloat(document.getElementById('pdhgTauSlider').value);
     return fetch('/pdhg', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -920,6 +928,8 @@ const drawCentralPath = () => {
         lines: computedLines,
         objective: [objectiveVector.x, objectiveVector.y],
         maxit: nitermax,
+        eta: eta,
+        tau: tau,
       })
     })
       .then(res => res.json())

@@ -45,6 +45,17 @@
         </div>
         <div id="pdhgSettings" style="display:none; margin-top: 1em;">
           <h3>PDHG Settings</h3>
+          <label for="pdhgEtaSlider">
+            η: <span id="pdhgEtaValue">0.250</span>
+          </label>
+          <input style="position: relative; top: 7px;" type="range" id="pdhgEtaSlider" min="0.001" max="0.750" step="0.001" value="0.250">
+          <br>
+          <label for="pdhgTauSlider">
+            τ: <span id="pdhgTauValue">0.250</span>
+          </label>
+          <input style="position: relative; top: 7px;" type="range" id="pdhgTauSlider" min="0.001" max="0.750" step="0.001" value="0.250">
+          <br>
+          <br>
           <label for="nitermaxInputPDHG">nitermax:</label>
           <input type="number" id="nitermaxInputPDHG" value="1000" min="1" step="1">
         </div>

@@ -1,6 +1,6 @@
 # based on https://github.com/klamike/SimplePDHG.jl
 
-function pdhg_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; maxit=100000)
+function pdhg_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; maxit=100000, η=nothing, τ=nothing)
     m = length(lines)
     A = zeros(m, 2)
     b = zeros(m)
@@ -9,7 +9,7 @@ function pdhg_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
         A[i, 2] = lines[i][2]
         b[i] = lines[i][3]
     end
-    return solve_pdhg(A, b, objective, maxit=maxit)
+    return solve_pdhg(A, b, objective, maxit=maxit, η=η, τ=τ)
 end
 
 
@@ -30,16 +30,12 @@ mutable struct PDHGState{T<:AbstractVecOrMat{<:Real},I<:Integer} # contains info
     k::I # iteration counter
 end
 
-function PDHGState(problem::PDHGProblem{T,I}) where {T<:Real,I<:Integer}
+function PDHGState(problem::PDHGProblem{T,I}, η, τ) where {T<:Real,I<:Integer}
     n = problem.n
     m = problem.m
-    σmaxA = LinearAlgebra.norm(problem.A, 2)
-    η_preli = (1 / (σmaxA)) - 1e-6
-    τ_preli = (1 / (σmaxA)) - 1e-6
-    @assert η_preli > 0 && τ_preli > 0 "Got negative initial step sizes"
     x_0 = zeros(T, n)
     y_0 = zeros(T, m)
-    return PDHGState(x_0, y_0, problem.c, η_preli, τ_preli, 1)
+    return PDHGState(x_0, y_0, problem.c, η, τ, 1)
 end
 
 function project_nonnegative!(x::AbstractVector{T}) where {T<:Real}
@@ -96,8 +92,8 @@ function PDHG_iteration!(problem::PDHGProblem, state::PDHGState)
 end
 
 
-function pdhg(problem::PDHGProblem; maxit=100000, tol=1e-4, verbose=false)
-    state = PDHGState(problem)
+function pdhg(problem::PDHGProblem; maxit=100000, η=nothing, τ=nothing, tol=1e-4, verbose=false)
+    state = PDHGState(problem, η, τ)
 
     tc, tpc, tx, tz = tolerance_LP(problem.A, problem.b, problem.c, state.x, state.y, state.z)
 
@@ -123,7 +119,7 @@ function solve_pdhg(
     A,
     b::Vector{T},
     c::Vector{T};
-    maxit=100000, tol=1e-4, verbose=false,
+    maxit=100000, η=nothing, τ=nothing, tol=1e-4, verbose=false,
 ) where {T<:Real}
 
     # create the data object
@@ -136,7 +132,7 @@ function solve_pdhg(
         n + n + m,
     )
     # solve the problem
-    iterates = pdhg(problem, maxit=maxit, tol=tol, verbose=verbose)
+    iterates = pdhg(problem, maxit=maxit, η=η, τ=τ, tol=tol, verbose=verbose)
     iterates_x = [x[1:n] - x[n+1:2n] for x in iterates]
     return iterates_x
 end
