@@ -21,7 +21,7 @@ struct PDHGProblem{T<:Real,I<:Integer}
     n::I # number of columns of A
 end
 
-mutable struct PDHGState{T<:AbstractVecOrMat{<:Real},I<:Integer} # contains information regarding one iterattion sequence
+mutable struct PDHGState{T<:AbstractVecOrMat{<:Real},I<:Integer} # contains information regarding one iteration sequence
     x::T # iterate x_n
     y::T # iterate y_n
     z::T # iterate z_n
