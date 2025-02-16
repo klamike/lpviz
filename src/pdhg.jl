@@ -46,8 +46,8 @@ end
 
 function project_nonnegative(x::AbstractVector{T}) where {T<:Real}
     y = zeros(length(x))
-    for i in eachindex(y)
-        y[i] = max(zero(T), y[i])
+    for i in eachindex(x)
+        y[i] = max(zero(T), x[i])
     end
     return y
 end
