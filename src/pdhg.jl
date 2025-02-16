@@ -12,41 +12,34 @@ function pdhg_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     return solve_pdhg(A, b, objective)
 end
 
-function max_singular_value_PDHG(A)
-    σmaxA = LinearAlgebra.norm(A, 2)
-    return σmaxA
-end
 
-struct LP_Data{T<:Real,I<:Integer}
-    c::AbstractVector{T} # cost vector of length n
-    A
-    b::AbstractVector{T} # resource vector of length m
+struct PDHGProblem{T<:Real,I<:Integer}
+    c::AbstractVector{T}
+    A::AbstractMatrix{T}
+    b::AbstractVector{T}
     m::I # number of rows of A
     n::I # number of columns of A
 end
 
-mutable struct PDHG_state{T<:AbstractVecOrMat{<:Real},I<:Integer} # contains information regarding one iterattion sequence
+mutable struct PDHGState{T<:AbstractVecOrMat{<:Real},I<:Integer} # contains information regarding one iterattion sequence
     x::T # iterate x_n
     y::T # iterate y_n
     z::T # iterate z_n
     η::Real # step size
     τ::Real # step size
-    k::I # iteration counter  
-    st::MOI.TerminationStatusCode # termination status
-    sp::MOI.ResultStatusCode # primal status
-    sd::MOI.ResultStatusCode # dual status
+    k::I # iteration counter
 end
 
-function PDHG_state(problem::LP_Data{T,I}) where {T<:Real,I<:Integer}
+function PDHGState(problem::PDHGProblem{T,I}) where {T<:Real,I<:Integer}
     n = problem.n
     m = problem.m
-    σmaxA = max_singular_value_PDHG(problem.A)
+    σmaxA = LinearAlgebra.norm(problem.A, 2)
     η_preli = (1 / (σmaxA)) - 1e-6
     τ_preli = (1 / (σmaxA)) - 1e-6
     @assert η_preli > 0 && τ_preli > 0 "Got negative initial step sizes"
     x_0 = zeros(T, n)
     y_0 = zeros(T, m)
-    return PDHG_state(x_0, y_0, problem.c, η_preli, τ_preli, 1, MOI.OPTIMIZE_NOT_CALLED, MOI.UNKNOWN_RESULT_STATUS, MOI.UNKNOWN_RESULT_STATUS)
+    return PDHGState(x_0, y_0, problem.c, η_preli, τ_preli, 1)
 end
 
 function project_nonnegative!(x::AbstractVector{T}) where {T<:Real}
@@ -63,7 +56,7 @@ function project_nonnegative(x::AbstractVector{T}) where {T<:Real}
     return y
 end
 
-function tolerance_LP(A, b::AbstractVector{T}, c::AbstractVector{T}, x::AbstractVector{T}, y::AbstractVector{T}, z::AbstractVector{T}) where {T<:Real}
+function tolerance_LP(A::AbstractMatrix{T}, b::AbstractVector{T}, c::AbstractVector{T}, x::AbstractVector{T}, y::AbstractVector{T}, z::AbstractVector{T}) where {T<:Real}
     ϵ = LinearAlgebra.norm(A * x - b, 2) / (1 + LinearAlgebra.norm(b, 2)) + LinearAlgebra.norm(project_nonnegative(-A' * y - c), 2) / (1 + LinearAlgebra.norm(c, 2)) + LinearAlgebra.norm(c' * x + b' * y, 2) / (1 + abs(c' * x) + abs(b'y))
     tolerance_pc = LinearAlgebra.norm(A * x - b, 2)
     tolerance_x = LinearAlgebra.norm(project_nonnegative(-x), 2)
@@ -77,7 +70,7 @@ mutable struct PDHG_step{T}
     Δz::T
 end
 
-function PDHG_step(problem::LP_Data, state::PDHG_state)
+function PDHG_step(problem::PDHGProblem, state::PDHGState)
     xnew = state.x - state.η * state.z
     project_nonnegative!(xnew)
     Δx = xnew - state.x
@@ -90,43 +83,36 @@ function PDHG_step(problem::LP_Data, state::PDHG_state)
     return PDHG_step(Δx, Δy, Δz)
 end
 
-function apply_step!(state::PDHG_state, step::PDHG_step)
+function apply_step!(state::PDHGState, step::PDHG_step)
     state.x += step.Δx
     state.y += step.Δy
     state.z += step.Δz
     state.k += 1
 end
 
-function PDHG_iteration!(problem::LP_Data, state::PDHG_state)
+function PDHG_iteration!(problem::PDHGProblem, state::PDHGState)
     step = PDHG_step(problem, state)
     apply_step!(state, step)
 end
 
 
-function pdhg(problem::LP_Data; maxit=100000, tol=1e-4, verbose=false, freq=1000)
-    state = PDHG_state(problem)
+function pdhg(problem::PDHGProblem; maxit=100000, tol=1e-4, verbose=false)
+    state = PDHGState(problem)
 
     tc, tpc, tx, tz = tolerance_LP(problem.A, problem.b, problem.c, state.x, state.y, state.z)
-    # NOTE: only tc is used for termination
 
     ## time to run the loop
     iterates = []
     while (state.k < maxit) && tc > tol
-        # print information if verbose = true
-        if verbose == true
-            if mod(state.k, freq) == 0
-                @info "$(state.k) | $(problem.c'*state.x) | opt $(tc) | tpc $(tpc) | tx $(tx) | tz $(tz)"
-            end
-        end
+        verbose && @info "$(state.k) | $(problem.c'*state.x) | opt $(tc) | tpc $(tpc) | tx $(tx) | tz $(tz)"
+
         # compute a new state
         PDHG_iteration!(problem, state)
         tc, tpc, tx, tz = tolerance_LP(problem.A, problem.b, problem.c, state.x, state.y, state.z)
         push!(iterates, copy(state.x))
     end
 
-    if verbose == true
-        @info "$(state.k) | $(problem.c'*state.x) | opt $(tc) | tpc $(tpc) | tx $(tx) | tz $(tz)"
-    end
+    verbose && @info "$(state.k) | $(problem.c'*state.x) | opt $(tc) | tpc $(tpc) | tx $(tx) | tz $(tz)"
 
     return iterates
 
@@ -137,12 +123,12 @@ function solve_pdhg(
     A,
     b::Vector{T},
     c::Vector{T};
-    maxit=100000, tol=1e-4, verbose=false, freq=1000,
+    maxit=100000, tol=1e-4, verbose=false,
 ) where {T<:Real}
 
     # create the data object
     m, n = size(A)
-    problem = LP_Data(
+    problem = PDHGProblem(
         vcat(-c, c, zeros(m)),
         [A -A Matrix{Float64}(I, m, m)],
         b,
@@ -150,7 +136,7 @@ function solve_pdhg(
         n + n + m,
     )
     # solve the problem
-    iterates = pdhg(problem, maxit=maxit, tol=tol, verbose=verbose, freq=freq)
+    iterates = pdhg(problem, maxit=maxit, tol=tol, verbose=verbose)
     iterates_x = [x[1:n] - x[n+1:2n] for x in iterates]
     return iterates_x
 end
