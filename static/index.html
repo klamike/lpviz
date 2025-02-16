@@ -27,8 +27,9 @@
         <br><br>
         <button id="toggleBarrierWeightsButton" style="display:block;">Show Barrier Weights</button>
         <hr>
-        <p>Solver:
+        <p>
         <button id="ipmButton">IPM</button>
+        <button id="pdhgButton">PDHG</button>
         <button id="simplexButton">Simplex</button>
         <button id="centralPathButton">Central Path</button>
         <div id="ipmSettings" style="display:none; margin-top: 1em;">
@@ -36,11 +37,27 @@
           <label for="alphaMaxSlider">
             αmax: <span id="alphaMaxValue">0.1</span>
           </label>
-          <input style="position: relative; top: 7px;" type="range" id="alphaMaxSlider" min="0.001" max="1" step="0.001" value="0.1">
+          <input style="position: relative; top: 7px;" autocomplete="off" type="range" id="alphaMaxSlider" min="0.001" max="1" step="0.001" value="0.1">
           <br>
           <br>
           <label for="nitermaxInput">nitermax:</label>
-          <input type="number" id="nitermaxInput" value="1000" min="1" step="1">
+          <input type="number" id="nitermaxInput" autocomplete="off" value="1000" min="1" step="1">
+        </div>
+        <div id="pdhgSettings" style="display:none; margin-top: 1em;">
+          <h3>PDHG Settings</h3>
+          <label for="pdhgEtaSlider">
+            η: <span id="pdhgEtaValue">0.250</span>
+          </label>
+          <input style="position: relative; top: 7px;" autocomplete="off" type="range" id="pdhgEtaSlider" min="0.001" max="0.750" step="0.001" value="0.250">
+          <br>
+          <label for="pdhgTauSlider">
+            τ: <span id="pdhgTauValue">0.250</span>
+          </label>
+          <input style="position: relative; top: 7px;" autocomplete="off" type="range" id="pdhgTauSlider" min="0.001" max="0.750" step="0.001" value="0.250">
+          <br>
+          <br>
+          <label for="nitermaxInputPDHG">nitermax:</label>
+          <input type="number" id="nitermaxInputPDHG" autocomplete="off" value="1000" min="1" step="1">
         </div>
         </p>
         <br>
@@ -53,7 +70,7 @@
           <label for="objectiveAngleStepSlider">
             Angle Step (radians): <span id="objectiveAngleStepValue">0.10</span>
           </label>
-          <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1">
+          <input type="range" id="objectiveAngleStepSlider" autocomplete="off" min="0.01" max="0.5" step="0.01" value="0.1">
         </div>
         <br>
         <button id="zoomButton">Zoom</button>
