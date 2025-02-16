@@ -58,7 +58,7 @@ function pdhg_step(problem::PDHGProblem, state::PDHGState)
     η, τ = state.η, state.τ
 
     xₖ₊₁ = xₖ - η * (c + A'yₖ)
-    project_nonnegative!(xnew)
+    project_nonnegative!(xₖ₊₁)
     Δx = xₖ₊₁ - xₖ
 
     Δy = τ * A * (2 * xₖ₊₁ - xₖ) - τ * b
