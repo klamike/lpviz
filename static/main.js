@@ -10,7 +10,9 @@
   const centralPathButton = document.getElementById('centralPathButton');
   const ipmButton = document.getElementById('ipmButton');
   const simplexButton = document.getElementById('simplexButton');
+  const pdhgButton = document.getElementById('pdhgButton');
   const ipmSettingsDiv = document.getElementById('ipmSettings');
+  const pdhgSettingsDiv = document.getElementById('pdhgSettings');
 
   const startRotateObjectiveButton = document.getElementById('startRotateObjectiveButton');
   const stopRotateObjectiveButton = document.getElementById('stopRotateObjectiveButton');
@@ -425,21 +427,36 @@ const drawCentralPath = () => {
     centralPathButton.disabled = true;
     ipmButton.disabled = false;
     simplexButton.disabled = false;
+    pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
+    pdhgSettingsDiv.style.display = 'none';
   });
   ipmButton.addEventListener('click', () => {
     solverMode = "ipm";
     ipmButton.disabled = true;
     centralPathButton.disabled = false;
     simplexButton.disabled = false;
+    pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'block';
+    pdhgSettingsDiv.style.display = 'none';
   });
   simplexButton.addEventListener('click', () => {
     solverMode = "simplex";
     simplexButton.disabled = true;
     ipmButton.disabled = false;
     centralPathButton.disabled = false;
+    pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
+    pdhgSettingsDiv.style.display = 'none';
+  });
+  pdhgButton.addEventListener('click', () => {
+    solverMode = "pdhg";
+    pdhgButton.disabled = true;
+    simplexButton.disabled = false;
+    ipmButton.disabled = false;
+    centralPathButton.disabled = false;
+    ipmSettingsDiv.style.display = 'none';
+    pdhgSettingsDiv.style.display = 'block';
   });
 
   const updateSolverModeButtons = () => {
@@ -456,6 +473,12 @@ const drawCentralPath = () => {
 
   document.getElementById('alphaMaxSlider').addEventListener('input', function () {
     document.getElementById('alphaMaxValue').textContent = parseFloat(this.value).toFixed(3);
+  });
+  document.getElementById('pdhgEtaSlider').addEventListener('input', function () {
+    document.getElementById('pdhgEtaValue').textContent = parseFloat(this.value).toFixed(3);
+  });
+  document.getElementById('pdhgTauSlider').addEventListener('input', function () {
+    document.getElementById('pdhgTauValue').textContent = parseFloat(this.value).toFixed(3);
   });
   objectiveAngleStepSlider.addEventListener('input', function () {
     objectiveAngleStepValue.textContent = parseFloat(this.value).toFixed(2);
@@ -605,7 +628,7 @@ const drawCentralPath = () => {
                 ${ineq}<br>
                 <span class="barrier-weight-container" style="display: ${barrierWeightsVisible ? "inline" : "none"};">
                   <span style="font-family: sans-serif;">Barrier weight:</span>
-                  <input type="number" id="weight-${index}" value="${currentWeight}" step="any" style="width:60px" />
+                  <input type="number" id="weight-${index}" value="${currentWeight}" step="any" autocomplete="off" style="width:60px" />
                 </span>
               </div>
               `;
@@ -873,11 +896,84 @@ const drawCentralPath = () => {
       });
   };
 
+  const computePDHGIterates = () => {
+    if (isCentralPathComputing) return Promise.resolve();
+    isCentralPathComputing = true;
+    if (!isPolygonConvex(vertices)) {
+      analyticResultDiv.innerHTML = "Nonconvex";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    if (!computedLines || computedLines.length === 0) {
+      analyticResultDiv.innerHTML = "No computed lines available.";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    if (!objectiveVector) {
+      analyticResultDiv.innerHTML = "Objective vector not defined.";
+      isCentralPathComputing = false;
+      return Promise.resolve();
+    }
+    const weights = Array.from(document.querySelectorAll('.inequality-item')).map(item => {
+      const input = item.querySelector("input");
+      return input ? parseFloat(input.value) : 1;
+    });
+    const nitermax = parseInt(document.getElementById('nitermaxInputPDHG').value, 10);
+    const eta = parseFloat(document.getElementById('pdhgEtaSlider').value);
+    const tau = parseFloat(document.getElementById('pdhgTauSlider').value);
+    return fetch('/pdhg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lines: computedLines,
+        objective: [objectiveVector.x, objectiveVector.y],
+        maxit: nitermax,
+        eta: eta,
+        tau: tau,
+      })
+    })
+      .then(res => res.json())
+      .then(result => {
+        if (result.error) {
+          analyticResultDiv.innerHTML = "Error: " + result.error;
+          isCentralPathComputing = false;
+          return;
+        }
+        const iteratesArray = result;
+        centralPath = iteratesArray.map(entry => [entry, 1]);
+        analyticResultDiv.innerHTML = iteratesArray.map((entry, i, arr) => {
+          const point = entry;
+          const x = point[0].toFixed(2);
+          const y = point[1].toFixed(2);
+          return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
+        }).join('');
+        document.querySelectorAll('.central-path-item').forEach(item => {
+          item.addEventListener('mouseenter', () => {
+            highlightCentralPathIndex = parseInt(item.getAttribute('data-index'));
+            draw();
+          });
+          item.addEventListener('mouseleave', () => {
+            highlightCentralPathIndex = null;
+            draw();
+          });
+        });
+        draw();
+        isCentralPathComputing = false;
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        analyticResultDiv.innerHTML = "Error computing PDHG iterates.";
+        isCentralPathComputing = false;
+      });
+  };
+
   const computePath = () => {
     if (solverMode === "ipm") {
       return computeIPMIterates();
     } else if (solverMode === "simplex") {
       return computeSimplexIterates();
+    } else if (solverMode === "pdhg") {
+      return computePDHGIterates();
     } else {
       return computeCentralPath();
     }
