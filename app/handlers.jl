@@ -23,6 +23,17 @@ function simplex_handler(req::HTTP.Request)
     return ret
 end
 
+function pdhg_handler(req::HTTP.Request)
+    # tserve = @elapsed begin
+    data = req.body
+    lines = convert(Vector{Vector{Float64}}, data["lines"])
+    objective = convert(Vector{Float64}, data["objective"])
+    ret = LPViz.pdhg_handler(lines, objective)
+    # end
+    # @info "pdhg: $tserve"
+    return ret
+end
+
 
 function ipm_handler(req::HTTP.Request)
     # tserve = @elapsed begin
@@ -78,6 +89,7 @@ function register_api!(ROUTER)
     HTTP.register!(ROUTER, "POST", "/trace_central_path", trace_central_path_handler)
     HTTP.register!(ROUTER, "POST", "/ipm", ipm_handler)
     HTTP.register!(ROUTER, "POST", "/simplex", simplex_handler)
+    HTTP.register!(ROUTER, "POST", "/pdhg", pdhg_handler)
 end
 
 
