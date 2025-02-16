@@ -1,6 +1,6 @@
 # based on https://github.com/klamike/SimplePDHG.jl
 
-function pdhg_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64})
+function pdhg_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; maxit=100000)
     m = length(lines)
     A = zeros(m, 2)
     b = zeros(m)
@@ -9,7 +9,7 @@ function pdhg_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
         A[i, 2] = lines[i][2]
         b[i] = lines[i][3]
     end
-    return solve_pdhg(A, b, objective)
+    return solve_pdhg(A, b, objective, maxit=maxit)
 end
 
 

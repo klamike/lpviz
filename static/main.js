@@ -12,6 +12,7 @@
   const simplexButton = document.getElementById('simplexButton');
   const pdhgButton = document.getElementById('pdhgButton');
   const ipmSettingsDiv = document.getElementById('ipmSettings');
+  const pdhgSettingsDiv = document.getElementById('pdhgSettings');
 
   const startRotateObjectiveButton = document.getElementById('startRotateObjectiveButton');
   const stopRotateObjectiveButton = document.getElementById('stopRotateObjectiveButton');
@@ -428,6 +429,7 @@ const drawCentralPath = () => {
     simplexButton.disabled = false;
     pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
+    pdhgSettingsDiv.style.display = 'none';
   });
   ipmButton.addEventListener('click', () => {
     solverMode = "ipm";
@@ -436,6 +438,7 @@ const drawCentralPath = () => {
     simplexButton.disabled = false;
     pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'block';
+    pdhgSettingsDiv.style.display = 'none';
   });
   simplexButton.addEventListener('click', () => {
     solverMode = "simplex";
@@ -444,6 +447,7 @@ const drawCentralPath = () => {
     centralPathButton.disabled = false;
     pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
+    pdhgSettingsDiv.style.display = 'none';
   });
   pdhgButton.addEventListener('click', () => {
     solverMode = "pdhg";
@@ -452,6 +456,7 @@ const drawCentralPath = () => {
     ipmButton.disabled = false;
     centralPathButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
+    pdhgSettingsDiv.style.display = 'block';
   });
 
   const updateSolverModeButtons = () => {
@@ -907,13 +912,14 @@ const drawCentralPath = () => {
       const input = item.querySelector("input");
       return input ? parseFloat(input.value) : 1;
     });
+    const nitermax = parseInt(document.getElementById('nitermaxInputPDHG').value, 10);
     return fetch('/pdhg', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         lines: computedLines,
         objective: [objectiveVector.x, objectiveVector.y],
-        weights: weights,
+        maxit: nitermax,
       })
     })
       .then(res => res.json())
