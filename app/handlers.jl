@@ -72,7 +72,7 @@ function trace_central_path_handler(req::HTTP.Request)
 end
 
 
-function serve_static(path_suffix::String; suffix=true)
+function serve_static(path_suffix::String, mime_type::String; suffix=true)
     file_path = if suffix
         joinpath(joinpath(dirname(dirname(pathof(LPViz))), "static"), path_suffix)
     else
@@ -80,7 +80,7 @@ function serve_static(path_suffix::String; suffix=true)
     end
     try
         content = read(file_path, String)
-        return HTTP.Response(200, CORS_RES_HEADERS, content)
+        return HTTP.Response(200, [CORS_RES_HEADERS; ("Content-Type" => mime_type)], content)
     catch e
         return HTTP.Response(404, CORS_RES_HEADERS, "File not found: $(path_suffix)")
     end
@@ -97,8 +97,8 @@ end
 
 
 function register_static!(ROUTER)
-    HTTP.register!(ROUTER, "GET", "/", (req::HTTP.Request) -> serve_static("index.html"))
-    HTTP.register!(ROUTER, "GET", "/style.css", (req::HTTP.Request) -> serve_static("style.css"))
-    HTTP.register!(ROUTER, "GET", "/main.js", (req::HTTP.Request) -> serve_static("main.js"))
-    HTTP.register!(ROUTER, "GET", "/font.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", suffix=false))
+    HTTP.register!(ROUTER, "GET", "/", (req::HTTP.Request) -> serve_static("index.html", ""))
+    HTTP.register!(ROUTER, "GET", "/style.css", (req::HTTP.Request) -> serve_static("style.css", "text/css"))
+    HTTP.register!(ROUTER, "GET", "/main.js", (req::HTTP.Request) -> serve_static("main.js", "application/javascript"))
+    HTTP.register!(ROUTER, "GET", "/font.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", "font/woff2", suffix=false))
 end
