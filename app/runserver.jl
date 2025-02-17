@@ -1,18 +1,21 @@
-using HTTP, Sockets
+using HTTP, Sockets, LoggingExtras
 
 
 include("middleware.jl")
 include("handlers.jl")
 
-function runserver(ROUTER; port=8080, verbose=false, kwargs...)
+function runserver(ROUTER; port=8080, verbose=false)
     register_static!(ROUTER)
     register_api!(ROUTER)
-    verbose && setindex!(kwargs, logfmt"[$time_local] $request_method $request_uri $status ($body_bytes_sent bytes)", "access_log")
-    HTTP.serve(
-        ROUTER |> JSONMiddleware |> CorsMiddleware,
-        Sockets.localhost, port,
-        kwargs...,
-    )
+    LoggingExtras.withlevel(verbose ? LoggingExtras.Debug : LoggingExtras.Info) do
+        HTTP.serve(
+            ROUTER |> JSONMiddleware |> CorsMiddleware,
+            Sockets.localhost, port,
+            access_log=(
+                verbose ? logfmt"[$time_local] $request_method $request_uri $status ($body_bytes_sent bytes)" : nothing
+            )
+        )
+    end
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
@@ -20,5 +23,5 @@ if abspath(PROGRAM_FILE) == @__FILE__
         HTTP.Response(404, CORS_RES_HEADERS, ""),
         HTTP.Response(405, CORS_RES_HEADERS, ""),
     )
-    runserver(ROUTER; port=get(ARGS, 1, 8080))
+    runserver(ROUTER; port=get(ARGS, 1, 8080), verbose=false)
 end
