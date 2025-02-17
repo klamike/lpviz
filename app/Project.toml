@@ -2,5 +2,6 @@
 Artifacts = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+LoggingExtras = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
