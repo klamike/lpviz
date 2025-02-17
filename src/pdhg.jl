@@ -77,11 +77,11 @@ function pdhg(problem::PDHGProblem; maxit=100000, η=nothing, τ=nothing, tol=1e
 
     iterates = []
     while (state.k < maxit) && ϵ > tol
+        push!(iterates, copy(state.x))
         verbose && @info "$(state.k) | $(problem.c'*state.x) | opt $(ϵ)"
 
         pdhg_step!(problem, state)
         ϵ = tolerance_LP(problem, state)
-        push!(iterates, copy(state.x))
     end
 
     verbose && @info "$(state.k) | $(problem.c'*state.x) | opt $(ϵ)"
