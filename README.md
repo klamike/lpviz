@@ -1,5 +1,5 @@
 # `lpviz`
-`lpviz` is an interactive web app for visualizing [linear programming](https://youtu.be/kV1ru-Inzl4?si=KgasYrhSbqa_6Orh&t=3153) solvers. It's not hosted on the internet yet, so check the installation instructions below to get started running it locally.
+`lpviz` is an interactive web app for visualizing [linear programming](https://youtu.be/kV1ru-Inzl4?si=KgasYrhSbqa_6Orh&t=3153) solvers. Try it now at [https://lpviz.net](https://lpviz.net), or check the installation instructions below to get started running it locally.
 
 
 <p align="center">
@@ -15,6 +15,8 @@
 
 
 ## Installation
+
+You can use `lpviz` now at [https://lpviz.net](https://lpviz.net) thanks to free hosting from [HuggingFace](https://huggingface.co/spaces/klamike/lpviz). If you'd like to run it locally instead, follow the instructions below.
 
 First, make sure you have [Julia](https://julialang.org/) installed.
 Then, to install `lpviz`, run:
