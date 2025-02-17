@@ -23,5 +23,5 @@ if abspath(PROGRAM_FILE) == @__FILE__
         HTTP.Response(404, CORS_RES_HEADERS, ""),
         HTTP.Response(405, CORS_RES_HEADERS, ""),
     )
-    runserver(ROUTER; port=get(ARGS, 1, 8080), verbose=false)
+    runserver(ROUTER; port=parse(Int, get(ARGS, 1, 8080)), verbose=false)
 end
