@@ -435,33 +435,50 @@
     pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
     pdhgSettingsDiv.style.display = 'none';
+    // barrierWeightsVisible = true;
+    document.querySelectorAll('.barrier-weight-container').forEach(container => {
+      // container.style.display = "inline";
+      container.style.display = "none";
+    });
   });
   ipmButton.addEventListener('click', () => {
     solverMode = "ipm";
+    barrierWeightsVisible = false;
     ipmButton.disabled = true;
     centralPathButton.disabled = false;
     simplexButton.disabled = false;
     pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'block';
     pdhgSettingsDiv.style.display = 'none';
+    document.querySelectorAll('.barrier-weight-container').forEach(container => {
+      container.style.display = "none";
+    });
   });
   simplexButton.addEventListener('click', () => {
     solverMode = "simplex";
+    barrierWeightsVisible = false;
     simplexButton.disabled = true;
     ipmButton.disabled = false;
     centralPathButton.disabled = false;
     pdhgButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
     pdhgSettingsDiv.style.display = 'none';
+    document.querySelectorAll('.barrier-weight-container').forEach(container => {
+      container.style.display = "none";
+    });
   });
   pdhgButton.addEventListener('click', () => {
     solverMode = "pdhg";
+    barrierWeightsVisible = false;
     pdhgButton.disabled = true;
     simplexButton.disabled = false;
     ipmButton.disabled = false;
     centralPathButton.disabled = false;
     ipmSettingsDiv.style.display = 'none';
     pdhgSettingsDiv.style.display = 'block';
+    document.querySelectorAll('.barrier-weight-container').forEach(container => {
+      container.style.display = "none";
+    });
   });
 
   const updateSolverModeButtons = () => {
@@ -1149,13 +1166,6 @@
   });
   document.addEventListener('mouseup', () => {
     if (isResizing) isResizing = false;
-  });
-  toggleBarrierWeightsButton.addEventListener('click', () => {
-    barrierWeightsVisible = !barrierWeightsVisible;
-    document.querySelectorAll('.barrier-weight-container').forEach(container => {
-      container.style.display = barrierWeightsVisible ? "inline" : "none";
-    });
-    toggleBarrierWeightsButton.textContent = barrierWeightsVisible ? "Hide Barrier Weights" : "Show Barrier Weights";
   });
 
   let cpMouseX = 0;
