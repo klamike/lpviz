@@ -1,6 +1,6 @@
 using Printf
 
-function simplex_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64})
+function simplex_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; kwargs...)
     m = length(lines)
     A = zeros(m, 2)
     b = zeros(m)
@@ -9,7 +9,7 @@ function simplex_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float
         A[i, 2] = lines[i][2]
         b[i]    = lines[i][3]
     end
-    return simplex_solver(A, b, objective)
+    return simplex_solver(A, b, objective; kwargs...)
 end
 
 # max c'x s.t. Ax = b, x ≥ 0
