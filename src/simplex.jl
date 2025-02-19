@@ -196,15 +196,20 @@ end
     Γ = Diagonal(γ)
     b_std = Γ * b_std  # Note: can also use lmul!(Γ, b_std)
     A_std = Γ * A_std  # Note: can also use lmul!(Γ, b_std)
+
+    Ib, iterations_phase1 = phase1_simplex(A_std, b_std, c_std; verbose=verbose)
+    # TODO: check that basis is feasible
+    basis_feasible = collect(1:(2*n+m))[Ib[1:(2*n+m)]]
     
-    iterations = revised_simplex(
+    iterations_phase2 = revised_simplex(
         c_std,
         A_std,
         b_std,
-        collect(2*n + 1 : 2*n + m);       # initial basis is all slack variables
+        basis_feasible,
         tol=tol,
         verbose=verbose
     )
+    iterations = vcat(iterations_phase1, iterations_phase2)
     iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations] # x = x1 - x2
     
     return iterations_original
