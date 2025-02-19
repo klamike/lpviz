@@ -71,6 +71,105 @@ end
     return iterations
 end
 
+"""
+    phase1_simplex(A, b, c)
+
+Compute primal-feasible basis for `Ax = b, x ≥ 0`.
+
+This is done by solving the auxiliary problem
+min e't  s.t. Ax + t = b, x ≥ 0, t ≥ 0.
+The initial feasible basis for this problem is `x=0, t=b`.
+"""
+function phase1_simplex(A, b, c; tol=1e-8, verbose=false, nitermax=1000)
+    m, n = size(A)
+
+    # Padd constraint matrix with identity
+    A_ = hcat(A, I)
+    b_ = b
+    c_ = vcat(zeros(n), ones(m))
+
+    # Working memory
+    x = zeros(Float64, n+m)  # primal variables
+    y = zeros(Float64, m)    # dual variables
+    z = zeros(Float64, n+m)  # reduced costs
+    Ib = zeros(Bool, n+m)    # variable basic status (true means basic)
+    iterations = Vector{Float64}[]
+
+    # Setup initial basis: x=0, t is basic
+    Ib[(n+1):(n+m)] .= 1  # t in the basis
+    
+    # Solve feasibility problem...
+    niter = 0
+    verbose && @printf "%4s  %13s %13s  %8s %8s\n" "Iter" "pobj" "dobj" "pfeas" "dfeas"
+    while true
+        # Compute basis & basis inverse
+        B = A_[:, Ib]
+        Binv = inv(B)
+
+        # Compute primal iterate
+        x .= 0
+        @views mul!(x[Ib], Binv, b_)
+
+        # Compute dual variables and their reduced cost
+        @views mul!(y, transpose(Binv), c_[Ib])
+        z = c_ - A_'y
+
+        # Compute objectives and residuals
+        pobj = dot(c_, x)
+        dobj = dot(b_, y)
+        pfeas = maximum(x[(n+1):(n+m)])  # FIXME: we should show minimum(t)
+        dfeas = min(0, minimum(z))
+
+        verbose && @printf "%4d  %+.6e %+.6e  %.2e %.2e\n" niter pobj dobj pfeas dfeas
+
+        # Track (primal) iterates
+        push!(iterations, copy(x[1:n]))
+
+        # Convergence checks
+        # If t <= tol, we have a feasible solution, and we should stop
+        if maximum(x[(n+1):(n+m)]) <= tol
+            verbose && @printf "Feasible basis found\n"
+            break
+        elseif niter >= nitermax
+            verbose && @printf "Maximum iterations reached\n"
+            break
+        end
+
+        # find variable with most negative reduced cost
+        j_enter = argmin(z)
+
+        # Ratio test, compute index of variable that leaves the basis
+        δ = Binv * A_[:, j_enter]
+        j_exit = 0  # index of variable exiting the basis
+        α = Inf     # length of pivot
+        k = 0       # i is the k-th basic variable
+        for i in 1:(n+m)
+            k += Ib[i]
+            Ib[i] || continue
+            xi = x[i]
+            δi = δ[k]
+            δi > 0 || continue
+            αi = xi / δi
+            if αi < α
+                j_exit = i
+                α = αi
+            end
+        end
+
+        # TODO: check for unboundedness, ratio test, etc...
+        # Skipped because this is a Phase 1,
+        # so we should not have any unbounded problem
+
+        # Update basis
+        Ib[j_enter] = true
+        Ib[j_exit] = false
+
+        niter += 1
+    end
+
+    return Ib, iterations
+end
+
 # max c'x s.t. Ax ≤ b
 @inline function simplex_solver(
     A::Matrix{Float64}, 
