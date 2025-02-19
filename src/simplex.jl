@@ -72,20 +72,39 @@ end
 end
 
 # max c'x s.t. Ax ≤ b
-@inline function simplex_solver(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}; tol=1e-8)
+@inline function simplex_solver(
+    A::Matrix{Float64}, 
+    b::Vector{Float64}, 
+    c::Vector{Float64}; 
+    tol=1e-8, 
+    verbose=false,
+)
     m, n = size(A)
 
     # transform to Ax = b and x ≥ 0 by adding slacks and x free via x1 and x2 ≥ 0
     # so we have
     # max c'(x1 - x2) s.t. A(x1 - x2) + s = b, x1, x2, s ≥ 0
     # or 
-    # max c'x1 - c'x2 s.t. Ax1 - Ax2 + s = b, x1, x2, s ≥ 0
+    # max c'x1 - c'x2 s.t. Ax1 - Ax2 + s = b, x1, x2 ≥ 0, s ≥
+    # Convert to standard form
+    c_std = vcat(c, -c, zeros(m))             # [ c -c 0 ]
+    A_std = [A  -A Matrix{Float64}(I, m, m)]  # [ A -A I ]
+    b_std = b                                 # [ b ]
+    # Make sure RHS is non-negative (this is for phase 1)
+    # Note: this re-scaling would affect dual variables `y`,
+    #   but does not change primal variables.
+    γ = map(x -> (x < 0 ? -1.0 : 1.0), b_std)
+    Γ = Diagonal(γ)
+    b_std = Γ * b_std  # Note: can also use lmul!(Γ, b_std)
+    A_std = Γ * A_std  # Note: can also use lmul!(Γ, b_std)
+    
     iterations = revised_simplex(
-        vcat(c, -c, zeros(m)),            # [ c -c 0 ]
-        [A  -A Matrix{Float64}(I, m, m)], # [ A -A I ]
-        b,                                # [ b ]
+        c_std,
+        A_std,
+        b_std,
         collect(2*n + 1 : 2*n + m);       # initial basis is all slack variables
-        tol=tol
+        tol=tol,
+        verbose=verbose
     )
     iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations] # x = x1 - x2
     
