@@ -27,7 +27,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     #   or   julia runserver.jl [port]
     #   or   julia runserver.jl [port] expose
     runserver(ROUTER;
-        port=parse(Int, get(ARGS, 1, 8080)),
+        port=parse(Int, get(ARGS, 1, "8080")),
         verbose=false,
         expose=length(ARGS) > 1 && ARGS[2] == "expose"
     )
