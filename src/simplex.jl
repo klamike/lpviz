@@ -77,9 +77,9 @@ end
 
     # transform to Ax = b and x ≥ 0 by adding slacks and x free via x1 and x2 ≥ 0
     # so we have
-    # max c'(x1 - x2) s.t. A(x1 - x2) = b, x1, x2 ≥ 0
+    # max c'(x1 - x2) s.t. A(x1 - x2) + s = b, x1, x2, s ≥ 0
     # or 
-    # max c'x1 - c'x2 s.t. Ax1 - Ax2 = b, x1, x2 ≥ 0
+    # max c'x1 - c'x2 s.t. Ax1 - Ax2 + s = b, x1, x2, s ≥ 0
     iterations = revised_simplex(
         vcat(c, -c, zeros(m)),            # [ c -c 0 ]
         [A  -A Matrix{Float64}(I, m, m)], # [ A -A I ]
