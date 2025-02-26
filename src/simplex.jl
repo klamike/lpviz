@@ -83,7 +83,7 @@ The initial feasible basis for this problem is `x=0, t=b`.
 function phase1_simplex(A, b, c; tol=1e-8, verbose=false, nitermax=1000)
     m, n = size(A)
 
-    # Padd constraint matrix with identity
+    # Pad constraint matrix with identity
     A_ = hcat(A, I)
     b_ = b
     c_ = vcat(zeros(n), ones(m))
