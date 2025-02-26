@@ -184,7 +184,7 @@ end
     # so we have
     # max c'(x1 - x2) s.t. A(x1 - x2) + s = b, x1, x2, s ≥ 0
     # or 
-    # max c'x1 - c'x2 s.t. Ax1 - Ax2 + s = b, x1, x2 ≥ 0, s ≥
+    # max c'x1 - c'x2 s.t. Ax1 - Ax2 + s = b, x1, x2 ≥ 0, s ≥ 0
     # Convert to standard form
     c_std = vcat(c, -c, zeros(m))             # [ c -c 0 ]
     A_std = [A  -A Matrix{Float64}(I, m, m)]  # [ A -A I ]
