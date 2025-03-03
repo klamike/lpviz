@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'JuliaMono';
-  src: url("font.woff2") format('woff2');
+  src: url("../font.woff2") format('woff2');
 }
 
 html,
@@ -135,7 +135,7 @@ hr {
   color: #333;
 }
 
-#analyticResult {
+#Result {
   max-height: 300px;
   overflow-y: auto;
 }
