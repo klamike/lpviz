@@ -541,7 +541,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
   }
 
   function updateResult(iteratesArray) {
-    console.log(iteratesArray);
     resultDiv.innerHTML = iteratesArray
       .map((entry, i) => {
         const x = parseFloat(entry[0]).toFixed(2);
