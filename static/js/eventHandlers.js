@@ -243,6 +243,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.snapToGrid = !state.snapToGrid;
     }
   });
+  window.addEventListener("load", () => {
+    const canvas = document.getElementById("gridCanvas");
+    canvas.focus();
+  });
 
   // ----- UI Button Handlers -----
   uiManager.zoomButton.addEventListener("click", () => {
