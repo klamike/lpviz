@@ -26,6 +26,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     # usage: julia runserver.jl
     #   or   julia runserver.jl [port]
     #   or   julia runserver.jl [port] expose
+    precompile_handlers()
     runserver(ROUTER;
         port=parse(Int, get(ARGS, 1, "8080")),
         verbose=false,

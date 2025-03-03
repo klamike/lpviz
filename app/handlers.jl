@@ -104,3 +104,34 @@ function register_static!(ROUTER)
     end
     HTTP.register!(ROUTER, "GET", "/font.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", "font/woff2", suffix=false))
 end
+
+
+function precompile_handlers()
+    @info "Precompiling..."
+    points = [[-2, 2], [2, 2], [2, -2], [-2, -2]]
+    lines = [[0, 1, 2], [1, 0, 2], [0, -1, 2], [-1, 0, 2]]
+    objective = [1, 1]
+    weights = [1, 1, 1, 1]
+
+    polytope_handler(HTTP.Request("POST", "/polytope", [],
+        Dict("points" => points)
+    ))
+    trace_central_path_handler(HTTP.Request("POST", "/trace_central_path", [],
+        Dict("lines" => lines, "objective" => objective, "weights" => weights)
+    ))
+    simplex_handler(HTTP.Request("POST", "/simplex", [],
+        Dict("lines" => lines, "objective" => objective)
+    ))
+    pdhg_handler(HTTP.Request("POST", "/pdhg", [],
+        Dict(
+            "lines" => lines, "objective" => objective,
+            "maxit" => 1000, "eta" => 0.25, "tau" => 0.25
+        )
+    ))
+    ipm_handler(HTTP.Request("POST", "/ipm", [],
+        Dict(
+            "lines" => lines, "objective" => objective, "weights" => weights,
+            "alphamax" => 0.1, "nitermax" => 1000
+        )
+    ))
+end
