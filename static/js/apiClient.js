@@ -25,11 +25,11 @@ export async function fetchPolytope(points) {
     return response.json();
   }
   
-  export async function fetchIPM(lines, objective, weights, alphaMax, nitermax) {
+  export async function fetchIPM(lines, objective, weights, alphamax, nitermax) {
     const response = await fetch('/ipm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective, weights, "αmax": alphaMax, nitermax })
+      body: JSON.stringify({ lines, objective, weights, alphamax, nitermax })
     });
     return response.json();
   }

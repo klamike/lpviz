@@ -47,7 +47,7 @@ function ipm_handler(req::HTTP.Request)
     ϵ_d = get(data, "ϵ_d", 1e-6)
     ϵ_opt = get(data, "ϵ_opt", 1e-6)
     nitermax = get(data, "nitermax", 30)
-    αmax = get(data, "αmax", 0.9990)
+    αmax = get(data, "alphamax", 0.9990)
 
     ret = LPViz.ipm_handler(lines, objective, ones(length(lines));
         ϵ_p=ϵ_p, ϵ_d=ϵ_d, ϵ_opt=ϵ_opt,
