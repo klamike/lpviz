@@ -99,6 +99,8 @@ end
 function register_static!(ROUTER)
     HTTP.register!(ROUTER, "GET", "/", (req::HTTP.Request) -> serve_static("index.html", ""))
     HTTP.register!(ROUTER, "GET", "/style.css", (req::HTTP.Request) -> serve_static("style.css", "text/css"))
-    HTTP.register!(ROUTER, "GET", "/main.js", (req::HTTP.Request) -> serve_static("main.js", "application/javascript"))
+    for file in readdir(joinpath(joinpath(dirname(dirname(pathof(LPViz))), "static", "js")))
+        HTTP.register!(ROUTER, "GET", "/js/$(file)", (req::HTTP.Request) -> serve_static("js/$(file)", "application/javascript"))
+    end
     HTTP.register!(ROUTER, "GET", "/font.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", "font/woff2", suffix=false))
 end

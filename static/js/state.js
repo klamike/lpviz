@@ -1,0 +1,28 @@
+export const state = {
+    vertices: [],
+    currentMouse: null,
+    polygonComplete: false,
+    interiorPoint: null,
+    objectiveVector: null,
+    currentObjective: null,
+    computedVertices: [],
+    computedLines: [],
+    snapToGrid: false,
+    highlightIndex: null,
+    analyticCenter: null,
+    iteratePath: [],
+    iteratePathComputed: false,
+    historyStack: [],
+    redoStack: [],
+    highlightIteratePathIndex: null,
+    isIteratePathComputing: false,
+    rotateObjectiveMode: false,
+    barrierWeightsVisible: false,
+    draggingPointIndex: null,
+    draggingObjective: false,
+    barrierWeights: [],
+    solverMode: "central",
+    animationIntervalId: null,
+    originalIteratePath: []
+  };
+  
