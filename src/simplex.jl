@@ -13,7 +13,7 @@ function simplex_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float
 end
 
 # max c'x s.t. Ax = b, x ≥ 0
-@inline function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
+function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
     basis::Vector{Bool}; tol=1e-8, verbose=true, phase1=false)
     m, n = size(A)
 
@@ -79,7 +79,7 @@ end
 end
 
 # max c'x s.t. Ax ≤ b
-@inline function simplex_solver(
+function simplex_solver(
     A::Matrix{Float64},
     b::Vector{Float64},
     c::Vector{Float64};

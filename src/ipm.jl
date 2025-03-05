@@ -43,7 +43,7 @@ The KKT conditions are
          s,   y ≥ 0
     yᵀs         = 0
 """
-@inline function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}, w::Vector{Float64};
+function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}, w::Vector{Float64};
     ϵ_p=1e-6,
     ϵ_d=1e-6,
     ϵ_opt=1e-6,
@@ -187,8 +187,8 @@ end
 
 Compute maximum step length α so that x + α*dx ≥ 0
 """
-@inline max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
+max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
 
-@inline function max_step_length(x::AbstractVector, dx::AbstractVector)
+function max_step_length(x::AbstractVector, dx::AbstractVector)
     return min(1.0, minimum(max_step_length.(x, dx)))
 end
