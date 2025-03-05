@@ -36,23 +36,14 @@ function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float
 
         verbose && @printf "%4d  %+.6e %+.6e \n" length(iterations) dot(c[basis], x[basis]) dot(c, x)
 
-        # ⚠ Early exit for phase one. NOTE: This assumes x = [x_; s; t]! ⚠
+        # ⚠ Early exit for phase one. NOTE: This assumes x = [x_orig; s; t]! ⚠
         if phase1
-            # Compute residual (accounting for sign flips due to Γ)
-            residual = sign.(A[:, n-2m+1:n-m]) * (A[:, 1:n-2m] * x[1:n-2m] - b)
-            if maximum(max.(0, residual)) < tol
+            # Compute primal residual (accounting for sign flips due to Γ)
+            s = sign.(A[:, n-2m+1:n-m]) * (b - A[:, 1:n-2m] * x[1:n-2m])
+            if maximum(max.(0, -s)) < tol
+                # Compute basis based on which x, s are zero
                 basis_ = ones(Bool, n - m)
-                for j in 1:m
-                    # Remove slack if residual is non-negative
-                    (sum(basis_) == m) && break
-                    (-residual[j] < tol) && (basis_[n-2m+j] = false)
-                end
-                for i in 1:n-2m
-                    # Remove variable if value is zero
-                    (sum(basis_) == m) && break
-                    (x[i] < tol) && (basis_[i] = false)
-                end
-
+                basis_[findall([x[1:n-2m]; s] .< tol)[1:n-2m]] .= false
                 return iterations, basis_
             end
         end
