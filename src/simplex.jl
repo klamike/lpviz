@@ -57,12 +57,12 @@ end
             end
         end
 
-        # Pick the entering variable j₁
+        # Pick the entering variable i₁
         z = c - A'y
         i₁ = findfirst(i -> z[i] > tol && !basis[i], 1:n)
         i₁ === nothing && break # we are done
 
-        # Pick the exiting variable j₀
+        # Pick the exiting variable i₀
         δ = B \ A[:, i₁]
         i₀ = findfirst(
             ==(argmin([δ[j] > tol ? x[basis][j] / δ[j] : Inf for j in 1:m])),
