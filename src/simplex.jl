@@ -40,11 +40,13 @@ function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float
         if phase1
             # Compute primal residual (accounting for sign flips due to Γ)
             # r = ΓI * (Γb - ΓAx)
-            r = sign.(A[:, n-2m+1:n-m]) * (b - A[:, 1:n-2m] * x[1:n-2m])
+            x_orig_idx = 1:n-2m
+            s_idx = n-2m+1:n-m
+            r = sign.(A[:, s_idx]) * (b - A[:, x_orig_idx] * x[x_orig_idx])
             if maximum(max.(0, -r)) < tol
                 # Compute basis based on which x, s are zero
                 basis_ = ones(Bool, n - m)
-                basis_[findall([x[1:n-2m]; r] .< tol)[1:n-2m]] .= false
+                basis_[findall([x[x_orig_idx]; r] .< tol)[x_orig_idx]] .= false
                 return iterations, basis_
             end
         end
