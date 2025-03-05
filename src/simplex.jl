@@ -14,7 +14,7 @@ end
 
 # max c'x s.t. Ax = b, x ≥ 0
 @inline function revised_simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
-                         basis::Vector{Int}; tol=1e-8, verbose=false)
+                         basis::Vector{Int}; tol=1e-8, verbose=true, phase1=false)
     m, n = size(A)
     x = zeros(n)
 
@@ -23,17 +23,39 @@ end
     iterations = Vector{Vector{Float64}}(undef, 0)
     while true
         B = A[:, basis]
-        Binv = inv(B)
+        B⁻¹ = inv(B)
         
-        x_B = Binv * b
+        x_B = B⁻¹ * b
         x .= 0.0
         for i in 1:m
             x[basis[i]] = x_B[i]
         end
         push!(iterations, (copy(x)))
-        y = c[basis]' * Binv
+        y = c[basis]' * B⁻¹
 
         verbose && @printf "%4d  %+.6e %+.6e \n" length(iterations) dot(c[basis], x_B) dot(c, x)
+
+        # ⚠ Early exit for phase 1. This assumes x = [x_; s; t]! ⚠
+        if phase1
+            # Compute residual (accounting for sign flips due to Γ)
+            residual = sign.(A[:, n-2m+1:n-m]) * (A[:, 1:n-2m] * x[1:n-2m] - b)
+            if maximum(max.(0, residual)) < tol
+                basis_set = Set(collect(1:n-m))
+                for i in 1:m
+                    # Remove slack if residual is non-negative
+                    (length(basis_set) == m) && break
+                    (-residual[i] < tol) && delete!(basis_set, n-2m+i)
+                end
+                for i in 1:n
+                    # Remove variable if value is zero
+                    (length(basis_set) == m) && break
+                    (x[i] < tol) && delete!(basis_set, i)
+                end
+                push!(iterations, x) # this will never be accessed
+
+                return iterations, collect(basis_set)
+            end
+        end
 
         entering = nothing
         max_reduced = -Inf
@@ -49,7 +71,7 @@ end
 
         (max_reduced <= tol || entering === nothing) && break
         
-        d = Binv * A[:, entering]
+        d = B⁻¹ * A[:, entering]
         
         theta = Inf
         leaving_index = nothing
@@ -68,106 +90,7 @@ end
         basis[leaving_index] = entering
     end
     
-    return iterations
-end
-
-"""
-    phase1_simplex(A, b, c)
-
-Compute primal-feasible basis for `Ax = b, x ≥ 0`.
-
-This is done by solving the auxiliary problem
-min e't  s.t. Ax + t = b, x ≥ 0, t ≥ 0.
-The initial feasible basis for this problem is `x=0, t=b`.
-"""
-function phase1_simplex(A, b, c; tol=1e-8, verbose=false, nitermax=1000)
-    m, n = size(A)
-
-    # Pad constraint matrix with identity
-    A_ = hcat(A, I)
-    b_ = b
-    c_ = vcat(zeros(n), ones(m))
-
-    # Working memory
-    x = zeros(Float64, n+m)  # primal variables
-    y = zeros(Float64, m)    # dual variables
-    z = zeros(Float64, n+m)  # reduced costs
-    Ib = zeros(Bool, n+m)    # variable basic status (true means basic)
-    iterations = Vector{Float64}[]
-
-    # Setup initial basis: x=0, t is basic
-    Ib[(n+1):(n+m)] .= 1  # t in the basis
-    
-    # Solve feasibility problem...
-    niter = 0
-    verbose && @printf "%4s  %13s %13s  %8s %8s\n" "Iter" "pobj" "dobj" "pfeas" "dfeas"
-    while true
-        # Compute basis & basis inverse
-        B = A_[:, Ib]
-        Binv = inv(B)
-
-        # Compute primal iterate
-        x .= 0
-        @views mul!(x[Ib], Binv, b_)
-
-        # Compute dual variables and their reduced cost
-        @views mul!(y, transpose(Binv), c_[Ib])
-        z = c_ - A_'y
-
-        # Compute objectives and residuals
-        pobj = dot(c_, x)
-        dobj = dot(b_, y)
-        pfeas = maximum(x[(n+1):(n+m)])  # FIXME: we should show minimum(t)
-        dfeas = min(0, minimum(z))
-
-        verbose && @printf "%4d  %+.6e %+.6e  %.2e %.2e\n" niter pobj dobj pfeas dfeas
-
-        # Track (primal) iterates
-        push!(iterations, copy(x[1:n]))
-
-        # Convergence checks
-        # If t <= tol, we have a feasible solution, and we should stop
-        if maximum(x[(n+1):(n+m)]) <= tol
-            verbose && @printf "Feasible basis found\n"
-            break
-        elseif niter >= nitermax
-            verbose && @printf "Maximum iterations reached\n"
-            break
-        end
-
-        # find variable with most negative reduced cost
-        j_enter = argmin(z)
-
-        # Ratio test, compute index of variable that leaves the basis
-        δ = Binv * A_[:, j_enter]
-        j_exit = 0  # index of variable exiting the basis
-        α = Inf     # length of pivot
-        k = 0       # i is the k-th basic variable
-        for i in 1:(n+m)
-            k += Ib[i]
-            Ib[i] || continue
-            xi = x[i]
-            δi = δ[k]
-            δi > 0 || continue
-            αi = xi / δi
-            if αi < α
-                j_exit = i
-                α = αi
-            end
-        end
-
-        # TODO: check for unboundedness, ratio test, etc...
-        # Skipped because this is a Phase 1,
-        # so we should not have any unbounded problem
-
-        # Update basis
-        Ib[j_enter] = true
-        Ib[j_exit] = false
-
-        niter += 1
-    end
-
-    return Ib, iterations
+    return iterations, basis
 end
 
 # max c'x s.t. Ax ≤ b
@@ -180,36 +103,46 @@ end
 )
     m, n = size(A)
 
-    # transform to Ax = b and x ≥ 0 by adding slacks and x free via x1 and x2 ≥ 0
-    # so we have
-    # max c'(x1 - x2) s.t. A(x1 - x2) + s = b, x1, x2, s ≥ 0
-    # or 
-    # max c'x1 - c'x2 s.t. Ax1 - Ax2 + s = b, x1, x2 ≥ 0, s ≥ 0
-    # Convert to standard form
-    c_std = vcat(c, -c, zeros(m))             # [ c -c 0 ]
-    A_std = [A  -A Matrix{Float64}(I, m, m)]  # [ A -A I ]
-    b_std = b                                 # [ b ]
-    # Make sure RHS is non-negative (this is for phase 1)
-    # Note: this re-scaling would affect dual variables `y`,
-    #   but does not change primal variables.
-    γ = map(x -> (x < 0 ? -1.0 : 1.0), b_std)
-    Γ = Diagonal(γ)
-    b_std = Γ * b_std  # Note: can also use lmul!(Γ, b_std)
-    A_std = Γ * A_std  # Note: can also use lmul!(Γ, b_std)
+    # The problem data is given in the form
+    #    max c'x s.t. Ax ≤ b
 
-    Ib, iterations_phase1 = phase1_simplex(A_std, b_std, c_std; verbose=verbose)
-    # TODO: check that basis is feasible
-    basis_feasible = collect(1:(2*n+m))[Ib[1:(2*n+m)]]
+    # We wrote the simplex solver for the form
+    #    max c'x s.t. Ax = b, x ≥ 0
+
+    # To get x ≥ 0, we define x1, x2 ≥ 0 such that x = x1 - x2, x1, x2 ≥ 0:
+    #    max c'(x1 - x2) s.t. A(x1 - x2) ≤ b
+    #  or
+    #    max c'x1 - c'x2 s.t. Ax1 - Ax2 ≤ b
+    # To get Ax = b, we define s = b - Ax, s ≥ 0
+    #    max c'x1 - c'x2 + 0's s.t. Ax1 - Ax2 + s = b, x1, x2, s ≥ 0
     
-    iterations_phase2 = revised_simplex(
-        c_std,
-        A_std,
-        b_std,
-        basis_feasible,
+    # For phase 1, we need b ≥ 0, so we define Γ = diag(map(x -> (x < 0 ? -1.0 : 1.0), b)):
+    #    max c'x1 - c'x2 s.t. ΓAx1 - ΓAx2 + Γs = Γb, x1, x2, s ≥ 0
+    # we add yet another slack variable t ≥ 0 and swap out the objective:
+    #    max 0'x1 - 0'x2 + 0's - 1't s.t. ΓAx1 - ΓAx2 + Γs + t = Γb, x1, x2, s ≥ 0, t ≥ 0
+    # this allows us to use the initial (phase1-feasible) basis x1=0, x2=0, s=b, t=0
+
+    γ = map(x -> (x < 0 ? -1.0 : 1.0), b)
+    Γ = Diagonal(γ)
+
+    iterations_phase1, basis = revised_simplex(
+        [zeros(2n+m); -ones(m)],
+        [Γ*A -Γ*A Γ*Matrix{Float64}(I, m, m) Matrix{Float64}(I, m, m)],
+        Γ*b,
+        collect(2*n + m + 1 : 2*n + 2*m),
+        tol=tol,
+        verbose=verbose,
+        phase1=true
+    )
+    iterations_phase2, _ = revised_simplex(
+        vcat(c, -c, zeros(m)),
+        [A -A Matrix{Float64}(I, m, m)],
+        b,
+        basis,
         tol=tol,
         verbose=verbose
     )
-    iterations = vcat(iterations_phase1, iterations_phase2)
+    iterations = vcat(iterations_phase1[1:end-1], iterations_phase2)
     iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations] # x = x1 - x2
     
     return iterations_original
