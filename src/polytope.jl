@@ -6,7 +6,7 @@ function compute_polytope(points::Vector{Vector{Float64}})
 end
 
 
-@inline function compute_interior_point(points::Vector{Vector{Float64}})
+function compute_interior_point(points::Vector{Vector{Float64}})
     n = length(points)
     if n > 0
         x_sum = sum(p[1] for p in points)
@@ -17,7 +17,7 @@ end
     end
 end
 
-@inline function process_coeff(x::Float64)
+function process_coeff(x::Float64)
     if x == 0
         x1 = abs(x)
     else
@@ -31,7 +31,7 @@ end
     end
 end
 
-@inline function compute_polygon_edges(points::Vector{Vector{Float64}}, interior::Vector{Float64}; tol=1e-6)
+function compute_polygon_edges(points::Vector{Vector{Float64}}, interior::Vector{Float64}; tol=1e-6)
     inequalities = String[]
     lines = Vector{Vector{Float64}}()
     n = length(points)
@@ -95,7 +95,7 @@ end
 end
 
 
-@inline function compute_intersections(lines::Vector{Vector{Float64}}; tol=1e-6)
+function compute_intersections(lines::Vector{Vector{Float64}}; tol=1e-6)
     poly_vertices = []
     n = length(lines)
     for i in 1:(n-1)
