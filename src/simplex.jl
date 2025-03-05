@@ -90,17 +90,17 @@ function simplex_solver(
     #    max c'x s.t. Ax = b, x ≥ 0
 
     # To get x ≥ 0, we define x1, x2 ≥ 0 such that x = x1 - x2, x1, x2 ≥ 0:
-    #    max c'(x1 - x2) s.t. A(x1 - x2) ≤ b
+    #    max c'(x1 - x2) s.t. A(x1 - x2) ≤ b, x1, x2 ≥ 0
     #  or
-    #    max c'x1 - c'x2 s.t. Ax1 - Ax2 ≤ b
-    # To get Ax = b, we define s = b - Ax, s ≥ 0
+    #    max c'x1 - c'x2 s.t. Ax1 - Ax2 ≤ b, x1, x2 ≥ 0
+    # To get Ax = b, we add slack variables s ≥ 0
     #    max c'x1 - c'x2 + 0's s.t. Ax1 - Ax2 + s = b, x1, x2, s ≥ 0
 
     # For phase 1, we need b ≥ 0, so we define Γ = diag(map(x -> (x < 0 ? -1.0 : 1.0), b)):
-    #    max c'x1 - c'x2 s.t. ΓAx1 - ΓAx2 + Γs = Γb, x1, x2, s ≥ 0
+    #    max c'x1 - c'x2 + 0's s.t. ΓAx1 - ΓAx2 + Γs = Γb, x1, x2, s ≥ 0
     # we add yet another slack variable t ≥ 0 and swap out the objective:
     #    max 0'x1 - 0'x2 + 0's - 1't s.t. ΓAx1 - ΓAx2 + Γs + t = Γb, x1, x2, s ≥ 0, t ≥ 0
-    # this allows us to use the initial (phase1-feasible) basis x1=0, x2=0, s=b, t=0
+    # this allows us to use the initial (phase1-feasible) basis x1=0, x2=0, s=0, t=Γb
 
     γ = map(x -> (x < 0 ? -1.0 : 1.0), b)
     Γ = Diagonal(γ)
