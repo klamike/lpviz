@@ -45,7 +45,7 @@ function pdhg(A, b, c; maxit=1000, η=0.25, τ=0.25, tol=1e-4, verbose=false)
         
         # Update x: xₖ₊₁ = Π₊(xₖ - η (c + Aᵀyₖ))
         xₖ₊₁ = xₖ - η * (c + A'yₖ)
-        project_nonnegative!(xₖ₊₁)  # Apply Π₊(⋅) projection
+        pdhg_project_nonnegative!(xₖ₊₁)  # Apply Π₊(⋅) projection
         Δx = xₖ₊₁ - xₖ
 
         # Update y: yₖ₊₁ = yₖ + τ (A(2xₖ₊₁ - xₖ) - b)
@@ -68,17 +68,17 @@ function pdhg_ϵ(A, b, c, xₖ, yₖ)
     # 3. Duality gap: ||cᵀx + bᵀy|| / (1 + |cᵀx| + |bᵀy|)
     return (
         LinearAlgebra.norm(A * xₖ - b, 2) / (1 + LinearAlgebra.norm(b, 2))
-        + LinearAlgebra.norm(project_nonnegative(-A'yₖ - c), 2) / (1 + LinearAlgebra.norm(c, 2))
+        + LinearAlgebra.norm(pdhg_project_nonnegative(-A'yₖ - c), 2) / (1 + LinearAlgebra.norm(c, 2))
         + LinearAlgebra.norm(c'xₖ + b'yₖ, 2) / (1 + abs(c'xₖ) + abs(b'yₖ))
     )
 end
 
-function project_nonnegative!(x)
+function pdhg_project_nonnegative!(x)
     # Projection Π₊(x) = max(0, x)
     x .= max.(0.0, x)
 end
 
-function project_nonnegative(x)
+function pdhg_project_nonnegative(x)
     # Returns Π₊(x) without modifying x in place.
     return max.(0.0, x)
 end

@@ -97,8 +97,8 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
         δx_aff = Δ_aff[1:n]
         δs_aff = Δ_aff[(n+1):(n+m)]
         δy_aff = Δ_aff[(n+m+1):(n+m+m)]
-        αp_aff = max_step_length(s, δs_aff)
-        αd_aff = max_step_length(y, δy_aff)
+        αp_aff = ipm_max_step_length(s, δs_aff)
+        αd_aff = ipm_max_step_length(y, δy_aff)
 
         # Centering direction (corrector)
         # Note: always computed, even if we end up discarding it
@@ -115,8 +115,8 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
         δy_cor = Δ_cor[(n+m+1):(n+m+m)]
 
         # Compute combined step length
-        αp_cor = max_step_length(s, δs_aff + δs_cor)
-        αd_cor = max_step_length(y, δy_aff + δy_cor)
+        αp_cor = ipm_max_step_length(s, δs_aff + δs_cor)
+        αd_cor = ipm_max_step_length(y, δy_aff + δy_cor)
 
         # Compute final step length
         # Skip correction if affine-scaling direction is good enough
@@ -142,10 +142,10 @@ end
 
 Compute maximum step length α so that x + α*dx ≥ 0
 """
-max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
+ipm_max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
 
-function max_step_length(x::AbstractVector, dx::AbstractVector)
-    return min(1.0, minimum(max_step_length.(x, dx)))
+function ipm_max_step_length(x::AbstractVector, dx::AbstractVector)
+    return min(1.0, minimum(ipm_max_step_length.(x, dx)))
 end
 
 

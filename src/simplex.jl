@@ -29,7 +29,6 @@ function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol
         [zeros(2n + m); -ones(m)],
         [Γ * A -Γ * A Γ * Matrix{Float64}(I, m, m) Matrix{Float64}(I, m, m)],
         Γ * b,
-        # collect(2*n + m + 1 : 2*n + 2*m),
         begin
             initial_basis = zeros(Bool, 2 * n + 2 * m)
             initial_basis[2*n+m+1:2*n+2*m] .= true
