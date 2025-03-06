@@ -61,24 +61,24 @@ function pdhg(A, b, c; maxit=1000, η=0.25, τ=0.25, tol=1e-4, verbose=false)
     return iterates
 end
 
-function pdhg_ϵ(A, b, c, xₖ, yₖ)
+pdhg_ϵ(A, b, c, xₖ, yₖ) = begin
     # Computes optimality tolerance:
     # 1. Primal feasibility: ||Ax - b|| / (1 + ||b||)
     # 2. Dual feasibility: ||Π₊(-Aᵀy - c)|| / (1 + ||c||)
     # 3. Duality gap: ||cᵀx + bᵀy|| / (1 + |cᵀx| + |bᵀy|)
-    return (
+    (
         LinearAlgebra.norm(A * xₖ - b, 2) / (1 + LinearAlgebra.norm(b, 2))
         + LinearAlgebra.norm(pdhg_project_nonnegative(-A'yₖ - c), 2) / (1 + LinearAlgebra.norm(c, 2))
         + LinearAlgebra.norm(c'xₖ + b'yₖ, 2) / (1 + abs(c'xₖ) + abs(b'yₖ))
     )
 end
 
-function pdhg_project_nonnegative!(x)
+pdhg_project_nonnegative!(x) = begin
     # Projection Π₊(x) = max(0, x)
     x .= max.(0.0, x)
 end
 
-function pdhg_project_nonnegative(x)
+pdhg_project_nonnegative(x) = begin
     # Returns Π₊(x) without modifying x in place.
-    return max.(0.0, x)
+    max.(0.0, x)
 end

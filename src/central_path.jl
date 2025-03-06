@@ -27,7 +27,7 @@ function central_path_xₖ(A, b, c, w, µ, x⁰)
     #   max c'x + μ ∑ᵢ wᵢ tᵢ
     #   s.t. [tᵢ, 1, bᵢ - Aᵢx] ∈ 𝒦ₑ   ∀i ∈ [1, m]
 
-    m = length(lines)
+    m = length(b)
     model = Model(Clarabel.Optimizer)
     set_silent(model)
 
@@ -38,10 +38,10 @@ function central_path_xₖ(A, b, c, w, µ, x⁰)
     # Set starting point
     # This is useful for very small feasible regions and shouldn't change the solution.
     set_start_value.(x, x⁰)
-    set_start_value.(t, log.([b[i] - A[i]'x⁰ for i in 1:m]))
+    set_start_value.(t, log.([b[i] - A[i, :]⋅x⁰ for i in 1:m]))
 
     # Add conic constraints
-    @constraint(model, [i ∈ 1:m], [t[i], 1, b[i] - A[i]'x] ∈ MOI.ExponentialCone())
+    @constraint(model, [i ∈ 1:m], [t[i], 1, b[i] - A[i, :]⋅x] ∈ MOI.ExponentialCone())
 
     # Define objective
     @objective(model, Max, c'x + µ * w't)
@@ -54,23 +54,18 @@ function central_path_xₖ(A, b, c, w, µ, x⁰)
     return value.(x)
 end
 
-function central_path_x⁰(lines)
-    # compute centroid of intersections
-    intersections = polytope_points(lines)
-    n = length(intersections)
-    n > 0 || error("No intersections found")
-    return [sum(p[1] for p in intersections) / n, sum(p[2] for p in intersections) / n]
+central_path_filter(lines, weights) = begin
+    length(lines) != length(weights) && error("Length of lines and weights must match")
+    kept = [i for i in 1:length(lines) if weights[i] != 0]
+    
+    [lines[i] for i in kept], [weights[i] for i in kept]
 end
+central_path_x⁰(lines) = begin # compute centroid of vertices
+    vertices = polytope_points(lines)
+    n = length(vertices)
+    n > 0 || error("No intersections found")
 
+    [sum(p[1] for p in vertices) / n, sum(p[2] for p in vertices) / n]
+end
 central_path_μ(µ) = isnothing(µ) ? [10.0^p for p in [3, 2, 1.5, 1, 0.5, 0, -0.5, -1, -3, -5]] : µ
 central_path_w(w, m) = isnothing(w) ? ones(m) : w
-
-function central_path_filter(lines, weights)
-    if length(lines) != length(weights)
-        error("Length of lines and weights must be the same")
-    end
-    nonzero_indices = [i for i in 1:length(lines) if weights[i] != 0]
-    filtered_lines = [lines[i] for i in nonzero_indices]
-    filtered_weights = [weights[i] for i in nonzero_indices]
-    return filtered_lines, filtered_weights
-end

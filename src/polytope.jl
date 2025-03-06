@@ -91,7 +91,7 @@ end
 
 polytope_format(x::Float64) = x == floor(x) ? Int(x) : round(x, digits=3)
 
-function lines_to_Ab(lines::Vector{Vector{Float64}})
+lines_to_Ab(lines::Vector{Vector{Float64}}) = begin
     m = length(lines)
     A = zeros(m, 2)
     b = zeros(m)
@@ -100,5 +100,6 @@ function lines_to_Ab(lines::Vector{Vector{Float64}})
         A[i, 2] = lines[i][2]
         b[i] = lines[i][3]
     end
-    return A, b
+    
+    A, b
 end
