@@ -1,24 +1,9 @@
-using Printf
-
-
-function ipm_handler(lines::Vector{Vector{Float64}}, objective::Vector{Float64}, weights::Vector{Float64};
-    ϵ_p=1e-6,
-    ϵ_d=1e-6,
-    ϵ_opt=1e-6,
-    nitermax=30,
-    αmax=0.9990,
+function ipm(lines::Vector{Vector{Float64}}, objective::Vector{Float64};
+    ϵ_p=1e-6, ϵ_d=1e-6, ϵ_opt=1e-6, nitermax=30, αmax=0.9990,
 )
-    m = length(lines)
-    A = zeros(m, 2)
-    b = zeros(m)
-    for i in 1:m
-        A[i, 1] = lines[i][1]
-        A[i, 2] = lines[i][2]
-        b[i] = lines[i][3]
-    end
-
+    A, b = lines_to_Ab(lines)
     return ipm(
-        -A, -b, -objective, weights;
+        -A, -b, -objective;
         ϵ_p=ϵ_p, ϵ_d=ϵ_d, ϵ_opt=ϵ_opt,
         nitermax=nitermax, αmax=αmax,
     )
@@ -43,36 +28,16 @@ The KKT conditions are
          s,   y ≥ 0
     yᵀs         = 0
 """
-function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}, w::Vector{Float64};
-    ϵ_p=1e-6,
-    ϵ_d=1e-6,
-    ϵ_opt=1e-6,
-    nitermax=30,
-    αmax=0.9990,
-    verbose=false,
+function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
+    ϵ_p=1e-6, ϵ_d=1e-6, ϵ_opt=1e-6, nitermax=30, αmax=0.9990, verbose=false,
 )
     m, n = size(A)
 
     res = Dict{String,Any}(
         "iterates" => Dict{String,Any}(
-            "solution" => Dict{String,Any}(
-                "x" => [],
-                "s" => [],
-                "y" => [],
-                "µ" => [],
-            ),
-            "predictor" => Dict{String,Any}(
-                "x" => [],
-                "s" => [],
-                "y" => [],
-                "µ" => [],
-            ),
-            "corrector" => Dict{String,Any}(
-                "x" => [],
-                "s" => [],
-                "y" => [],
-                "µ" => [],
-            ),
+            "solution" => Dict{String,Any}("x" => [], "s" => [], "y" => [], "µ" => []),
+            "predictor" => Dict{String,Any}("x" => [], "s" => [], "y" => [], "µ" => []),
+            "corrector" => Dict{String,Any}("x" => [], "s" => [], "y" => [], "µ" => []),
         ),
     )
 
@@ -101,10 +66,7 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}, w::Vect
         verbose && @printf "%4d  %+.6e %+.6e  %.2e %.2e  %.1e\n" niter pobj dobj norm(rp, Inf) norm(rd, Inf) μ
 
         # Keep track of iterates
-        push!(res["iterates"]["solution"]["x"], copy(x))
-        push!(res["iterates"]["solution"]["s"], copy(s))
-        push!(res["iterates"]["solution"]["y"], copy(y))
-        push!(res["iterates"]["solution"]["µ"], copy(μ))
+        ipm_push_iterates!(res["iterates"]["solution"], x, s, y, μ)
     
         if norm(rp, Inf) <= ϵ_p && norm(rd, Inf) <= ϵ_d && gap <= ϵ_opt
             # optimal solution found!
@@ -168,15 +130,8 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64}, w::Vect
         y .+= αd .* (δy_aff .+ (γcor .* δy_cor))
 
         # Keep track of predictor/corrector directions
-        push!(res["iterates"]["predictor"]["x"], copy(δx_aff))
-        push!(res["iterates"]["predictor"]["s"], copy(δs_aff))
-        push!(res["iterates"]["predictor"]["y"], copy(δy_aff))
-        push!(res["iterates"]["predictor"]["µ"], copy(μaff))
-
-        push!(res["iterates"]["corrector"]["x"], copy(δx_cor))
-        push!(res["iterates"]["corrector"]["s"], copy(δs_cor))
-        push!(res["iterates"]["corrector"]["y"], copy(δy_cor))
-        push!(res["iterates"]["corrector"]["µ"], copy(μ))
+        ipm_push_iterates!(res["iterates"]["predictor"], δx_aff, δs_aff, δy_aff, μaff)
+        ipm_push_iterates!(res["iterates"]["corrector"], δx_cor, δs_cor, δy_cor, μ)
     end
 
     return res
@@ -191,4 +146,12 @@ max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
 
 function max_step_length(x::AbstractVector, dx::AbstractVector)
     return min(1.0, minimum(max_step_length.(x, dx)))
+end
+
+
+function ipm_push_iterates!(d, x, s, y, μ)
+    push!(d["x"], copy(x))
+    push!(d["s"], copy(s))
+    push!(d["y"], copy(y))
+    push!(d["µ"], copy(μ))
 end

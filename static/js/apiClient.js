@@ -8,7 +8,7 @@ export async function fetchPolytope(points) {
   }
   
   export async function fetchIteratePath(lines, objective, weights) {
-    const response = await fetch('/trace_central_path', {
+    const response = await fetch('/central_path', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lines, objective, weights })
