@@ -7,7 +7,7 @@ export async function fetchPolytope(points) {
     return response.json();
   }
   
-  export async function fetchIteratePath(lines, objective, weights) {
+  export async function fetchCentralPath(lines, objective, weights) {
     const response = await fetch('/central_path', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -25,11 +25,11 @@ export async function fetchPolytope(points) {
     return response.json();
   }
   
-  export async function fetchIPM(lines, objective, weights, alphamax, nitermax) {
+  export async function fetchIPM(lines, objective, weights, alphamax, maxit) {
     const response = await fetch('/ipm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective, weights, alphamax, nitermax })
+      body: JSON.stringify({ lines, objective, weights, alphamax, maxit })
     });
     return response.json();
   }

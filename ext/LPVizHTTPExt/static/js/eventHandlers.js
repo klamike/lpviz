@@ -1,7 +1,7 @@
 import { state } from "./state.js";
 import {
   fetchPolytope,
-  fetchIteratePath,
+  fetchCentralPath,
   fetchSimplex,
   fetchIPM,
   fetchPDHG,
@@ -338,8 +338,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
   const alphaMaxSlider = document.getElementById("alphaMaxSlider");
   const pdhgEtaSlider = document.getElementById("pdhgEtaSlider");
   const pdhgTauSlider = document.getElementById("pdhgTauSlider");
-  const nitermaxInput = document.getElementById("nitermaxInput");
-  const nitermaxInputPDHG = document.getElementById("nitermaxInputPDHG");
+  const maxitInput = document.getElementById("maxitInput");
+  const maxitInputPDHG = document.getElementById("maxitInputPDHG");
   const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider");
   const objectiveAngleStepValue = document.getElementById("objectiveAngleStepValue");
 
@@ -355,10 +355,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
     document.getElementById("pdhgTauValue").textContent = parseFloat(pdhgTauSlider.value).toFixed(3);
     if (state.solverMode === "pdhg") computePath();
   });
-  nitermaxInput.addEventListener("input", () => {
+  maxitInput.addEventListener("input", () => {
     if (state.solverMode === "ipm") computePath();
   });
-  nitermaxInputPDHG.addEventListener("input", () => {
+  maxitInputPDHG.addEventListener("input", () => {
     if (state.solverMode === "pdhg") computePath();
   });
   objectiveAngleStepSlider.addEventListener("input", () => {
@@ -482,13 +482,13 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
     if (state.solverMode === "ipm") {
       const alphaMax = parseFloat(alphaMaxSlider.value);
-      const nitermax = parseInt(nitermaxInput.value, 10);
+      const maxit = parseInt(maxitInput.value, 10);
       const result = await fetchIPM(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y],
         getBarrierWeights(),
         alphaMax,
-        nitermax
+        maxit
       );
       const sol = result.iterates.solution;
       const iteratesArray = sol.x.map((val, i) => sol.x[i]);
@@ -505,13 +505,13 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.iteratePath = iteratesArray;
       updateResult(iteratesArray);
     } else if (state.solverMode === "pdhg") {
-      const nitermaxPDHG = parseInt(nitermaxInputPDHG.value, 10);
+      const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
       const eta = parseFloat(pdhgEtaSlider.value);
       const tau = parseFloat(pdhgTauSlider.value);
       const result = await fetchPDHG(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y],
-        nitermaxPDHG,
+        maxitPDHG,
         eta,
         tau
       );
@@ -522,7 +522,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     } else {
       // Central path
       const weights = getBarrierWeights();
-      const result = await fetchIteratePath(
+      const result = await fetchCentralPath(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y],
         weights
