@@ -1,5 +1,6 @@
 [JuliaMono]
 git-tree-sha1 = "4602789937e484a2f329b0753ea8752d8fbeb115"
+lazy = true
 
 [[JuliaMono.download]]
     url = "https://github.com/cormullion/juliamono/releases/download/v0.059/JuliaMono-webfonts.tar.gz"

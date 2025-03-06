@@ -1,124 +1,104 @@
-function compute_polytope(points::Vector{Vector{Float64}})
-    interior = compute_interior_point(points)
-    inequalities, lines = compute_polygon_edges(points, interior)
+function polytope(points::Vector{Vector{Float64}})
+    # Constructs the polytope representation from a set of points in 2D.
+    inequalities, lines = compute_polygon_edges(points)
     vertices = compute_intersections(lines)
     return Dict("inequalities" => inequalities, "vertices" => vertices, "lines" => lines)
 end
 
 
-function compute_interior_point(points::Vector{Vector{Float64}})
-    n = length(points)
-    if n > 0
-        x_sum = sum(p[1] for p in points)
-        y_sum = sum(p[2] for p in points)
-        return [x_sum / n, y_sum / n]
-    else
-        error("No points provided to compute an interior point")
-    end
-end
-
-function process_coeff(x::Float64)
-    if x == 0
-        x1 = abs(x)
-    else
-        x1 = x
-    end
-
-    if x1 == floor(x1)
-        return Int(x1)
-    else
-        return x1
-    end
-end
-
-function compute_polygon_edges(points::Vector{Vector{Float64}}, interior::Vector{Float64}; tol=1e-6)
+function compute_polygon_edges(points::Vector{Vector{Float64}}; tol=1e-6)
+    # Walk the points and form lines between them.
+    # NOTE: This function is written as if the `points` always represent a closed polygon.
+    #       While the user is still drawing, the frontend will not display the last line.
     inequalities = String[]
     lines = Vector{Vector{Float64}}()
     n = length(points)
 
     for i in 1:n
-        p1 = points[i]
-        p2 = points[i == n ? 1 : i+1]
-        A = p2[2] - p1[2]
-        B = -(p2[1] - p1[1])
+        p1, p2 = points[i], points[i == n ? 1 : i+1]
+
+        A, B = p2[2] - p1[2], -(p2[1] - p1[1])
+        C = A * p1[1] + B * p1[2]
+
         normAB = sqrt(A^2 + B^2)
-        if normAB < tol
-            continue
-        end
-        A_norm = A / normAB
-        B_norm = B / normAB
-        C = A_norm * p1[1] + B_norm * p1[2]
-        if A_norm * interior[1] + B_norm * interior[2] > C
-            A_norm, B_norm, C = -A_norm, -B_norm, -C
-        end
+        normAB < tol && continue
 
-        if abs(A_norm) >= abs(B_norm)
-            x_line = (C - B_norm*interior[2]) / A_norm
-            ineq_sign = interior[1] >= x_line ? "≥" : "≤"
-            coeff_y = -B_norm / A_norm
-            const_term = C / A_norm
-            coeff_y_disp = round(coeff_y, digits=3) |> process_coeff
-            const_disp = round(const_term, digits=3) |> process_coeff
-            if abs(coeff_y_disp) < tol
-                inequality_str = "x $ineq_sign $const_disp"
-            else
-                if coeff_y_disp < 0
-                    inequality_str = "x $ineq_sign $const_disp - $(abs(coeff_y_disp))y"
-                else
-                    inequality_str = "x $ineq_sign $const_disp + $(coeff_y_disp)y"
-                end
-            end
-            push!(inequalities, inequality_str)
-        else
-            y_line = (C - A_norm*interior[1]) / B_norm
-            ineq_sign = interior[2] >= y_line ? "≥" : "≤"
-            coeff_x = -A_norm / B_norm
-            const_term = C / B_norm
-            coeff_x_disp = round(coeff_x, digits=3) |> process_coeff
-            const_disp = round(const_term, digits=3) |> process_coeff
-            if abs(coeff_x_disp) < tol
-                inequality_str = "y $ineq_sign $const_disp"
-            else
-                if coeff_x_disp < 0
-                    inequality_str = "y $ineq_sign $const_disp - $(abs(coeff_x_disp))x"
-                else
-                    inequality_str = "y $ineq_sign $const_disp + $(coeff_x_disp)x"
-                end
-            end
-            push!(inequalities, inequality_str)
-        end
+        Anorm = A / normAB
+        Bnorm = B / normAB  
+        Cnorm = Anorm * p1[1] + Bnorm * p1[2]
 
-        push!(lines, [A_norm, B_norm, C])
+        push!(inequalities, format_inequality(A, B, C))
+        push!(lines, [Anorm, Bnorm, Cnorm])
     end
 
     return inequalities, lines
 end
 
-
 function compute_intersections(lines::Vector{Vector{Float64}}; tol=1e-6)
     poly_vertices = []
     n = length(lines)
-    for i in 1:(n-1)
-        for j in i+1:n
-            (A1, B1, C1) = lines[i]
-            (A2, B2, C2) = lines[j]
-            det = A1 * B2 - A2 * B1
-            if abs(det) < tol
-                continue
-            end
-            x = (C1 * B2 - C2 * B1) / det
-            y = (A1 * C2 - A2 * C1) / det
-            satisfied = true
-            for (A, B, C) in lines
-                if A * x + B * y > C + tol
-                    satisfied = false
-                    break
-                end
-            end
-            if satisfied
-                push!(poly_vertices, [round(x, digits=2), round(y, digits=2)])
-            end
-        end
+
+    for i in 1:(n-1), j in i+1:n
+        (A1, B1, C1) = lines[i]
+        (A2, B2, C2) = lines[j]
+        det = A1 * B2 - A2 * B1
+        abs(det) < tol && continue
+
+        x, y = (C1 * B2 - C2 * B1) / det, (A1 * C2 - A2 * C1) / det
+
+        all(A * x + B * y ≤ C + tol for (A, B, C) in lines) &&
+            push!(poly_vertices, [round(x, digits=2), round(y, digits=2)])
     end
+
     return poly_vertices
+end
+
+function format_inequality(A::Float64, B::Float64, C::Float64)
+    # Rounding
+    A_disp, B_disp, C_disp = process_coeff(A), process_coeff(B), process_coeff(C)
+    
+    ineq_sign = "≤"
+    # Flip sign if A, B, and C are all negative (or zero)
+    if A_disp ≤ 0 && B_disp ≤ 0 && C_disp ≤ 0
+        A_disp, B_disp, C_disp = -A_disp, -B_disp, -C_disp
+        ineq_sign = "≥"
+    end
+
+    # Tight formatting for some special cases
+    Ax_str = if A_disp == 0  # 0 * x -> ""
+        ""
+    elseif A_disp == 1  # 1 * x -> "x"
+        "x"
+    elseif A_disp == -1  # -1 * x -> "-x"
+        "-x"
+    else
+        "$(A_disp)x"  # A * x -> "Ax"
+    end
+
+    By_str = if B_disp == 0  # 0 * y -> ""
+        ""
+    elseif B_disp == 1  # 1 * y -> "y"
+        "y"
+    else
+        # Some additional complexity here to look nice in the 0 * x -> "" case
+        space = A_disp == 0 ? "" : " "  # "± By" -> "±By"
+        plus = A_disp == 0 ? "" : "+"  # "+By" -> "By"
+        (B_disp < 0 ? "-$space$(abs(B_disp))" : "$plus$space$(B_disp)") * "y"
+    end
+
+    return "$Ax_str $By_str $ineq_sign $C_disp"
+end
+
+process_coeff(x::Float64) = x == floor(x) ? Int(x) : round(x, digits=3)
+
+function lines_to_Ab(lines::Vector{Vector{Float64}})
+    m = length(lines)
+    A = zeros(m, 2)
+    b = zeros(m)
+    for i in 1:m
+        A[i, 1] = lines[i][1]
+        A[i, 2] = lines[i][2]
+        b[i] = lines[i][3]
+    end
+    return A, b
 end
