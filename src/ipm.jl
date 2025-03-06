@@ -138,18 +138,16 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
 end
 
 """
-    max_step_length(x, dx)
+    ipm_max_step_length(x, dx)
 
 Compute maximum step length α so that x + α*dx ≥ 0
 """
 ipm_max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
 
-function ipm_max_step_length(x::AbstractVector, dx::AbstractVector)
-    return min(1.0, minimum(ipm_max_step_length.(x, dx)))
-end
+ipm_max_step_length(x::AbstractVector, dx::AbstractVector) = min(1.0, minimum(ipm_max_step_length.(x, dx)))
 
 
-function ipm_push_iterates!(d, x, s, y, μ)
+ipm_push_iterates!(d, x, s, y, μ) = begin
     push!(d["x"], copy(x))
     push!(d["s"], copy(s))
     push!(d["y"], copy(y))
