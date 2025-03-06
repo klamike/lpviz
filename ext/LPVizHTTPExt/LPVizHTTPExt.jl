@@ -45,7 +45,7 @@ LPViz.ipm(req::HTTP.Request) = LPViz.ipm(
     ϵ_p=get(req.body, "ϵ_p", 1e-6),
     ϵ_d=get(req.body, "ϵ_d", 1e-6),
     ϵ_opt=get(req.body, "ϵ_opt", 1e-6),
-    nitermax=get(req.body, "nitermax", 30),
+    maxit=get(req.body, "maxit", 30),
     αmax=get(req.body, "alphamax", 0.9990)
 )
 
@@ -73,7 +73,7 @@ end
 
 function serve_static(path_suffix::String, mime_type::String; suffix=true)
     file_path = if suffix
-        joinpath(joinpath(dirname(dirname(pathof(LPViz))), "static"), path_suffix)
+        joinpath(dirname(@__FILE__), "static", path_suffix)
     else
         path_suffix
     end
@@ -91,7 +91,7 @@ function register_static!(ROUTER)
         ("/style.css", (req::HTTP.Request) -> serve_static("style.css", "text/css")),
         ("/font.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", "font/woff2", suffix=false))
     ]
-    for file in readdir(joinpath(joinpath(dirname(dirname(pathof(LPViz))), "static", "js")))
+    for file in readdir(joinpath(dirname(@__FILE__), "static", "js"))
         push!(handlers, ("/js/$(file)", (req::HTTP.Request) -> serve_static("js/$(file)", "application/javascript")))
     end
 
@@ -154,7 +154,7 @@ function precompile_handlers(verbose)
     LPViz.pdhg(HTTP.Request("POST", "/pdhg", [], Dict("lines" => lines, "objective" => objective, "maxit" => 10, "eta" => 0.25, "tau" => 0.25)))
     
     verbose && @info "Calling ipm"
-    LPViz.ipm(HTTP.Request("POST", "/ipm", [], Dict("lines" => lines, "objective" => objective, "weights" => weights, "alphamax" => 0.1, "nitermax" => 10)))
+    LPViz.ipm(HTTP.Request("POST", "/ipm", [], Dict("lines" => lines, "objective" => objective, "weights" => weights, "alphamax" => 0.1, "maxit" => 10)))
 end
 
 end # module

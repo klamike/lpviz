@@ -1,11 +1,12 @@
 function ipm(lines::Vector{Vector{Float64}}, objective::Vector{Float64};
-    ϵ_p=1e-6, ϵ_d=1e-6, ϵ_opt=1e-6, nitermax=30, αmax=0.9990,
+    ϵ_p=1e-6, ϵ_d=1e-6, ϵ_opt=1e-6, maxit=30, αmax=0.9990,
 )
     A, b = lines_to_Ab(lines)
     return ipm(
-        -A, -b, -objective;
+        -A, -b,  # flip Ax ≤ b to -Ax ≥ -b
+        -objective; # flip max c'x to min -c'x
         ϵ_p=ϵ_p, ϵ_d=ϵ_d, ϵ_opt=ϵ_opt,
-        nitermax=nitermax, αmax=αmax,
+        maxit=maxit, αmax=αmax,
     )
 end
 
@@ -29,7 +30,7 @@ The KKT conditions are
     yᵀs         = 0
 """
 function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
-    ϵ_p=1e-6, ϵ_d=1e-6, ϵ_opt=1e-6, nitermax=30, αmax=0.9990, verbose=false,
+    ϵ_p=1e-6, ϵ_d=1e-6, ϵ_opt=1e-6, maxit=30, αmax=0.9990, verbose=false,
 )
     m, n = size(A)
 
@@ -45,30 +46,30 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
     x = zeros(n)
     s = ones(m)
     y = ones(m)  # dual multiplier of inequality constraints
-    Δ_aff = zeros(n+m+m)  # affine-scaling (predictor)
-    Δ_cor = zeros(n+m+m)  # centrality (corrector)
+    Δᵃ = zeros(n+m+m)  # affine-scaling (predictor)
+    Δᶜ = zeros(n+m+m)  # centrality (corrector)
 
     # Main loop
     verbose && @printf "%4s  %13s %13s  %8s %8s  %7s\n" "Iter" "PObj" "DObj" "pfeas" "dfeas" "mu"
     niter = 0
     converged = false
-    while niter <= nitermax
+    while niter <= maxit
         # Check for convergence
-        rp = b - (A*x - s)
-        rd = c - A'y
-        μ  = dot(s, y) / m
+        r_p = b - (A*x - s)  # primal residual
+        r_d = c - A'y  # dual residual
+        μ = s'y / m
 
-        pobj = dot(c, x)
-        dobj = dot(b, y)
-        gap  = abs(pobj - dobj) / (1 + abs(pobj))
+        p_obj = c'x  # primal objective
+        d_obj = b'y  # dual objective
+        gap = abs(p_obj - d_obj) / (1 + abs(p_obj))
 
         # Log
-        verbose && @printf "%4d  %+.6e %+.6e  %.2e %.2e  %.1e\n" niter pobj dobj norm(rp, Inf) norm(rd, Inf) μ
+        verbose && @printf "%4d  %+.6e %+.6e  %.2e %.2e  %.1e\n" niter p_obj d_obj norm(r_p, Inf) norm(r_d, Inf) μ
 
         # Keep track of iterates
-        ipm_push_iterates!(res["iterates"]["solution"], x, s, y, μ)
+        ipm_push!(res["iterates"]["solution"], x, s, y, μ)
     
-        if norm(rp, Inf) <= ϵ_p && norm(rd, Inf) <= ϵ_d && gap <= ϵ_opt
+        if norm(r_p, Inf) <= ϵ_p && norm(r_d, Inf) <= ϵ_d && gap <= ϵ_opt
             # optimal solution found!
             verbose && println("Converged to primal-dual optimal solution")
             converged = true
@@ -88,66 +89,67 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
         ]
 
         # Affine scaling direction (predictor)
-        ξa = vcat(
+        Δᵃ .= K \ vcat(
             b - (A*x - s),
             c - A'y,
             -s .* y,
         )
-        Δ_aff .= K \ ξa
-        δx_aff = Δ_aff[1:n]
-        δs_aff = Δ_aff[(n+1):(n+m)]
-        δy_aff = Δ_aff[(n+m+1):(n+m+m)]
-        αp_aff = ipm_max_step_length(s, δs_aff)
-        αd_aff = ipm_max_step_length(y, δy_aff)
 
-        # Centering direction (corrector)
-        # Note: always computed, even if we end up discarding it
-        μaff = dot(s + αp_aff .* δs_aff, y + αd_aff .* δy_aff) / m
-        σ = clamp((μaff / μ)^3, 1e-8, 1 - 1e-8)
-        ξc = vcat(
-            zeros(m),
-            zeros(n),
-            σ .* μ .* ones(m) - (δs_aff .* δy_aff),
-        )
-        Δ_cor .= K \ ξc
-        δx_cor = Δ_cor[1:n]
-        δs_cor = Δ_cor[(n+1):(n+m)]
-        δy_cor = Δ_cor[(n+m+1):(n+m+m)]
+        δxᵃ = Δᵃ[1:n]
+        δsᵃ = Δᵃ[(n+1):(n+m)]
+        δyᵃ = Δᵃ[(n+m+1):(n+m+m)]
 
-        # Compute combined step length
-        αp_cor = ipm_max_step_length(s, δs_aff + δs_cor)
-        αd_cor = ipm_max_step_length(y, δy_aff + δy_cor)
+        # Compute maximum affine step size
+        αp = ipm_α(s, δsᵃ)
+        αd = ipm_α(y, δyᵃ)
 
-        # Compute final step length
-        # Skip correction if affine-scaling direction is good enough
-        γcor = !(αp_aff >= 0.9 && αd_aff >= 0.9)
-        αp = αmax * (γcor ? αp_cor : αp_aff)
-        αd = αmax * (γcor ? αd_cor : αd_aff)
+        μᵃ = dot(s + αp .* δsᵃ, y + αd .* δyᵃ) / m
+
+        ipm_push!(res["iterates"]["predictor"], δxᵃ, δsᵃ, δyᵃ, μᵃ)
+
+        # Only use centering step if affine step is short
+        δx, δs, δy, αp, αd = if !(αp >= 0.9 && αd >= 0.9)
+            # Centering direction (corrector)
+            σ = clamp((μᵃ / μ)^3, 1e-8, 1 - 1e-8)
+            
+            Δᶜ .= K \ vcat(
+                zeros(m),
+                zeros(n),
+                σ .* μ .* ones(m) - (δsᵃ .* δyᵃ),
+            )
+
+            δxᶜ = δxᵃ + Δᶜ[1:n]
+            δsᶜ = δsᵃ + Δᶜ[(n+1):(n+m)]
+            δyᶜ = δyᵃ + Δᶜ[(n+m+1):(n+m+m)]
+
+            # Compute combined step and length
+            ipm_push!(res["iterates"]["corrector"], δxᶜ, δsᶜ, δyᶜ, μ)
+            δxᶜ, δsᶜ, δyᶜ, αmax * ipm_α(s, δsᶜ), αmax * ipm_α(y, δyᶜ)
+        else
+            ipm_push!(res["iterates"]["corrector"], zeros(n), zeros(m), zeros(m), μ)
+            δxᵃ, δsᵃ, δyᵃ, αmax * ipm_α(s, δsᵃ), αmax * ipm_α(y, δyᵃ)
+        end
 
         # Make step
-        x .+= αp .* (δx_aff .+ (γcor .* δx_cor))
-        s .+= αp .* (δs_aff .+ (γcor .* δs_cor))
-        y .+= αd .* (δy_aff .+ (γcor .* δy_cor))
-
-        # Keep track of predictor/corrector directions
-        ipm_push_iterates!(res["iterates"]["predictor"], δx_aff, δs_aff, δy_aff, μaff)
-        ipm_push_iterates!(res["iterates"]["corrector"], δx_cor, δs_cor, δy_cor, μ)
+        x .+= αp .* δx
+        s .+= αp .* δs
+        y .+= αd .* δy
     end
 
     return res
 end
 
 """
-    ipm_max_step_length(x, dx)
+    ipm_α(x, dx)
 
 Compute maximum step length α so that x + α*dx ≥ 0
 """
-ipm_max_step_length(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
+ipm_α(x::Float64, dx::Float64) = (dx ≥ 0) ? 1.0 : (-x / dx)
 
-ipm_max_step_length(x::AbstractVector, dx::AbstractVector) = min(1.0, minimum(ipm_max_step_length.(x, dx)))
+ipm_α(x::AbstractVector, dx::AbstractVector) = min(1.0, minimum(ipm_α.(x, dx)))
 
 
-ipm_push_iterates!(d, x, s, y, μ) = begin
+ipm_push!(d, x, s, y, μ) = begin
     push!(d["x"], copy(x))
     push!(d["s"], copy(s))
     push!(d["y"], copy(y))
