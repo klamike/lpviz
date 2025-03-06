@@ -1,12 +1,12 @@
 function polytope(points::Vector{Vector{Float64}})
     # Constructs the polytope representation from a set of points in 2D.
-    inequalities, lines = compute_polygon_edges(points)
-    vertices = compute_intersections(lines)
+    inequalities, lines = polytope_edges(points)
+    vertices = polytope_points(lines)
     return Dict("inequalities" => inequalities, "vertices" => vertices, "lines" => lines)
 end
 
 
-function compute_polygon_edges(points::Vector{Vector{Float64}}; tol=1e-6)
+function polytope_edges(points::Vector{Vector{Float64}}; tol=1e-6)
     # Walk the points and form lines between them.
     # NOTE: This function is written as if the `points` always represent a closed polygon.
     #       While the user is still drawing, the frontend will not display the last line.
@@ -27,14 +27,14 @@ function compute_polygon_edges(points::Vector{Vector{Float64}}; tol=1e-6)
         Bnorm = B / normAB  
         Cnorm = Anorm * p1[1] + Bnorm * p1[2]
 
-        push!(inequalities, format_inequality(A, B, C))
+        push!(inequalities, polytope_format(A, B, C))
         push!(lines, [Anorm, Bnorm, Cnorm])
     end
 
     return inequalities, lines
 end
 
-function compute_intersections(lines::Vector{Vector{Float64}}; tol=1e-6)
+function polytope_points(lines::Vector{Vector{Float64}}; tol=1e-6)
     poly_vertices = []
     n = length(lines)
 
@@ -53,9 +53,9 @@ function compute_intersections(lines::Vector{Vector{Float64}}; tol=1e-6)
     return poly_vertices
 end
 
-function format_inequality(A::Float64, B::Float64, C::Float64)
+function polytope_format(A::Float64, B::Float64, C::Float64)
     # Rounding
-    A_disp, B_disp, C_disp = process_coeff(A), process_coeff(B), process_coeff(C)
+    A_disp, B_disp, C_disp = polytope_format(A), polytope_format(B), polytope_format(C)
     
     ineq_sign = "≤"
     # Flip sign if A, B, and C are all negative (or zero)
@@ -89,7 +89,7 @@ function format_inequality(A::Float64, B::Float64, C::Float64)
     return "$Ax_str $By_str $ineq_sign $C_disp"
 end
 
-process_coeff(x::Float64) = x == floor(x) ? Int(x) : round(x, digits=3)
+polytope_format(x::Float64) = x == floor(x) ? Int(x) : round(x, digits=3)
 
 function lines_to_Ab(lines::Vector{Vector{Float64}})
     m = length(lines)
