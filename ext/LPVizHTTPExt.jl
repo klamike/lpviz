@@ -72,13 +72,11 @@ function register_api!(ROUTER)
 end
 
 function serve_static(path_suffix::String, mime_type::String; suffix=true)
-    @info "serving static file: $path_suffix"
     file_path = if suffix
         joinpath(joinpath(dirname(dirname(pathof(LPViz))), "static"), path_suffix)
     else
         path_suffix
     end
-    @info "from path $file_path"
     try
         content = read(file_path, String)
         return HTTP.Response(200, [("Content-Type" => mime_type)], content)
