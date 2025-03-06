@@ -3,16 +3,16 @@ module LPVizHTTPExt
 using HTTP, JSON3, Artifacts
 using LPViz
 
-
+## Main entrypoint to run the HTTP server
 function runserver(; port=8080, verbose=false, expose=false)
-    R = HTTP.Router(
+    ROUTER = HTTP.Router(
         HTTP.Response(404, CORS_RES_HEADERS, ""),
         HTTP.Response(405, CORS_RES_HEADERS, ""),
     )
-    register_static!(R; verbose=verbose)
-    register_api!(R; verbose=verbose)
+    register_static!(ROUTER)
+    register_api!(ROUTER)
     HTTP.serve(
-        cors(json(R)),
+        cors(json(ROUTER)),
         expose ? "0.0.0.0" : "127.0.0.1", port,
         access_log=(
             verbose ? logfmt"[$time_local] $request_method $request_uri $status ($body_bytes_sent bytes)" : nothing
@@ -21,53 +21,44 @@ function runserver(; port=8080, verbose=false, expose=false)
 end
 
 
-function LPViz.polytope(req::HTTP.Request)
-    return LPViz.polytope(convert(Vector{Vector{Float64}}, req.body["points"]))
-end
-
-function LPViz.simplex(req::HTTP.Request)
-    data = req.body
-    lines = convert(Vector{Vector{Float64}}, data["lines"])
-    objective = convert(Vector{Float64}, data["objective"])
-    return LPViz.simplex(lines, objective)
-end
-
-function LPViz.pdhg(req::HTTP.Request)
-    data = req.body
-    lines = convert(Vector{Vector{Float64}}, data["lines"])
-    objective = convert(Vector{Float64}, data["objective"])
-    maxit = get(data, "maxit", 1000)
-    η = get(data, "eta", 0.25)
-    τ = get(data, "tau", 0.25)
-    return LPViz.pdhg(lines, objective, maxit=maxit, η=η, τ=τ)
-end
-
-
-function LPViz.ipm(req::HTTP.Request)
-    data = req.body
-    lines = convert(Vector{Vector{Float64}}, data["lines"])
-    objective = convert(Vector{Float64}, data["objective"])
-    ϵ_p = get(data, "ϵ_p", 1e-6)
-    ϵ_d = get(data, "ϵ_d", 1e-6)
-    ϵ_opt = get(data, "ϵ_opt", 1e-6)
-    nitermax = get(data, "nitermax", 30)
-    αmax = get(data, "alphamax", 0.9990)
-    return LPViz.ipm(lines, objective;
-    ϵ_p=ϵ_p, ϵ_d=ϵ_d, ϵ_opt=ϵ_opt, nitermax=nitermax, αmax=αmax
+## Convert from JSON-ified HTTP.Request to what LPViz expects
+LPViz.polytope(req::HTTP.Request) = LPViz.polytope(
+    convert(Vector{Vector{Float64}}, req.body["points"])
 )
-end
+
+LPViz.simplex(req::HTTP.Request) = LPViz.simplex(
+    convert(Vector{Vector{Float64}}, req.body["lines"]),
+    convert(Vector{Float64}, req.body["objective"])
+)
+
+LPViz.pdhg(req::HTTP.Request) = LPViz.pdhg(
+    convert(Vector{Vector{Float64}}, req.body["lines"]),
+    convert(Vector{Float64}, req.body["objective"]),
+    maxit=get(req.body, "maxit", 1000),
+    η=get(req.body, "eta", 0.25),
+    τ=get(req.body, "tau", 0.25)
+)
+
+LPViz.ipm(req::HTTP.Request) = LPViz.ipm(
+    convert(Vector{Vector{Float64}}, req.body["lines"]),
+    convert(Vector{Float64}, req.body["objective"]),
+    ϵ_p=get(req.body, "ϵ_p", 1e-6),
+    ϵ_d=get(req.body, "ϵ_d", 1e-6),
+    ϵ_opt=get(req.body, "ϵ_opt", 1e-6),
+    nitermax=get(req.body, "nitermax", 30),
+    αmax=get(req.body, "alphamax", 0.9990)
+)
+
+LPViz.central_path(req::HTTP.Request) = LPViz.central_path(
+    convert(Vector{Vector{Float64}}, req.body["lines"]),
+    convert(Vector{Float64}, req.body["objective"]),
+    weights=convert(Vector{Float64}, get(req.body, "weights", ones(length(req.body["lines"])))),
+    mu_values=convert(Vector{Float64}, get(req.body, "mu_values", LPViz.default_mu_values(nothing)))
+)
 
 
-function LPViz.central_path(req::HTTP.Request)
-    data = req.body
-    lines = convert(Vector{Vector{Float64}}, data["lines"])
-    objective = convert(Vector{Float64}, data["objective"])
-    weights = convert(Vector{Float64}, get(data, "weights", ones(length(lines))))
-    mu_values = convert(Vector{Float64}, get(data, "mu_values", LPViz.default_mu_values(nothing)))
-    return LPViz.central_path(lines, objective; weights=weights, mu_values=mu_values)
-end
-
-function register_api!(ROUTER; verbose=false)
+## ROUTER setup
+function register_api!(ROUTER)
     handlers = [
         ("/polytope", LPViz.polytope),
         ("/central_path", LPViz.central_path),
@@ -96,7 +87,7 @@ function serve_static(path_suffix::String, mime_type::String; suffix=true)
     end
 end
 
-function register_static!(ROUTER; verbose=false)
+function register_static!(ROUTER)
     handlers = [
         ("/", (req::HTTP.Request) -> serve_static("index.html", "")),
         ("/style.css", (req::HTTP.Request) -> serve_static("style.css", "text/css")),
@@ -111,7 +102,40 @@ function register_static!(ROUTER; verbose=false)
     end
 end
 
+## CORS setup
+const CORS_OPT_HEADERS = [ # FIXME
+    "Access-Control-Allow-Origin"  => "*",
+    "Access-Control-Allow-Headers" => "*",
+    "Access-Control-Allow-Methods" => "POST, GET, OPTIONS"
+]
+const CORS_RES_HEADERS = [
+    "Access-Control-Allow-Origin" => "*"
+]
 
+cors(handler) = (req::HTTP.Request) -> begin
+    if HTTP.method(req) == "OPTIONS"
+        HTTP.Response(200, CORS_OPT_HEADERS)
+    else
+        handler(req)
+    end
+end
+
+## JSON setup
+# For inbound, we convert the body to a Julia type using JSON3
+# For outbound, we convert the body from a Julia type to a JSON string.
+json(handler) = (req::HTTP.Request) -> begin
+    if !isempty(req.body)
+        req.body = JSON3.read(String(req.body))
+    end
+    ret = handler(req)
+    if ret isa HTTP.Response
+        return ret
+    else
+        return HTTP.Response(200, CORS_RES_HEADERS, ret === nothing ? "" : JSON3.write(ret))
+    end
+end
+
+## Precompile functions so first user request from the frontend is fast
 function precompile_handlers(verbose)
     @info "Precompiling handlers..."
     points::Vector{Vector{Float64}} = [[-2, 2], [2, 2], [2, -2], [-2, -2]]
@@ -137,36 +161,5 @@ function precompile_handlers(verbose)
     verbose && @info "Getting JuliaMono"
     read(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2")
 end
-
-const CORS_OPT_HEADERS = [ # FIXME
-    "Access-Control-Allow-Origin"  => "*",
-    "Access-Control-Allow-Headers" => "*",
-    "Access-Control-Allow-Methods" => "POST, GET, OPTIONS"
-]
-const CORS_RES_HEADERS = [
-    "Access-Control-Allow-Origin" => "*"
-]
-
-
-cors(handler) = (req::HTTP.Request) -> begin
-    if HTTP.method(req) == "OPTIONS"
-        HTTP.Response(200, CORS_OPT_HEADERS)
-    else
-        handler(req)
-    end
-end
-
-json(handler) = (req::HTTP.Request) -> begin
-    if !isempty(req.body)
-        req.body = JSON3.read(String(req.body))
-    end
-    ret = handler(req)
-    if ret isa HTTP.Response
-        return ret
-    else
-        return HTTP.Response(200, CORS_RES_HEADERS, ret === nothing ? "" : JSON3.write(ret))
-    end
-end
-
 
 end # module
