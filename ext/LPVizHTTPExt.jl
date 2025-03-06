@@ -157,9 +157,6 @@ function precompile_handlers(verbose)
     
     verbose && @info "Calling ipm"
     LPViz.ipm(HTTP.Request("POST", "/ipm", [], Dict("lines" => lines, "objective" => objective, "weights" => weights, "alphamax" => 0.1, "nitermax" => 10)))
-    
-    verbose && @info "Getting JuliaMono"
-    read(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2")
 end
 
 end # module
