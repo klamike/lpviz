@@ -170,37 +170,24 @@ hr {
   padding-top: 5px;
 }
 
-/* Original body styles */
-/* body {
-  background-color: #fff;
-  color: #e0e0e0;
-  font-family: monospace;
-} */
-
-/* Outer fixed viewport container */
 #terminal-container {
   position: relative;
-  /* width: 500px; */
-  /* margin: -10px; */
-  /* margin-right: 10px; */
   height: 300px;
   background-color: #333;
-  overflow: hidden; /* Ensures content doesn't spill outside */
+  overflow: hidden;
   border-radius: 5px;
   margin-bottom: 5px;
 }
 
-/* Terminal window overlay (visual effects) */
 #terminal-window {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;    /* Allow pointer events to pass to .content */
+  pointer-events: none;   
 }
 
-/* Terminal window pseudo-element for gradient and pulse */
 #terminal-window:before {
   content: '';
   width: 100%;
@@ -216,18 +203,16 @@ hr {
   pointer-events: none;
 }
 
-/* Scanlines overlay */
 .scanlines {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;  /* Let scroll events reach .content */
-  z-index: 4100;         /* On top of all content */
+  pointer-events: none; 
+  z-index: 4100;        
 }
 
-/* Scanlines pseudo-element */
 .scanlines:before {
   content: '';
   position: absolute;
@@ -241,7 +226,6 @@ hr {
     animation-delay: var(--delay, 0s);
 }
 
-/* Pulse animation */
 @keyframes pulse {
   0%   { transform: scale(1.002); opacity: 0.14; }
   8%   { transform: scale(1.005); opacity: 0.13; }
@@ -250,23 +234,20 @@ hr {
   100% { transform: scale(1.002); opacity: 0.14; }
 }
 
-/* vline animation (moves within the fixed container height) */
 @keyframes vline {
   0%   { transform: translateY(-8px); }
-  100% { transform: translateY(300px); } /* 300px matches the container height */
+  100% { transform: translateY(300px); }
 }
 
-/* Updated Button Styling with 3D Effect, Less Tall, and Disabled State without Gray Overlay */
 #sidebar button {
   margin-top: 10px;
-  padding: 6px 16px;  /* Reduced vertical padding for a less tall button */
+  padding: 6px 16px; 
   font-family: 'JuliaMono', monospace;
   font-size: 10pt;
-  background-color: #fafafa;      /* Light, neutral background */
-  color: #333;                    /* Dark text */
-  border: 1px solid #333;         /* Crisp border */
+  background-color: #fafafa;
+  color: #333;
+  border: 1px solid #333;
   border-radius: 4px;
-  /* 3D Effect: Raised look with layered shadows */
   box-shadow: 0 4px 0 #333, 0 4px 8px rgba(0,0,0,0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
@@ -283,27 +264,24 @@ hr {
   box-shadow: 0 2px 0 #333, 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Disabled state: appears pressed down without a gray overlay */
 #sidebar button:disabled {
-  background-color: #fafafa;  /* Same as normal to remove the gray overlay */
+  background-color: #fafafa; 
   color: #333;
   border-color: #333;
   transform: translateY(2px);
   box-shadow: 0 2px 0 #333, 0 2px 4px rgba(0,0,0,0.1);
   cursor: not-allowed;
 }
-/* General Range Input Styling */
 input[type="range"] {
   -webkit-appearance: none;
   width: 100%;
-  height: 6px; /* Reduced track height */
+  height: 6px;
   background: #ddd;
   border-radius: 4px;
   transition: background 0.2s ease, box-shadow 0.2s ease;
   outline: none;
 }
 
-/* Webkit Track */
 input[type="range"]::-webkit-slider-runnable-track {
   height: 6px;
   background: #ddd;
@@ -311,7 +289,6 @@ input[type="range"]::-webkit-slider-runnable-track {
   border-radius: 4px;
 }
 
-/* Webkit Thumb */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 10px;
@@ -321,21 +298,18 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 2px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background 0.2s ease;
-  margin-top: -7px; /* Centers the thumb over the track */
+  margin-top: -7px;
 }
 
-/* Hover state for Webkit thumb */
 input[type="range"]:hover::-webkit-slider-thumb,
 input[type="range"]:focus::-webkit-slider-thumb {
   background: #f0f0f0;
 }
 
-/* Active state for Webkit thumb - no animation */
 input[type="range"]:active::-webkit-slider-thumb {
   background: #e0e0e0;
 }
 
-/* Firefox Track */
 input[type="range"]::-moz-range-track {
   height: 6px;
   background: #ddd;
@@ -343,7 +317,6 @@ input[type="range"]::-moz-range-track {
   border-radius: 4px;
 }
 
-/* Firefox Thumb */
 input[type="range"]::-moz-range-thumb {
   width: 10px;
   height: 20px;
@@ -354,18 +327,15 @@ input[type="range"]::-moz-range-thumb {
   transition: background 0.2s ease;
 }
 
-/* Hover state for Firefox thumb */
 input[type="range"]:hover::-moz-range-thumb,
 input[type="range"]:focus::-moz-range-thumb {
   background: #f0f0f0;
 }
 
-/* Active state for Firefox thumb - no animation */
 input[type="range"]:active::-moz-range-thumb {
   background: #e0e0e0;
 }
 
-/* IE & Edge Track */
 input[type="range"]::-ms-track {
   width: 100%;
   height: 6px;
@@ -374,19 +344,16 @@ input[type="range"]::-ms-track {
   color: transparent;
 }
 
-/* IE & Edge Lower Fill */
 input[type="range"]::-ms-fill-lower {
   background: #ddd;
   border-radius: 4px;
 }
 
-/* IE & Edge Upper Fill */
 input[type="range"]::-ms-fill-upper {
   background: #ddd;
   border-radius: 4px;
 }
 
-/* IE & Edge Thumb */
 input[type="range"]::-ms-thumb {
   width: 10px;
   height: 20px;
@@ -398,18 +365,15 @@ input[type="range"]::-ms-thumb {
   margin-top: 0px;
 }
 
-/* Hover state for IE & Edge thumb */
 input[type="range"]:hover::-ms-thumb,
 input[type="range"]:focus::-ms-thumb {
   background: #f0f0f0;
 }
 
-/* Active state for IE & Edge thumb - no animation */
 input[type="range"]:active::-ms-thumb {
   background: #e0e0e0;
 }
 
-/* Control Panel Container */
 .controlPanel {
   background-color: #fafafa;
   border: 1px solid #333;
@@ -420,16 +384,13 @@ input[type="range"]:active::-ms-thumb {
 }
 
 
-/* Button Group inside Control Panel */
 .controlPanel .button-group {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  /* margin-bottom: 15px; */
   justify-content: center;
 }
 
-/* Settings sections */
 .controlPanel .settings-section {
   margin-top: 1.5em;
 }
@@ -440,7 +401,6 @@ input[type="range"]:active::-ms-thumb {
   color: #333;
 }
 
-/* Optional: Improve spacing for range and number inputs inside the panel */
 .controlPanel input[type="number"] {
   margin-top: 5px;
   margin-bottom: 10px;
