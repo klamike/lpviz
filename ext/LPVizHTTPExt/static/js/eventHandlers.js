@@ -538,8 +538,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
         [state.objectiveVector.x, state.objectiveVector.y],
         weights
       );
-      state.originalIteratePath = [...result.central_path];
       const iteratesArray = result.central_path.map((entry) => entry[0]);
+      state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       updateResult(iteratesArray);
     }

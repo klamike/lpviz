@@ -10,6 +10,12 @@ body {
   height: 100%;
 }
 
+#objectiveDisplay,
+#inequalities {
+  font-family: 'JuliaMono', monospace;
+  font-size: 12pt;
+}
+
 body {
   font-family: 'JuliaMono', monospace;
   font-size: 10pt;
@@ -28,7 +34,7 @@ canvas {
   position: fixed;
   top: 0;
   left: 0;
-  width: 380px;
+  width: 430px;
   height: 100%;
   padding: 10px;
   padding-right: 10px;
@@ -114,7 +120,7 @@ hr {
 #sidebarHandle {
   position: fixed;
   top: 0;
-  left: 380px;
+  left: 430px;
   width: 5px;
   height: 100%;
   cursor: ew-resize;
@@ -176,6 +182,7 @@ hr {
   background-color: #333;
   overflow: hidden; /* Ensures content doesn't spill outside */
   border-radius: 5px;
+  margin-bottom: 5px;
 }
 
 /* Terminal window overlay (visual effects) */
@@ -243,4 +250,186 @@ hr {
 @keyframes vline {
   0%   { transform: translateY(-8px); }
   100% { transform: translateY(300px); } /* 300px matches the container height */
+}
+
+/* Updated Button Styling with 3D Effect, Less Tall, and Disabled State without Gray Overlay */
+#sidebar button {
+  margin-top: 10px;
+  padding: 6px 16px;  /* Reduced vertical padding for a less tall button */
+  font-family: 'JuliaMono', monospace;
+  font-size: 10pt;
+  background-color: #fafafa;      /* Light, neutral background */
+  color: #333;                    /* Dark text */
+  border: 1px solid #333;         /* Crisp border */
+  border-radius: 4px;
+  /* 3D Effect: Raised look with layered shadows */
+  box-shadow: 0 4px 0 #333, 0 4px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+#sidebar button:hover:not(:disabled) {
+  background-color: #f0f0f0;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #333, 0 6px 10px rgba(0,0,0,0.15);
+}
+
+#sidebar button:active:not(:disabled) {
+  background-color: #e0e0e0;
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #333, 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Disabled state: appears pressed down without a gray overlay */
+#sidebar button:disabled {
+  background-color: #fafafa;  /* Same as normal to remove the gray overlay */
+  color: #333;
+  border-color: #333;
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #333, 0 2px 4px rgba(0,0,0,0.1);
+  cursor: not-allowed;
+}
+/* General Range Input Styling */
+input[type="range"] {
+  width: 100%;
+  height: 6px; /* Reduced track height */
+  background: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 10px 0;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+/* Webkit Track */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Webkit Thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #fafafa;
+  /* border: 1px solid #333; */
+  border-radius: 50%;
+  /* box-shadow: 0 4px 0 #333, 0 4px 8px rgba(0, 0, 0, 0.1); */
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  margin-top: -5px; /* Centers the thumb over the track */
+}
+
+/* Thumb Focus / Hover (Webkit) */
+/* input[type="range"]:focus::-webkit-slider-thumb, */
+/* input[type="range"]:hover::-webkit-slider-thumb { */
+  /* box-shadow: 0 0 0 2px rgba(51,51,51,0.4); */
+/* } */
+
+/* Firefox Track */
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: #ddd;
+  /* border: 1px solid #333; */
+  border-radius: 4px;
+  /* box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); */
+}
+
+/* Firefox Thumb */
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #fafafa;
+  /* border: 1px solid #333; */
+  border-radius: 50%;
+  /* box-shadow: 0 4px 0 #333, 0 4px 8px rgba(0, 0, 0, 0.1); */
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+/* IE & Edge Track */
+input[type="range"]::-ms-track {
+  width: 100%;
+  height: 6px;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+
+/* IE & Edge Lower Fill */
+input[type="range"]::-ms-fill-lower {
+  background: #ddd;
+  /* border: 1px solid #333; */
+  border-radius: 4px;
+  /* box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); */
+}
+
+/* IE & Edge Upper Fill */
+input[type="range"]::-ms-fill-upper {
+  background: #ddd;
+  /* border: 1px solid #333; */
+  border-radius: 4px;
+  /* box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); */
+}
+
+/* IE & Edge Thumb */
+input[type="range"]::-ms-thumb {
+  width: 16px;
+  height: 16px;
+  background: #fafafa;
+  /* border: 1px solid #333; */
+  border-radius: 50%;
+  /* box-shadow: 0 4px 0 #333, 0 4px 8px rgba(0, 0, 0, 0.1); */
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  margin-top: 0px;
+}
+
+/* Interaction states for all thumbs */
+input[type="range"]:active::-webkit-slider-thumb,
+input[type="range"]:active::-moz-range-thumb,
+input[type="range"]:active::-ms-thumb {
+  transform: translateY(2px);
+  /* box-shadow: 0 2px 0 #333, 0 2px 4px rgba(0,0,0,0.1); */
+}
+/* Control Panel Container */
+.controlPanel {
+  /* background: linear-gradient(to bottom, #f0f0f0, #e0e0e0); */
+  background-color: #fafafa;
+  border: 1px solid #333;
+  border-radius: 6px;
+  /* box-shadow: 0 4px 0 #333, 0 4px 8px rgba(0,0,0,0.1); */
+  padding: 15px;
+  padding-top: 0px;
+  margin: 15px 0;
+}
+
+
+/* Button Group inside Control Panel */
+.controlPanel .button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  /* margin-bottom: 15px; */
+  justify-content: center;
+}
+
+/* Settings sections */
+.controlPanel .settings-section {
+  margin-top: 1.5em;
+}
+
+.controlPanel label {
+  font-family: 'JuliaMono', monospace;
+  font-size: 10pt;
+  color: #333;
+}
+
+/* Optional: Improve spacing for range and number inputs inside the panel */
+.controlPanel input[type="range"],
+.controlPanel input[type="number"] {
+  margin-top: 5px;
+  margin-bottom: 10px;
+  width: 100%;
 }
