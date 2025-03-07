@@ -23,7 +23,7 @@ export class UIManager {
       this.nullStateMessage.style.display = "block";
       this.usageTips.style.display = "block";
     } else {
-      this.uiContainer.style.display = "block";
+      this.uiContainer.style.display = "flex";
       this.nullStateMessage.style.display = "none";
       this.usageTips.style.display = "none";
     }
@@ -48,9 +48,10 @@ export class UIManager {
       const a = Math.round(state.objectiveVector.x * 1000) / 1000;
       const b = Math.round(state.objectiveVector.y * 1000) / 1000;
       this.objectiveDisplay.classList.add("objective-item");
-      this.objectiveDisplay.innerHTML = `Max ${a}x ${
+      this.objectiveDisplay.innerHTML = `${a}x ${
         b >= 0 ? "+ " + b + "y" : "- " + (-b) + "y"
       }`;
+      this.objectiveDisplay.style.color = "#eee";
     } else {
       this.objectiveDisplay.classList.remove("objective-item");
       this.objectiveDisplay.innerHTML = "";

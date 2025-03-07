@@ -31,7 +31,7 @@
   <header>
     <div id="sidebar">
       <div id="sidebarContent">
-        <div class="header">
+        <div class="header controlPanel" style="padding-top: 13px; margin-top: 0px; margin-bottom: 0px;">
           <h1>lpviz</h1>
           <a href="https://github.com/klamike/lpviz" target="_blank" aria-label="GitHub Repository for lpviz">
             <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 98 96" role="img"
@@ -42,15 +42,17 @@
             </svg>
           </a>
         </div>
-        <hr>
         <div id="nullStateMessage">Start drawing!</div>
         <div id="uiContainer">
-          <h2>Objective</h2>
-          <div id="objectiveDisplay"></div>
-          <h2>Constraints</h2>
+          <div id="terminal-container2" style="display: block; color: #eee; margin-top: 15px; padding: 10px 20px; min-height: 180px;">
+            <div style="text-align: left; font-size:12pt;">maximize</div>
+          <div id="objectiveDisplay" style="color: #aaa;">Objective not set</div>
+          <div id="subjectTo" style="text-align: left; font-size:12pt; display: none;">subject to</div>
           <div id="inequalities"></div>
-          <br><br>
-          <br>
+            <div id="terminal-window"></div>
+            <div class="scanlines"></div>
+            <div class="scanlines" style="--delay: -5s;"></div>
+          </div>
           <div class="controlPanel">
             <!-- <h3>Solver Mode</h3> -->
             <div class="button-group">
@@ -111,7 +113,6 @@
               <button id="unzoomButton">Unzoom</button>
             </div>
           </div>
-          <hr>
           <label style="display: none;" for="replaySpeedSlider">Speed:</label>
           <input style="display: none;" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1" autocomplete="off">
           <div id="terminal-container" style="display: none;">
@@ -122,7 +123,7 @@
           </div>
         </div>
         <div class="spacer"></div>
-        <div id="usageTips">
+        <div id="usageTips" style="text-align: left;">
           <br><br><br><br>
           <strong class="usage-title">Usage Tips:</strong><br><br>
           <strong>Draw</strong>: click to add vertices, click inside when done.<br>

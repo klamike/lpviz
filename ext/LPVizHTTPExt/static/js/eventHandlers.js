@@ -370,7 +370,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   traceButton.addEventListener("click", () => {
     computePath();
     state.iteratePathComputed = true;
-    document.getElementById("terminal-container").style.display = "block";
+    document.getElementById("terminal-container").style.display = "initial";
   });
 
   // Rotate Objective Buttons
@@ -380,7 +380,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   startRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = true;
-    document.getElementById("terminal-container").style.display = "block";
+    document.getElementById("terminal-container").style.display = "initial";
     if (!state.objectiveVector) {
       state.objectiveVector = { x: 1, y: 0 };
       uiManager.updateObjectiveDisplay();
@@ -682,6 +682,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
             });
           });
         });
+        if (result.lines.length > 0) {
+          document.getElementById("subjectTo").style.display = "block";
+        }
         state.computedVertices = result.vertices;
         state.computedLines = result.lines;
         uiManager.updateSolverModeButtons();

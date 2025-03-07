@@ -8,6 +8,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  text-align: center;
 }
 
 #objectiveDisplay,
@@ -19,6 +20,7 @@ body {
 body {
   font-family: 'JuliaMono', monospace;
   font-size: 10pt;
+  text-align: center;
 }
 
 canvas {
@@ -64,6 +66,8 @@ canvas {
   margin-bottom: 5px;
   letter-spacing: -0.5px;
   font-family: sans-serif;
+  justify-content: center;
+  text-align: center;
 }
 
 #sidebar button {
@@ -82,20 +86,13 @@ hr {
   cursor: pointer;
 }
 
-.inequality-item:hover {
-  background-color: #e0e0ff;
-}
 
 .objective-item {
   padding: 4px;
   cursor: pointer;
 }
 
-.objective-item:hover {
-  background-color: #e0e0ff;
-}
-
-.central-path-item:hover, .central-path-item.hover {
+.inequality-item:hover, .objective-item:hover, .central-path-item:hover, .central-path-item.hover {
   background-color: #4f4f4f;
 }
 
@@ -136,6 +133,8 @@ hr {
 
 #uiContainer {
   display: none;
+  flex-direction: column;
+  height: 100%;
 }
 
 #sidebarContent .header {
@@ -164,19 +163,24 @@ hr {
   max-height: 300px;
   overflow-y: auto;
   padding-left: 4px;
-  display: grid;
   justify-content: center;
   padding-right: 8px;
   padding-top: 5px;
 }
 
-#terminal-container {
+#terminal-container2 {
+  min-height: inherit;
+  overflow-y: inherit;
+}
+
+#terminal-container, #terminal-container2 {
   position: relative;
-  height: 300px;
+  overflow-y: auto;
+  min-height: 300px;
   background-color: #333;
-  overflow: hidden;
   border-radius: 5px;
   margin-bottom: 5px;
+  overflow-x: hidden;
 }
 
 #terminal-window {
@@ -236,7 +240,7 @@ hr {
 
 @keyframes vline {
   0%   { transform: translateY(-8px); }
-  100% { transform: translateY(300px); }
+  100% { transform: translateY(100%); }
 }
 
 #sidebar button {
