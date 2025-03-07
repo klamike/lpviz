@@ -594,7 +594,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
         minScaleFactor = scaleFactor;
       }
     });
-    const newFontSize = baselineFontSize * minScaleFactor * 0.9;
+    const newFontSize = baselineFontSize * minScaleFactor * 0.875;
     
     texts.forEach(text => {
       text.style.fontSize = `${newFontSize}px`;
