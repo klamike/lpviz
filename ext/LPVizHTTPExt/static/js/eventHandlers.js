@@ -586,7 +586,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     texts.forEach(text => {
       measurementDiv.style.fontSize = `${baselineFontSize}px`;
       measurementDiv.textContent = text.textContent;
-      const measuredWidth = measurementDiv.getBoundingClientRect().width + 20;  // adjust for padding on both sides
+      const measuredWidth = measurementDiv.getBoundingClientRect().width + 10;  // adjust for padding on both sides
       const scaleFactor = effectiveContainerWidth / measuredWidth;
       console.log("For element", text.textContent, "measured width", measuredWidth, "scale factor", scaleFactor);
       

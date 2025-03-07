@@ -50,7 +50,7 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
     Δᶜ = zeros(n+m+m)  # centrality (corrector)
 
     # Main loop
-    log = @sprintf "%4s %5s %5s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "PFeas" "DFeas" "µ"
+    log = @sprintf "%4s %6s %6s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "PFeas" "DFeas" "µ"
     verbose && println(log)
     push!(res["iterates"]["solution"]["log"], log)
 
@@ -165,7 +165,7 @@ ipm_log(d, verbose, converged::Bool, tsolve::Float64) = begin
 end
 
 ipm_log(d, verbose, x, μ, pobj, dobj, pres, dres) = begin
-    log = @sprintf "%-4d %+.2f %+.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(d["x"]) x[1] x[2] pobj dobj pres dres μ
+    log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(d["x"]) x[1] x[2] pobj dobj pres dres μ
     ipm_log(d, verbose, log)
 end
 
