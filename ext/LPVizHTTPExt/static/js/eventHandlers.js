@@ -607,7 +607,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     if (logArray && logArray.length > 0) {
       html += `<div class="central-path-header">${logArray[0]}</div>`;
       for (let i = 1; i < logArray.length - 1; i++) {
-        html += `<div class="central-path-item" data-index="${i}">${logArray[i]}</div>`;
+        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
       }
       if (logArray.length > 1) {
         html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
