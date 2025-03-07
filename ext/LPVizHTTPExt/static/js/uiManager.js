@@ -4,9 +4,10 @@ export class UIManager {
   constructor() {
     this.uiContainer = document.getElementById("uiContainer");
     this.nullStateMessage = document.getElementById("nullStateMessage");
+    this.usageTips = document.getElementById("usageTips");
     this.objectiveDisplay = document.getElementById("objectiveDisplay");
     this.inequalitiesDiv = document.getElementById("inequalities");
-    this.resultDiv = document.getElementById("Result");
+    this.resultDiv = document.getElementById("result");
     this.zoomButton = document.getElementById("zoomButton");
     this.unzoomButton = document.getElementById("unzoomButton");
     this.iteratePathButton = document.getElementById("iteratePathButton");
@@ -20,9 +21,11 @@ export class UIManager {
     if (state.vertices.length === 0) {
       this.uiContainer.style.display = "none";
       this.nullStateMessage.style.display = "block";
+      this.usageTips.style.display = "block";
     } else {
       this.uiContainer.style.display = "block";
       this.nullStateMessage.style.display = "none";
+      this.usageTips.style.display = "none";
     }
   }
 

@@ -31,6 +31,7 @@ canvas {
   width: 380px;
   height: 100%;
   padding: 10px;
+  padding-right: 10px;
   box-sizing: border-box;
   background-color: rgba(240, 240, 240, 1);
   border-right: 1px solid #ccc;
@@ -88,8 +89,26 @@ hr {
   background-color: #e0e0ff;
 }
 
-.central-path-item:hover {
-  background-color: #e0e0ff;
+.central-path-item:hover, .central-path-item.hover {
+  background-color: #4f4f4f;
+}
+
+
+.central-path-item, .central-path-header, .central-path-footer {
+  color: #eee;
+  white-space: pre-wrap;
+  padding-left: 4px;
+}
+
+.central-path-header {
+  padding-top: 8px;
+  padding-bottom: 5px;
+}
+
+.central-path-footer {
+  padding-bottom: 8px;
+  padding-top: 5px;
+
 }
 
 #sidebarHandle {
@@ -135,7 +154,93 @@ hr {
   color: #333;
 }
 
-#Result {
+#result {
   max-height: 300px;
   overflow-y: auto;
+}
+
+/* Original body styles */
+/* body {
+  background-color: #fff;
+  color: #e0e0e0;
+  font-family: monospace;
+} */
+
+/* Outer fixed viewport container */
+#terminal-container {
+  position: relative;
+  /* width: 500px; */
+  /* margin: -10px; */
+  margin-right: 10px;
+  height: 300px;
+  background-color: #333;
+  overflow: hidden; /* Ensures content doesn't spill outside */
+  border-radius: 5px;
+}
+
+/* Terminal window overlay (visual effects) */
+#terminal-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;    /* Allow pointer events to pass to .content */
+}
+
+/* Terminal window pseudo-element for gradient and pulse */
+#terminal-window:before {
+  content: '';
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: linear-gradient(#444 50%, #111 50%);
+  background-size: 100% 4px;
+  background-repeat: repeat-y;
+  opacity: 0.1;
+  box-shadow: inset 0 0 1px 1px rgba(0, 0, 0, 0.8);
+  animation: pulse 5s linear infinite;
+  pointer-events: none;
+}
+
+/* Scanlines overlay */
+.scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;  /* Let scroll events reach .content */
+  z-index: 4100;         /* On top of all content */
+}
+
+/* Scanlines pseudo-element */
+.scanlines:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(to bottom, rgba(255,0,0,0) 0%, rgba(255,250,250,1) 25%, rgba(255,255,255,0.98) 75%, rgba(255,0,0,0) 100%);
+  opacity: 0.025;
+  animation: vline 10s linear infinite;
+    animation-delay: var(--delay, 0s);
+}
+
+/* Pulse animation */
+@keyframes pulse {
+  0%   { transform: scale(1.002); opacity: 0.14; }
+  8%   { transform: scale(1.005); opacity: 0.13; }
+  15%  { transform: scale(1.01); opacity: 0.05; }
+  30%  { transform: scale(1.006); opacity: 0.09; }
+  100% { transform: scale(1.002); opacity: 0.14; }
+}
+
+/* vline animation (moves within the fixed container height) */
+@keyframes vline {
+  0%   { transform: translateY(-8px); }
+  100% { transform: translateY(300px); } /* 300px matches the container height */
 }

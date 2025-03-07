@@ -36,7 +36,7 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
 
     res = Dict{String,Any}(
         "iterates" => Dict{String,Any}(
-            "solution" => Dict{String,Any}("x" => [], "s" => [], "y" => [], "µ" => []),
+            "solution" => Dict{String,Any}("x" => [], "s" => [], "y" => [], "µ" => [], "log" => []),
             "predictor" => Dict{String,Any}("x" => [], "s" => [], "y" => [], "µ" => []),
             "corrector" => Dict{String,Any}("x" => [], "s" => [], "y" => [], "µ" => []),
         ),
@@ -50,7 +50,10 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
     Δᶜ = zeros(n+m+m)  # centrality (corrector)
 
     # Main loop
-    verbose && @printf "%4s  %13s %13s  %8s %8s  %7s\n" "Iter" "PObj" "DObj" "pfeas" "dfeas" "mu"
+    log = @sprintf "%4s %5s %5s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "pfeas" "dfeas" "mu"
+    verbose && println(log)
+    push!(res["iterates"]["solution"]["log"], log)
+
     niter = 0
     converged = false
     while niter <= maxit
@@ -64,14 +67,10 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
         gap = abs(p_obj - d_obj) / (1 + abs(p_obj))
 
         # Log
-        verbose && @printf "%4d  %+.6e %+.6e  %.2e %.2e  %.1e\n" niter p_obj d_obj norm(r_p, Inf) norm(r_d, Inf) μ
-
-        # Keep track of iterates
+        ipm_log(res["iterates"]["solution"], verbose, x, μ, p_obj, d_obj, norm(r_p, Inf), norm(r_d, Inf))
         ipm_push!(res["iterates"]["solution"], x, s, y, μ)
     
         if norm(r_p, Inf) <= ϵ_p && norm(r_d, Inf) <= ϵ_d && gap <= ϵ_opt
-            # optimal solution found!
-            verbose && println("Converged to primal-dual optimal solution")
             converged = true
             break
         end
@@ -135,7 +134,8 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
         s .+= αp .* δs
         y .+= αd .* δy
     end
-
+    
+    ipm_log(res["iterates"]["solution"], verbose, converged)
     return res
 end
 
@@ -154,4 +154,18 @@ ipm_push!(d, x, s, y, μ) = begin
     push!(d["s"], copy(s))
     push!(d["y"], copy(y))
     push!(d["µ"], copy(μ))
+end
+
+ipm_log(d, verbose, converged::Bool) = begin
+    ipm_log(d, verbose, converged ? "Converged to primal-dual optimal solution" : "Did not converge after $(length(d["x"])) iterations")
+end
+
+ipm_log(d, verbose, x, μ, pobj, dobj, pres, dres) = begin
+    log = @sprintf "%4d %+.2f %+.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(d["x"]) x[1] x[2] pobj dobj pres dres μ
+    ipm_log(d, verbose, log)
+end
+
+ipm_log(d, verbose, log::String) = begin
+    verbose && println(log)
+    push!(d["log"], log)
 end

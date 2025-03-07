@@ -370,6 +370,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   traceButton.addEventListener("click", () => {
     computePath();
     state.iteratePathComputed = true;
+    document.getElementById("terminal-container").style.display = "block";
   });
 
   // Rotate Objective Buttons
@@ -445,33 +446,42 @@ export function setupEventHandlers(canvasManager, uiManager) {
     canvasManager.draw();
   });
   document.addEventListener("mouseup", () => {
-    if (isResizing) isResizing = false;
+    if (isResizing) {
+      isResizing = false;
+      adjustFontSize();
+    }
   });
 
-  // Analytic Result Hover (for central path items)
+  // Result Hover (for central path items)
   let cpMouseX = 0;
   let cpMouseY = 0;
   let cpCurrentHovered = null;
-  const resultDiv = document.getElementById("Result");
-  resultDiv.addEventListener("mousemove", (e) => {
+  const resultDiv = document.getElementById("result");
+  document.addEventListener("mousemove", (e) => {
     cpMouseX = e.clientX;
     cpMouseY = e.clientY;
+    updateHoverState();
   });
-  resultDiv.addEventListener("scroll", () => {
+  function updateHoverState() {
     const el = document.elementFromPoint(cpMouseX, cpMouseY);
     if (el && el.classList.contains("central-path-item")) {
       if (cpCurrentHovered !== el) {
         if (cpCurrentHovered) {
+          cpCurrentHovered.classList.remove("hover");
           cpCurrentHovered.dispatchEvent(new Event("mouseleave", { bubbles: true }));
         }
+        el.classList.add("hover");
         el.dispatchEvent(new Event("mouseenter", { bubbles: true }));
         cpCurrentHovered = el;
       }
     } else if (cpCurrentHovered) {
+      cpCurrentHovered.classList.remove("hover");
       cpCurrentHovered.dispatchEvent(new Event("mouseleave", { bubbles: true }));
       cpCurrentHovered = null;
     }
-  });
+  }
+
+  resultDiv.addEventListener("scroll", updateHoverState);
 
   // Helper: computePath calls the appropriate API based on solver mode
   async function computePath() {
@@ -491,10 +501,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
         maxit
       );
       const sol = result.iterates.solution;
+      const logArray = sol.log;
       const iteratesArray = sol.x.map((val, i) => sol.x[i]);
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      updateResult(iteratesArray, logArray);
     } else if (state.solverMode === "simplex") {
       const result = await fetchSimplex(
         state.computedLines,
@@ -543,26 +554,87 @@ export function setupEventHandlers(canvasManager, uiManager) {
     });
     return weights;
   }
-
-  function updateResult(iteratesArray) {
-    resultDiv.innerHTML = iteratesArray
-      .map((entry, i) => {
-        const x = parseFloat(entry[0]).toFixed(2);
-        const y = parseFloat(entry[1]).toFixed(2);
-        return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
-      })
-      .join("");
-    document.querySelectorAll(".central-path-item").forEach((item) => {
-      item.addEventListener("mouseenter", () => {
-        state.highlightIteratePathIndex = parseInt(item.getAttribute("data-index"));
-        canvasManager.draw();
-      });
-      item.addEventListener("mouseleave", () => {
-        state.highlightIteratePathIndex = null;
-        canvasManager.draw();
-      });
+  function adjustFontSize() {
+    const container = document.getElementById("result");
+    if (!container) {
+      return;
+    }
+    
+    const containerStyle = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
+    const effectiveContainerWidth = container.clientWidth - paddingLeft - paddingRight;
+    
+    const texts = container.querySelectorAll("div");
+    if (texts.length === 0) {
+      return;
+    }
+    
+    const measurementDiv = document.createElement("div");
+    measurementDiv.style.position = "absolute";
+    measurementDiv.style.visibility = "hidden";
+    measurementDiv.style.whiteSpace = "nowrap";
+    measurementDiv.style.fontFamily = containerStyle.fontFamily;
+    measurementDiv.style.fontWeight = containerStyle.fontWeight;
+    measurementDiv.style.fontStyle = containerStyle.fontStyle;
+    document.body.appendChild(measurementDiv);
+    
+    const baselineFontSize = 18;
+    let minScaleFactor = Infinity;
+    
+    texts.forEach(text => {
+      measurementDiv.style.fontSize = `${baselineFontSize}px`;
+      measurementDiv.textContent = text.textContent;
+      const measuredWidth = measurementDiv.getBoundingClientRect().width;
+      const scaleFactor = effectiveContainerWidth / measuredWidth;
+      
+      if (scaleFactor < minScaleFactor && scaleFactor < 1) {
+        minScaleFactor = scaleFactor;
+      }
     });
+    const newFontSize = baselineFontSize * minScaleFactor * 0.9;
+    
+    texts.forEach(text => {
+      text.style.fontSize = `${newFontSize}px`;
+    });
+    
+    document.body.removeChild(measurementDiv);
+  }
+  
+  
+  function updateResult(iteratesArray, logArray) {
+    let html = "";
+    if (logArray && logArray.length > 0) {
+      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      for (let i = 1; i < logArray.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i}">${logArray[i]}</div>`;
+      }
+      if (logArray.length > 1) {
+        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
+      }
+    } else if (iteratesArray) {
+      html = iteratesArray
+        .map((entry, i) => {
+          const x = parseFloat(entry[0]).toFixed(2);
+          const y = parseFloat(entry[1]).toFixed(2);
+          return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
+        })
+        .join("");
+    }
+    resultDiv.innerHTML = html;
+    document.querySelectorAll(".central-path-header, .central-path-item, .central-path-footer")
+      .forEach((item) => {
+        item.addEventListener("mouseenter", () => {
+          state.highlightIteratePathIndex = parseInt(item.getAttribute("data-index"));
+          canvasManager.draw();
+        });
+        item.addEventListener("mouseleave", () => {
+          state.highlightIteratePathIndex = null;
+          canvasManager.draw();
+        });
+      });
     canvasManager.draw();
+    adjustFontSize();
   }
 
   async function sendPolytope() {
