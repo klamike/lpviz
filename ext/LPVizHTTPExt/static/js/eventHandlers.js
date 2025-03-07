@@ -440,7 +440,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   document.addEventListener("mousemove", (e) => {
     if (!isResizing) return;
     let newWidth = e.clientX;
-    newWidth = Math.max(200, Math.min(newWidth, 600));
+    newWidth = Math.max(200, Math.min(newWidth, 1000));
     sidebar.style.width = `${newWidth}px`;
     handle.style.left = `${newWidth}px`;
     canvasManager.centerX = newWidth + (window.innerWidth - newWidth) / 2;
@@ -590,11 +590,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const scaleFactor = effectiveContainerWidth / measuredWidth;
       console.log("For element", text.textContent, "measured width", measuredWidth, "scale factor", scaleFactor);
       
-      if (scaleFactor < minScaleFactor && scaleFactor < 1) {
+      if (scaleFactor < minScaleFactor && scaleFactor < 4) {
         minScaleFactor = scaleFactor;
       }
     });
-    const newFontSize = baselineFontSize * minScaleFactor * 0.875;
+    const newFontSize = Math.min(24, baselineFontSize * minScaleFactor * 0.875);
     
     texts.forEach(text => {
       text.style.fontSize = `${newFontSize}px`;
