@@ -170,7 +170,8 @@ hr {
 
 #terminal-container2 {
   min-height: inherit;
-  overflow-y: inherit;
+  overflow-y: hidden;
+  overflow-x: hidden;
 }
 
 #terminal-container, #terminal-container2 {
@@ -240,7 +241,7 @@ hr {
 
 @keyframes vline {
   0%   { transform: translateY(-8px); }
-  100% { transform: translateY(100%); }
+  100% { transform: translateY(300px); }
 }
 
 #sidebar button {
