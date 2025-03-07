@@ -380,6 +380,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   startRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = true;
+    document.getElementById("terminal-container").style.display = "block";
     if (!state.objectiveVector) {
       state.objectiveVector = { x: 1, y: 0 };
       uiManager.updateObjectiveDisplay();
@@ -585,8 +586,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
     texts.forEach(text => {
       measurementDiv.style.fontSize = `${baselineFontSize}px`;
       measurementDiv.textContent = text.textContent;
-      const measuredWidth = measurementDiv.getBoundingClientRect().width;
+      const measuredWidth = measurementDiv.getBoundingClientRect().width + 20;  // adjust for padding on both sides
       const scaleFactor = effectiveContainerWidth / measuredWidth;
+      console.log("For element", text.textContent, "measured width", measuredWidth, "scale factor", scaleFactor);
       
       if (scaleFactor < minScaleFactor && scaleFactor < 1) {
         minScaleFactor = scaleFactor;

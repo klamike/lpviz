@@ -50,13 +50,14 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
     Δᶜ = zeros(n+m+m)  # centrality (corrector)
 
     # Main loop
-    log = @sprintf "%4s %5s %5s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "pfeas" "dfeas" "mu"
+    log = @sprintf "%4s %5s %5s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "PFeas" "DFeas" "µ"
     verbose && println(log)
     push!(res["iterates"]["solution"]["log"], log)
 
     niter = 0
     converged = false
-    while niter <= maxit
+    
+    tsolve = @elapsed while niter <= maxit
         # Check for convergence
         r_p = b - (A*x - s)  # primal residual
         r_d = c - A'y  # dual residual
@@ -135,7 +136,7 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
         y .+= αd .* δy
     end
     
-    ipm_log(res["iterates"]["solution"], verbose, converged)
+    ipm_log(res["iterates"]["solution"], verbose, converged, tsolve)
     return res
 end
 
@@ -156,12 +157,15 @@ ipm_push!(d, x, s, y, μ) = begin
     push!(d["µ"], copy(μ))
 end
 
-ipm_log(d, verbose, converged::Bool) = begin
-    ipm_log(d, verbose, converged ? "Converged to primal-dual optimal solution" : "Did not converge after $(length(d["x"])) iterations")
+ipm_log(d, verbose, converged::Bool, tsolve::Float64) = begin
+    #
+    tsolve *= 1000 # convert to milliseconds
+    tsolve = round(tsolve, digits=2)
+    ipm_log(d, verbose, converged ? "Converged to primal-dual optimal solution in $(tsolve)ms\n" : "Did not converge after $(length(d["x"])-1) iterations in $(tsolve)ms\n")
 end
 
 ipm_log(d, verbose, x, μ, pobj, dobj, pres, dres) = begin
-    log = @sprintf "%4d %+.2f %+.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(d["x"]) x[1] x[2] pobj dobj pres dres μ
+    log = @sprintf "%-4d %+.2f %+.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(d["x"]) x[1] x[2] pobj dobj pres dres μ
     ipm_log(d, verbose, log)
 end
 
