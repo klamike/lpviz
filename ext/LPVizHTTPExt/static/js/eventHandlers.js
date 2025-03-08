@@ -163,30 +163,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
   canvas.addEventListener("click", (e) => {
     const rect = canvas.getBoundingClientRect();
     const pt = canvasManager.toLogicalCoords(e.clientX - rect.left, e.clientY - rect.top);
-    
-    
-    const zoomControls = document.getElementById("zoomControls");
-    const zoomBox = zoomControls.getBoundingClientRect();
-    if (
-      e.clientX >= zoomBox.left &&
-      e.clientX <= zoomBox.right &&
-      e.clientY >= zoomBox.top &&
-      e.clientY <= zoomBox.bottom
-    ) {
-      // fire zoomButton click event
-      console.log("click inside canvas");
-      const zoomIn = zoomControls.querySelector("#zoomButton");
-      const zoomOut = zoomControls.querySelector("#unzoomButton");
-      if (e.clientX < zoomControls.getBoundingClientRect().right) {
-        if (e.clientX < zoomControls.getBoundingClientRect().left + zoomControls.getBoundingClientRect().width / 2) {
-          zoomOut.click();
-        } else {
-          zoomIn.click();
-        }
-        return;
-      }
-    }
-
     if (!state.polygonComplete) {
       if (state.vertices.length >= 3) {
         if (distance(pt, state.vertices[0]) < 0.5) {
@@ -477,30 +453,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
     handle.style.left = `${newWidth}px`;
     canvasManager.centerX = newWidth + (window.innerWidth - newWidth) / 2;
     canvasManager.draw();
-
-    const zoomControls = document.getElementById("zoomControls");
-    const zoomBox = zoomControls.getBoundingClientRect();
-    if (
-      e.clientX >= zoomBox.left &&
-      e.clientX <= zoomBox.right &&
-      e.clientY >= zoomBox.top &&
-      e.clientY <= zoomBox.bottom
-    ) {
-      // fire zoomButton click event
-      console.log("hover inside canvas");
-      const zoomIn = zoomControls.querySelector("#zoomButton");
-      const zoomOut = zoomControls.querySelector("#unzoomButton");
-      if (e.clientX < zoomControls.getBoundingClientRect().right) {
-        if (e.clientX < zoomControls.getBoundingClientRect().left + zoomControls.getBoundingClientRect().width / 2) {
-          // add hovered class to zoomOut
-          zoomOut.classList.add("hovered");
-        } else {
-          // add hovered class to zoomIn
-          zoomIn.classList.add("hovered");
-        }
-        return;
-      }
-    }
   });
   document.addEventListener("mouseup", () => {
     if (isResizing) {
@@ -691,7 +643,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
       measurementDiv.textContent = text.textContent;
       const measuredWidth = measurementDiv.getBoundingClientRect().width;  // adjust for padding on both sides
       const scaleFactor = (effectiveContainerWidth - 10) / measuredWidth;
-      console.log("For element", text.textContent, "measured width", measuredWidth, "scale factor", scaleFactor);
       
       if (scaleFactor < minScaleFactor && scaleFactor < 4) {
         minScaleFactor = scaleFactor;

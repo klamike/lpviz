@@ -32,6 +32,10 @@ canvas {
   z-index: 0;
 }
 
+#gridCanvas:focus {
+  outline: none;
+}
+
 #sidebar {
   position: fixed;
   top: 0;
@@ -167,7 +171,7 @@ hr {
   color: #333;
 }
 
-#result {
+#result, #topResult {
   max-height: 400px;
   overflow-y: auto;
   padding-left: 4px;
@@ -450,6 +454,7 @@ input[type="range"]:active::-ms-thumb {
 #zoomControls button {
   padding: 10px;
   box-shadow: none;
+  margin-top: 0px;
 }
 #zoomControls button:hover {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
