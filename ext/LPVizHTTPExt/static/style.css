@@ -262,7 +262,7 @@ hr {
   100% { transform: translateY(400px); }
 }
 
-#sidebar button {
+#sidebar button, #zoomControls button {
   margin-top: 10px;
   padding: 6px 16px; 
   font-family: 'JuliaMono', monospace;
@@ -275,19 +275,19 @@ hr {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-#sidebar button:hover:not(:disabled) {
+#sidebar button:hover:not(:disabled), #zoomControls button:hover:not(:disabled) {
   background-color: #f0f0f0;
   transform: translateY(-2px);
   box-shadow: 0 6px 0 #333, 0 6px 10px rgba(0,0,0,0.15);
 }
 
-#sidebar button:active:not(:disabled) {
+#sidebar button:active:not(:disabled), #zoomControls button:active:not(:disabled) {
   background-color: #e0e0e0;
   transform: translateY(2px);
   box-shadow: 0 2px 0 #333, 0 2px 4px rgba(0,0,0,0.1);
 }
 
-#sidebar button:disabled {
+#sidebar button:disabled, #zoomControls button:disabled {
   background-color: #fafafa; 
   color: #333;
   border-color: #333;
@@ -434,3 +434,35 @@ input[type="range"]:active::-ms-thumb {
   margin-bottom: 10px;
   width: 100%;
 }
+/* New zoom controls container */
+/* New zoom controls container remains unchanged */
+#zoomControls {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 100;  /* Ensure it’s above the canvas */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* disable all shadows, justkeep hover */
+#zoomControls button {
+  padding: 10px;
+  box-shadow: none;
+}
+#zoomControls button:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+#zoomControls button:hover:not(:disabled),
+#zoomControls button:active:not(:disabled),
+#zoomControls button:disabled {
+  transform: none;
+  box-shadow: none;
+}
+#zoomControls button:disabled {
+  background-color: #444;
+  fill: #eee;
+}
+
+

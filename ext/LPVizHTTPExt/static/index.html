@@ -116,10 +116,10 @@
                   autocomplete="off">
               </div>
             </div>
-            <div class="button-group">
+            <!-- <div class="button-group">
               <button id="zoomButton" disabled>Zoom</button>
               <button id="unzoomButton" disabled>Unzoom</button>
-            </div>
+            </div> -->
           </div>
           <label style="display: none;" for="replaySpeedSlider">Speed:</label>
           <input style="display: none;" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1" autocomplete="off">
@@ -149,6 +149,27 @@
   </header>
   <main>
     <canvas id="gridCanvas" tabindex="0"></canvas>
+    <div id="zoomControls">
+      <button id="unzoomButton" title="Reset Zoom (Home)">
+        <svg width="30" height="30" viewBox="0 0 24 24">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+      </button>
+      <button id="zoomButton" title="Zoom">
+        <svg width="30" height="30" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <mask id="hole-mask">
+              <rect width="100" height="100" fill="white"/>
+              <circle cx="40" cy="40" r="20" fill="black"/>
+            </mask>
+          </defs>
+          <circle cx="40" cy="40" r="32.5" mask="url(#hole-mask)"/>
+          <g transform="translate(55,55) rotate(45)">
+            <rect x="0" y="-4" width="52.5" height="15"/>
+          </g>
+        </svg>
+      </button>
+    </div>
     <div id="sidebarHandle"></div>
   </main>
   <script type="module"> document.addEventListener('DOMContentLoaded', () => { import('./js/main.js').then(module => { if (module.init) { module.init(); } }).catch(err => console.error('Error loading main.js:', err)); }); </script>
