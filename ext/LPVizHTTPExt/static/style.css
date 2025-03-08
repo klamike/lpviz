@@ -160,7 +160,7 @@ hr {
 }
 
 #result {
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
   padding-left: 4px;
   justify-content: center;
@@ -177,7 +177,7 @@ hr {
 #terminal-container, #terminal-container2 {
   position: relative;
   overflow-y: auto;
-  min-height: 300px;
+  min-height: 400px;
   background-color: #333;
   border-radius: 5px;
   margin-bottom: 5px;
@@ -241,7 +241,7 @@ hr {
 
 @keyframes vline {
   0%   { transform: translateY(-8px); }
-  100% { transform: translateY(300px); }
+  100% { transform: translateY(400px); }
 }
 
 #sidebar button {

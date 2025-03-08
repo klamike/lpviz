@@ -51,7 +51,7 @@ function ipm(A::Matrix{Float64}, b::Vector{Float64}, c::Vector{Float64};
 
     # Main loop
     log = @sprintf "%4s %6s %6s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "PFeas" "DFeas" "µ"
-    verbose && println(log)
+    verbose && print(log)
     push!(res["iterates"]["solution"]["log"], log)
 
     niter = 0
@@ -170,6 +170,6 @@ ipm_log(d, verbose, x, μ, pobj, dobj, pres, dres) = begin
 end
 
 ipm_log(d, verbose, log::String) = begin
-    verbose && println(log)
+    verbose && print(log)
     push!(d["log"], log)
 end

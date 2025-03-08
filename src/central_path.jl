@@ -60,12 +60,6 @@ central_path_filter(lines, weights) = begin
     
     [lines[i] for i in kept], [weights[i] for i in kept]
 end
-central_path_x⁰(lines) = begin # compute centroid of vertices
-    vertices = polytope_points(lines)
-    n = length(vertices)
-    n > 0 || error("No intersections found")
-
-    [sum(p[1] for p in vertices) / n, sum(p[2] for p in vertices) / n]
-end
+central_path_x⁰(lines) = centroid(polytope_points(lines))
 central_path_μ(µ) = isnothing(µ) ? [10.0^p for p in [3, 2, 1.5, 1, 0.5, 0, -0.5, -1, -3, -5]] : µ
 central_path_w(w, m) = isnothing(w) ? ones(m) : w

@@ -506,16 +506,38 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const iteratesArray = sol.x.map((val, i) => sol.x[i]);
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray, logArray);
+      let html = "";
+      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      for (let i = 1; i < logArray.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+      }
+      if (logArray.length > 1) {
+        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
+      }
+      updateResult(html);
     } else if (state.solverMode === "simplex") {
       const result = await fetchSimplex(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y]
       );
-      const iteratesArray = result.map((entry) => entry);
+      const iteratesArray = result[0].map((entry) => entry);
+      const phase1logs = result[1][0];
+      const phase2logs = result[1][1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      let html = "";
+      html += `<div class="central-path-header">Phase 1\n${phase1logs[0]}</div>`;
+
+      for (let i = 1; i < phase1logs.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${phase1logs[i]}</div>`;
+      }
+      html += `<div class="central-path-footer">${phase1logs[phase1logs.length - 1]}</div>`;
+      html += `<div class="central-path-header">Phase 2\n${phase2logs[0]}</div>`;
+      for (let i = 1; i < phase2logs.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i + phase1logs.length-4}">${phase2logs[i]}</div>`;
+      }
+      html += `<div class="central-path-footer">${phase2logs[phase2logs.length - 1]}</div>`;
+      updateResult(html);
     } else if (state.solverMode === "pdhg") {
       const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
       const eta = parseFloat(pdhgEtaSlider.value);
@@ -530,7 +552,14 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const iteratesArray = result.map((entry) => entry);
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      let html = iteratesArray
+      .map((entry, i) => {
+        const x = parseFloat(entry[0]).toFixed(2);
+        const y = parseFloat(entry[1]).toFixed(2);
+        return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
+      })
+      .join("");
+      updateResult(html);
     } else {
       // Central path
       const weights = getBarrierWeights();
@@ -542,7 +571,14 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const iteratesArray = result.central_path.map((entry) => entry[0]);
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      let html = iteratesArray
+      .map((entry, i) => {
+        const x = parseFloat(entry[0]).toFixed(2);
+        const y = parseFloat(entry[1]).toFixed(2);
+        return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
+      })
+      .join("");
+      updateResult(html);
     }
   }
 
@@ -604,25 +640,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   }
   
   
-  function updateResult(iteratesArray, logArray) {
-    let html = "";
-    if (logArray && logArray.length > 0) {
-      html += `<div class="central-path-header">${logArray[0]}</div>`;
-      for (let i = 1; i < logArray.length - 1; i++) {
-        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
-      }
-      if (logArray.length > 1) {
-        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
-      }
-    } else if (iteratesArray) {
-      html = iteratesArray
-        .map((entry, i) => {
-          const x = parseFloat(entry[0]).toFixed(2);
-          const y = parseFloat(entry[1]).toFixed(2);
-          return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
-        })
-        .join("");
-    }
+  function updateResult(html) {
     resultDiv.innerHTML = html;
     document.querySelectorAll(".central-path-header, .central-path-item, .central-path-footer")
       .forEach((item) => {
