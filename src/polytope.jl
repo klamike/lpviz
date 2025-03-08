@@ -14,6 +14,8 @@ function polytope_edges(points::Vector{Vector{Float64}}; tol=1e-6)
     lines = Vector{Vector{Float64}}()
     n = length(points)
 
+    interior = centroid(points)
+
     for i in 1:n
         p1, p2 = points[i], points[i == n ? 1 : i+1]
 
@@ -26,6 +28,10 @@ function polytope_edges(points::Vector{Vector{Float64}}; tol=1e-6)
         Anorm = A / normAB
         Bnorm = B / normAB  
         Cnorm = Anorm * p1[1] + Bnorm * p1[2]
+
+        if Anorm * interior[1] + Bnorm * interior[2] > Cnorm
+            Anorm, Bnorm, Cnorm = -Anorm, -Bnorm, -Cnorm
+        end
 
         push!(inequalities, polytope_format(A, B, C))
         push!(lines, [Anorm, Bnorm, Cnorm])
@@ -102,4 +108,11 @@ lines_to_Ab(lines::Vector{Vector{Float64}}) = begin
     end
     
     A, b
+end
+
+centroid(vertices) = begin # compute centroid of vertices
+    n = length(vertices)
+    n > 0 || error("No intersections found")
+
+    [sum(p[1] for p in vertices) / n, sum(p[2] for p in vertices) / n]
 end

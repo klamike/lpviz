@@ -35,6 +35,7 @@ LPViz.pdhg(req::HTTP.Request) = LPViz.pdhg(
     convert(Vector{Vector{Float64}}, req.body["lines"]),
     convert(Vector{Float64}, req.body["objective"]),
     maxit=get(req.body, "maxit", 1000),
+    ineq=get(req.body, "ineq", false),
     η=get(req.body, "eta", 0.25),
     τ=get(req.body, "tau", 0.25)
 )
@@ -42,9 +43,9 @@ LPViz.pdhg(req::HTTP.Request) = LPViz.pdhg(
 LPViz.ipm(req::HTTP.Request) = LPViz.ipm(
     convert(Vector{Vector{Float64}}, req.body["lines"]),
     convert(Vector{Float64}, req.body["objective"]),
-    ϵ_p=get(req.body, "ϵ_p", 1e-6),
-    ϵ_d=get(req.body, "ϵ_d", 1e-6),
-    ϵ_opt=get(req.body, "ϵ_opt", 1e-6),
+    ϵ_p=get(req.body, "ϵ_p", 1e-5),
+    ϵ_d=get(req.body, "ϵ_d", 1e-5),
+    ϵ_opt=get(req.body, "ϵ_opt", 1e-5),
     maxit=get(req.body, "maxit", 30),
     αmax=get(req.body, "alphamax", 0.9990)
 )

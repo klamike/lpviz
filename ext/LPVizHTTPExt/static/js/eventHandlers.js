@@ -153,7 +153,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
           objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
         });
         state.vertices.splice(i + 1, 0, newPoint);
-        uiManager.updateSidebarUI();
         canvasManager.draw();
         sendPolytope();
         break;
@@ -169,7 +168,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
         if (distance(pt, state.vertices[0]) < 0.5) {
           state.polygonComplete = true;
           state.interiorPoint = computeCentroid(state.vertices);
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
           return;
@@ -177,7 +175,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
         if (isPointInsidePolygon(pt, state.vertices)) {
           state.polygonComplete = true;
           state.interiorPoint = pt;
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
           return;
@@ -193,7 +190,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
         objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
       });
       state.vertices.push(pt);
-      uiManager.updateSidebarUI();
+      uiManager.hideNullStateMessage();
       canvasManager.draw();
       sendPolytope();
     } else if (state.polygonComplete && state.objectiveVector === null) {
@@ -202,6 +199,15 @@ export function setupEventHandlers(canvasManager, uiManager) {
         objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
       });
       state.objectiveVector = state.currentObjective || pt;
+      document.getElementById("maximize").style.display = "block";
+      document.getElementById("ipmButton").disabled = false;
+      document.getElementById("simplexButton").disabled = false;
+      document.getElementById("pdhgButton").disabled = false;
+      document.getElementById("iteratePathButton").disabled = true;
+      document.getElementById("traceButton").disabled = false;
+      document.getElementById("animateButton").disabled = false;
+      document.getElementById("startRotateObjectiveButton").disabled = false;
+      document.getElementById("zoomButton").disabled = false;
       uiManager.updateObjectiveDisplay();
       canvasManager.draw();
     }
@@ -220,7 +226,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
           });
           state.vertices = nextState.vertices;
           state.objectiveVector = nextState.objectiveVector;
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
         }
@@ -233,7 +238,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
           });
           state.vertices = lastState.vertices;
           state.objectiveVector = lastState.objectiveVector;
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
         }
@@ -340,6 +344,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   const pdhgTauSlider = document.getElementById("pdhgTauSlider");
   const maxitInput = document.getElementById("maxitInput");
   const maxitInputPDHG = document.getElementById("maxitInputPDHG");
+  const pdhgIneqMode = document.getElementById("pdhgIneqMode");
   const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider");
   const objectiveAngleStepValue = document.getElementById("objectiveAngleStepValue");
 
@@ -361,6 +366,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
   maxitInputPDHG.addEventListener("input", () => {
     if (state.solverMode === "pdhg") computePath();
   });
+  pdhgIneqMode.addEventListener("change", () => {
+    if (state.solverMode === "pdhg") computePath();
+  });
   objectiveAngleStepSlider.addEventListener("input", () => {
     objectiveAngleStepValue.textContent = parseFloat(objectiveAngleStepSlider.value).toFixed(2);
   });
@@ -370,6 +378,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   traceButton.addEventListener("click", () => {
     computePath();
     state.iteratePathComputed = true;
+    // document.getElementById("terminal-container").style.display = "initial";
   });
 
   // Rotate Objective Buttons
@@ -379,6 +388,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   startRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = true;
+    // document.getElementById("terminal-container").style.display = "initial";
     if (!state.objectiveVector) {
       state.objectiveVector = { x: 1, y: 0 };
       uiManager.updateObjectiveDisplay();
@@ -438,40 +448,49 @@ export function setupEventHandlers(canvasManager, uiManager) {
   document.addEventListener("mousemove", (e) => {
     if (!isResizing) return;
     let newWidth = e.clientX;
-    newWidth = Math.max(200, Math.min(newWidth, 600));
+    newWidth = Math.max(200, Math.min(newWidth, 1000));
     sidebar.style.width = `${newWidth}px`;
     handle.style.left = `${newWidth}px`;
     canvasManager.centerX = newWidth + (window.innerWidth - newWidth) / 2;
     canvasManager.draw();
   });
   document.addEventListener("mouseup", () => {
-    if (isResizing) isResizing = false;
+    if (isResizing) {
+      isResizing = false;
+      adjustFontSize();
+    }
   });
 
-  // Analytic Result Hover (for central path items)
+  // Result Hover (for central path items)
   let cpMouseX = 0;
   let cpMouseY = 0;
   let cpCurrentHovered = null;
-  const resultDiv = document.getElementById("Result");
-  resultDiv.addEventListener("mousemove", (e) => {
+  const resultDiv = document.getElementById("result");
+  document.addEventListener("mousemove", (e) => {
     cpMouseX = e.clientX;
     cpMouseY = e.clientY;
+    updateHoverState();
   });
-  resultDiv.addEventListener("scroll", () => {
+  function updateHoverState() {
     const el = document.elementFromPoint(cpMouseX, cpMouseY);
     if (el && el.classList.contains("central-path-item")) {
       if (cpCurrentHovered !== el) {
         if (cpCurrentHovered) {
+          cpCurrentHovered.classList.remove("hover");
           cpCurrentHovered.dispatchEvent(new Event("mouseleave", { bubbles: true }));
         }
+        el.classList.add("hover");
         el.dispatchEvent(new Event("mouseenter", { bubbles: true }));
         cpCurrentHovered = el;
       }
     } else if (cpCurrentHovered) {
+      cpCurrentHovered.classList.remove("hover");
       cpCurrentHovered.dispatchEvent(new Event("mouseleave", { bubbles: true }));
       cpCurrentHovered = null;
     }
-  });
+  }
+
+  resultDiv.addEventListener("scroll", updateHoverState);
 
   // Helper: computePath calls the appropriate API based on solver mode
   async function computePath() {
@@ -491,34 +510,68 @@ export function setupEventHandlers(canvasManager, uiManager) {
         maxit
       );
       const sol = result.iterates.solution;
+      const logArray = sol.log;
       const iteratesArray = sol.x.map((val, i) => sol.x[i]);
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      let html = "";
+      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      for (let i = 1; i < logArray.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+      }
+      if (logArray.length > 1) {
+        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
+      }
+      updateResult(html);
     } else if (state.solverMode === "simplex") {
       const result = await fetchSimplex(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y]
       );
-      const iteratesArray = result.map((entry) => entry);
+      const iteratesArray = result[0].map((entry) => entry);
+      const phase1logs = result[1][0];
+      const phase2logs = result[1][1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      let html = "";
+      html += `<div class="central-path-header">Phase 1\n${phase1logs[0]}</div>`;
+
+      for (let i = 1; i < phase1logs.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${phase1logs[i]}</div>`;
+      }
+      html += `<div class="central-path-footer">${phase1logs[phase1logs.length - 1]}</div>`;
+      html += `<div class="central-path-header">Phase 2\n${phase2logs[0]}</div>`;
+      for (let i = 1; i < phase2logs.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i + phase1logs.length-4}">${phase2logs[i]}</div>`;
+      }
+      html += `<div class="central-path-footer">${phase2logs[phase2logs.length - 1]}</div>`;
+      updateResult(html);
     } else if (state.solverMode === "pdhg") {
       const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
+      const pdhgIneq = document.getElementById("pdhgIneqMode").checked;
       const eta = parseFloat(pdhgEtaSlider.value);
       const tau = parseFloat(pdhgTauSlider.value);
       const result = await fetchPDHG(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y],
+        pdhgIneq,
         maxitPDHG,
         eta,
         tau
       );
-      const iteratesArray = result.map((entry) => entry);
+      const iteratesArray = result[0].map((entry) => entry);
+      const logArray = result[1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      let html = "";
+      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      for (let i = 1; i < logArray.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+      }
+      if (logArray.length > 1) {
+        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
+      }
+      updateResult(html);
     } else {
       // Central path
       const weights = getBarrierWeights();
@@ -527,10 +580,20 @@ export function setupEventHandlers(canvasManager, uiManager) {
         [state.objectiveVector.x, state.objectiveVector.y],
         weights
       );
-      state.originalIteratePath = [...result.central_path];
-      const iteratesArray = result.central_path.map((entry) => entry[0]);
+      const iteratesArray = result.central_path.map((entry) => entry);
+      const logArray = result.logs;
+      const tsolve = result.tsolve;
+      state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      updateResult(iteratesArray);
+      let html = "";
+      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      for (let i = 1; i < logArray.length; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+      }
+      if (logArray.length > 1) {
+        html += `<div class="central-path-footer">Traced central path in ${Math.round(tsolve * 1000)}ms</div>`;
+      }
+      updateResult(html);
     }
   }
 
@@ -543,26 +606,73 @@ export function setupEventHandlers(canvasManager, uiManager) {
     });
     return weights;
   }
+  function adjustFontSize() {
+    const container = document.getElementById("result");
+    if (!container) {
+      return;
+    }
+    if (container.querySelector("#usageTips")) {
+      return;
+    }
 
-  function updateResult(iteratesArray) {
-    resultDiv.innerHTML = iteratesArray
-      .map((entry, i) => {
-        const x = parseFloat(entry[0]).toFixed(2);
-        const y = parseFloat(entry[1]).toFixed(2);
-        return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
-      })
-      .join("");
-    document.querySelectorAll(".central-path-item").forEach((item) => {
-      item.addEventListener("mouseenter", () => {
-        state.highlightIteratePathIndex = parseInt(item.getAttribute("data-index"));
-        canvasManager.draw();
-      });
-      item.addEventListener("mouseleave", () => {
-        state.highlightIteratePathIndex = null;
-        canvasManager.draw();
-      });
+    
+    const containerStyle = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
+    const effectiveContainerWidth = container.clientWidth - paddingLeft - paddingRight;
+    
+    const texts = container.querySelectorAll("div");
+    if (texts.length === 0) {
+      return;
+    }
+    
+    const measurementDiv = document.createElement("div");
+    measurementDiv.style.position = "absolute";
+    measurementDiv.style.visibility = "hidden";
+    measurementDiv.style.fontFamily = containerStyle.fontFamily;
+    measurementDiv.style.fontWeight = containerStyle.fontWeight;
+    measurementDiv.style.fontStyle = containerStyle.fontStyle;
+    measurementDiv.style.whiteSpace = "pre-wrap";
+    document.body.appendChild(measurementDiv);
+    
+    const baselineFontSize = 18;
+    let minScaleFactor = Infinity;
+    
+    texts.forEach(text => {
+      measurementDiv.style.fontSize = `${baselineFontSize}px`;
+      measurementDiv.textContent = text.textContent;
+      const measuredWidth = measurementDiv.getBoundingClientRect().width;  // adjust for padding on both sides
+      const scaleFactor = (effectiveContainerWidth - 10) / measuredWidth;
+      
+      if (scaleFactor < minScaleFactor && scaleFactor < 4) {
+        minScaleFactor = scaleFactor;
+      }
     });
+    const newFontSize = Math.min(24, baselineFontSize * minScaleFactor * 0.875);
+    
+    texts.forEach(text => {
+      text.style.fontSize = `${newFontSize}px`;
+    });
+    
+    document.body.removeChild(measurementDiv);
+  }
+  
+  
+  function updateResult(html) {
+    resultDiv.innerHTML = html;
+    document.querySelectorAll(".central-path-header, .central-path-item, .central-path-footer")
+      .forEach((item) => {
+        item.addEventListener("mouseenter", () => {
+          state.highlightIteratePathIndex = parseInt(item.getAttribute("data-index"));
+          canvasManager.draw();
+        });
+        item.addEventListener("mouseleave", () => {
+          state.highlightIteratePathIndex = null;
+          canvasManager.draw();
+        });
+      });
     canvasManager.draw();
+    adjustFontSize();
   }
 
   async function sendPolytope() {
@@ -608,6 +718,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
             });
           });
         });
+        if (result.lines.length > 0) {
+          document.getElementById("subjectTo").style.display = "block";
+        }
         state.computedVertices = result.vertices;
         state.computedLines = result.lines;
         uiManager.updateSolverModeButtons();

@@ -1,4 +1,4 @@
-function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol=1e-8, verbose=false)
+function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol=1e-6, verbose=false)
     A, b = lines_to_Ab(lines)
     c = objective
     m, n = size(A)
@@ -25,10 +25,11 @@ function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol
     γ = map(x -> (x < 0 ? -1.0 : 1.0), b)
     Γ = Diagonal(γ)
 
-    iterations_phase1, basis = simplex(
+    verbose && @printf "Phase One\n"
+    iterations_phase1, basis, logs_phase1 = simplex(
         [zeros(2n + m); -ones(m)],
-        [Γ * A -Γ * A Γ * Matrix{Float64}(I, m, m) Matrix{Float64}(I, m, m)],
-        Γ * b,
+        [Γ*A -Γ*A Γ*Matrix{Float64}(I, m, m) Matrix{Float64}(I, m, m)],
+        Γ*b,
         begin
             initial_basis = zeros(Bool, 2 * n + 2 * m)
             initial_basis[2*n+m+1:2*n+2*m] .= true
@@ -36,9 +37,11 @@ function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol
         end,
         tol=tol,
         verbose=verbose,
-        phase1=true
+        phase1=true, phase1_origc=vcat(c, -c, zeros(m))
     )
-    iterations_phase2, _ = simplex(
+
+    verbose && @printf "Phase Two\n"
+    iterations_phase2, _, logs_phase2 = simplex(
         vcat(c, -c, zeros(m)),
         [A -A Matrix{Float64}(I, m, m)],
         b,
@@ -49,19 +52,25 @@ function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol
     iterations = vcat(iterations_phase1[1:end-1], iterations_phase2)
     iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations] # x = x1 - x2
 
-    return iterations_original
+    return iterations_original, [logs_phase1, logs_phase2]
 end
 
 # max c'x s.t. Ax = b, x ≥ 0
 function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
-    basis::Vector{Bool}; tol=1e-8, verbose=true, phase1=false)
+    basis::Vector{Bool}; tol=1e-6, verbose=false, phase1=false, phase1_origc=nothing)
     m, n = size(A)
 
     x = zeros(n)
     y = zeros(m)
+    logs = []
     
     iterations = Vector{Vector{Float64}}(undef, 0)
-    verbose && @printf "%4s  %13s %13s  %8s %8s  %7s\n" "Iter" "PObj" "DObj"
+    padding = repeat(" ", length(basis) - length("basis"))
+    log = @sprintf "%4s %6s %6s  %8s  %s\n" "Iter" "x" "y" "PObj" "basis" * padding
+    verbose && print(log)
+    push!(logs, log)
+
+    iteration = 0
     while true
         # Compute basis B
         B = A[:, basis]
@@ -74,8 +83,13 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
         # Update dual variables y
         y = B' \ c[basis]
 
-        verbose && @printf "%4d  %+.6e %+.6e \n" length(iterations) dot(c[basis], x[basis]) dot(c, x)
-
+        ## Logging
+        iteration += 1
+        x_orig = x[1:2] - x[3:4] # recover original variables ⚠ Assumes x = [x₁, x₂; s]! ⚠
+        log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e  %s\n" iteration x_orig[1] x_orig[2] c'x join(convert(Vector{Int}, basis))
+        verbose && print(log)
+        push!(logs, log)
+        
         # ⚠ Early exit for phase one. NOTE: This assumes x = [x₁, x₂; s; t]! ⚠
         if phase1
             # Compute primal residual (accounting for sign flips due to Γ)
@@ -88,14 +102,23 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
                 # Compute basis based on which x, s are zero
                 basis_ = ones(Bool, n - m)
                 basis_[findall([x[i_x]; -r] .< tol)] .= false
-                return iterations, basis_
+
+                # Check that this is a corner in the original problem
+                log = @sprintf "%-4s %+6.2f %+6.2f  %+.1e  %s\n" string(iteration) * "e" x_orig[1] x_orig[2] phase1_origc'x[1:n-m] join(convert(Vector{Int}, basis_)) * repeat(" ", m)
+                verbose && print(log)
+                push!(logs, log)
+                push!(iterations, (copy(x)))
+                if sum(-r .< tol) == (n-2m) / 2
+                    basis = basis_
+                    break
+                end
             end
         end
 
         # Pick the entering variable i₁
         z = c - A'y
-        i₁ = findfirst(i -> z[i] > tol && !basis[i], 1:n)
-        i₁ === nothing && break # we are done
+        valid = filter(i -> z[i] > tol && !basis[i], 1:n)
+        i₁ = isempty(valid) ? (break) : valid[argmax(z[valid])]
 
         # Pick the exiting variable i₀
         δ = B \ A[:, i₁]
@@ -110,5 +133,14 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
         basis[i₀] = false
     end
 
-    return iterations, basis
+    if phase1
+        # Remove the artificial variables from the basis
+        basis = basis[1:n-m]
+    end
+
+    log = @sprintf "Phase %d terminated with basis %s\n" phase1 ? 1 : 2 join(convert(Vector{Int}, basis))
+    verbose && print(log)
+    push!(logs, log)
+
+    return iterations, basis, logs
 end

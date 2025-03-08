@@ -3,10 +3,10 @@ import { state } from "./state.js";
 export class UIManager {
   constructor() {
     this.uiContainer = document.getElementById("uiContainer");
-    this.nullStateMessage = document.getElementById("nullStateMessage");
+    this.topTerminal = document.getElementById("terminal-container2");
     this.objectiveDisplay = document.getElementById("objectiveDisplay");
     this.inequalitiesDiv = document.getElementById("inequalities");
-    this.resultDiv = document.getElementById("Result");
+    this.resultDiv = document.getElementById("result");
     this.zoomButton = document.getElementById("zoomButton");
     this.unzoomButton = document.getElementById("unzoomButton");
     this.iteratePathButton = document.getElementById("iteratePathButton");
@@ -14,16 +14,25 @@ export class UIManager {
     this.simplexButton = document.getElementById("simplexButton");
     this.pdhgButton = document.getElementById("pdhgButton");
     this.animateButton = document.getElementById("animateButton");
+    this.addedLandscapeWarning = false;
   }
 
-  updateSidebarUI() {
-    if (state.vertices.length === 0) {
-      this.uiContainer.style.display = "none";
-      this.nullStateMessage.style.display = "block";
-    } else {
-      this.uiContainer.style.display = "block";
-      this.nullStateMessage.style.display = "none";
+  checkMobileOrientation() {
+    if (!this.addedLandscapeWarning && window.innerWidth < 750 && window.innerHeight > window.innerWidth) {
+      this.topTerminal.innerHTML = "<div class=\"landscape-warning\" style=\"display: block;\">Switch to landscape mode or a larger screen.</div>" + this.topTerminal.innerHTML;
+      this.addedLandscapeWarning = true;
+      this.objectiveDisplay = document.getElementById("objectiveDisplay");
+      this.inequalitiesDiv = document.getElementById("inequalities");
+    } else if (this.addedLandscapeWarning && window.innerWidth >= 750) {
+      this.topTerminal.removeChild(document.querySelector(".landscape-warning"));
+      this.addedLandscapeWarning = false;
+      this.objectiveDisplay = document.getElementById("objectiveDisplay");
+      this.inequalitiesDiv = document.getElementById("inequalities");
     }
+  }
+
+  hideNullStateMessage() {
+    document.getElementById("nullStateMessage").style.display = "none";
   }
 
   updateZoomButtonsState(canvasManager) {
@@ -45,9 +54,10 @@ export class UIManager {
       const a = Math.round(state.objectiveVector.x * 1000) / 1000;
       const b = Math.round(state.objectiveVector.y * 1000) / 1000;
       this.objectiveDisplay.classList.add("objective-item");
-      this.objectiveDisplay.innerHTML = `Max ${a}x ${
+      this.objectiveDisplay.innerHTML = `${a}x ${
         b >= 0 ? "+ " + b + "y" : "- " + (-b) + "y"
       }`;
+      this.objectiveDisplay.style.color = "#eee";
     } else {
       this.objectiveDisplay.classList.remove("objective-item");
       this.objectiveDisplay.innerHTML = "";

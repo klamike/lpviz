@@ -34,11 +34,11 @@ export async function fetchPolytope(points) {
     return response.json();
   }
   
-  export async function fetchPDHG(lines, objective, maxit, eta, tau) {
+  export async function fetchPDHG(lines, objective, ineq, maxit, eta, tau) {
     const response = await fetch('/pdhg', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective, maxit, eta, tau })
+      body: JSON.stringify({ lines, objective, ineq, maxit, eta, tau })
     });
     return response.json();
   }
