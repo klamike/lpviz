@@ -53,7 +53,7 @@ function pdhg(A, b, c; maxit=1000, η=0.25, τ=0.25, tol=1e-4, verbose=false)
     iterates = []
     tsolve = @elapsed while (k < maxit) && (ϵₖ > tol)
         push!(iterates, copy(xₖ))
-        log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(iterates) xₖ[1]-xₖ[3] xₖ[2]-xₖ[4] c'xₖ b'yₖ norm(A*xₖ-b, Inf) norm(pdhg_Π₊(-c - A'yₖ), Inf) ϵₖ
+        log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(iterates) xₖ[1]-xₖ[3] xₖ[2]-xₖ[4] -c'xₖ -b'yₖ norm(A*xₖ-b, Inf) norm(pdhg_Π₊(-c - A'yₖ), Inf) ϵₖ
         verbose && print(log)
         push!(logs, log)
         
@@ -96,7 +96,7 @@ function pdhg_ineq(A, b, c; maxit=1000, η=0.25, τ=0.25, tol=1e-4, verbose=fals
     iterates = []
     tsolve = @elapsed while (k ≤ maxit) && (ϵₖ > tol)
         push!(iterates, copy(xₖ))
-        log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(iterates) xₖ[1] xₖ[2] c'xₖ -b'yₖ norm(pdhg_Π₊(A*xₖ - b), Inf) norm(pdhg_Π₊(-yₖ), Inf) ϵₖ
+        log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(iterates) xₖ[1] xₖ[2] -c'xₖ b'yₖ norm(pdhg_Π₊(A*xₖ - b), Inf) norm(pdhg_Π₊(-yₖ), Inf) ϵₖ
         verbose && print(log)
         push!(logs, log)
         

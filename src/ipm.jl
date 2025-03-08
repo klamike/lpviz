@@ -165,7 +165,7 @@ ipm_log(d, verbose, converged::Bool, tsolve::Float64) = begin
 end
 
 ipm_log(d, verbose, x, μ, pobj, dobj, pres, dres) = begin
-    log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(d["x"]) x[1] x[2] pobj dobj pres dres μ
+    log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(d["x"]) x[1] x[2] -pobj -dobj pres dres μ
     ipm_log(d, verbose, log)
 end
 
