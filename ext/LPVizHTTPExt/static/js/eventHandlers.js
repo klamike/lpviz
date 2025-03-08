@@ -342,6 +342,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     pdhgButton.disabled = false;
     document.getElementById("ipmSettings").style.display = "none";
     document.getElementById("pdhgSettings").style.display = "none";
+    document.getElementById("centralPathSettings").style.display = "block";
   });
   ipmButton.addEventListener("click", () => {
     state.solverMode = "ipm";
@@ -351,6 +352,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     pdhgButton.disabled = false;
     document.getElementById("ipmSettings").style.display = "block";
     document.getElementById("pdhgSettings").style.display = "none";
+    document.getElementById("centralPathSettings").style.display = "none";
   });
   simplexButton.addEventListener("click", () => {
     state.solverMode = "simplex";
@@ -360,6 +362,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     pdhgButton.disabled = false;
     document.getElementById("ipmSettings").style.display = "none";
     document.getElementById("pdhgSettings").style.display = "none";
+    document.getElementById("centralPathSettings").style.display = "none";
   });
   pdhgButton.addEventListener("click", () => {
     state.solverMode = "pdhg";
@@ -369,6 +372,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     iteratePathButton.disabled = false;
     document.getElementById("ipmSettings").style.display = "none";
     document.getElementById("pdhgSettings").style.display = "block";
+    document.getElementById("centralPathSettings").style.display = "none";
   });
 
   // Input event listeners for IPM and PDHG settings
@@ -380,6 +384,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
   const pdhgIneqMode = document.getElementById("pdhgIneqMode");
   const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider");
   const objectiveAngleStepValue = document.getElementById("objectiveAngleStepValue");
+  const centralPathIterSlider = document.getElementById("centralPathIterSlider");
+  const centralPathIterValue = document.getElementById("centralPathIterValue");
 
   alphaMaxSlider.addEventListener("input", () => {
     document.getElementById("alphaMaxValue").textContent = parseFloat(alphaMaxSlider.value).toFixed(3);
@@ -405,6 +411,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
   objectiveAngleStepSlider.addEventListener("input", () => {
     objectiveAngleStepValue.textContent = parseFloat(objectiveAngleStepSlider.value).toFixed(2);
   });
+  centralPathIterSlider.addEventListener("input", () => {
+    centralPathIterValue.textContent = centralPathIterSlider.value;
+    if (state.solverMode === "central") computePath();
+  });
+
 
   // Trace/Solve Button
   const traceButton = document.getElementById("traceButton");
@@ -608,10 +619,12 @@ export function setupEventHandlers(canvasManager, uiManager) {
     } else {
       // Central path
       const weights = getBarrierWeights();
+      const maxitCentral = parseInt(centralPathIterSlider.value, 10);
       const result = await fetchCentralPath(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y],
-        weights
+        weights,
+        maxitCentral
       );
       const iteratesArray = result.central_path.map((entry) => entry);
       const logArray = result.logs;

@@ -1,7 +1,7 @@
 using JuMP
 using Clarabel
 
-function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; mu_values=nothing, weights=nothing, verbose=false)
+function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; niter=nothing, weights=nothing, verbose=false)
     
     lines, weights = central_path_filter(lines, weights)
     m = length(lines)
@@ -9,7 +9,7 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     A, b = lines_to_Ab(lines)
     
     x⁰ = central_path_x⁰(lines)
-    µ = central_path_μ(mu_values)
+    µ = central_path_μ(niter)
     w = central_path_w(weights, m)
 
     central_path = []
@@ -71,5 +71,5 @@ central_path_filter(lines, weights) = begin
     [lines[i] for i in kept], [weights[i] for i in kept]
 end
 central_path_x⁰(lines) = centroid(polytope_points(lines))
-central_path_μ(µ) = isnothing(µ) ? [10.0^p for p in [3, 2, 1.5, 1, 0.5, 0, -0.5, -1, -3, -5]] : µ
+central_path_μ(n) = 10.0 .^ range(3, stop=-5, length=n)
 central_path_w(w, m) = isnothing(w) ? ones(m) : w

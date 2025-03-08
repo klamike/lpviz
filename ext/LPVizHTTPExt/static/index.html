@@ -10,12 +10,10 @@
   <meta name="keywords"
     content="lpviz, linear programming, interactive visualization, LP solver, simplex, interior point, pdhg, central path, visualize">
   <link rel="canonical" href="https://lpviz.net/">
-  <!-- Open Graph / Facebook -->
   <meta property="og:title" content="lpviz">
   <meta property="og:description" content="Visualize and solve linear programming problems interactively with lpviz.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://lpviz.net/">
-  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="lpviz">
   <meta name="twitter:description" content="Visualize and solve linear programming problems interactively with lpviz.">
@@ -63,7 +61,6 @@
             <div class="scanlines" style="--delay: -8s; overflow-y: hidden; overflow-x: hidden;"></div>
           </div>
           <div class="controlPanel">
-            <!-- <h3>Solver Mode</h3> -->
             <div class="button-group">
               <button id="ipmButton" disabled>IPM</button>
               <button id="pdhgButton" disabled> PDHG</button>
@@ -72,7 +69,6 @@
             </div>
 
             <div id="ipmSettings" class="settings-section" style="display:none;">
-              <!-- <h3>IPM Settings</h3> -->
               <label for="alphaMaxSlider">
                 αmax (maximum step size ratio): <span id="alphaMaxValue">0.1</span>
               </label>
@@ -83,7 +79,6 @@
             </div>
 
             <div id="pdhgSettings" class="settings-section" style="display:none;">
-              <!-- <h3>PDHG Settings</h3> -->
               <label for="pdhgEtaSlider">
                 η (primal step size factor): <span id="pdhgEtaValue">0.250</span>
               </label>
@@ -101,10 +96,17 @@
               <label for="pdhgIneqMode">Inequality mode</label>
               <input type="checkbox" id="pdhgIneqMode" checked>
             </div>
+
+            <div id="centralPathSettings" class="settings-section" style="display:block;">
+              <label for="centralPathIterSlider">
+                N (number of steps): <span id="centralPathIterValue">10</span>
+              </label>
+              <input type="range" id="centralPathIterSlider" min="2" max="100" step="1" value="10" autocomplete="off">
+            </div>
+
           </div>
 
           <div class="controlPanel" style="margin-top: 5px; margin-bottom: 20px;">
-            <!-- <h3>Controls</h3> -->
             <div class="button-group">
               <button id="traceButton" disabled>Solve</button> <button id="animateButton" disabled>Animate</button>
             </div>
@@ -119,10 +121,6 @@
                   autocomplete="off">
               </div>
             </div>
-            <!-- <div class="button-group">
-              <button id="zoomButton" disabled>Zoom</button>
-              <button id="unzoomButton" disabled>Unzoom</button>
-            </div> -->
           </div>
           <label style="display: none;" for="replaySpeedSlider">Speed:</label>
           <input style="display: none;" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1"

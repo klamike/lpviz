@@ -54,7 +54,7 @@ LPViz.central_path(req::HTTP.Request) = LPViz.central_path(
     convert(Vector{Vector{Float64}}, req.body["lines"]),
     convert(Vector{Float64}, req.body["objective"]),
     weights=convert(Vector{Float64}, get(req.body, "weights", ones(length(req.body["lines"])))),
-    mu_values=convert(Vector{Float64}, get(req.body, "mu_values", LPViz.central_path_μ(nothing)))
+    niter=get(req.body, "niter", 10)
 )
 
 

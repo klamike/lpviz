@@ -7,11 +7,11 @@ export async function fetchPolytope(points) {
     return response.json();
   }
   
-  export async function fetchCentralPath(lines, objective, weights) {
+  export async function fetchCentralPath(lines, objective, weights, niter) {
     const response = await fetch('/central_path', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective, weights })
+      body: JSON.stringify({ lines, objective, weights, niter })
     });
     return response.json();
   }
