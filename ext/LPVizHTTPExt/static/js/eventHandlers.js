@@ -340,6 +340,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   const pdhgTauSlider = document.getElementById("pdhgTauSlider");
   const maxitInput = document.getElementById("maxitInput");
   const maxitInputPDHG = document.getElementById("maxitInputPDHG");
+  const pdhgIneqMode = document.getElementById("pdhgIneqMode");
   const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider");
   const objectiveAngleStepValue = document.getElementById("objectiveAngleStepValue");
 
@@ -359,6 +360,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
     if (state.solverMode === "ipm") computePath();
   });
   maxitInputPDHG.addEventListener("input", () => {
+    if (state.solverMode === "pdhg") computePath();
+  });
+  pdhgIneqMode.addEventListener("change", () => {
     if (state.solverMode === "pdhg") computePath();
   });
   objectiveAngleStepSlider.addEventListener("input", () => {
@@ -540,25 +544,29 @@ export function setupEventHandlers(canvasManager, uiManager) {
       updateResult(html);
     } else if (state.solverMode === "pdhg") {
       const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
+      const pdhgIneq = document.getElementById("pdhgIneqMode").checked;
       const eta = parseFloat(pdhgEtaSlider.value);
       const tau = parseFloat(pdhgTauSlider.value);
       const result = await fetchPDHG(
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y],
+        pdhgIneq,
         maxitPDHG,
         eta,
         tau
       );
-      const iteratesArray = result.map((entry) => entry);
+      const iteratesArray = result[0].map((entry) => entry);
+      const logArray = result[1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      let html = iteratesArray
-      .map((entry, i) => {
-        const x = parseFloat(entry[0]).toFixed(2);
-        const y = parseFloat(entry[1]).toFixed(2);
-        return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
-      })
-      .join("");
+      let html = "";
+      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      for (let i = 1; i < logArray.length - 1; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+      }
+      if (logArray.length > 1) {
+        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
+      }
       updateResult(html);
     } else {
       // Central path
@@ -568,16 +576,19 @@ export function setupEventHandlers(canvasManager, uiManager) {
         [state.objectiveVector.x, state.objectiveVector.y],
         weights
       );
-      const iteratesArray = result.central_path.map((entry) => entry[0]);
+      const iteratesArray = result.central_path.map((entry) => entry);
+      const logArray = result.logs;
+      const tsolve = result.tsolve;
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
-      let html = iteratesArray
-      .map((entry, i) => {
-        const x = parseFloat(entry[0]).toFixed(2);
-        const y = parseFloat(entry[1]).toFixed(2);
-        return `<div class="central-path-item" data-index="${i}">(${x}, ${y})</div>`;
-      })
-      .join("");
+      let html = "";
+      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      for (let i = 1; i < logArray.length; i++) {
+        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+      }
+      if (logArray.length > 1) {
+        html += `<div class="central-path-footer">Traced central path in ${Math.round(tsolve * 1000)}ms</div>`;
+      }
       updateResult(html);
     }
   }
@@ -610,10 +621,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
     const measurementDiv = document.createElement("div");
     measurementDiv.style.position = "absolute";
     measurementDiv.style.visibility = "hidden";
-    measurementDiv.style.whiteSpace = "nowrap";
     measurementDiv.style.fontFamily = containerStyle.fontFamily;
     measurementDiv.style.fontWeight = containerStyle.fontWeight;
     measurementDiv.style.fontStyle = containerStyle.fontStyle;
+    measurementDiv.style.whiteSpace = "pre-wrap";
     document.body.appendChild(measurementDiv);
     
     const baselineFontSize = 18;
@@ -622,8 +633,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
     texts.forEach(text => {
       measurementDiv.style.fontSize = `${baselineFontSize}px`;
       measurementDiv.textContent = text.textContent;
-      const measuredWidth = measurementDiv.getBoundingClientRect().width + 10;  // adjust for padding on both sides
-      const scaleFactor = effectiveContainerWidth / measuredWidth;
+      const measuredWidth = measurementDiv.getBoundingClientRect().width;  // adjust for padding on both sides
+      const scaleFactor = (effectiveContainerWidth - 10) / measuredWidth;
       console.log("For element", text.textContent, "measured width", measuredWidth, "scale factor", scaleFactor);
       
       if (scaleFactor < minScaleFactor && scaleFactor < 4) {

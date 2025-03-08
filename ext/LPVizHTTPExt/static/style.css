@@ -191,6 +191,7 @@ hr {
   width: 100%;
   height: 100%;
   pointer-events: none;   
+  overflow: hidden;
 }
 
 #terminal-window:before {
@@ -206,6 +207,7 @@ hr {
   opacity: 0.1;
   animation: pulse 5s linear infinite;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .scanlines {
@@ -216,6 +218,7 @@ hr {
   height: 100%;
   pointer-events: none; 
   z-index: 4100;        
+  overflow: hidden;
 }
 
 .scanlines:before {
@@ -229,6 +232,7 @@ hr {
   opacity: 0.025;
   animation: vline 10s linear infinite;
     animation-delay: var(--delay, 0s);
+  overflow: hidden;
 }
 
 @keyframes pulse {
