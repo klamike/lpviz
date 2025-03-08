@@ -1,7 +1,7 @@
 using JuMP
 using Clarabel
 
-function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; mu_values=nothing, weights=nothing, verbose=true)
+function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; mu_values=nothing, weights=nothing, verbose=false)
     
     lines, weights = central_path_filter(lines, weights)
     m = length(lines)

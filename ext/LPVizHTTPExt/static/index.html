@@ -38,12 +38,22 @@
             </svg>
           </a>
         </div>
-        <div id="nullStateMessage">Start drawing!</div>
         <div id="uiContainer">
           <div id="terminal-container2" style="display: block; color: #eee; margin-top: 15px; padding: 10px 20px; min-height: 180px;">
-            <div style="text-align: left; font-size:12pt;">maximize</div>
-          <div id="objectiveDisplay" style="color: #aaa;">Objective not set</div>
-          <div id="subjectTo" style="text-align: left; font-size:12pt; display: none;">subject to</div>
+            <div id="nullStateMessage">
+  ___                                    
+  /\_ \                   __             
+  \//\ \   _____   __  __/\_\  ____      
+    \ \ \ /\ '__`\/\ \/\ \/\ \/\_ ,`\    
+     \_\ \\ \ \L\ \ \ \_/ \ \ \/_/  /_   
+     /\____\ \ ,__/\ \___/ \ \_\/\____\  
+     \/____/\ \ \/  \/__/   \/_/\/____/  
+             \ \_\                       
+              \/_/                       
+            </div>
+            <div id="maximize">maximize</div>
+          <div id="objectiveDisplay"></div>
+          <div id="subjectTo">subject to</div>
           <div id="inequalities"></div>
             <div id="terminal-window" style="overflow-y: hidden; overflow-x: hidden;"></div>
             <div class="scanlines" style="overflow-y: hidden; overflow-x: hidden;"></div>
@@ -52,10 +62,10 @@
           <div class="controlPanel">
             <!-- <h3>Solver Mode</h3> -->
             <div class="button-group">
-              <button id="ipmButton">IPM</button>
-              <button id="pdhgButton">PDHG</button>
-              <button id="simplexButton">Simplex</button>
-              <button id="iteratePathButton">Central Path</button>
+              <button id="ipmButton" disabled>IPM</button>
+              <button id="pdhgButton" disabled> PDHG</button>
+              <button id="simplexButton"  disabled>Simplex</button>
+              <button id="iteratePathButton"  disabled>Central Path</button>
             </div>
 
             <div id="ipmSettings" class="settings-section" style="display:none;">
@@ -90,13 +100,13 @@
             </div>
           </div>
 
-          <div class="controlPanel" style="margin-top: 5px;">
+          <div class="controlPanel" style="margin-top: 5px; margin-bottom: 20px;">
             <!-- <h3>Controls</h3> -->
             <div class="button-group">
-              <button id="traceButton">Solve</button> <button id="animateButton">Animate</button>
+              <button id="traceButton" disabled>Solve</button> <button id="animateButton" disabled>Animate</button>
             </div>
             <div class="button-group">
-              <button id="startRotateObjectiveButton">Rotate Objective</button>
+              <button id="startRotateObjectiveButton" disabled>Rotate Objective</button>
               <button id="stopRotateObjectiveButton" disabled>Stop Rotation</button>
               <div id="objectiveRotationSettings" style="display:none; margin-top: 1em;">
                 <label for="objectiveAngleStepSlider">
@@ -107,31 +117,32 @@
               </div>
             </div>
             <div class="button-group">
-              <button id="zoomButton">Zoom</button>
-              <button id="unzoomButton">Unzoom</button>
+              <button id="zoomButton" disabled>Zoom</button>
+              <button id="unzoomButton" disabled>Unzoom</button>
             </div>
           </div>
           <label style="display: none;" for="replaySpeedSlider">Speed:</label>
           <input style="display: none;" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1" autocomplete="off">
-          <div id="terminal-container" style="display: none;">
-            <div id="result"></div>
+          <div class="spacer"></div>
+          <div id="terminal-container">
+            <div id="result">
+              <div id="usageTips">
+                <br><br><strong class="usage-title">Usage Tips:</strong><br><br>
+                <strong>Draw a polygon</strong>: click to add vertices<br>
+                <strong>Select a solver</strong>: select a solver and click <strong>Solve</strong><br>
+                <strong>Change objective</strong>: drag it or click <strong>Rotate Objective</strong><br>
+                <strong>Add new vertices</strong>: double‐click an edge<br>
+                <strong>Move vertices</strong>: drag vertices to reshape<br>
+                <strong>Press S</strong>: toggle snapping to the grid<br>
+                <strong>Reset</strong>: refresh the page<br>
+                <strong>Undo/Redo</strong>: ⌘+z to undo, ⇧⌘+z to redo<br>
+              </div>
+            </div>
             <div id="terminal-window"></div>
             <div class="scanlines"></div>
             <div class="scanlines" style="--delay: -5s;"></div>
           </div>
           <div style="min-height: 10px;"></div>
-        </div>
-        <div class="spacer"></div>
-        <div id="usageTips" style="text-align: left;">
-          <br><br><br><br>
-          <strong class="usage-title">Usage Tips:</strong><br><br>
-          <strong>Draw</strong>: click to add vertices, click inside when done.<br>
-          <strong>Move</strong>: drag vertices to reshape.<br>
-          <strong>Add</strong>: double‐click an edge to insert a vertex.<br>
-          <strong>Red Overlay</strong>: indicates non‐convexity, must adjust.<br>
-          <strong>Zoom</strong>: fits the polygon in view.<br>
-          <strong>Objective</strong>: drag the objective arrow to adjust direction.<br>
-          <strong>Press S</strong>: toggle snapping to the grid.
         </div>
       </div>
     </div>

@@ -116,6 +116,8 @@ function pdhg_ineq(A, b, c; maxit=1000, η=0.25, τ=0.25, tol=1e-4, verbose=fals
         ϵₖ = pdhg_ineq_ϵ(A, b, c, xₖ, yₖ)
     end
 
+    tsolve *= 1000 # convert to milliseconds
+    tsolve = round(tsolve, digits=2)
     log = if ϵₖ ≤ tol
         "Converged to primal-dual optimal solution in $(tsolve)ms\n"
     else

@@ -4,7 +4,6 @@ export class UIManager {
   constructor() {
     this.uiContainer = document.getElementById("uiContainer");
     this.nullStateMessage = document.getElementById("nullStateMessage");
-    this.usageTips = document.getElementById("usageTips");
     this.objectiveDisplay = document.getElementById("objectiveDisplay");
     this.inequalitiesDiv = document.getElementById("inequalities");
     this.resultDiv = document.getElementById("result");
@@ -17,16 +16,8 @@ export class UIManager {
     this.animateButton = document.getElementById("animateButton");
   }
 
-  updateSidebarUI() {
-    if (state.vertices.length === 0) {
-      this.uiContainer.style.display = "none";
-      this.nullStateMessage.style.display = "block";
-      this.usageTips.style.display = "block";
-    } else {
-      this.uiContainer.style.display = "flex";
-      this.nullStateMessage.style.display = "none";
-      this.usageTips.style.display = "none";
-    }
+  hideNullStateMessage() {
+    this.nullStateMessage.style.display = "none";
   }
 
   updateZoomButtonsState(canvasManager) {

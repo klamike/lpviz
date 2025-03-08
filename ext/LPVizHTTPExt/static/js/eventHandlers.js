@@ -153,7 +153,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
           objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
         });
         state.vertices.splice(i + 1, 0, newPoint);
-        uiManager.updateSidebarUI();
         canvasManager.draw();
         sendPolytope();
         break;
@@ -169,7 +168,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
         if (distance(pt, state.vertices[0]) < 0.5) {
           state.polygonComplete = true;
           state.interiorPoint = computeCentroid(state.vertices);
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
           return;
@@ -177,7 +175,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
         if (isPointInsidePolygon(pt, state.vertices)) {
           state.polygonComplete = true;
           state.interiorPoint = pt;
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
           return;
@@ -193,7 +190,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
         objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
       });
       state.vertices.push(pt);
-      uiManager.updateSidebarUI();
+      uiManager.hideNullStateMessage();
       canvasManager.draw();
       sendPolytope();
     } else if (state.polygonComplete && state.objectiveVector === null) {
@@ -202,6 +199,15 @@ export function setupEventHandlers(canvasManager, uiManager) {
         objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
       });
       state.objectiveVector = state.currentObjective || pt;
+      document.getElementById("maximize").style.display = "block";
+      document.getElementById("ipmButton").disabled = false;
+      document.getElementById("simplexButton").disabled = false;
+      document.getElementById("pdhgButton").disabled = false;
+      document.getElementById("iteratePathButton").disabled = true;
+      document.getElementById("traceButton").disabled = false;
+      document.getElementById("animateButton").disabled = false;
+      document.getElementById("startRotateObjectiveButton").disabled = false;
+      document.getElementById("zoomButton").disabled = false;
       uiManager.updateObjectiveDisplay();
       canvasManager.draw();
     }
@@ -220,7 +226,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
           });
           state.vertices = nextState.vertices;
           state.objectiveVector = nextState.objectiveVector;
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
         }
@@ -233,7 +238,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
           });
           state.vertices = lastState.vertices;
           state.objectiveVector = lastState.objectiveVector;
-          uiManager.updateSidebarUI();
           canvasManager.draw();
           sendPolytope();
         }
@@ -374,7 +378,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   traceButton.addEventListener("click", () => {
     computePath();
     state.iteratePathComputed = true;
-    document.getElementById("terminal-container").style.display = "initial";
+    // document.getElementById("terminal-container").style.display = "initial";
   });
 
   // Rotate Objective Buttons
@@ -384,7 +388,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   startRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = true;
-    document.getElementById("terminal-container").style.display = "initial";
+    // document.getElementById("terminal-container").style.display = "initial";
     if (!state.objectiveVector) {
       state.objectiveVector = { x: 1, y: 0 };
       uiManager.updateObjectiveDisplay();
@@ -607,6 +611,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
     if (!container) {
       return;
     }
+    if (container.querySelector("#usageTips")) {
+      return;
+    }
+
     
     const containerStyle = window.getComputedStyle(container);
     const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
