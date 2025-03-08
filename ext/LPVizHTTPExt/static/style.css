@@ -504,3 +504,17 @@ input[type="range"]:active::-ms-thumb {
   background-color: #444;
   fill: #eee;
 }
+.landscape-warning {
+  color: red;
+  font-family: monospace;
+  font-size: 0.9em;
+  text-align: center;
+  margin: 5px;
+  animation: flash 1s infinite;
+  display: none; /* hidden by default */
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  70% { opacity: 0.8; }
+}

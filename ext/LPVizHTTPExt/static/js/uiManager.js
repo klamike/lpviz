@@ -3,7 +3,7 @@ import { state } from "./state.js";
 export class UIManager {
   constructor() {
     this.uiContainer = document.getElementById("uiContainer");
-    this.nullStateMessage = document.getElementById("nullStateMessage");
+    this.topTerminal = document.getElementById("terminal-container2");
     this.objectiveDisplay = document.getElementById("objectiveDisplay");
     this.inequalitiesDiv = document.getElementById("inequalities");
     this.resultDiv = document.getElementById("result");
@@ -14,10 +14,25 @@ export class UIManager {
     this.simplexButton = document.getElementById("simplexButton");
     this.pdhgButton = document.getElementById("pdhgButton");
     this.animateButton = document.getElementById("animateButton");
+    this.addedLandscapeWarning = false;
+  }
+
+  checkMobileOrientation() {
+    if (!this.addedLandscapeWarning && window.innerWidth < 750 && window.innerHeight > window.innerWidth) {
+      this.topTerminal.innerHTML = "<div class=\"landscape-warning\" style=\"display: block;\">Switch to landscape mode or a larger screen.</div>" + this.topTerminal.innerHTML;
+      this.addedLandscapeWarning = true;
+      this.objectiveDisplay = document.getElementById("objectiveDisplay");
+      this.inequalitiesDiv = document.getElementById("inequalities");
+    } else if (this.addedLandscapeWarning && window.innerWidth >= 750) {
+      this.topTerminal.removeChild(document.querySelector(".landscape-warning"));
+      this.addedLandscapeWarning = false;
+      this.objectiveDisplay = document.getElementById("objectiveDisplay");
+      this.inequalitiesDiv = document.getElementById("inequalities");
+    }
   }
 
   hideNullStateMessage() {
-    this.nullStateMessage.style.display = "none";
+    document.getElementById("nullStateMessage").style.display = "none";
   }
 
   updateZoomButtonsState(canvasManager) {
