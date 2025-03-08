@@ -41,11 +41,9 @@ export class UIManager {
       canvasManager.offset.x === 0 &&
       canvasManager.offset.y === 0
     ) {
-      this.unzoomButton.disabled = true;
       this.zoomButton.disabled = false;
     } else {
       this.unzoomButton.disabled = false;
-      this.zoomButton.disabled = true;
     }
   }
 

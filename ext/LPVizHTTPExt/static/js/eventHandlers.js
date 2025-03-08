@@ -66,43 +66,69 @@ export function setupEventHandlers(canvasManager, uiManager) {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     const logicalMouse = canvasManager.toLogicalCoords(mouseX, mouseY);
-    const idx = state.vertices.findIndex(
-      (v) => distance(logicalMouse, v) < 0.5
-    );
-    if (idx !== -1) {
-      state.draggingPointIndex = idx;
-      return;
-    }
-    if (state.polygonComplete && state.objectiveVector !== null) {
-      const tip = canvasManager.toCanvasCoords(
-        state.objectiveVector.x,
-        state.objectiveVector.y
+  
+    if (!state.polygonComplete) {
+      const idx = state.vertices.findIndex(
+        (v) => distance(logicalMouse, v) < 0.5
       );
-      if (Math.hypot(mouseX - tip.x, mouseY - tip.y) < 10) {
-        state.draggingObjective = true;
+      if (idx !== -1) {
+        state.draggingPointIndex = idx;
+      }
+      return;
+    } else {
+      if (state.objectiveVector !== null) {
+        const tip = canvasManager.toCanvasCoords(
+          state.objectiveVector.x,
+          state.objectiveVector.y
+        );
+        if (Math.hypot(mouseX - tip.x, mouseY - tip.y) < 10) {
+          state.draggingObjective = true;
+          return;
+        }
+      }
+      const idx = state.vertices.findIndex(
+        (v) => distance(logicalMouse, v) < 0.5
+      );
+      if (idx !== -1) {
+        state.draggingPointIndex = idx;
         return;
       }
+      state.isPanning = true;
+      state.lastPan = { x: e.clientX, y: e.clientY };
     }
   });
 
   canvas.addEventListener("mousemove", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
     if (state.draggingPointIndex !== null) {
       state.vertices[state.draggingPointIndex] = canvasManager.toLogicalCoords(
-        mouseX,
-        mouseY
+        e.clientX - canvas.getBoundingClientRect().left,
+        e.clientY - canvas.getBoundingClientRect().top
       );
       canvasManager.draw();
       return;
     }
     if (state.draggingObjective) {
-      state.objectiveVector = canvasManager.toLogicalCoords(mouseX, mouseY);
+      state.objectiveVector = canvasManager.toLogicalCoords(
+        e.clientX - canvas.getBoundingClientRect().left,
+        e.clientY - canvas.getBoundingClientRect().top
+      );
       uiManager.updateObjectiveDisplay();
       canvasManager.draw();
       return;
     }
+    if (state.isPanning) {
+      const dx = e.clientX - state.lastPan.x;
+      const dy = e.clientY - state.lastPan.y;
+      canvasManager.offset.x += dx / (canvasManager.gridSpacing * canvasManager.scaleFactor);
+      canvasManager.offset.y -= dy / (canvasManager.gridSpacing * canvasManager.scaleFactor);
+      state.lastPan = { x: e.clientX, y: e.clientY };
+      canvasManager.draw();
+      document.getElementById("unzoomButton").disabled = false;
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
     if (!state.polygonComplete) {
       state.currentMouse = canvasManager.toLogicalCoords(mouseX, mouseY);
       canvasManager.draw();
@@ -113,6 +139,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
 
   canvas.addEventListener("mouseup", () => {
+    if (state.isPanning) {
+      state.isPanning = false;
+      state.wasPanning = true;
+      return;
+    }
     if (state.draggingPointIndex !== null) {
       state.historyStack.push({
         vertices: JSON.parse(JSON.stringify(state.vertices)),
@@ -159,8 +190,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
       }
     }
   });
-
   canvas.addEventListener("click", (e) => {
+    if (state.wasPanning) {
+      state.wasPanning = false;
+    }
     const rect = canvas.getBoundingClientRect();
     const pt = canvasManager.toLogicalCoords(e.clientX - rect.left, e.clientY - rect.top);
     if (!state.polygonComplete) {
@@ -760,4 +793,26 @@ export function setupEventHandlers(canvasManager, uiManager) {
       if (state.rotateObjectiveMode) setTimeout(computeAndRotate, MIN_WAIT);
     }
   }
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const oldScale = canvasManager.scaleFactor;
+    const zoomFactor = 1.05;
+    let newScale = oldScale;
+    if (e.deltaY < 0) {
+      newScale = oldScale * zoomFactor;
+    } else {
+      newScale = oldScale / zoomFactor;
+    }
+    newScale = Math.min(100, Math.max(0.1, newScale));
+    const logical = canvasManager.toLogicalCoords(mouseX, mouseY);
+    canvasManager.scaleFactor = newScale;
+    canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - logical.x;
+    canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - logical.y;
+    canvasManager.draw();
+  });
+  
 }
+
