@@ -7,6 +7,7 @@ const canvasManager = new CanvasManager(canvas);
 const uiManager = new UIManager();
 
 function resizeCanvas() {
+  uiManager.checkMobileOrientation();
   canvasManager.updateDimensions();
   canvasManager.draw();
   uiManager.updateZoomButtonsState(canvasManager);

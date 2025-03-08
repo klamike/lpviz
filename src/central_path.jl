@@ -1,7 +1,7 @@
 using JuMP
 using Clarabel
 
-function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; mu_values=nothing, weights=nothing)
+function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; mu_values=nothing, weights=nothing, verbose=false)
     
     lines, weights = central_path_filter(lines, weights)
     m = length(lines)
@@ -13,11 +13,21 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     w = central_path_w(weights, m)
 
     central_path = []
-    for µₖ in µ
+    logs = []
+    log = @sprintf "  %4s %6s %6s  %8s  %7s  \n" "Iter" "x" "y" "PObj" "µ"
+    verbose && print(log)
+    push!(logs, log)
+
+    tsolve = @elapsed for µₖ in µ
         xₖ = central_path_xₖ(A, b, objective, w, µₖ, x⁰)
-        isnothing(xₖ) || push!(central_path, (xₖ, μₖ))
+        if !isnothing(xₖ)
+            push!(central_path, xₖ)
+            log = @sprintf "  %-4d %+6.2f %+6.2f  %+.1e  %.1e  \n" length(central_path) xₖ[1] xₖ[2] dot(objective, xₖ) µₖ
+            verbose && print(log)
+            push!(logs, log)
+        end
     end
-    return Dict("central_path" => central_path)
+    return Dict("central_path" => central_path, "logs" => logs, "tsolve" => tsolve)
 end
 
 function central_path_xₖ(A, b, c, w, µ, x⁰)
@@ -60,12 +70,6 @@ central_path_filter(lines, weights) = begin
     
     [lines[i] for i in kept], [weights[i] for i in kept]
 end
-central_path_x⁰(lines) = begin # compute centroid of vertices
-    vertices = polytope_points(lines)
-    n = length(vertices)
-    n > 0 || error("No intersections found")
-
-    [sum(p[1] for p in vertices) / n, sum(p[2] for p in vertices) / n]
-end
+central_path_x⁰(lines) = centroid(polytope_points(lines))
 central_path_μ(µ) = isnothing(µ) ? [10.0^p for p in [3, 2, 1.5, 1, 0.5, 0, -0.5, -1, -3, -5]] : µ
 central_path_w(w, m) = isnothing(w) ? ones(m) : w
