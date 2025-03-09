@@ -185,7 +185,7 @@ hr {
 
 #result,
 #topResult {
-  max-height: 400px;
+  max-height: 100%;
   overflow-y: auto;
   padding-left: 4px;
   justify-content: center;
@@ -193,9 +193,6 @@ hr {
   padding-top: 5px;
 }
 
-#result {
-  max-height: 100%;
-}
 
 #topResult {
   padding-bottom: 5px;
@@ -205,7 +202,7 @@ hr {
 #terminal-container {
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
   position: relative;
-  overflow-x: hidden;
+  overflow: hidden;
   background-color: #333;
   border-radius: 5px;
   margin-bottom: 5px;
