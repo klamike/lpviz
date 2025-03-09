@@ -152,7 +152,8 @@ function precompile_handlers(verbose)
     LPViz.simplex(HTTP.Request("POST", "/simplex", [], Dict("lines" => lines, "objective" => objective)))
     
     verbose && @info "Calling pdhg"
-    LPViz.pdhg(HTTP.Request("POST", "/pdhg", [], Dict("lines" => lines, "objective" => objective, "maxit" => 10, "eta" => 0.25, "tau" => 0.25)))
+    LPViz.pdhg(HTTP.Request("POST", "/pdhg", [], Dict("lines" => lines, "objective" => objective, "maxit" => 10, "eta" => 0.25, "tau" => 0.25, "ineq" => false)))
+    LPViz.pdhg(HTTP.Request("POST", "/pdhg", [], Dict("lines" => lines, "objective" => objective, "maxit" => 10, "eta" => 0.25, "tau" => 0.25, "ineq" => true)))
     
     verbose && @info "Calling ipm"
     LPViz.ipm(HTTP.Request("POST", "/ipm", [], Dict("lines" => lines, "objective" => objective, "weights" => weights, "alphamax" => 0.1, "maxit" => 10)))

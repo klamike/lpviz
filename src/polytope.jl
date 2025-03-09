@@ -2,7 +2,7 @@ function polytope(points::Vector{Vector{Float64}})
     # Constructs the polytope representation from a set of points in 2D.
     inequalities, lines = polytope_edges(points)
     vertices = polytope_points(lines)
-    return Dict("inequalities" => inequalities, "vertices" => vertices, "lines" => lines)
+    return Dict{String, Vector}("inequalities" => inequalities, "vertices" => vertices, "lines" => lines)
 end
 
 
@@ -41,7 +41,7 @@ function polytope_edges(points::Vector{Vector{Float64}}; tol=1e-6)
 end
 
 function polytope_points(lines::Vector{Vector{Float64}}; tol=1e-6)
-    poly_vertices = []
+    poly_vertices = Vector{Vector{Float64}}()
     n = length(lines)
 
     for i in 1:(n-1), j in i+1:n

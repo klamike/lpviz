@@ -45,12 +45,12 @@ function pdhg(A, b, c; maxit=1000, η=0.25, τ=0.25, tol=1e-4, verbose=false)
     xₖ, yₖ, k = zeros(n), zeros(m), 1
     ϵₖ = pdhg_ϵ(A, b, c, xₖ, yₖ)
     
-    logs = []
+    logs = String[]
     log = @sprintf "%4s %6s %6s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "PFeas" "DFeas" "ϵ"
     verbose && print(log)
     push!(logs, log)
 
-    iterates = []
+    iterates = Vector{Float64}[]
     tsolve = @elapsed while (k < maxit) && (ϵₖ > tol)
         push!(iterates, copy(xₖ))
         log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(iterates) xₖ[1]-xₖ[3] xₖ[2]-xₖ[4] -c'xₖ -b'yₖ norm(A*xₖ-b, Inf) norm(pdhg_Π₊(-c - A'yₖ), Inf) ϵₖ
@@ -88,12 +88,12 @@ function pdhg_ineq(A, b, c; maxit=1000, η=0.25, τ=0.25, tol=1e-4, verbose=fals
     xₖ, yₖ, k = zeros(n), ones(m), 1
     ϵₖ = pdhg_ineq_ϵ(A, b, c, xₖ, yₖ)
     
-    logs = []
+    logs = String[]
     log = @sprintf "%4s %6s %6s  %8s %8s  %7s %7s  %7s\n" "Iter" "x" "y" "PObj" "DObj" "PFeas" "DFeas" "ϵ"
     verbose && print(log)
     push!(logs, log)
 
-    iterates = []
+    iterates = Vector{Float64}[]
     tsolve = @elapsed while (k ≤ maxit) && (ϵₖ > tol)
         push!(iterates, copy(xₖ))
         log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n" length(iterates) xₖ[1] xₖ[2] -c'xₖ b'yₖ norm(pdhg_Π₊(A*xₖ - b), Inf) norm(pdhg_Π₊(-yₖ), Inf) ϵₖ
