@@ -8,8 +8,7 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     m = length(lines)
     
     A, b = lines_to_Ab(lines)
-    
-    x⁰ = central_path_x⁰(lines)
+
     µ = central_path_μ(niter)
     w = central_path_w(weights, m)
 
@@ -20,7 +19,7 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     push!(logs, log)
 
     tsolve = @elapsed for µₖ in µ
-        xₖ = central_path_xₖ(A, b, objective, w, µₖ, x⁰)
+        xₖ = central_path_xₖ(A, b, objective, w, µₖ)
         if !isnothing(xₖ)
             push!(central_path, xₖ)
             log = @sprintf "  %-4d %+6.2f %+6.2f  %+.1e  %.1e  \n" length(central_path) xₖ[1] xₖ[2] dot(objective, xₖ) µₖ
@@ -31,7 +30,7 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     return Dict{String, Union{Vector, Float64}}("central_path" => central_path, "logs" => logs, "tsolve" => tsolve)
 end
 
-function central_path_xₖ(A, b, c, w, µ, x⁰)
+function central_path_xₖ(A, b, c, w, µ)
     # Solve the optimization problem for a given μ.
     #   max c'x + μ ∑ᵢ wᵢ ln(bᵢ - Aᵢx)
     # In order to use conic solvers, we reformulate the ln(⋅) using the exponential cone:
@@ -45,11 +44,6 @@ function central_path_xₖ(A, b, c, w, µ, x⁰)
     # Define variables
     @variable(model, x[1:2])  # primal variables
     @variable(model, t[1:m])  # auxiliary conic variables to model ln(b - Ax)
-
-    # Set starting point
-    # This is useful for very small feasible regions and shouldn't change the solution.
-    set_start_value.(x, x⁰)
-    set_start_value.(t, log.([b[i] - A[i, :]⋅x⁰ for i in 1:m]))
 
     # Add conic constraints
     @constraint(model, [i ∈ 1:m], [t[i], 1, b[i] - A[i, :]⋅x] ∈ MOI.ExponentialCone())
@@ -71,6 +65,5 @@ central_path_filter(lines, weights) = begin
     
     [lines[i] for i in kept], [weights[i] for i in kept]
 end
-central_path_x⁰(lines) = centroid(polytope_points(lines))
 central_path_μ(n) = 10.0 .^ range(3, stop=-5, length=n)
 central_path_w(w, m) = isnothing(w) ? ones(m) : w
