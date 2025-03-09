@@ -16,11 +16,11 @@ export async function fetchPolytope(points) {
     return response.json();
   }
   
-  export async function fetchSimplex(lines, objective) {
+  export async function fetchSimplex(lines, objective, dual) {
     const response = await fetch('/simplex', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective })
+      body: JSON.stringify({ lines, objective, dual })
     });
     return response.json();
   }

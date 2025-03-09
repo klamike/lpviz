@@ -28,7 +28,8 @@ LPViz.polytope(req::HTTP.Request) = LPViz.polytope(
 
 LPViz.simplex(req::HTTP.Request) = LPViz.simplex(
     convert(Vector{Vector{Float64}}, req.body["lines"]),
-    convert(Vector{Float64}, req.body["objective"])
+    convert(Vector{Float64}, req.body["objective"]),
+    dual=get(req.body, "dual", false),
 )
 
 LPViz.pdhg(req::HTTP.Request) = LPViz.pdhg(

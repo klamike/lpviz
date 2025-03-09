@@ -1,4 +1,4 @@
-function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol=1e-6, verbose=false)
+function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol=1e-6, verbose=true, dual=true)
     A, b = lines_to_Ab(lines)
     c = objective
     m, n = size(A)
@@ -21,43 +21,75 @@ function simplex(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; tol
     # we add yet another slack variable t ≥ 0 and swap out the objective:
     #    max 0'x1 - 0'x2 + 0's - 1't s.t. ΓAx1 - ΓAx2 + Γs + t = Γb, x1, x2, s ≥ 0, t ≥ 0
     # this allows us to use the initial (phase1-feasible) basis x1=0, x2=0, s=0, t=Γb
+    if dual
+        γ = map(x -> (x < 0 ? -1.0 : 1.0), c)
+        Γ = Diagonal(γ)
 
-    γ = map(x -> (x < 0 ? -1.0 : 1.0), b)
-    Γ = Diagonal(γ)
+        verbose && @printf "Phase One\n"
+        iterations_phase1, basis, logs_phase1 = simplex(
+            [zeros(m); -ones(n)],
+            [Γ*(A') Matrix{Float64}(I, n, n)],
+            Γ*c,
+            [zeros(Bool, m); ones(Bool, n)],
+            tol=tol,
+            verbose=verbose,
+            dual=true, phase1=true, phase1_origc=b
+        )
 
-    verbose && @printf "Phase One\n"
-    iterations_phase1, basis, logs_phase1 = simplex(
-        [zeros(2n + m); -ones(m)],
-        [Γ*A -Γ*A Γ*Matrix{Float64}(I, m, m) Matrix{Float64}(I, m, m)],
-        Γ*b,
-        begin
-            initial_basis = zeros(Bool, 2 * n + 2 * m)
-            initial_basis[2*n+m+1:2*n+2*m] .= true
-            initial_basis
-        end,
-        tol=tol,
-        verbose=verbose,
-        phase1=true, phase1_origc=vcat(c, -c, zeros(m))
-    )
+        verbose && @printf "Phase Two\n"
+        iterations_phase2, _, logs_phase2 = simplex(
+            -b,
+            Matrix{Float64}(A'),
+            c,
+            basis[1:m],
+            tol=tol,
+            verbose=verbose,
+            dual=true
+        )
+        
+        iterations = vcat(iterations_phase1[1:end-1], iterations_phase2)
+        return iterations, [logs_phase1, logs_phase2]
+    else
+        γ = map(x -> (x < 0 ? -1.0 : 1.0), b)
+        Γ = Diagonal(γ)
 
-    verbose && @printf "Phase Two\n"
-    iterations_phase2, _, logs_phase2 = simplex(
-        vcat(c, -c, zeros(m)),
-        [A -A Matrix{Float64}(I, m, m)],
-        b,
-        basis,
-        tol=tol,
-        verbose=verbose
-    )
-    iterations = vcat(iterations_phase1[1:end-1], iterations_phase2)
-    iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations] # x = x1 - x2
+        verbose && @printf "Phase One\n"
+        iterations_phase1, basis, logs_phase1 = simplex(
+            [zeros(2n + m); -ones(m)],
+            [Γ*A -Γ*A Γ*Matrix{Float64}(I, m, m) Matrix{Float64}(I, m, m)],
+            Γ*b,
+            begin
+                initial_basis = zeros(Bool, 2 * n + 2 * m)
+                initial_basis[2*n+m+1:2*n+2*m] .= true
+                initial_basis
+            end,
+            tol=tol,
+            verbose=verbose,
+            phase1=true, phase1_origc=vcat(c, -c, zeros(m))
+        )
 
-    return iterations_original, [logs_phase1, logs_phase2]
+        verbose && @printf "Phase Two\n"
+        iterations_phase2, _, logs_phase2 = simplex(
+            vcat(c, -c, zeros(m)),
+            [A -A Matrix{Float64}(I, m, m)],
+            b,
+            basis,
+            tol=tol,
+            verbose=verbose
+        )
+        iterations = vcat(iterations_phase1[1:end-1], iterations_phase2)
+        iterations_original = [x[1:n] - x[n+1:2*n] for x in iterations] # x = x1 - x2
+
+        return iterations_original, [logs_phase1, logs_phase2]
+    end
 end
 
 # max c'x s.t. Ax = b, x ≥ 0
 function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
-    basis::Vector{Bool}; tol=1e-6, verbose=false, phase1=false, phase1_origc=nothing)
+    basis::Vector{Bool}; tol=1e-6, verbose=false,
+    phase1=false, phase1_origc=nothing, # for primal simplex phase 1
+    dual=false # for dual simplex
+    )
     m, n = size(A)
 
     x = zeros(n)
@@ -65,8 +97,9 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
     logs = []
     
     iterations = Vector{Vector{Float64}}(undef, 0)
-    padding = repeat(" ", length(basis) - length("basis"))
-    log = @sprintf "%4s %6s %6s  %8s  %s\n" "Iter" "x" "y" "PObj" "basis" * padding
+    padding = repeat(" ", max(0, length(basis) - length("basis")))
+    iterpadding = repeat(" ", max(0, length("basis") - length(basis)))
+    log = @sprintf "%4s %6s %6s  %8s  %s\n" "Iter" "x" "y" (dual ? "DObj" : "PObj") ("basis" * padding)
     verbose && print(log)
     push!(logs, log)
 
@@ -78,17 +111,22 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
         # Update primal variables x
         x .= 0
         x[basis] .= B \ b
-        push!(iterations, (copy(x)))
 
         # Update dual variables y
         y = B' \ c[basis]
 
         ## Logging
         iteration += 1
-        x_orig = x[1:2] - x[3:4] # recover original variables ⚠ Assumes x = [x₁, x₂; s]! ⚠
-        log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e  %s\n" iteration x_orig[1] x_orig[2] c'x join(convert(Vector{Int}, basis))
+        x_orig, log = if dual
+            x_orig_ = y[1:2]
+            x_orig_, @sprintf "%-4d %+6.2f %+6.2f  %+.1e  %s\n" iteration -x_orig_[1] -x_orig_[2] -c'x join(convert(Vector{Int}, basis)) * iterpadding
+        else
+            x_orig_ = x[1:2] - x[3:4] # recover original variables ⚠ Assumes x = [x₁, x₂; s]! ⚠
+            x_orig_, @sprintf "%-4d %+6.2f %+6.2f  %+.1e  %s\n" iteration x_orig_[1] x_orig_[2] c'x join(convert(Vector{Int}, basis)) * iterpadding
+        end
         verbose && print(log)
         push!(logs, log)
+        push!(iterations, (dual ? copy(-y) : copy(x)))
         
         # ⚠ Early exit for phase one. NOTE: This assumes x = [x₁, x₂; s; t]! ⚠
         if phase1
@@ -107,7 +145,7 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
                 log = @sprintf "%-4s %+6.2f %+6.2f  %+.1e  %s\n" string(iteration) * "e" x_orig[1] x_orig[2] phase1_origc'x[1:n-m] join(convert(Vector{Int}, basis_)) * repeat(" ", m)
                 verbose && print(log)
                 push!(logs, log)
-                push!(iterations, (copy(x)))
+                push!(iterations, (dual ? copy(-y) : copy(x)))
                 if sum(-r .< tol) == (n-2m) / 2
                     basis = basis_
                     break

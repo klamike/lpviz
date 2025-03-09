@@ -343,6 +343,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     document.getElementById("ipmSettings").style.display = "none";
     document.getElementById("pdhgSettings").style.display = "none";
     document.getElementById("centralPathSettings").style.display = "block";
+    document.getElementById("simplexSettings").style.display = "none";
   });
   ipmButton.addEventListener("click", () => {
     state.solverMode = "ipm";
@@ -353,6 +354,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     document.getElementById("ipmSettings").style.display = "block";
     document.getElementById("pdhgSettings").style.display = "none";
     document.getElementById("centralPathSettings").style.display = "none";
+    document.getElementById("simplexSettings").style.display = "none";
   });
   simplexButton.addEventListener("click", () => {
     state.solverMode = "simplex";
@@ -363,6 +365,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     document.getElementById("ipmSettings").style.display = "none";
     document.getElementById("pdhgSettings").style.display = "none";
     document.getElementById("centralPathSettings").style.display = "none";
+    document.getElementById("simplexSettings").style.display = "block";
   });
   pdhgButton.addEventListener("click", () => {
     state.solverMode = "pdhg";
@@ -373,6 +376,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     document.getElementById("ipmSettings").style.display = "none";
     document.getElementById("pdhgSettings").style.display = "block";
     document.getElementById("centralPathSettings").style.display = "none";
+    document.getElementById("simplexSettings").style.display = "none";
   });
 
   // Input event listeners for IPM and PDHG settings
@@ -386,6 +390,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   const objectiveAngleStepValue = document.getElementById("objectiveAngleStepValue");
   const centralPathIterSlider = document.getElementById("centralPathIterSlider");
   const centralPathIterValue = document.getElementById("centralPathIterValue");
+  const simplexDualMode = document.getElementById("simplexDualMode");
 
   alphaMaxSlider.addEventListener("input", () => {
     document.getElementById("alphaMaxValue").textContent = parseFloat(alphaMaxSlider.value).toFixed(3);
@@ -414,6 +419,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
   centralPathIterSlider.addEventListener("input", () => {
     centralPathIterValue.textContent = centralPathIterSlider.value;
     if (state.solverMode === "central") computePath();
+  });
+  simplexDualMode.addEventListener("change", () => {
+    if (state.solverMode === "simplex") computePath();
   });
 
 
@@ -570,7 +578,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
     } else if (state.solverMode === "simplex") {
       const result = await fetchSimplex(
         state.computedLines,
-        [state.objectiveVector.x, state.objectiveVector.y]
+        [state.objectiveVector.x, state.objectiveVector.y],
+        document.getElementById("simplexDualMode").checked
       );
       const iteratesArray = result[0].map((entry) => entry);
       const phase1logs = result[1][0];
