@@ -68,7 +68,10 @@ function register_api!(ROUTER)
         ("/pdhg", LPViz.pdhg)
     ]
     for (path, handler) in handlers
-        HTTP.register!(ROUTER, "POST", path, handler)
+        HTTP.register!(
+            ROUTER, "POST", path,
+            (req::HTTP.Request) -> fetch(Threads.@spawn handler(req))
+        )
     end
 end
 
