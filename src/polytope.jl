@@ -1,6 +1,5 @@
 function polytope(points::Vector{Vector{Float64}})
     # Constructs the polytope representation from a set of points in 2D.
-    length(points) > 2 || error("At least three points are required to form a polytope")
     length(points) > 2^8 && error("length(points) > 2^8 not allowed")
 
     inequalities, lines = polytope_edges(points)
