@@ -1,6 +1,8 @@
 function pdhg(lines::Vector{Vector{Float64}}, objective::Vector{Float64};
     ineq=false, maxit=1000, η=0.25, τ=0.25, verbose=false, tol=1e-4 # NOTE: relaxed default tolerance for PDHG
 )
+    maxit > 2^16 && throw(ArgumentError("maxit > 2^16 not allowed"))
+
     # We are given A, b, c for:
     #   max cᵀx
     #   s.t. Ax ≤ b,  x unrestricted

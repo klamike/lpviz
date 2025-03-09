@@ -2,7 +2,8 @@ using JuMP
 using Clarabel
 
 function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; niter=nothing, weights=nothing, verbose=false)
-    
+    niter > 2^10 && throw(ArgumentError("niter > 2^10 not allowed"))
+
     lines, weights = central_path_filter(lines, weights)
     m = length(lines)
     

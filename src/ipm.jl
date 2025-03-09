@@ -1,6 +1,8 @@
 function ipm(lines::Vector{Vector{Float64}}, objective::Vector{Float64};
     ϵ_p=1e-6, ϵ_d=1e-6, ϵ_opt=1e-6, maxit=30, αmax=0.9990,
-)
+) 
+    maxit > 2^16 && throw(ArgumentError("maxit > 2^16 not allowed"))
+
     A, b = lines_to_Ab(lines)
     return ipm(
         -A, -b,  # flip Ax ≤ b to -Ax ≥ -b
