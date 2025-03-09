@@ -12,8 +12,8 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     µ = central_path_μ(niter)
     w = central_path_w(weights, m)
 
-    central_path = []
-    logs = []
+    central_path = Vector{Vector{Float64}}()
+    logs = String[]
     log = @sprintf "  %4s %6s %6s  %8s  %7s  \n" "Iter" "x" "y" "PObj" "µ"
     verbose && print(log)
     push!(logs, log)
@@ -27,7 +27,7 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
             push!(logs, log)
         end
     end
-    return Dict("central_path" => central_path, "logs" => logs, "tsolve" => tsolve)
+    return Dict{String, Union{Vector, Float64}}("central_path" => central_path, "logs" => logs, "tsolve" => tsolve)
 end
 
 function central_path_xₖ(A, b, c, w, µ, x⁰)
