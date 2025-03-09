@@ -71,6 +71,7 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
     push!(logs, log)
 
     iteration = 0
+    itermax = 2^16
     while true
         # Compute basis B
         B = A[:, basis]
@@ -85,6 +86,7 @@ function simplex(c::Vector{Float64}, A::Matrix{Float64}, b::Vector{Float64},
 
         ## Logging
         iteration += 1
+        iteration > itermax && error("Simplex method did not converge after $itermax iterations")
         x_orig = x[1:2] - x[3:4] # recover original variables ⚠ Assumes x = [x₁, x₂; s]! ⚠
         log = @sprintf "%-4d %+6.2f %+6.2f  %+.1e  %s\n" iteration x_orig[1] x_orig[2] c'x join(convert(Vector{Int}, basis))
         verbose && print(log)
