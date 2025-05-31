@@ -3,7 +3,9 @@
   ================================ */
 @font-face {
   font-family: 'JuliaMono';
-  src: url("../font.woff2") format('woff2');
+  src: url('/JuliaMono-Light.woff2') format('woff2');
+  font-weight: 300; /* Assuming Light is 300 weight */
+  font-style: normal;
 }
 
 html,
@@ -318,6 +320,7 @@ canvas {
     ================================ */
 input[type="range"] {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   height: 6px;
   background: #ddd;

@@ -1,3 +1,5 @@
+import { Matrix, solve } from 'ml-matrix';
+import { sprintf } from 'sprintf-js';
 import { CanvasManager } from "./canvasManager.js";
 import { UIManager } from "./uiManager.js";
 import { setupEventHandlers } from "./eventHandlers.js";

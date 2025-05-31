@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>lpviz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description"
+    content="lpviz is an interactive web app for visualizing linear programming solvers. Draw your constraints and objective, and see how methods like IPM, PDHG, Simplex, and Central Path solve your problem.">
+  <meta name="keywords"
+    content="lpviz, linear programming, interactive visualization, LP solver, simplex, interior point, pdhg, central path, visualize">
+  <link rel="canonical" href="https://lpviz.net/">
+  <meta property="og:title" content="lpviz">
+  <meta property="og:description" content="Visualize and solve linear programming problems interactively with lpviz.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lpviz.net/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="lpviz">
+  <meta name="twitter:description" content="Visualize and solve linear programming problems interactively with lpviz.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header>
+    <div id="sidebar">
+      <div id="sidebarContent">
+        <div class="header controlPanel" style="padding-top: 13px; margin-top: 0px; margin-bottom: 0px;">
+          <h1>lpviz</h1>
+          <a href="https://github.com/klamike/lpviz" target="_blank" aria-label="GitHub Repository for lpviz">
+            <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 98 96" role="img"
+              aria-labelledby="githubTitle">
+              <path fill-rule="evenodd" clip-rule="evenodd"
+                d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z"
+                fill="currentColor" />
+            </svg>
+          </a>
+        </div>
+        <div id="uiContainer">
+          <div id="terminal-container2"
+            style="display: block; color: #eee; margin-top: 15px; padding: 10px 20px; padding-right: 0px; min-height: 180px;">
+            <div id="topResult">
+              <div id="nullStateMessage">
+  ___                                   
+ /\_ \                   __             
+ \//\ \   ______  __  __/\_\  _____     
+   \ \ \ /\  __ \/\ \/\ \/\ \/\__  \    
+    \_\ \\ \ \_\ \ \ \_/ \ \ \/_/  /_   
+    /\____\ \  __/\ \___/ \ \_\/\____\  
+    \/____/\ \ \/  \/__/   \/_/\/____/  
+            \ \_\                       
+             \/_/                       
+                                        </div>
+              <div id="maximize">maximize</div>
+              <div id="objectiveDisplay"></div>
+              <div id="subjectTo">subject to</div>
+              <div id="inequalities"></div>
+            </div>
+            <div id="terminal-window"></div>
+            <div class="scanlines"></div>
+            <div class="scanlines" style="--delay: -8s"></div>
+          </div>
+          <div class="controlPanel">
+            <div class="button-group">
+              <button id="ipmButton" disabled>IPM</button>
+              <button id="pdhgButton" disabled> PDHG</button>
+              <button id="simplexButton" disabled>Simplex</button>
+              <button id="iteratePathButton" disabled>Central Path</button>
+            </div>
+
+            <div id="ipmSettings" class="settings-section" style="display:none;">
+              <label for="alphaMaxSlider">
+                αmax (maximum step size ratio): <span id="alphaMaxValue">0.1</span>
+              </label>
+              <input type="range" id="alphaMaxSlider" min="0.001" max="1" step="0.001" value="0.1" autocomplete="off">
+              <br>
+              <label for="maxitInput">Maximum iterations:</label>
+              <input type="number" id="maxitInput" value="1000" min="1" step="1" autocomplete="off">
+            </div>
+
+            <div id="pdhgSettings" class="settings-section" style="display:none;">
+              <label for="pdhgEtaSlider">
+                η (primal step size factor): <span id="pdhgEtaValue">0.250</span>
+              </label>
+              <input type="range" id="pdhgEtaSlider" min="0.001" max="0.750" step="0.001" value="0.250"
+                autocomplete="off">
+              <br>
+              <label for="pdhgTauSlider">
+                τ (dual step size factor): <span id="pdhgTauValue">0.250</span>
+              </label>
+              <input type="range" id="pdhgTauSlider" min="0.001" max="0.750" step="0.001" value="0.250"
+                autocomplete="off">
+              <br>
+              <label for="maxitInputPDHG">Maximum iterations:</label>
+              <input type="number" id="maxitInputPDHG" value="1000" min="1" step="1" autocomplete="off">
+              <label for="pdhgIneqMode">Inequality mode</label>
+              <input type="checkbox" id="pdhgIneqMode" checked>
+            </div>
+
+            <div id="centralPathSettings" class="settings-section" style="display:block;">
+              <label for="centralPathIterSlider">
+                N (number of steps): <span id="centralPathIterValue">75</span>
+              </label>
+              <input type="range" id="centralPathIterSlider" min="2" max="100" step="1" value="75" autocomplete="off">
+            </div>
+
+          </div>
+
+          <div class="controlPanel" style="margin-top: 5px; margin-bottom: 20px;">
+            <div class="button-group">
+              <button id="traceButton" disabled>Solve</button> <button id="animateButton" disabled>Animate</button>
+            </div>
+            <div class="button-group">
+              <button id="startRotateObjectiveButton" disabled>Rotate Objective</button>
+              <button id="stopRotateObjectiveButton" disabled>Stop Rotation</button>
+              <div id="objectiveRotationSettings" style="display:none; margin-top: 1em;">
+                <label for="objectiveAngleStepSlider">
+                  Angle Step: <span id="objectiveAngleStepValue">0.10</span> rad
+                </label>
+                <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1"
+                  autocomplete="off">
+              </div>
+            </div>
+          </div>
+          <label style="display: none;" for="replaySpeedSlider">Speed:</label>
+          <input style="display: none;" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1"
+            autocomplete="off">
+          <div id="terminal-container">
+            <div id="result">
+              <div id="usageTips">
+                <br><br><strong class="usage-title">Usage Tips:</strong><br><br>
+                <strong>Draw a polygon</strong>: click to add vertices<br>
+                <strong>Select a solver</strong>: select a solver and click <strong>Solve</strong><br>
+                <strong>Change objective</strong>: drag it or click <strong>Rotate Objective</strong><br>
+                <strong>Add new vertices</strong>: double‐click an edge<br>
+                <strong>Move vertices</strong>: drag vertices to reshape<br>
+                <strong>Press S</strong>: toggle snapping to the grid<br>
+                <strong>Reset</strong>: refresh the page<br>
+                <strong>Undo/Redo</strong>: ⌘+z to undo, ⇧⌘+z to redo<br>
+              </div>
+            </div>
+            <div id="terminal-window"></div>
+            <div class="scanlines"></div>
+            <div class="scanlines" style="--delay: -12s;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main>
+    <canvas id="gridCanvas" tabindex="0"></canvas>
+    <div id="zoomControls">
+      <button id="unzoomButton" title="Reset Zoom (Home)">
+        <svg width="25" height="25" viewBox="0 0 24 24">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+        </svg>
+      </button>
+      <button id="zoomButton" title="Zoom">
+        <svg width="25" height="25" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <mask id="hole-mask">
+              <rect width="100" height="100" fill="white" />
+              <circle cx="40" cy="40" r="20" fill="black" />
+            </mask>
+          </defs>
+          <circle cx="40" cy="40" r="32.5" mask="url(#hole-mask)" />
+          <g transform="translate(55,55) rotate(45)">
+            <rect x="0" y="-4" width="52.5" height="15" />
+          </g>
+        </svg>
+      </button>
+    </div>
+    <div id="sidebarHandle"></div>
+  </main>
+  <script
+    type="module"> document.addEventListener('DOMContentLoaded', () => { import('./js/main.js').then(module => { if (module.init) { module.init(); } }).catch(err => console.error('Error loading main.js:', err)); }); </script>
+</body>
+
+</html>

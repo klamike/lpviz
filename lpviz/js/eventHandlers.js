@@ -621,6 +621,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const weights = getBarrierWeights();
       const maxitCentral = parseInt(centralPathIterSlider.value, 10);
       const result = await fetchCentralPath(
+        state.computedVertices,
         state.computedLines,
         [state.objectiveVector.x, state.objectiveVector.y],
         weights,
