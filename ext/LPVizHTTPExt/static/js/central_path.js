@@ -1,13 +1,4 @@
-// Math and utility functions (subset from ipm.js / common)
-const zeros = (k) => Array(k).fill(0);
-const ones = (k) => Array(k).fill(1);
-const copy = (arr) => arr.slice();
-const dot = (u,v) => u.reduce((s,ui,i) => s + ui*v[i], 0);
-const normInf = (v) => v.reduce((m,vi) => Math.max(m, Math.abs(vi)), 0);
-
-function vectorAdd(a, b) { return a.map((ai, i) => ai + b[i]); }
-function vectorSub(a, b) { return a.map((ai, i) => ai - b[i]); }
-function scale(v, k)     { return v.map(vi => vi * k); }
+import { Matrix, solve, dot, normInf, vectorAdd, vectorSub, scale, zeros, ones, copy, linesToAb } from './blas.js';
 
 // FIXME: sprintf format is broken (copied from ipm.js for consistency)
 function sprintf(fmt, ...args) {
@@ -49,13 +40,6 @@ function sprintf(fmt, ...args) {
 
 
 // --- Central Path specific functions ---
-
-function linesToAb(lines) {
-  const A = lines.map(r => r.slice(0, -1));
-  const b = lines.map(r => r[r.length - 1]);
-  return { A, b };
-}
-
 function centroid(vertices) {
   if (!vertices || vertices.length === 0) return [0, 0]; // Default for 2D if no vertices
   const n = vertices[0].length;
@@ -102,16 +86,10 @@ function centralPathMu(niter) {
   return mus;
 }
 
-function centralPathW(weights, m) {
-  return !weights ? ones(m) : copy(weights); // Assumes weights are already filtered if necessary
-}
-
 
 function centralPathXk(Amatrix, bVec, cVec, mu, x0Vec, opts = {}) {
   const { maxit = 2000, epsilon = 1e-4, verbose = false } = opts;
   
-  const m = Amatrix.rows;
-  const n = Amatrix.columns;
   let x = copy(x0Vec);
 
   // The Julia code has an assertion: @assert w == ones(m) "w must be ones"
@@ -119,7 +97,7 @@ function centralPathXk(Amatrix, bVec, cVec, mu, x0Vec, opts = {}) {
   // or assume it's implicitly ones for the barrier term sum(log(r_i)).
 
   function calculateObjective(currentX) {
-    const Ax = Amatrix.mmul(window.mlMatrix.Matrix.columnVector(currentX)).to1DArray();
+    const Ax = Amatrix.mmul(Matrix.columnVector(currentX)).to1DArray();
     const r = vectorSub(bVec, Ax);
     if (r.some(ri => ri <= 0)) {
       return -Infinity; // Outside domain
@@ -128,7 +106,7 @@ function centralPathXk(Amatrix, bVec, cVec, mu, x0Vec, opts = {}) {
   }
 
   for (let k = 1; k <= maxit; k++) {
-    const Ax_val = Amatrix.mmul(window.mlMatrix.Matrix.columnVector(x)).to1DArray();
+    const Ax_val = Amatrix.mmul(Matrix.columnVector(x)).to1DArray();
     const r = vectorSub(bVec, Ax_val);
 
     if (r.some(ri => ri <= 0)) {
@@ -140,18 +118,18 @@ function centralPathXk(Amatrix, bVec, cVec, mu, x0Vec, opts = {}) {
     const invR2 = r.map(ri => (1.0 / ri) ** 2);
 
     // Gradient: c - μ * Aᵀ * invR
-    const AT_invR = Amatrix.transpose().mmul(window.mlMatrix.Matrix.columnVector(invR)).to1DArray();
+    const AT_invR = Amatrix.transpose().mmul(Matrix.columnVector(invR)).to1DArray();
     const grad = vectorSub(cVec, scale(AT_invR, mu));
 
     // Hessian: μ * Aᵀ * diag(invR2) * A
-    const invR2_diag = window.mlMatrix.Matrix.diag(invR2);
+    const invR2_diag = Matrix.diag(invR2);
     const AT_diag_invR2 = Amatrix.transpose().mmul(invR2_diag);
     const hess = AT_diag_invR2.mmul(Amatrix).mul(mu); // hessian is n x n
 
     let dx;
     try {
         // Newton step: dx = hess \ grad  => solve(hess, grad)
-        dx = window.mlMatrix.solve(hess, window.mlMatrix.Matrix.columnVector(grad)).to1DArray();
+        dx = solve(hess, Matrix.columnVector(grad)).to1DArray();
     } catch (e) {
         console.error("Error solving Newton system at iteration " + k + ": " + e);
         return null;
@@ -163,7 +141,7 @@ function centralPathXk(Amatrix, bVec, cVec, mu, x0Vec, opts = {}) {
     let safetyBreaks = 0;
     while (true) {
       const xNew = vectorAdd(x, scale(dx, alpha));
-      const rNew = vectorSub(bVec, Amatrix.mmul(window.mlMatrix.Matrix.columnVector(xNew)).to1DArray());
+      const rNew = vectorSub(bVec, Amatrix.mmul(Matrix.columnVector(xNew)).to1DArray());
       if (rNew.every(ri => ri > 1e-12)) { // Add small tolerance, strictly > 0
           break;
       }
@@ -253,11 +231,8 @@ export function centralPath(vertices, lines, objective, opts = {}) {
   }
 
   const { A: Araw, b: bVec } = linesToAb(filteredLines);
-  const Amatrix = new window.mlMatrix.Matrix(Araw);
-  const m = Amatrix.rows;
-
+  const Amatrix = new Matrix(Araw);
   const muValues = centralPathMu(niter);
-  // const wEffective = centralPathW(filteredWeights, m); // 'w' is not used in centralPathXk based on Julia's assertion
 
   const centralPathArray = [];
   const logs = [];

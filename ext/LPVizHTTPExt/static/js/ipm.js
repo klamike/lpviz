@@ -1,12 +1,5 @@
-const zeros = (k) => Array(k).fill(0);
-const ones  = (k) => Array(k).fill(1);
-const copy  = (arr) => arr.slice();
-const dot   = (u,v) => u.reduce((s,ui,i) => s + ui*v[i], 0);
-const normInf = (v) => v.reduce((m,vi) => Math.max(m, Math.abs(vi)), 0);
+import { Matrix, solve, zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from './blas.js';
 
-function vectorAdd(a, b) { return a.map((ai, i) => ai + b[i]); }
-function vectorSub(a, b) { return a.map((ai, i) => ai - b[i]); }
-function scale(v, k)     { return v.map(vi => vi * k); }
 
 export function ipm(lines, objective, opts = {}) {
   const {
@@ -51,7 +44,7 @@ function ipmCore(Araw, b, c, opts) {
 
   const m = Araw.length;              // # inequalities
   const n = Araw[0].length;           // # variables
-  const A = new window.mlMatrix.Matrix(Araw);
+  const A = new Matrix(Araw);
 
   // Result structure replicates Julia layout
   const res = {
@@ -84,8 +77,8 @@ function ipmCore(Araw, b, c, opts) {
 
   while (niter <= maxit) {
     // Residuals, duality gap ----------------------------------------
-    const r_p = vectorSub(b, vectorSub(A.mmul(window.mlMatrix.Matrix.columnVector(x)).to1DArray(), s));
-    const r_d = vectorSub(c, A.transpose().mmul(window.mlMatrix.Matrix.columnVector(y)).to1DArray());
+    const r_p = vectorSub(b, vectorSub(A.mmul(Matrix.columnVector(x)).to1DArray(), s));
+    const r_d = vectorSub(c, A.transpose().mmul(Matrix.columnVector(y)).to1DArray());
     const mu   = dot(s, y) / m;
 
     const pObj = dot(c, x);
@@ -104,11 +97,11 @@ function ipmCore(Araw, b, c, opts) {
     if (++niter > maxit) break;
 
     // Build diagonal matrices ---------------------------------------
-    const Y = window.mlMatrix.Matrix.diag(y);
-    const S = window.mlMatrix.Matrix.diag(s);
+    const Y = Matrix.diag(y);
+    const S = Matrix.diag(s);
 
     // Assemble Newton KKT matrix K ----------------------------------
-    const K = window.mlMatrix.Matrix.zeros(m + n + m, n + m + m);
+    const K = Matrix.zeros(m + n + m, n + m + m);
 
     // Block [A  -I  0]
     for (let i = 0; i < m; ++i) {
@@ -134,7 +127,7 @@ function ipmCore(Araw, b, c, opts) {
       s.map((si, i) => -si * y[i]),
     );
 
-    deltaAff = window.mlMatrix.solve(K, window.mlMatrix.Matrix.columnVector(rhsAff)).to1DArray();
+    deltaAff = solve(K, Matrix.columnVector(rhsAff)).to1DArray();
     const dxAff = deltaAff.slice(0, n);
     const dsAff = deltaAff.slice(n, n + m);
     const dyAff = deltaAff.slice(n + m);
@@ -154,7 +147,7 @@ function ipmCore(Araw, b, c, opts) {
         zeros(n),
         s.map((si, i) => sigma * mu - dsAff[i] * dyAff[i]),
       );
-      deltaCor = window.mlMatrix.solve(K, window.mlMatrix.Matrix.columnVector(rhsCor)).to1DArray();
+      deltaCor = solve(K, Matrix.columnVector(rhsCor)).to1DArray();
 
       dx = vectorAdd(dxAff, deltaCor.slice(0, n));
       ds = vectorAdd(dsAff, deltaCor.slice(n, n + m));
@@ -181,12 +174,6 @@ function ipmCore(Araw, b, c, opts) {
   return res;
 }
 
-
-function linesToAb(lines) {
-  const A = lines.map(r => r.slice(0, -1));
-  const b = lines.map(r => r[r.length - 1]);
-  return { A, b };
-}
 
 function alphaScalar(xi, dxi) {
   return dxi >= 0 ? 1.0 : -xi / dxi;
