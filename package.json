@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "vite lpviz --port 3000",
+    "build": "vite build lpviz --outDir ../dist --emptyOutDir",
+    "preview": "vite preview lpviz --port 3000 --outDir ../dist"
   },
   "devDependencies": {
     "vite": "^5.0.0"
