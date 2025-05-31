@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  root: './ext/LPVizHTTPExt/static',
+  root: './lpviz',
   build: {
-    outDir: '../../../dist',
+    outDir: '../dist',
     emptyOutDir: true,
   },
   server: {
