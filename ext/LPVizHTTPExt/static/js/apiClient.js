@@ -1,5 +1,6 @@
 import { pdhg as localPdhgSolver } from './pdhg.js';
 import { polytope as localPolytopeSolver } from './polytope.js';
+import { ipm as localIpmSolver } from './ipm.js';
 
 export async function fetchPolytope(points) {
     const useLocalPolytope = localStorage.getItem('useLocalPolytope') === 'true';
@@ -38,12 +39,27 @@ export async function fetchPolytope(points) {
   }
   
   export async function fetchIPM(lines, objective, weights, alphamax, maxit) {
-    const response = await fetch('/ipm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective, weights, alphamax, maxit })
-    });
-    return response.json();
+    const useLocalSolver = localStorage.getItem('useLocalIpmSolver') === 'true';
+
+    if (useLocalSolver) {
+      try {
+        console.log("Using local IPM solver.");
+        const options = { alphaMax: alphamax, maxit, verbose: false };
+        const result = localIpmSolver(lines, objective, options);
+        return Promise.resolve(result);
+      } catch (error) {
+        console.error("Error in local IPM solver:", error);
+        return Promise.reject(error);
+      }
+    } else {
+      console.log("Using remote IPM solver.");
+      const response = await fetch('/ipm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines, objective, weights, alphamax, maxit })
+      });
+      return response.json();
+    }
   }
   
   export async function fetchPDHG(lines, objective, ineq, maxit, eta, tau) {
