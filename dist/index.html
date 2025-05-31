@@ -18,7 +18,8 @@
   <meta name="twitter:title" content="lpviz">
   <meta name="twitter:description" content="Visualize and solve linear programming problems interactively with lpviz.">
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css">
+  <script type="module" crossorigin src="/assets/index-Cqi5B3Ff.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C9uHFqB2.css">
 </head>
 
 <body>
@@ -38,7 +39,7 @@
         </div>
         <div id="uiContainer">
           <div id="terminal-container2"
-            style="display: block; color: #eee; margin-top: 15px; padding: 10px 20px; min-height: 180px;">
+            style="display: block; color: #eee; margin-top: 15px; padding: 10px 20px; padding-right: 0px; min-height: 180px;">
             <div id="topResult">
               <div id="nullStateMessage">
   ___                                   
@@ -99,9 +100,9 @@
 
             <div id="centralPathSettings" class="settings-section" style="display:block;">
               <label for="centralPathIterSlider">
-                N (number of steps): <span id="centralPathIterValue">10</span>
+                N (number of steps): <span id="centralPathIterValue">75</span>
               </label>
-              <input type="range" id="centralPathIterSlider" min="2" max="100" step="1" value="10" autocomplete="off">
+              <input type="range" id="centralPathIterSlider" min="2" max="100" step="1" value="75" autocomplete="off">
             </div>
 
           </div>
@@ -172,8 +173,6 @@
     </div>
     <div id="sidebarHandle"></div>
   </main>
-  <script
-    type="module"> document.addEventListener('DOMContentLoaded', () => { import('./js/main.js').then(module => { if (module.init) { module.init(); } }).catch(err => console.error('Error loading main.js:', err)); }); </script>
 </body>
 
 </html>

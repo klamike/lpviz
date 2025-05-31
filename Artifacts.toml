@@ -1,6 +1,0 @@
-[JuliaMono]
-git-tree-sha1 = "4602789937e484a2f329b0753ea8752d8fbeb115"
-
-[[JuliaMono.download]]
-    url = "https://github.com/cormullion/juliamono/releases/download/v0.059/JuliaMono-webfonts.tar.gz"
-    sha256 = "4bb1d65a939ccff88b5cfd5e03f391216a71d58758c78eccfdca79813612bec7"
