@@ -1,44 +1,5 @@
 import { Matrix, solve, dot, normInf, vectorAdd, vectorSub, scale, zeros, ones, copy, linesToAb } from './blas.js';
 
-// FIXME: sprintf format is broken (copied from ipm.js for consistency)
-function sprintf(fmt, ...args) {
-  let i = 0;
-  return fmt.replace(/%([-+0-9.]*[dfs])/g, (match) => {
-    const arg = args[i++];
-    // Basic handling for common specifiers, extend as needed
-    if (match.endsWith('f') || match.endsWith('e')) {
-        // Attempt to format numbers, may need more sophisticated handling for precision/padding
-        let numStr = Number(arg).toString();
-        const precisionMatch = match.match(/\.(\d+)/);
-        if (precisionMatch) {
-            numStr = Number(arg).toFixed(parseInt(precisionMatch[1]));
-        }
-        if (match.endsWith('e')) {
-            numStr = Number(arg).toExponential(parseInt(precisionMatch ? precisionMatch[1] : undefined));
-        }
-
-        const widthMatch = match.match(/%(-?)(\d*)/);
-        if (widthMatch) {
-            const width = parseInt(widthMatch[2]);
-            const padChar = ' '; // Assuming space padding
-            const alignLeft = widthMatch[1] === '-';
-            if (numStr.length < width) {
-                const padding = padChar.repeat(width - numStr.length);
-                numStr = alignLeft ? numStr + padding : padding + numStr;
-            }
-        }
-         // Sign handling
-        if (arg >= 0 && match.includes('+')) {
-            numStr = '+' + numStr;
-        }
-
-        return numStr;
-    }
-    return String(arg);
-  });
-}
-
-
 // --- Central Path specific functions ---
 function centroid(vertices) {
   if (!vertices || vertices.length === 0) return [0, 0]; // Default for 2D if no vertices
@@ -237,7 +198,7 @@ export function centralPath(vertices, lines, objective, opts = {}) {
   const centralPathArray = [];
   const logs = [];
   
-  let logMsg = sprintf("  %4s %6s %6s  %8s  %7s  \n", "Iter", "x", "y", "PObj", "µ");
+  let logMsg = sprintf("  %-4s %8s %8s %10s %10s  \n", "Iter", "x", "y", "Obj", "µ");
   if (verbose) console.log(logMsg);
   logs.push(logMsg);
 
@@ -262,7 +223,7 @@ export function centralPath(vertices, lines, objective, opts = {}) {
       // Assuming xk is [x_coord, y_coord, ...], log first two for 2D visualization consistency
       const x_val = xk[0] !== undefined ? xk[0] : 0;
       const y_val = xk[1] !== undefined ? xk[1] : 0;
-      logMsg = sprintf("  %-4d %+6.2f %+6.2f  %+.1e  %.1e  \n", 
+      logMsg = sprintf("  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n", 
                        centralPathArray.length, 
                        x_val, 
                        y_val, 

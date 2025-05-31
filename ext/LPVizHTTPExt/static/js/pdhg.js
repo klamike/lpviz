@@ -60,8 +60,8 @@ function pdhgStandardForm(A, b, c, options = {}) {
   let epsilonK = pdhgEpsilon(A, b, c, xk, yk);
   const logs = [];
 
-  const logHeader =
-    " Iter      x      y      PObj     DObj    PFeas   DFeas        ϵ";
+  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s",
+    'Iter', 'x', 'y', ' Obj', 'Infeas', 'eps');
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
@@ -78,32 +78,14 @@ function pdhgStandardForm(A, b, c, options = {}) {
     const AT_yk = mtmul(A, yk);
     const dFeas = normInf(projNonNegative(vectorSub(scale(AT_yk, -1), c)));
 
-    const formatNumber = (num, width, precision = 2, isScientific = false) => {
-      let s;
-      if (isScientific) {
-        s = num.toExponential(precision);
-      } else {
-        s = num.toFixed(precision);
-      }
-      return (num >= 0 ? "+" : "") + s.padStart(width - 1);
-    };
-
-    let logMsg = `${k.toString().padEnd(5)} `;
-    logMsg += `${formatNumber(
+    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
+      k,
       xk[0] !== undefined ? xk[0] : 0.0,
-      7,
-      2
-    )} `;
-    logMsg += `${formatNumber(
-      yk[0] !== undefined ? yk[0] : 0.0,
-      7,
-      2
-    )} `;
-    logMsg += `${formatNumber(pObj, 9, 1, true)} `;
-    logMsg += `${formatNumber(dObj, 9, 1, true)} `;
-    logMsg += `${formatNumber(pFeas, 7, 1, true)} `;
-    logMsg += `${formatNumber(dFeas, 7, 1, true)} `;
-    logMsg += `${epsilonK.toExponential(1).padStart(9)}`;
+      yk[0] !== undefined ? -yk[0] : 0.0,
+      pObj,
+      pFeas,
+      epsilonK
+    );
 
     if (verbose) console.log(logMsg);
     logs.push(logMsg);
@@ -159,8 +141,8 @@ function pdhgInequalityForm(A, b, c, options = {}) {
   let epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk);
   const logs = [];
 
-  const logHeader =
-    " Iter      x      y      PObj     DObj    PFeas   DFeas        ϵ";
+  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s",
+    'Iter', 'x', 'y', ' Obj', 'Infeas', 'eps');
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
@@ -177,18 +159,14 @@ function pdhgInequalityForm(A, b, c, options = {}) {
     const pFeasVal = normInf(projNonNegative(vectorSub(Axk, b)));
     const dFeasVal = normInf(projNonNegative(scale(yk, -1)));
 
-    let logMsg = `${k.toString().padEnd(5)} `;
-    logMsg += `${(xk[0] !== undefined ? xk[0] : 0.0)
-      .toFixed(2)
-      .padStart(8)} `;
-    logMsg += `${(xk[1] !== undefined ? xk[1] : 0.0)
-      .toFixed(2)
-      .padStart(8)} `;
-    logMsg += `${pObj.toExponential(2).padStart(10)} `;
-    logMsg += `${dObj.toExponential(2).padStart(10)} `;
-    logMsg += `${pFeasVal.toExponential(1).padStart(10)} `;
-    logMsg += `${dFeasVal.toExponential(1).padStart(10)} `;
-    logMsg += `${epsilonK.toExponential(1).padStart(10)}`;
+    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
+      k,
+      xk[0] !== undefined ? xk[0] : 0.0,
+      xk[1] !== undefined ? xk[1] : 0.0,
+      pObj,
+      pFeasVal,
+      epsilonK
+    );
 
     if (verbose) console.log(logMsg);
     logs.push(logMsg);

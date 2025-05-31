@@ -18,7 +18,7 @@ export function ipm(lines, objective, opts = {}) {
   const { A, b } = linesToAb(lines);
 
   // Convert   A x ≤ b,  max c^T x   →   −A x ≥ −b,  min −c^T x
-  const Aneg = A.map(row => row.map(v => -v));
+  const Aneg = A.to2DArray().map(row => row.map(v => -v)); // TODO: just keep it a matrix
   const bneg = b.map(v => -v);
   const cneg = objective.map(v => -v);
 
@@ -69,8 +69,8 @@ function ipmCore(Araw, b, c, opts) {
 
   // -----------------------------------------------------------------
   const banner = sprintf(
-    '%4s %6s %6s  %8s %8s  %7s %7s  %7s\n',
-    'Iter', 'x', 'y', 'PObj', 'DObj', 'PFeas', 'DFeas', 'mu',
+    "%5s %8s %8s %10s %10s %10s\n",
+    'Iter', 'x', 'y', 'Obj', 'Infeas', ' µ',
   );
   if (verbose) process.stdout.write(banner);
   res.iterates.solution.log.push(banner);
@@ -82,11 +82,10 @@ function ipmCore(Araw, b, c, opts) {
     const mu   = dot(s, y) / m;
 
     const pObj = dot(c, x);
-    const dObj = dot(b, y);
-    const gap  = Math.abs(pObj - dObj) / (1 + Math.abs(pObj));
+    const gap  = Math.abs(pObj - dot(b, y)) / (1 + Math.abs(pObj));
 
     // Log current iterate -------------------------------------------
-    logIter(res.iterates.solution, verbose, x, mu, pObj, dObj, normInf(r_p), normInf(r_d));
+    logIter(res.iterates.solution, verbose, x, mu, pObj, normInf(r_p));
     pushIter(res.iterates.solution, x, s, y, mu);
 
     if (normInf(r_p) <= eps_p && normInf(r_d) <= eps_d && gap <= eps_opt) {
@@ -190,10 +189,10 @@ function pushIter(d, x, s, y, mu) {
   d.mu.push(mu);
 }
 
-function logIter(d, verbose, x, mu, pObj, dObj, pRes, dRes) {
+function logIter(d, verbose, x, mu, pObj, pRes) {
   const msg = sprintf(
-    '%-4d %+6.2f %+6.2f  %+.1e %+.1e  %.1e %.1e  %.1e\n',
-    d.x.length, x[0], x[1] ?? 0, -pObj, -dObj, pRes, dRes, mu,
+    "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n",
+    d.x.length, x[0], x[1] ?? 0, -pObj, pRes, mu,
   );
   if (verbose) process.stdout.write(msg);
   d.log.push(msg);
@@ -201,14 +200,8 @@ function logIter(d, verbose, x, mu, pObj, dObj, pRes, dRes) {
 
 function logFinal(d, verbose, converged, tSolve) {
   const msg = converged
-    ? `Converged to primal‑dual optimal solution in ${tSolve} ms\n`
-    : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;
+    ? `Converged to primal-dual optimal solution in ${tSolve} ms\n`
+    : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;
   if (verbose) process.stdout.write(msg);
   d.log.push(msg);
-}
-
-// FIXME: format is broken
-function sprintf(fmt, ...args) {
-  let i = 0;
-  return fmt.replace(/%([-+0-9.]*[dfs])/g, () => String(args[i++]));
 }
