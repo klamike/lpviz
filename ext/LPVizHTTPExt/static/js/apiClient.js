@@ -1,12 +1,22 @@
 import { pdhg as localPdhgSolver } from './pdhg.js';
+import { polytope as localPolytopeSolver } from './polytope.js';
 
 export async function fetchPolytope(points) {
-    const response = await fetch('/polytope', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ points })
-    });
-    return response.json();
+    const useLocalPolytope = localStorage.getItem('useLocalPolytope') === 'true';
+
+    if (useLocalPolytope) {
+        console.log("Using local polytope solver.");
+        const result = localPolytopeSolver(points);
+        return Promise.resolve(result);
+    } else {
+        console.log("Using remote polytope solver.");
+        const response = await fetch('/polytope', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ points })
+        });
+        return response.json();
+    }
   }
   
   export async function fetchCentralPath(lines, objective, weights, niter) {
