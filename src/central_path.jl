@@ -1,7 +1,4 @@
-using JuMP
-using Clarabel
-
-function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}; niter=nothing, weights=nothing, verbose=false)
+function central_path(vertices::Vector{Vector{Float64}}, lines::Vector{Vector{Float64}}, objective::Vector{Float64}; niter=nothing, weights=nothing, verbose=false)
     niter > 2^10 && throw(ArgumentError("niter > 2^10 not allowed"))
 
     lines, weights = central_path_filter(lines, weights)
@@ -18,8 +15,10 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     verbose && print(log)
     push!(logs, log)
 
+    x0 = centroid(vertices)
+
     tsolve = @elapsed for µₖ in µ
-        xₖ = central_path_xₖ(A, b, objective, w, µₖ)
+        xₖ = central_path_xₖ(A, b, objective, w, µₖ, x0, verbose=verbose)
         if !isnothing(xₖ)
             push!(central_path, xₖ)
             log = @sprintf "  %-4d %+6.2f %+6.2f  %+.1e  %.1e  \n" length(central_path) xₖ[1] xₖ[2] dot(objective, xₖ) µₖ
@@ -30,33 +29,63 @@ function central_path(lines::Vector{Vector{Float64}}, objective::Vector{Float64}
     return Dict{String, Union{Vector, Float64}}("central_path" => central_path, "logs" => logs, "tsolve" => tsolve)
 end
 
-function central_path_xₖ(A, b, c, w, µ)
-    # Solve the optimization problem for a given μ.
-    #   max c'x + μ ∑ᵢ wᵢ ln(bᵢ - Aᵢx)
-    # In order to use conic solvers, we reformulate the ln(⋅) using the exponential cone:
-    #   max c'x + μ ∑ᵢ wᵢ tᵢ
-    #   s.t. [tᵢ, 1, bᵢ - Aᵢx] ∈ 𝒦ₑ   ∀i ∈ [1, m]
+function central_path_xₖ(A, b, c, w, µ, x0; maxit=2000, ϵ=1e-4, verbose=false)
+    # use newton's method to solve the central path problem, using the centroid as the initial point
+    m, n = size(A)
+    @assert w == ones(m) "w must be ones"
+    x = x0
 
-    m = length(b)
-    model = Model(Clarabel.Optimizer)
-    set_silent(model)
+    function f(x)
+        r = b - A * x
+        if any(r .<= 0)
+            return -Inf  # outside domain
+        end
+        return dot(c, x) + μ * sum(log.(r))
+    end
 
-    # Define variables
-    @variable(model, x[1:2])  # primal variables
-    @variable(model, t[1:m])  # auxiliary conic variables to model ln(b - Ax)
+    for k in 1:maxit
+        r = b - A * x
+        if any(r .<= 0)
+            error("Infeasible point encountered at iteration $k")
+        end
 
-    # Add conic constraints
-    @constraint(model, [i ∈ 1:m], [t[i], 1, b[i] - A[i, :]⋅x] ∈ MOI.ExponentialCone())
+        inv_r = 1.0 ./ r
+        inv_r2 = inv_r .^ 2
 
-    # Define objective
-    @objective(model, Max, c'x + µ * w't)
-    
-    # Solve
-    optimize!(model)
-    stat = termination_status(model)
-    is_solved_and_feasible(model, allow_almost=true) || error("μ = $mu failed with $stat")
+        grad = c - μ * A' * inv_r
+        hess = μ * A' * Diagonal(inv_r2) * A
 
-    return value.(x)
+        # Newton step
+        dx = hess \ grad
+
+        # Line search to stay in domain
+        α = 1.0
+        while any((b - A * (x + α * dx)) .<= 0)
+            α *= 0.5
+            if α < 1e-10
+                error("Step size too small at iteration $k")
+            end
+        end
+
+        # Backtracking line search for sufficient increase
+        t = 0.5
+        β = 0.01
+        while f(x + α * dx) < f(x) + β * α * dot(grad, dx)
+            α *= t
+        end
+
+        x += α * dx
+
+        if norm(grad, Inf) < ϵ
+            verbose && println("Converged in $k iterations with μ = $μ")
+            return x
+        end
+
+        verbose && @printf("Iter %d: f(x) = %.6f, ‖grad‖_∞ = %.2e, α = %.2f\n", k, f(x), norm(grad, Inf), α)
+    end
+
+    # error("Did not converge after $maxit iterations")
+    return nothing
 end
 
 central_path_filter(lines, weights) = begin
