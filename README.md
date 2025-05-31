@@ -27,4 +27,4 @@ cd lpviz                                    # cd into it
 bun install                                 # install frontend dependencies
 ```
 
-Then, you can run `bun run dev` to start the server and `bun run build` to build.
+Then, you can run `bun run dev` to start the server.
