@@ -16,22 +16,15 @@
 
 ## Installation
 
-You can use `lpviz` now at [https://lpviz.net](https://lpviz.net) thanks to free hosting from [HuggingFace](https://huggingface.co/spaces/klamike/lpviz). If you'd like to run it locally instead, follow the instructions below.
+You can use `lpviz` now at [https://lpviz.net](https://lpviz.net). If you'd like to run it locally instead, follow the instructions below.
 
-First, make sure you have [Julia](https://julialang.org/) installed.
-Then, to install `lpviz`, run:
+First, make sure you have [Bun](https://bun.sh/) installed.
+Then, to install `lpviz` and its dependencies, run:
 
 ```sh
 git clone https://github.com/klamike/lpviz  # clone the repo
-cd lpviz                                    # cd into it, and run the command below to install dependencies
-julia app/setup.jl'
+cd lpviz                                    # cd into it
+bun install                                 # install frontend dependencies
 ```
 
-
-## Usage
-
-Run the command below, then go to [localhost:8080](http://localhost:8080) in your browser.
-```sh
-cd lpviz                                 # cd into the repo
-julia --project=app app/runserver.jl     # run the Julia server
-```
+Then, you can run `bun run dev` to start the server and `bun run build` to build.
