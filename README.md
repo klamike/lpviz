@@ -24,7 +24,7 @@ Then, to install `lpviz`, run:
 ```sh
 git clone https://github.com/klamike/lpviz  # clone the repo
 cd lpviz                                    # cd into it, and run the command below to install dependencies
-julia -e 'import Pkg: activate as a, instantiate as i, develop as d; a("."); i(); a("app"); i(); d(path=".");'
+julia app/setup.jl'
 ```
 
 

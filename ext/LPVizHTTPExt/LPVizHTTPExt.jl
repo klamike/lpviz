@@ -1,7 +1,9 @@
 module LPVizHTTPExt
 
-using HTTP, JSON3, Artifacts
+using HTTP, JSON3
 using LPViz
+
+fontpath() = ""
 
 ## Main entrypoint to run the HTTP server
 function runserver(; port=8080, verbose=false, expose=false)
@@ -51,6 +53,7 @@ LPViz.ipm(req::HTTP.Request) = LPViz.ipm(
 )
 
 LPViz.central_path(req::HTTP.Request) = LPViz.central_path(
+    convert(Vector{Vector{Float64}}, req.body["vertices"]),
     convert(Vector{Vector{Float64}}, req.body["lines"]),
     convert(Vector{Float64}, req.body["objective"]),
     weights=convert(Vector{Float64}, get(req.body, "weights", ones(length(req.body["lines"])))),
@@ -93,7 +96,7 @@ function register_static!(ROUTER)
     handlers = [
         ("/", (req::HTTP.Request) -> serve_static("index.html", "")),
         ("/style.css", (req::HTTP.Request) -> serve_static("style.css", "text/css")),
-        ("/font.woff2", (req::HTTP.Request) -> serve_static(artifact"JuliaMono" * "/webfonts/JuliaMono-Light.woff2", "font/woff2", suffix=false))
+        ("/font.woff2", (req::HTTP.Request) -> serve_static(fontpath(), "font/woff2", suffix=false))
     ]
     for file in readdir(joinpath(dirname(@__FILE__), "static", "js"))
         push!(handlers, ("/js/$(file)", (req::HTTP.Request) -> serve_static("js/$(file)", "application/javascript")))
@@ -149,7 +152,7 @@ function precompile_handlers(verbose)
     LPViz.polytope(HTTP.Request("POST", "/polytope", [], Dict("points" => points)))
     
     verbose && @info "Calling central_path"
-    LPViz.central_path(HTTP.Request("POST", "/central_path", [], Dict("lines" => lines, "objective" => objective, "weights" => weights, "mu_values" => [1.0])))
+    LPViz.central_path(HTTP.Request("POST", "/central_path", [], Dict("vertices" => points, "lines" => lines, "objective" => objective, "weights" => weights, "mu_values" => [1.0])))
     
     verbose && @info "Calling simplex"
     LPViz.simplex(HTTP.Request("POST", "/simplex", [], Dict("lines" => lines, "objective" => objective)))
