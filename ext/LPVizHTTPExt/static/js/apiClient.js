@@ -2,7 +2,7 @@ import { pdhg as localPdhgSolver } from './pdhg.js';
 import { polytope as localPolytopeSolver } from './polytope.js';
 import { ipm as localIpmSolver } from './ipm.js';
 import { centralPath as localCentralPathSolver } from './central_path.js';
-
+import { simplex as localSimplexSolver } from './simplex.js';
 
 export async function fetchPolytope(points) {
     const useLocalPolytope = localStorage.getItem('useLocalPolytope') === 'true';
@@ -47,12 +47,26 @@ export async function fetchPolytope(points) {
   }
   
   export async function fetchSimplex(lines, objective) {
-    const response = await fetch('/simplex', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective })
-    });
-    return response.json();
+    const useLocalSolver = localStorage.getItem('useLocalSimplexSolver') === 'true';
+
+    if (useLocalSolver) {
+      try {
+        console.log("Using local Simplex solver.");
+        const result = await localSimplexSolver(lines, objective, {});
+        return Promise.resolve(result);
+      } catch (error) {
+        console.error("Error in local Simplex solver:", error);
+        return Promise.reject(error);
+      }
+    } else {
+      console.log("Using remote Simplex solver.");
+      const response = await fetch('/simplex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines, objective })
+      });
+      return response.json();
+    }
   }
   
   export async function fetchIPM(lines, objective, weights, alphamax, maxit) {
