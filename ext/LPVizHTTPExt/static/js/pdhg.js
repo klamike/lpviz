@@ -1,4 +1,5 @@
-import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul, Matrix } from './blas.js';
+import { Matrix } from 'ml-matrix';
+import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul } from './blas.js';
 
 function pdhgEpsilon(A, b, c, xk, yk) {
   const Ax = mvmul(A, xk);

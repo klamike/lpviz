@@ -25,3 +25,5 @@ Manifest.toml
 
 precompile.jl
 server.so
+node_modules/
+bun.lock

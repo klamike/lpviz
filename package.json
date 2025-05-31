@@ -1,0 +1,18 @@
+{
+  "name": "lpviz",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "ml-matrix": "^6.12.1",
+    "sprintf-js": "^1.1.3"
+  }
+}

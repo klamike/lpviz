@@ -1,4 +1,5 @@
-import { Matrix, solve, zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from './blas.js';
+import { Matrix, solve } from 'ml-matrix';
+import { zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from './blas.js';
 
 
 export function ipm(lines, objective, opts = {}) {

@@ -1,4 +1,5 @@
-import { Matrix, solve, zeros as zerosVec, ones as onesVec, copy as copyVec, dot, normInf, vectorSub, mtmul, linesToAb } from './blas.js';
+import { Matrix, solve } from 'ml-matrix';
+import { zeros, ones, copy, dot, vectorSub, mtmul, linesToAb } from './blas.js';
 
 /* horizontal concatenation ------------------------------------------------ */
 function hstack(...mats) {
@@ -54,7 +55,7 @@ export function simplex(lines, objective, opts = {}) {
   const Im = Matrix.eye(m);
   const A1 = hstack(Apos, Aneg, Gamma.mmul(Im), Im);
 
-  const c1 = [].concat(zerosVec(2 * n + m), onesVec(m).map(_ => -1)); // –Σ t
+  const c1 = [].concat(zeros(2 * n + m), ones(m).map(_ => -1)); // –Σ t
 
   const basis1_init = Array(2 * n + 2 * m).fill(false);    // start: t basic
   for (let i = 0; i < m; ++i) basis1_init[2 * n + m + i] = true;
@@ -66,7 +67,7 @@ export function simplex(lines, objective, opts = {}) {
   );
 
   /* ----------  Phase-2  -------------------------------------------------- */
-  const c2 = [].concat(c_objective, c_objective.map(v => -v), zerosVec(m));  //  c x₁ – c x₂
+  const c2 = [].concat(c_objective, c_objective.map(v => -v), zeros(m));  //  c x₁ – c x₂
   const A_orig_neg_data = A_orig.to2DArray().map(row => row.map(v => -v));
   const A_orig_neg = new Matrix(A_orig_neg_data);
   const A2 = hstack(A_orig, A_orig_neg, Im);
@@ -100,7 +101,7 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
       throw new Error(`Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.length=${bVec.length} vs m=${m}`);
   }
 
-  let basis = copyVec(basisInit);           // mutable copy
+  let basis = copy(basisInit);           // mutable copy
   const iterations = [];
   const logs       = [];
 
@@ -148,9 +149,9 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
         throw e;
     }
 
-    const x_tableau = zerosVec(nCols);
+    const x_tableau = zeros(nCols);
     basisIndices.forEach((col_idx, k) => { x_tableau[col_idx] = xB[k]; });
-    iterations.push(copyVec(x_tableau));
+    iterations.push(copy(x_tableau));
 
     /* --- Dual:  Bᵀ y = c_B --------------------------------------------- */
     const cB = basisIndices.map(j => cVec[j]);
@@ -224,7 +225,7 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
   }
 
   /* ---------------- Phase-1 clean-up ----------------------------------- */
-  let finalBasis = copyVec(basis);
+  let finalBasis = copy(basis);
   if (phase1) {
     // Artificial variables are the last 'm' variables in the Phase 1 tableau
     // nCols for phase 1 is 2*nOrig + 2*m

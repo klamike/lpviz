@@ -1,5 +1,4 @@
-export const Matrix = window.mlMatrix.Matrix;
-export const solve = window.mlMatrix.solve;
+import { Matrix } from 'ml-matrix';
 
 export const zeros = (k) => Array(k).fill(0);
 export const ones = (k) => Array(k).fill(1);
