@@ -1,6 +1,8 @@
 import { pdhg as localPdhgSolver } from './pdhg.js';
 import { polytope as localPolytopeSolver } from './polytope.js';
 import { ipm as localIpmSolver } from './ipm.js';
+import { centralPath as localCentralPathSolver } from './central_path.js';
+
 
 export async function fetchPolytope(points) {
     const useLocalPolytope = localStorage.getItem('useLocalPolytope') === 'true';
@@ -20,13 +22,28 @@ export async function fetchPolytope(points) {
     }
   }
   
-  export async function fetchCentralPath(lines, objective, weights, niter) {
-    const response = await fetch('/central_path', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective, weights, niter })
-    });
-    return response.json();
+  export async function fetchCentralPath(vertices, lines, objective, weights, niter) {
+    const useLocalSolver = localStorage.getItem('useLocalCentralPathSolver') === 'true';
+
+    if (useLocalSolver) {
+      try {
+        console.log("Using local Central Path solver.");
+        const options = { niter, weights, verbose: false };
+        const result = localCentralPathSolver(vertices, lines, objective, options);
+        return Promise.resolve(result);
+      } catch (error) {
+        console.error("Error in local Central Path solver:", error);
+        return Promise.reject(error);
+      }
+    } else {
+      console.log("Using remote Central Path solver.");
+      const response = await fetch('/central_path', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vertices, lines, objective, weights, niter })
+      });
+      return response.json();
+    }
   }
   
   export async function fetchSimplex(lines, objective) {
