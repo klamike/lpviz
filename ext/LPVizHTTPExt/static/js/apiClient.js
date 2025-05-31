@@ -1,3 +1,5 @@
+import { pdhg as localPdhgSolver } from './pdhg.js';
+
 export async function fetchPolytope(points) {
     const response = await fetch('/polytope', {
       method: 'POST',
@@ -35,11 +37,26 @@ export async function fetchPolytope(points) {
   }
   
   export async function fetchPDHG(lines, objective, ineq, maxit, eta, tau) {
-    const response = await fetch('/pdhg', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines, objective, ineq, maxit, eta, tau })
-    });
-    return response.json();
+    const useLocalSolver = localStorage.getItem('useLocalPdhgSolver') === 'true';
+  
+    if (useLocalSolver) {
+      try {
+          console.log("Using local PDHG solver.");
+          const options = {ineq, maxit, eta, tau, verbose: false };
+          const result = localPdhgSolver(lines, objective, options);
+          return Promise.resolve(result);
+      } catch (error) {
+          console.error("Error in local PDHG solver:", error);
+          return Promise.reject(error);
+      }
+    } else {
+      console.log("Using remote PDHG solver.");
+      const response = await fetch('/pdhg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines, objective, ineq, maxit, eta, tau })
+      });
+      return response.json();
+    }
   }
   
