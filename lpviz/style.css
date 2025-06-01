@@ -4,8 +4,9 @@
 @font-face {
   font-family: 'JuliaMono';
   src: url('/JuliaMono-Light.woff2') format('woff2');
-  font-weight: 300; /* Assuming Light is 300 weight */
+  font-weight: 300;
   font-style: normal;
+  font-display: swap;
 }
 
 html,
@@ -18,12 +19,12 @@ body {
 }
 
 body {
-  font-size: 10pt;
+  font-size: 1rem;
 }
 
 #objectiveDisplay,
 #inequalities {
-  font-size: 12pt;
+  font-size: 1.2rem;
 }
 
 /* ================================
@@ -164,7 +165,7 @@ canvas {
 }
 
 #usageTips {
-  font-size: 10pt;
+  font-size: 1rem;
   text-align: left;
   color: #ccc;
   padding-left: 5px;
@@ -173,7 +174,7 @@ canvas {
 #maximize,
 #subjectTo {
   text-align: left;
-  font-size: 12pt;
+  font-size: 1.2rem;
   display: none;
 }
 
@@ -247,7 +248,7 @@ canvas {
   margin-top: 10px;
   padding: 6px 16px;
   font-family: 'JuliaMono', monospace;
-  font-size: 10pt;
+  font-size: 0.9rem;
   background-color: #fafafa;
   color: #333;
   border: 1px solid #333;
@@ -438,6 +439,7 @@ input[type="range"]:active::-ms-thumb {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
+  font-size: 0.9rem;
 }
 
 .controlPanel .settings-section {
@@ -446,8 +448,10 @@ input[type="range"]:active::-ms-thumb {
 
 .controlPanel label {
   font-family: 'JuliaMono', monospace;
-  font-size: 10pt;
+  font-size: 1rem; /* Was 10pt */
   color: #333;
+  display: block;
+  margin-bottom: 5px;
 }
 
 .controlPanel input[type="number"] {
@@ -481,4 +485,65 @@ input[type="range"]:active::-ms-thumb {
 @keyframes flash {
   0%, 100% { opacity: 1; }
   70% { opacity: 0.8; }
+}
+
+/* ================================
+    Mobile
+    ================================ */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+
+  #sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    overflow-y: auto;
+  }
+
+  #sidebarHandle {
+    display: none;
+  }
+
+  #zoomControls {
+    display: none;
+  }
+
+  #sidebar button,
+  .controlPanel button {
+    padding: 15px 20px;
+  }
+
+  .controlPanel .button-group button {
+    padding: 12px 10px;
+    font-size: 0.9rem;
+  }
+
+  .controlPanel .button-group {
+    gap: 15px;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    width: 20px;
+    height: 30px;
+    margin-top: -12px;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 30px;
+  }
+
+  input[type="range"]::-ms-thumb {
+    width: 20px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 372px) and (max-height: 901px) {
+  #nullStateMessage {
+    display: none;
+  }
 }

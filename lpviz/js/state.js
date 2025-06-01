@@ -26,5 +26,7 @@ export const state = {
   originalIteratePath: [],
   isPanning: false,
   lastPan: { x: 0, y: 0 },
-  wasPanning: false
+  wasPanning: false,
+  wasDraggingPoint: false,
+  wasDraggingObjective: false
 };

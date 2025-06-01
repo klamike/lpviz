@@ -60,88 +60,98 @@ export function setupEventHandlers(canvasManager, uiManager) {
     return dist < 0.5;
   };
 
-  // ----- Canvas Event Listeners -----
-  canvas.addEventListener("mousedown", (e) => {
+  // ----- Refactored Drag Handlers -----
+  function handleDragStart(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    const logicalMouse = canvasManager.toLogicalCoords(mouseX, mouseY);
-  
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const logicalCoords = canvasManager.toLogicalCoords(localX, localY);
+
     if (!state.polygonComplete) {
       const idx = state.vertices.findIndex(
-        (v) => distance(logicalMouse, v) < 0.5
+        (v) => distance(logicalCoords, v) < 0.5
       );
       if (idx !== -1) {
         state.draggingPointIndex = idx;
       }
-      return;
+      return; // Don't allow panning or objective drag before polygon is complete
     } else {
+      // Check for objective dragging first
       if (state.objectiveVector !== null) {
         const tip = canvasManager.toCanvasCoords(
           state.objectiveVector.x,
           state.objectiveVector.y
         );
-        if (Math.hypot(mouseX - tip.x, mouseY - tip.y) < 10) {
+        // Use localX, localY for objective tip check as it's in canvas pixel space
+        if (Math.hypot(localX - tip.x, localY - tip.y) < 10) { 
           state.draggingObjective = true;
           return;
         }
       }
+
+      // Check for vertex dragging
       const idx = state.vertices.findIndex(
-        (v) => distance(logicalMouse, v) < 0.5
+        (v) => distance(logicalCoords, v) < 0.5
       );
       if (idx !== -1) {
         state.draggingPointIndex = idx;
         return;
       }
-      state.isPanning = true;
-      state.lastPan = { x: e.clientX, y: e.clientY };
-    }
-  });
 
-  canvas.addEventListener("mousemove", (e) => {
+      // If not dragging objective or vertex:
+      if (state.objectiveVector !== null) {
+        // If objective is already set, this tap/drag on empty space is a pan.
+        state.isPanning = true;
+        state.lastPan = { x: clientX, y: clientY };
+      } else {
+        // Polygon is complete, but objective is NOT set.
+        // This tap is intended for the click handler to set the objective.
+        // Do not set isPanning, so the click event can proceed.
+      }
+    }
+  }
+
+  function handleDragMove(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+
     if (state.draggingPointIndex !== null) {
-      state.vertices[state.draggingPointIndex] = canvasManager.toLogicalCoords(
-        e.clientX - canvas.getBoundingClientRect().left,
-        e.clientY - canvas.getBoundingClientRect().top
-      );
+      state.vertices[state.draggingPointIndex] = canvasManager.toLogicalCoords(localX, localY);
       canvasManager.draw();
       return;
     }
     if (state.draggingObjective) {
-      state.objectiveVector = canvasManager.toLogicalCoords(
-        e.clientX - canvas.getBoundingClientRect().left,
-        e.clientY - canvas.getBoundingClientRect().top
-      );
+      state.objectiveVector = canvasManager.toLogicalCoords(localX, localY);
       uiManager.updateObjectiveDisplay();
       canvasManager.draw();
       return;
     }
     if (state.isPanning) {
-      const dx = e.clientX - state.lastPan.x;
-      const dy = e.clientY - state.lastPan.y;
+      const dx = clientX - state.lastPan.x;
+      const dy = clientY - state.lastPan.y;
       canvasManager.offset.x += dx / (canvasManager.gridSpacing * canvasManager.scaleFactor);
       canvasManager.offset.y -= dy / (canvasManager.gridSpacing * canvasManager.scaleFactor);
-      state.lastPan = { x: e.clientX, y: e.clientY };
+      state.lastPan = { x: clientX, y: clientY };
       canvasManager.draw();
       document.getElementById("unzoomButton").disabled = false;
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+
+    // Default mouse move behavior (not dragging or panning)
     if (!state.polygonComplete) {
-      state.currentMouse = canvasManager.toLogicalCoords(mouseX, mouseY);
+      state.currentMouse = canvasManager.toLogicalCoords(localX, localY);
       canvasManager.draw();
     } else if (state.polygonComplete && state.objectiveVector === null) {
-      state.currentObjective = canvasManager.toLogicalCoords(mouseX, mouseY);
+      state.currentObjective = canvasManager.toLogicalCoords(localX, localY);
       canvasManager.draw();
     }
-  });
+  }
 
-  canvas.addEventListener("mouseup", () => {
+  function handleDragEnd() {
     if (state.isPanning) {
       state.isPanning = false;
-      state.wasPanning = true;
+      state.wasPanning = true; // Keep track for click event logic
       return;
     }
     if (state.draggingPointIndex !== null) {
@@ -150,7 +160,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
         objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
       });
       state.draggingPointIndex = null;
-      sendPolytope();
+      state.wasDraggingPoint = true; // Set flag for click handler
+      sendPolytope(); 
     }
     if (state.draggingObjective) {
       state.historyStack.push({
@@ -158,9 +169,52 @@ export function setupEventHandlers(canvasManager, uiManager) {
         objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
       });
       state.draggingObjective = false;
-      sendPolytope();
+      state.wasDraggingObjective = true; // Set flag for click handler
+      sendPolytope(); 
     }
+  }
+
+  // ----- Canvas Event Listeners -----
+  canvas.addEventListener("mousedown", (e) => {
+    handleDragStart(e.clientX, e.clientY);
   });
+
+  canvas.addEventListener("mousemove", (e) => {
+    handleDragMove(e.clientX, e.clientY);
+  });
+
+  canvas.addEventListener("mouseup", () => {
+    handleDragEnd();
+  });
+
+  // Touch event listeners
+  canvas.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) { // Handle single touch for dragging
+      const touch = e.touches[0];
+      handleDragStart(touch.clientX, touch.clientY);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 1) { 
+      // Only prevent default if a drag/pan is actually happening
+      if (state.isPanning || state.draggingPointIndex !== null || state.draggingObjective) {
+        e.preventDefault(); // Prevent page scroll during drag
+      }
+      const touch = e.touches[0];
+      handleDragMove(touch.clientX, touch.clientY);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchend", (e) => {
+    // touchend doesn't have e.touches for the ended touch, 
+    // but handleDragEnd() relies on state flags, not coordinates.
+    // e.changedTouches[0] could provide the last point if needed.
+    if (state.isPanning || state.draggingPointIndex !== null || state.draggingObjective) {
+        e.preventDefault(); // Prevent potential click events after drag
+    }
+    handleDragEnd();
+  }, { passive: false });
 
   canvas.addEventListener("dblclick", (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -193,7 +247,19 @@ export function setupEventHandlers(canvasManager, uiManager) {
   canvas.addEventListener("click", (e) => {
     if (state.wasPanning) {
       state.wasPanning = false;
+      return;
     }
+    // If click happened after a drag, ignore it.
+    if (state.wasDraggingPoint) {
+      state.wasDraggingPoint = false;
+      return;
+    }
+    if (state.wasDraggingObjective) {
+      state.wasDraggingObjective = false;
+      return;
+    }
+
+    // Proceed with click logic only if it wasn't part of a pan or drag
     const rect = canvas.getBoundingClientRect();
     const pt = canvasManager.toLogicalCoords(e.clientX - rect.left, e.clientY - rect.top);
     if (!state.polygonComplete) {
