@@ -1,6 +1,6 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { zeros, ones, copy, dot, vectorSub, mtmul, linesToAb } from './blas.js';
+import { zeros, ones, copy, dot, vectorSub, mtmul, linesToAb } from '../utils/blas.js';
 
 /* horizontal concatenation ------------------------------------------------ */
 function hstack(...mats) {

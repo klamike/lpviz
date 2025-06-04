@@ -1,11 +1,11 @@
-import { state } from "./state.js";
+import { state } from "../state/state.js";
 import {
   fetchPolytope,
   fetchCentralPath,
   fetchSimplex,
   fetchIPM,
   fetchPDHG,
-} from "./apiClient.js";
+} from "../services/apiClient.js";
 
 export function setupEventHandlers(canvasManager, uiManager) {
   const canvas = canvasManager.canvas;

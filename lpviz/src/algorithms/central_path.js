@@ -1,6 +1,6 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { dot, normInf, vectorAdd, vectorSub, scale, zeros, ones, copy, linesToAb } from './blas.js';
+import { dot, normInf, vectorAdd, vectorSub, scale, zeros, ones, copy, linesToAb } from '../utils/blas.js';
 
 // --- Central Path specific functions ---
 function centroid(vertices) {

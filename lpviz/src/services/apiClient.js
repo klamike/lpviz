@@ -1,8 +1,8 @@
-import { pdhg as localPdhgSolver } from "./pdhg.js";
-import { polytope as localPolytopeSolver } from "./polytope.js";
-import { ipm as localIpmSolver } from "./ipm.js";
-import { centralPath as localCentralPathSolver } from "./central_path.js";
-import { simplex as localSimplexSolver } from "./simplex.js";
+import { pdhg as localPdhgSolver } from "../algorithms/pdhg.js";
+import { polytope as localPolytopeSolver } from "../algorithms/polytope.js";
+import { ipm as localIpmSolver } from "../algorithms/ipm.js";
+import { centralPath as localCentralPathSolver } from "../algorithms/central_path.js";
+import { simplex as localSimplexSolver } from "../algorithms/simplex.js";
 
 export async function fetchPolytope(points) {
   try {
