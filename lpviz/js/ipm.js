@@ -1,4 +1,5 @@
 import { Matrix, solve } from 'ml-matrix';
+import { sprintf } from 'sprintf-js';
 import { zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from './blas.js';
 
 

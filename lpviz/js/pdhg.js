@@ -1,4 +1,5 @@
 import { Matrix } from 'ml-matrix';
+import { sprintf } from 'sprintf-js';
 import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul } from './blas.js';
 
 function pdhgEpsilon(A, b, c, xk, yk) {
