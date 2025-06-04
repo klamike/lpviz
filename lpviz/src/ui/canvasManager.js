@@ -1,4 +1,4 @@
-import { state } from "./state.js";
+import { state } from "../state/state.js";
 
 export class CanvasManager {
   constructor(canvas) {

@@ -1,6 +1,6 @@
-import { CanvasManager } from "./canvasManager.js";
-import { UIManager } from "./uiManager.js";
-import { setupEventHandlers } from "./eventHandlers.js";
+import { CanvasManager } from "./ui/canvasManager.js";
+import { UIManager } from "./ui/uiManager.js";
+import { setupEventHandlers } from "./ui/eventHandlers.js";
 
 const canvas = document.getElementById("gridCanvas");
 const canvasManager = new CanvasManager(canvas);
