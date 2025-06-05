@@ -536,7 +536,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
   traceButton.addEventListener("click", () => {
     computePath();
     state.iteratePathComputed = true;
-    // document.getElementById("terminal-container").style.display = "initial";
   });
 
   // Rotate Objective Buttons
@@ -558,7 +557,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.animationIntervalId = null;
     }
     objectiveRotationSettings.style.display = "block";
-    document.getElementById("traceCheckboxContainer").style.display = "block";
     startRotateObjectiveButton.disabled = true;
     stopRotateObjectiveButton.disabled = false;
     computeAndRotate();
@@ -567,7 +565,6 @@ export function setupEventHandlers(canvasManager, uiManager) {
     state.rotateObjectiveMode = false;
     state.totalRotationAngle = 0;
     objectiveRotationSettings.style.display = "none";
-    document.getElementById("traceCheckboxContainer").style.display = "none";
     startRotateObjectiveButton.disabled = false;
     stopRotateObjectiveButton.disabled = true;
   });
@@ -696,6 +693,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const iteratesArray = sol.x.map((val, i) => sol.x[i]);
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
+      if (state.traceEnabled && iteratesArray.length > 0) {
+        state.accumulatedTraces.push([...iteratesArray]);
+      }
       let html = "";
       html += `<div class="iterate-header">${logArray[0]}</div>`;
       for (let i = 1; i < logArray.length - 1; i++) {
@@ -715,6 +715,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const phase2logs = result[1][1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
+      if (state.traceEnabled && iteratesArray.length > 0) {
+        state.accumulatedTraces.push([...iteratesArray]);
+      }
+      
       let html = "";
       html += `<div class="iterate-header">Phase 1\n${phase1logs[0]}</div>`;
 
@@ -745,6 +749,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const logArray = result[1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
+      if (state.traceEnabled && iteratesArray.length > 0) {
+        state.accumulatedTraces.push([...iteratesArray]);
+      }
       let html = "";
       html += `<div class="iterate-header">${logArray[0]}</div>`;
       for (let i = 1; i < logArray.length - 1; i++) {
@@ -771,8 +778,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       
-      if (state.traceEnabled && state.rotateObjectiveMode && state.totalRotationAngle < 2 * Math.PI + 0.9*parseFloat(objectiveAngleStepSlider.value)) {
-        if (iteratesArray.length > 0) {
+      if (state.traceEnabled && iteratesArray.length > 0) {
+        if (state.rotateObjectiveMode && state.totalRotationAngle >= 2 * Math.PI + 0.9*parseFloat(objectiveAngleStepSlider.value)) {
+        } else {
           state.accumulatedTraces.push([...iteratesArray]);
         }
       }
