@@ -28,5 +28,11 @@ export const state = {
   lastPan: { x: 0, y: 0 },
   wasPanning: false,
   wasDraggingPoint: false,
-  wasDraggingObjective: false
+  wasDraggingObjective: false,
+  is3DMode: false,
+  viewAngle: { x: 0.2, y: 0.3, z: 0 },
+  focalDistance: 1000,
+  isRotatingCamera: false,
+  lastRotationMouse: { x: 0, y: 0 },
+  zScale: 0.1
 };

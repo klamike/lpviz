@@ -165,7 +165,7 @@ canvas {
 }
 
 #usageTips {
-  font-size: 1rem;
+  font-size: 0.75rem;
   text-align: left;
   color: #ccc;
   padding-left: 5px;
@@ -315,6 +315,122 @@ canvas {
 #zoomControls button:disabled {
   background-color: #444;
   fill: #eee;
+}
+
+/* ================================
+    Z-Scale Vertical Slider
+    ================================ */
+#zScaleSliderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px;
+  background-color: rgba(250, 250, 250, 0.9);
+  border: 1px solid #333;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#zScaleSlider {
+  -webkit-appearance: slider-vertical;
+  width: 6px;
+  height: 80px;
+  background: #ddd;
+  border-radius: 4px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+#zScaleSlider::-webkit-slider-runnable-track {
+  width: 6px;
+  background: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+}
+
+#zScaleSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 10px;
+  background: #fafafa;
+  border: 1px solid #333;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease;
+}
+
+#zScaleSlider::-webkit-slider-thumb:hover,
+#zScaleSlider::-webkit-slider-thumb:focus {
+  background: #f0f0f0;
+}
+
+#zScaleSlider::-webkit-slider-thumb:active {
+  background: #e0e0e0;
+}
+
+#zScaleSlider::-moz-range-track {
+  width: 6px;
+  height: 80px;
+  background: #ddd;
+  border: 1px solid #333;
+  border-radius: 4px;
+}
+
+#zScaleSlider::-moz-range-thumb {
+  width: 20px;
+  height: 10px;
+  background: #fafafa;
+  border: 1px solid #333;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease;
+}
+
+#zScaleSlider::-moz-range-thumb:hover,
+#zScaleSlider::-moz-range-thumb:focus {
+  background: #f0f0f0;
+}
+
+#zScaleSlider::-moz-range-thumb:active {
+  background: #e0e0e0;
+}
+
+#zScaleSlider::-ms-track {
+  height: 80px;
+  width: 6px;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+
+#zScaleSlider::-ms-fill-lower {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+#zScaleSlider::-ms-fill-upper {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+#zScaleSlider::-ms-thumb {
+  width: 20px;
+  height: 10px;
+  background: #fafafa;
+  border: 1px solid #333;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease;
+  margin-left: 0;
+}
+
+#zScaleSlider::-ms-thumb:hover,
+#zScaleSlider::-ms-thumb:focus {
+  background: #f0f0f0;
+}
+
+#zScaleSlider::-ms-thumb:active {
+  background: #e0e0e0;
 }
 
 /* ================================

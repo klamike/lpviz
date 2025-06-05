@@ -135,6 +135,8 @@
                 <strong>Add new vertices</strong>: double‐click an edge<br>
                 <strong>Move vertices</strong>: drag vertices to reshape<br>
                 <strong>Press S</strong>: toggle snapping to the grid<br>
+                <strong>3D Mode</strong>: click 3D button, hold Shift+drag to rotate view<br>
+                <strong>Z Scale</strong>: adjust slider to scale z-axis<br>
                 <strong>Reset</strong>: refresh the page<br>
                 <strong>Undo/Redo</strong>: ⌘+z to undo, ⇧⌘+z to redo<br>
               </div>
@@ -169,6 +171,13 @@
           </g>
         </svg>
       </button>
+      <button id="toggle3DButton" title="Toggle 3D Mode">3D</button>
+      <div id="zScaleSliderContainer" style="display: none; margin-top: 10px; text-align: center;">
+        <label for="zScaleSlider" style="display: block; font-size: 10px; color: #333; margin-bottom: 5px;">Z Scale</label>
+        <input type="range" id="zScaleSlider" min="0.01" max="10" step="0.01" value="0.1" 
+               orient="vertical" title="Adjust Z-axis scale">
+        <div id="zScaleValue" style="font-size: 9px; color: #666; margin-top: 5px;">0.10</div>
+      </div>
     </div>
     <div id="sidebarHandle"></div>
   </main>

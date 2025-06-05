@@ -17,3 +17,6 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 setupEventHandlers(canvasManager, uiManager);
+
+uiManager.update3DButtonState();
+uiManager.updateZScaleValue();

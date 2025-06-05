@@ -9,6 +9,10 @@ export class UIManager {
     this.resultDiv = document.getElementById("result");
     this.zoomButton = document.getElementById("zoomButton");
     this.unzoomButton = document.getElementById("unzoomButton");
+    this.toggle3DButton = document.getElementById("toggle3DButton");
+    this.zScaleSliderContainer = document.getElementById("zScaleSliderContainer");
+    this.zScaleSlider = document.getElementById("zScaleSlider");
+    this.zScaleValue = document.getElementById("zScaleValue");
     this.iteratePathButton = document.getElementById("iteratePathButton");
     this.ipmButton = document.getElementById("ipmButton");
     this.simplexButton = document.getElementById("simplexButton");
@@ -79,5 +83,24 @@ export class UIManager {
 
   updateResult(html) {
     this.resultDiv.innerHTML = html;
+  }
+
+  update3DButtonState() {
+    if (state.is3DMode) {
+      this.toggle3DButton.textContent = "2D";
+      this.toggle3DButton.style.backgroundColor = "#4CAF50";
+      this.toggle3DButton.style.color = "white";
+      this.zScaleSliderContainer.style.display = "flex";
+    } else {
+      this.toggle3DButton.textContent = "3D";
+      this.toggle3DButton.style.backgroundColor = "";
+      this.toggle3DButton.style.color = "";
+      this.zScaleSliderContainer.style.display = "none";
+    }
+  }
+
+  updateZScaleValue() {
+    this.zScaleValue.textContent = state.zScale.toFixed(2);
+    this.zScaleSlider.value = state.zScale;
   }
 }

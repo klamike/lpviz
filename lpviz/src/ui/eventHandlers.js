@@ -176,14 +176,36 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   // ----- Canvas Event Listeners -----
   canvas.addEventListener("mousedown", (e) => {
+    if (state.is3DMode && e.shiftKey) {
+      state.isRotatingCamera = true;
+      state.lastRotationMouse = { x: e.clientX, y: e.clientY };
+      return;
+    }
     handleDragStart(e.clientX, e.clientY);
   });
 
   canvas.addEventListener("mousemove", (e) => {
+    if (state.isRotatingCamera) {
+      const deltaX = e.clientX - state.lastRotationMouse.x;
+      const deltaY = e.clientY - state.lastRotationMouse.y;
+      
+      state.viewAngle.y += deltaX * 0.01;
+      state.viewAngle.x += deltaY * 0.01;
+      
+      state.viewAngle.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, state.viewAngle.x));
+      
+      state.lastRotationMouse = { x: e.clientX, y: e.clientY };
+      canvasManager.draw();
+      return;
+    }
     handleDragMove(e.clientX, e.clientY);
   });
 
   canvas.addEventListener("mouseup", () => {
+    if (state.isRotatingCamera) {
+      state.isRotatingCamera = false;
+      return;
+    }
     handleDragEnd();
   });
 
@@ -392,6 +414,18 @@ export function setupEventHandlers(canvasManager, uiManager) {
     canvasManager.offset.y = 0;
     canvasManager.draw();
     uiManager.updateZoomButtonsState(canvasManager);
+  });
+  uiManager.toggle3DButton.addEventListener("click", () => {
+    state.is3DMode = !state.is3DMode;
+    uiManager.update3DButtonState();
+    canvasManager.draw();
+  });
+  uiManager.zScaleSlider.addEventListener("input", () => {
+    state.zScale = parseFloat(uiManager.zScaleSlider.value);
+    uiManager.updateZScaleValue();
+    if (state.is3DMode) {
+      canvasManager.draw();
+    }
   });
 
   // Solver Mode Buttons
