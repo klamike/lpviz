@@ -1,4 +1,5 @@
 import { state } from "../state/state.js";
+import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d.js";
 
 export class CanvasManager {
   constructor(canvas) {
@@ -24,65 +25,163 @@ export class CanvasManager {
   }
 
   toLogicalCoords(x, y) {
-    let logical = {
-      x: (x - this.centerX) / (this.gridSpacing * this.scaleFactor) - this.offset.x,
-      y: (this.centerY - y) / (this.gridSpacing * this.scaleFactor) - this.offset.y,
-    };
-    if (state.snapToGrid) {
-      logical.x = Math.round(logical.x);
-      logical.y = Math.round(logical.y);
+    if (state.is3DMode) {
+      let projected2D = {
+        x: (x - this.centerX) / (this.gridSpacing * this.scaleFactor) - this.offset.x,
+        y: (this.centerY - y) / (this.gridSpacing * this.scaleFactor) - this.offset.y,
+      };
+      
+      let logical = inverseTransform2DProjection(projected2D, state.viewAngle, state.focalDistance);
+      
+      if (state.snapToGrid) {
+        logical.x = Math.round(logical.x);
+        logical.y = Math.round(logical.y);
+      }
+      return logical;
+    } else {
+      let logical = {
+        x: (x - this.centerX) / (this.gridSpacing * this.scaleFactor) - this.offset.x,
+        y: (this.centerY - y) / (this.gridSpacing * this.scaleFactor) - this.offset.y,
+      };
+      if (state.snapToGrid) {
+        logical.x = Math.round(logical.x);
+        logical.y = Math.round(logical.y);
+      }
+      return logical;
     }
-    return logical;
   }
 
-  toCanvasCoords(x, y) {
-    return {
-      x: this.centerX + (x + this.offset.x) * this.gridSpacing * this.scaleFactor,
-      y: this.centerY - (y + this.offset.y) * this.gridSpacing * this.scaleFactor,
-    };
+  toCanvasCoords(x, y, z) {
+    if (state.is3DMode) {
+      let actualZ = z;
+      if (actualZ === undefined && state.objectiveVector) {
+        actualZ = state.objectiveVector.x * x + state.objectiveVector.y * y;
+      } else if (actualZ === undefined) {
+        actualZ = 0;
+      }
+      
+      const scaledZ = actualZ * state.zScale / 100;
+      
+      const projected = transform2DTo3DAndProject(
+        { x, y, z: scaledZ }, 
+        state.viewAngle, 
+        state.focalDistance
+      );
+      return {
+        x: this.centerX + (projected.x + this.offset.x) * this.gridSpacing * this.scaleFactor,
+        y: this.centerY - (projected.y + this.offset.y) * this.gridSpacing * this.scaleFactor,
+      };
+    } else {
+      return {
+        x: this.centerX + (x + this.offset.x) * this.gridSpacing * this.scaleFactor,
+        y: this.centerY - (y + this.offset.y) * this.gridSpacing * this.scaleFactor,
+      };
+    }
   }
 
   drawGrid() {
     const width = window.innerWidth,
       height = window.innerHeight;
-    const originX = this.centerX + this.offset.x * this.gridSpacing * this.scaleFactor;
-    const originY = this.centerY - this.offset.y * this.gridSpacing * this.scaleFactor;
-    this.ctx.strokeStyle = "#e0e0e0";
-    this.ctx.lineWidth = 0.5;
-    for (let x = originX; x <= width; x += this.gridSpacing * this.scaleFactor) {
+    
+    if (state.is3DMode) {
+      this.ctx.strokeStyle = "#e0e0e0";
+      this.ctx.lineWidth = 0.5;
+      
+      const scaledSpacing = this.gridSpacing * this.scaleFactor;
+      const viewportLogicalWidth = width / scaledSpacing;
+      const viewportLogicalHeight = height / scaledSpacing;
+      
+      const baseRange = Math.max(viewportLogicalWidth, viewportLogicalHeight);
+      const gridRange = Math.max(50, Math.ceil(baseRange * 2));
+      
+      const offsetX = this.offset.x;
+      const offsetY = this.offset.y;
+      const rangeX = Math.ceil(Math.abs(offsetX)) + gridRange;
+      const rangeY = Math.ceil(Math.abs(offsetY)) + gridRange;
+      
+      for (let i = -rangeX; i <= rangeX; i++) {
+        this.ctx.beginPath();
+        const startPoint = this.toCanvasCoords(i, -rangeY, 0);
+        const endPoint = this.toCanvasCoords(i, rangeY, 0);
+        
+        if (this.isLineVisible(startPoint, endPoint, width, height)) {
+          this.ctx.moveTo(startPoint.x, startPoint.y);
+          this.ctx.lineTo(endPoint.x, endPoint.y);
+          this.ctx.stroke();
+        }
+      }
+      
+      for (let i = -rangeY; i <= rangeY; i++) {
+        this.ctx.beginPath();
+        const startPoint = this.toCanvasCoords(-rangeX, i, 0);
+        const endPoint = this.toCanvasCoords(rangeX, i, 0);
+        
+        if (this.isLineVisible(startPoint, endPoint, width, height)) {
+          this.ctx.moveTo(startPoint.x, startPoint.y);
+          this.ctx.lineTo(endPoint.x, endPoint.y);
+          this.ctx.stroke();
+        }
+      }
+      
+      this.ctx.strokeStyle = "#707070";
+      this.ctx.lineWidth = 0.8;
+      
+      const axisRange = Math.max(rangeX, rangeY);
+      
+      const xAxisStart = this.toCanvasCoords(-axisRange, 0, 0);
+      const xAxisEnd = this.toCanvasCoords(axisRange, 0, 0);
       this.ctx.beginPath();
-      this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, height);
+      this.ctx.moveTo(xAxisStart.x, xAxisStart.y);
+      this.ctx.lineTo(xAxisEnd.x, xAxisEnd.y);
+      this.ctx.stroke();
+      
+      const yAxisStart = this.toCanvasCoords(0, -axisRange, 0);
+      const yAxisEnd = this.toCanvasCoords(0, axisRange, 0);
+      this.ctx.beginPath();
+      this.ctx.moveTo(yAxisStart.x, yAxisStart.y);
+      this.ctx.lineTo(yAxisEnd.x, yAxisEnd.y);
+      this.ctx.stroke();
+      
+    } else {
+      const originX = this.centerX + this.offset.x * this.gridSpacing * this.scaleFactor;
+      const originY = this.centerY - this.offset.y * this.gridSpacing * this.scaleFactor;
+      this.ctx.strokeStyle = "#e0e0e0";
+      this.ctx.lineWidth = 0.5;
+      for (let x = originX; x <= width; x += this.gridSpacing * this.scaleFactor) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, 0);
+        this.ctx.lineTo(x, height);
+        this.ctx.stroke();
+      }
+      for (let x = originX; x >= 0; x -= this.gridSpacing * this.scaleFactor) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, 0);
+        this.ctx.lineTo(x, height);
+        this.ctx.stroke();
+      }
+      for (let y = originY; y <= height; y += this.gridSpacing * this.scaleFactor) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, y);
+        this.ctx.lineTo(width, y);
+        this.ctx.stroke();
+      }
+      for (let y = originY; y >= 0; y -= this.gridSpacing * this.scaleFactor) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, y);
+        this.ctx.lineTo(width, y);
+        this.ctx.stroke();
+      }
+      this.ctx.strokeStyle = "#707070";
+      this.ctx.lineWidth = 0.8;
+      this.ctx.beginPath();
+      this.ctx.moveTo(originX, 0);
+      this.ctx.lineTo(originX, height);
+      this.ctx.stroke();
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, originY);
+      this.ctx.lineTo(width, originY);
       this.ctx.stroke();
     }
-    for (let x = originX; x >= 0; x -= this.gridSpacing * this.scaleFactor) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, height);
-      this.ctx.stroke();
-    }
-    for (let y = originY; y <= height; y += this.gridSpacing * this.scaleFactor) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(0, y);
-      this.ctx.lineTo(width, y);
-      this.ctx.stroke();
-    }
-    for (let y = originY; y >= 0; y -= this.gridSpacing * this.scaleFactor) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(0, y);
-      this.ctx.lineTo(width, y);
-      this.ctx.stroke();
-    }
-    this.ctx.strokeStyle = "#707070";
-    this.ctx.lineWidth = 0.8;
-    this.ctx.beginPath();
-    this.ctx.moveTo(originX, 0);
-    this.ctx.lineTo(originX, height);
-    this.ctx.stroke();
-    this.ctx.beginPath();
-    this.ctx.moveTo(0, originY);
-    this.ctx.lineTo(width, originY);
-    this.ctx.stroke();
   }
 
   drawPolygon() {
@@ -101,6 +200,20 @@ export class CanvasManager {
         this.ctx.lineTo(cp2.x, cp2.y);
         this.ctx.stroke();
       });
+      
+      if (state.is3DMode) {
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        this.ctx.beginPath();
+        const start = this.toCanvasCoords(state.vertices[0].x, state.vertices[0].y);
+        this.ctx.moveTo(start.x, start.y);
+        for (let i = 1; i < state.vertices.length; i++) {
+          const cp = this.toCanvasCoords(state.vertices[i].x, state.vertices[i].y);
+          this.ctx.lineTo(cp.x, cp.y);
+        }
+        this.ctx.closePath();
+        this.ctx.fill();
+      }
+      
       state.vertices.forEach((pt) => {
         const cp = this.toCanvasCoords(pt.x, pt.y);
         this.ctx.fillStyle = "red";
@@ -147,7 +260,8 @@ export class CanvasManager {
 
   drawAnalyticCenter() {
     if (state.analyticCenter) {
-      const ac = this.toCanvasCoords(state.analyticCenter[0], state.analyticCenter[1]);
+      const z = state.analyticCenter[2] !== undefined ? state.analyticCenter[2] : 0;
+      const ac = this.toCanvasCoords(state.analyticCenter[0], state.analyticCenter[1], z);
       this.ctx.fillStyle = "black";
       this.ctx.beginPath();
       this.ctx.arc(ac.x, ac.y, 6, 0, 2 * Math.PI);
@@ -210,15 +324,21 @@ export class CanvasManager {
       this.ctx.strokeStyle = "purple";
       this.ctx.lineWidth = 2;
       this.ctx.beginPath();
-      const start = this.toCanvasCoords(state.iteratePath[0][0], state.iteratePath[0][1]);
+      
+      const startZ = state.iteratePath[0][2] !== undefined ? state.iteratePath[0][2] : state.objectiveVector.x * state.iteratePath[0][0] + state.objectiveVector.y * state.iteratePath[0][1];
+      const start = this.toCanvasCoords(state.iteratePath[0][0], state.iteratePath[0][1], startZ);
       this.ctx.moveTo(start.x, start.y);
+      
       for (let i = 1; i < state.iteratePath.length; i++) {
-        const pt = this.toCanvasCoords(state.iteratePath[i][0], state.iteratePath[i][1]);
+        const z = state.iteratePath[i][2] !== undefined ? state.iteratePath[i][2] : state.objectiveVector.x * state.iteratePath[i][0] + state.objectiveVector.y * state.iteratePath[i][1];
+        const pt = this.toCanvasCoords(state.iteratePath[i][0], state.iteratePath[i][1], z);
         this.ctx.lineTo(pt.x, pt.y);
       }
       this.ctx.stroke();
+      
       state.iteratePath.forEach((entry, i) => {
-        const cp = this.toCanvasCoords(entry[0], entry[1]);
+        const z = entry[2] !== undefined ? entry[2] : state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1];
+        const cp = this.toCanvasCoords(entry[0], entry[1], z);
         if (i === state.iteratePath.length - 1) {
           this.drawStar(cp.x, cp.y, 5, 8, 4, "green");
         } else {
@@ -254,5 +374,17 @@ export class CanvasManager {
       }
     }
     return true;
+  }
+
+  isLineVisible(startPoint, endPoint, width, height) {
+    const margin = 100;
+    
+    const minX = Math.min(startPoint.x, endPoint.x);
+    const maxX = Math.max(startPoint.x, endPoint.x);
+    const minY = Math.min(startPoint.y, endPoint.y);
+    const maxY = Math.max(startPoint.y, endPoint.y);
+    
+    return !(maxX < -margin || minX > width + margin || 
+             maxY < -margin || minY > height + margin);
   }
 }

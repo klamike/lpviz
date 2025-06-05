@@ -221,22 +221,28 @@ export function centralPath(vertices, lines, objective, opts = {}) {
   for (const muK of muValues) {
     const xk = centralPathXk(Amatrix, bVec, objective, muK, x0, { verbose, epsilon: 1e-4, maxit: 2000 }); // Pass relevant opts
     if (xk !== null && xk.length > 0) {
-      centralPathArray.push(copy(xk));
-      // Assuming xk is [x_coord, y_coord, ...], log first two for 2D visualization consistency
+      const Ax = Amatrix.mmul(Matrix.columnVector(xk)).to1DArray();
+      const r = vectorSub(bVec, Ax);
+      const objectiveValue = dot(objective, xk);
+      const barrierTerm = muK * r.reduce((sum, ri) => sum + Math.log(ri), 0);
+      const totalObjective = objectiveValue + barrierTerm;
+      
+      const extendedPoint = [...xk, totalObjective];
+      centralPathArray.push(extendedPoint);
+      
       const x_val = xk[0] !== undefined ? xk[0] : 0;
       const y_val = xk[1] !== undefined ? xk[1] : 0;
       logMsg = sprintf("  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n", 
                        centralPathArray.length, 
                        x_val, 
                        y_val, 
-                       dot(objective, xk), 
+                       objectiveValue, 
                        muK);
       if (verbose) console.log(logMsg);
       logs.push(logMsg);
-      x0 = xk; // Use current solution as starting point for next iteration
+      x0 = xk;
     } else {
         if (verbose) console.log(`Failed to find x_k for mu = ${muK}. Skipping.`);
-        // Optional: add a log entry for skipped mu
     }
   }
   const tsolve = (Date.now() - tStart) / 1000.0; // seconds
