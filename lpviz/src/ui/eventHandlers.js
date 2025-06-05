@@ -583,7 +583,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
   function updateHoverState() {
     const el = document.elementFromPoint(cpMouseX, cpMouseY);
-    if (el && el.classList.contains("central-path-item")) {
+    if (el && el.classList.contains("iterate-item")) {
       if (cpCurrentHovered !== el) {
         if (cpCurrentHovered) {
           cpCurrentHovered.classList.remove("hover");
@@ -625,12 +625,12 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       let html = "";
-      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      html += `<div class="iterate-header">${logArray[0]}</div>`;
       for (let i = 1; i < logArray.length - 1; i++) {
-        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+        html += `<div class="iterate-item" data-index="${i-1}">${logArray[i]}</div>`;
       }
       if (logArray.length > 1) {
-        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
+        html += `<div class="iterate-footer">${logArray[logArray.length - 1]}</div>`;
       }
       updateResult(html);
     } else if (state.solverMode === "simplex") {
@@ -644,17 +644,17 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       let html = "";
-      html += `<div class="central-path-header">Phase 1\n${phase1logs[0]}</div>`;
+      html += `<div class="iterate-header">Phase 1\n${phase1logs[0]}</div>`;
 
       for (let i = 1; i < phase1logs.length - 1; i++) {
-        html += `<div class="central-path-item" data-index="${i-1}">${phase1logs[i]}</div>`;
+        html += `<div class="iterate-item-nohover">${phase1logs[i]}</div>`;
       }
-      html += `<div class="central-path-footer">${phase1logs[phase1logs.length - 1]}</div>`;
-      html += `<div class="central-path-header">Phase 2\n${phase2logs[0]}</div>`;
+      html += `<div class="iterate-footer">${phase1logs[phase1logs.length - 1]}</div>`;
+      html += `<div class="iterate-header">Phase 2\n${phase2logs[0]}</div>`;
       for (let i = 1; i < phase2logs.length - 1; i++) {
-        html += `<div class="central-path-item" data-index="${i + phase1logs.length-4}">${phase2logs[i]}</div>`;
+        html += `<div class="iterate-item" data-index="${i -1}">${phase2logs[i]}</div>`;
       }
-      html += `<div class="central-path-footer">${phase2logs[phase2logs.length - 1]}</div>`;
+      html += `<div class="iterate-footer">${phase2logs[phase2logs.length - 1]}</div>`;
       updateResult(html);
     } else if (state.solverMode === "pdhg") {
       const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
@@ -674,12 +674,12 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       let html = "";
-      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      html += `<div class="iterate-header">${logArray[0]}</div>`;
       for (let i = 1; i < logArray.length - 1; i++) {
-        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+        html += `<div class="iterate-item" data-index="${i-1}">${logArray[i]}</div>`;
       }
       if (logArray.length > 1) {
-        html += `<div class="central-path-footer">${logArray[logArray.length - 1]}</div>`;
+        html += `<div class="iterate-footer">${logArray[logArray.length - 1]}</div>`;
       }
       updateResult(html);
     } else {
@@ -699,12 +699,12 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       let html = "";
-      html += `<div class="central-path-header">${logArray[0]}</div>`;
+      html += `<div class="iterate-header">${logArray[0]}</div>`;
       for (let i = 1; i < logArray.length; i++) {
-        html += `<div class="central-path-item" data-index="${i-1}">${logArray[i]}</div>`;
+        html += `<div class="iterate-item" data-index="${i-1}">${logArray[i]}</div>`;
       }
       if (logArray.length > 1) {
-        html += `<div class="central-path-footer">Traced central path in ${Math.round(tsolve * 1000)}ms</div>`;
+        html += `<div class="iterate-footer">Traced central path in ${Math.round(tsolve * 1000)}ms</div>`;
       }
       updateResult(html);
     }
@@ -773,7 +773,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   
   function updateResult(html) {
     resultDiv.innerHTML = html;
-    document.querySelectorAll(".central-path-header, .central-path-item, .central-path-footer")
+    document.querySelectorAll(".iterate-header, .iterate-item, .iterate-footer")
       .forEach((item) => {
         item.addEventListener("mouseenter", () => {
           state.highlightIteratePathIndex = parseInt(item.getAttribute("data-index"));

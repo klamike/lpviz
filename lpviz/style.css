@@ -201,25 +201,26 @@ canvas {
 
 .inequality-item:hover,
 .objective-item:hover,
-.central-path-item:hover,
-.central-path-item.hover {
+.iterate-item:hover,
+.iterate-item.hover {
   background-color: #4f4f4f;
 }
 
-.central-path-item,
-.central-path-header,
-.central-path-footer {
+.iterate-item,
+.iterate-item-nohover,
+.iterate-header,
+.iterate-footer {
   color: #eee;
   white-space: pre-wrap;
   padding-left: 4px;
 }
 
-.central-path-header {
+.iterate-header {
   padding-top: 8px;
   padding-bottom: 5px;
 }
 
-.central-path-footer {
+.iterate-footer {
   margin-bottom: 20px;
   padding-top: 5px;
 }
