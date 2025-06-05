@@ -189,7 +189,7 @@ export class CanvasManager {
     if (state.polygonComplete) {
       if (state.vertices.length >= 3 && state.inputMode !== 'manual') {
         this.ctx.fillStyle = (state.is3DMode || state.isTransitioning3D) 
-          ? "rgba(255, 255, 255, 0.3)"
+          ? "rgba(230, 230, 230, 0.3)"
           : "rgba(230, 230, 230, 0.3)";
         
         this.ctx.beginPath();

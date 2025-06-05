@@ -7,6 +7,7 @@ import {
   fetchPDHG,
 } from "../services/apiClient.js";
 import { start3DTransition } from "../utils/transitions.js";
+import JSONCrush from "jsoncrush";
 
 export function setupEventHandlers(canvasManager, uiManager) {
   const canvas = canvasManager.canvas;
@@ -587,6 +588,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   // Animate Button
   const animateButton = document.getElementById("animateButton");
   const replaySpeedSlider = document.getElementById("replaySpeedSlider");
+  const shareButton = document.getElementById("shareButton");
   animateButton.addEventListener("click", () => {
     if (state.rotateObjectiveMode) return;
     if (state.animationIntervalId !== null) {
@@ -610,6 +612,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
       currentIndex++;
       canvasManager.draw();
     }, intervalTime);
+  });
+
+  shareButton.addEventListener("click", () => {
+    const url = generateShareLink();
+    window.prompt("Share this link:", url);
   });
 
   // Sidebar Resize
@@ -992,6 +999,112 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   // Manual Input Event Handlers
   setupManualInputHandlers(canvasManager, uiManager);
+
+  function generateShareLink() {
+    const settings = {};
+    switch (state.solverMode) {
+      case "ipm":
+        settings.alphaMax = parseFloat(alphaMaxSlider.value);
+        settings.maxitIPM = parseInt(maxitInput.value, 10);
+        break;
+      case "pdhg":
+        settings.pdhgEta = parseFloat(pdhgEtaSlider.value);
+        settings.pdhgTau = parseFloat(pdhgTauSlider.value);
+        settings.maxitPDHG = parseInt(maxitInputPDHG.value, 10);
+        settings.pdhgIneqMode = pdhgIneqMode.checked;
+        break;
+      case "central":
+        settings.centralPathIter = parseInt(centralPathIterSlider.value, 10);
+        break;
+    }
+    const data = {
+      vertices: state.vertices,
+      objective: state.objectiveVector,
+      solverMode: state.solverMode,
+      settings
+    };
+    const json = JSON.stringify(data);
+    const crushed = JSONCrush.crush(json);
+    const encoded = encodeURIComponent(crushed);
+    return `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+  }
+
+  function loadStateFromObject(obj) {
+    if (!obj) return;
+    if (Array.isArray(obj.vertices)) {
+      state.vertices = obj.vertices.map(v => ({ x: v.x, y: v.y }));
+      state.polygonComplete = state.vertices.length > 2;
+    }
+    if (obj.objective) {
+      state.objectiveVector = { x: obj.objective.x, y: obj.objective.y };
+    }
+    if (obj.solverMode) {
+      state.solverMode = obj.solverMode;
+    }
+    const settings = obj.settings || {};
+    if (settings.alphaMax !== undefined) {
+      alphaMaxSlider.value = settings.alphaMax;
+      document.getElementById("alphaMaxValue").textContent = parseFloat(alphaMaxSlider.value).toFixed(3);
+    }
+    if (settings.maxitIPM !== undefined) {
+      maxitInput.value = settings.maxitIPM;
+    }
+    if (settings.pdhgEta !== undefined) {
+      pdhgEtaSlider.value = settings.pdhgEta;
+      document.getElementById("pdhgEtaValue").textContent = parseFloat(pdhgEtaSlider.value).toFixed(3);
+    }
+    if (settings.pdhgTau !== undefined) {
+      pdhgTauSlider.value = settings.pdhgTau;
+      document.getElementById("pdhgTauValue").textContent = parseFloat(pdhgTauSlider.value).toFixed(3);
+    }
+    if (settings.maxitPDHG !== undefined) {
+      maxitInputPDHG.value = settings.maxitPDHG;
+    }
+    if (settings.pdhgIneqMode !== undefined) {
+      pdhgIneqMode.checked = settings.pdhgIneqMode;
+    }
+    if (settings.centralPathIter !== undefined) {
+      centralPathIterSlider.value = settings.centralPathIter;
+      centralPathIterValue.textContent = settings.centralPathIter;
+    }
+    if (settings.objectiveAngleStep !== undefined) {
+      objectiveAngleStepSlider.value = settings.objectiveAngleStep;
+      objectiveAngleStepValue.textContent = parseFloat(settings.objectiveAngleStep).toFixed(2);
+    }
+    uiManager.hideNullStateMessage();
+
+    if (state.polygonComplete && state.objectiveVector) {
+      document.getElementById("maximize").style.display = "block";
+      
+      iteratePathButton.disabled = state.solverMode === "central";
+      ipmButton.disabled = state.solverMode === "ipm";
+      simplexButton.disabled = state.solverMode === "simplex";
+      pdhgButton.disabled = state.solverMode === "pdhg";
+      
+      traceButton.disabled = false;
+      animateButton.disabled = false;
+      startRotateObjectiveButton.disabled = false;
+      document.getElementById("zoomButton").disabled = false;
+    } else {
+      traceButton.disabled = true;
+      animateButton.disabled = true;
+      startRotateObjectiveButton.disabled = true;
+    }
+
+    document.getElementById("ipmSettings").style.display = state.solverMode === "ipm" ? "block" : "none";
+    document.getElementById("pdhgSettings").style.display = state.solverMode === "pdhg" ? "block" : "none";
+    document.getElementById("centralPathSettings").style.display = state.solverMode === "central" ? "block" : "none";
+
+    uiManager.updateObjectiveDisplay();
+    uiManager.updateSolverModeButtons();
+    canvasManager.draw();
+
+    if (state.polygonComplete) {
+      sendPolytope();
+    }
+  }
+
+  return { loadStateFromObject, generateShareLink };
   
 }
 
