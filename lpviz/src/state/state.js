@@ -39,5 +39,10 @@ export const state = {
   accumulatedTraces: [],
   currentTracePath: [],
   totalRotationAngle: 0,
-  rotationCount: 0
+  rotationCount: 0,
+  isTransitioning3D: false,
+  transitionStartTime: 0,
+  transitionDuration: 500,
+  transition3DStartAngles: { x: 0, y: 0, z: 0 },
+  transition3DEndAngles: { x: -1.15, y: 0.4, z: 0 }
 };

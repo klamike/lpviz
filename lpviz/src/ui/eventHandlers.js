@@ -6,6 +6,7 @@ import {
   fetchIPM,
   fetchPDHG,
 } from "../services/apiClient.js";
+import { start3DTransition } from "../utils/transitions.js";
 
 export function setupEventHandlers(canvasManager, uiManager) {
   const canvas = canvasManager.canvas;
@@ -176,7 +177,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   // ----- Canvas Event Listeners -----
   canvas.addEventListener("mousedown", (e) => {
-    if (state.is3DMode && e.shiftKey) {
+    if (state.is3DMode && e.shiftKey && !state.isTransitioning3D) {
       state.isRotatingCamera = true;
       state.lastRotationMouse = { x: e.clientX, y: e.clientY };
       return;
@@ -419,14 +420,17 @@ export function setupEventHandlers(canvasManager, uiManager) {
     uiManager.updateZoomButtonsState(canvasManager);
   });
   uiManager.toggle3DButton.addEventListener("click", () => {
-    state.is3DMode = !state.is3DMode;
-    uiManager.update3DButtonState();
-    canvasManager.draw();
+    if (state.isTransitioning3D) {
+      return;
+    }
+    
+    const targetMode = !state.is3DMode;
+    start3DTransition(canvasManager, uiManager, targetMode);
   });
   uiManager.zScaleSlider.addEventListener("input", () => {
     state.zScale = parseFloat(uiManager.zScaleSlider.value);
     uiManager.updateZScaleValue();
-    if (state.is3DMode) {
+    if (state.is3DMode || state.isTransitioning3D) {
       canvasManager.draw();
     }
   });
