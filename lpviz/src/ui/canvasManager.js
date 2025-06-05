@@ -320,6 +320,60 @@ export class CanvasManager {
   }
 
   drawIteratePath() {
+    if (state.traceEnabled) {
+      const drawPath = (path) => {
+        if (path.length > 0) {
+          this.ctx.strokeStyle = "rgba(255, 165, 0, 0.6)";
+          this.ctx.lineWidth = 1.5;
+          this.ctx.beginPath();
+          
+          const startZ = path[0][2] !== undefined ? path[0][2] : 
+            (state.objectiveVector ? state.objectiveVector.x * path[0][0] + state.objectiveVector.y * path[0][1] : 0);
+          const start = this.toCanvasCoords(path[0][0], path[0][1], startZ);
+          this.ctx.moveTo(start.x, start.y);
+          
+          for (let i = 1; i < path.length; i++) {
+            const z = path[i][2] !== undefined ? path[i][2] : 
+              (state.objectiveVector ? state.objectiveVector.x * path[i][0] + state.objectiveVector.y * path[i][1] : 0);
+            const pt = this.toCanvasCoords(path[i][0], path[i][1], z);
+            this.ctx.lineTo(pt.x, pt.y);
+          }
+          
+          if (path.length > 1) {
+            const endZ = path[path.length - 1][2] !== undefined ? path[path.length - 1][2] : 
+              (state.objectiveVector ? state.objectiveVector.x * path[path.length - 1][0] + state.objectiveVector.y * path[path.length - 1][1] : 0);
+            
+            if (endZ > startZ) {
+              console.log(`🔺 Z INCREASE DETECTED: Path with ${path.length} points has z increase from ${startZ.toFixed(4)} to ${endZ.toFixed(4)} (Δz = +${(endZ - startZ).toFixed(4)})`);
+              console.log(`   Start point: (${path[0][0].toFixed(3)}, ${path[0][1].toFixed(3)}, z=${startZ.toFixed(4)})`);
+              console.log(`   End point: (${path[path.length-1][0].toFixed(3)}, ${path[path.length-1][1].toFixed(3)}, z=${endZ.toFixed(4)})`);
+            }
+          }
+          
+          this.ctx.stroke();
+          this.ctx.beginPath();
+        }
+      };
+      
+      const drawPoints = (path) => {
+        path.forEach(entry => {
+          const z = entry[2] !== undefined ? entry[2] : 
+            (state.objectiveVector ? state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1] : 0);
+          const cp = this.toCanvasCoords(entry[0], entry[1], z);
+          this.ctx.beginPath();
+          this.ctx.fillStyle = "rgba(255, 165, 0, 0.8)";
+          this.ctx.arc(cp.x, cp.y, 2, 0, 2 * Math.PI);
+          this.ctx.fill();
+        });
+      };
+      
+      if (state.accumulatedTraces && state.accumulatedTraces.length > 0) {
+        state.accumulatedTraces.forEach(drawPath);
+        state.accumulatedTraces.forEach(drawPoints);
+      }
+      
+    }
+    
     if (state.iteratePath && state.iteratePath.length > 0) {
       this.ctx.strokeStyle = "purple";
       this.ctx.lineWidth = 2;

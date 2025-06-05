@@ -412,6 +412,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
     canvasManager.scaleFactor = 1;
     canvasManager.offset.x = 0;
     canvasManager.offset.y = 0;
+    state.viewAngle.x = -1.15;
+    state.viewAngle.y = 0.4;
+    state.viewAngle.z = 0;
     canvasManager.draw();
     uiManager.updateZoomButtonsState(canvasManager);
   });
@@ -510,6 +513,12 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
   objectiveAngleStepSlider.addEventListener("input", () => {
     objectiveAngleStepValue.textContent = parseFloat(objectiveAngleStepSlider.value).toFixed(2);
+    if (state.traceEnabled) {
+      state.accumulatedTraces = [];
+      state.totalRotationAngle = 0;
+      state.rotationCount = 0;
+      canvasManager.draw();
+    }
   });
   centralPathIterSlider.addEventListener("input", () => {
     centralPathIterValue.textContent = centralPathIterSlider.value;
@@ -532,7 +541,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   startRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = true;
-    // document.getElementById("terminal-container").style.display = "initial";
+    state.accumulatedTraces = [];
+    state.totalRotationAngle = 0;
+    state.rotationCount = 0;
     if (!state.objectiveVector) {
       state.objectiveVector = { x: 1, y: 0 };
       uiManager.updateObjectiveDisplay();
@@ -542,15 +553,31 @@ export function setupEventHandlers(canvasManager, uiManager) {
       state.animationIntervalId = null;
     }
     objectiveRotationSettings.style.display = "block";
+    document.getElementById("traceCheckboxContainer").style.display = "block";
     startRotateObjectiveButton.disabled = true;
     stopRotateObjectiveButton.disabled = false;
     computeAndRotate();
   });
   stopRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = false;
+    state.totalRotationAngle = 0;
     objectiveRotationSettings.style.display = "none";
+    document.getElementById("traceCheckboxContainer").style.display = "none";
     startRotateObjectiveButton.disabled = false;
     stopRotateObjectiveButton.disabled = true;
+  });
+
+  // Trace Checkbox
+  const traceCheckbox = document.getElementById("traceCheckbox");
+  traceCheckbox.checked = false;
+  traceCheckbox.addEventListener("change", () => {
+    state.traceEnabled = traceCheckbox.checked;
+    if (!state.traceEnabled) {
+      state.accumulatedTraces = [];
+      state.totalRotationAngle = 0;
+      state.rotationCount = 0;
+      canvasManager.draw();
+    }
   });
 
   // Animate Button
@@ -732,6 +759,12 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const tsolve = result.tsolve;
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
+      
+      if (state.traceEnabled && state.rotateObjectiveMode && state.totalRotationAngle < 2 * Math.PI + 0.9*parseFloat(objectiveAngleStepSlider.value)) {
+        if (iteratesArray.length > 0) {
+          state.accumulatedTraces.push([...iteratesArray]);
+        }
+      }
       let html = "";
       html += `<div class="iterate-header">${logArray[0]}</div>`;
       for (let i = 1; i < logArray.length; i++) {
@@ -890,21 +923,46 @@ export function setupEventHandlers(canvasManager, uiManager) {
       return;
     }
     if (!state.rotateObjectiveMode) return;
+    
+    const angleStep = parseFloat(objectiveAngleStepSlider.value);
+    
     const angle = Math.atan2(state.objectiveVector.y, state.objectiveVector.x);
     const magnitude = Math.hypot(state.objectiveVector.x, state.objectiveVector.y);
-    const angleStep = parseFloat(objectiveAngleStepSlider.value);
+    
     state.objectiveVector = {
       x: magnitude * Math.cos(angle + angleStep),
       y: magnitude * Math.sin(angle + angleStep),
     };
+    
+    if (state.traceEnabled) {
+      state.totalRotationAngle += angleStep;
+    }
+    
     uiManager.updateObjectiveDisplay();
     canvasManager.draw();
+    
     if (state.polygonComplete && state.computedLines && state.computedLines.length > 0) {
-      computePath().then(() => {
-        if (state.rotateObjectiveMode) setTimeout(computeAndRotate, MIN_WAIT);
-      });
+      try {
+        computePath().then(() => {
+          if (state.rotateObjectiveMode) {
+            setTimeout(computeAndRotate, MIN_WAIT);
+          }
+        }).catch((error) => {
+          console.error("Error in computePath:", error);
+          if (state.rotateObjectiveMode) {
+            setTimeout(computeAndRotate, MIN_WAIT);
+          }
+        });
+      } catch (error) {
+        console.error("Synchronous error in computePath:", error);
+        if (state.rotateObjectiveMode) {
+          setTimeout(computeAndRotate, MIN_WAIT);
+        }
+      }
     } else {
-      if (state.rotateObjectiveMode) setTimeout(computeAndRotate, MIN_WAIT);
+      if (state.rotateObjectiveMode) {
+        setTimeout(computeAndRotate, MIN_WAIT);
+      }
     }
   }
   canvas.addEventListener("wheel", (e) => {
