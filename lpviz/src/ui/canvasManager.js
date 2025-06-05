@@ -25,7 +25,7 @@ export class CanvasManager {
   }
 
   toLogicalCoords(x, y) {
-    if (state.is3DMode) {
+    if (state.is3DMode || state.isTransitioning3D) {
       let projected2D = {
         x: (x - this.centerX) / (this.gridSpacing * this.scaleFactor) - this.offset.x,
         y: (this.centerY - y) / (this.gridSpacing * this.scaleFactor) - this.offset.y,
@@ -52,7 +52,7 @@ export class CanvasManager {
   }
 
   toCanvasCoords(x, y, z) {
-    if (state.is3DMode) {
+    if (state.is3DMode || state.isTransitioning3D) {
       let actualZ = z;
       if (actualZ === undefined && state.objectiveVector) {
         actualZ = state.objectiveVector.x * x + state.objectiveVector.y * y;
@@ -83,7 +83,7 @@ export class CanvasManager {
     const width = window.innerWidth,
       height = window.innerHeight;
     
-    if (state.is3DMode) {
+    if (state.is3DMode || state.isTransitioning3D) {
       this.ctx.strokeStyle = "#e0e0e0";
       this.ctx.lineWidth = 0.5;
       
@@ -201,7 +201,7 @@ export class CanvasManager {
         this.ctx.stroke();
       });
       
-      if (state.is3DMode) {
+      if (state.is3DMode || state.isTransitioning3D) {
         this.ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
         this.ctx.beginPath();
         const start = this.toCanvasCoords(state.vertices[0].x, state.vertices[0].y);
