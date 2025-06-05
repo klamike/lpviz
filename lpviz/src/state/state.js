@@ -44,5 +44,10 @@ export const state = {
   transitionStartTime: 0,
   transitionDuration: 500,
   transition3DStartAngles: { x: 0, y: 0, z: 0 },
-  transition3DEndAngles: { x: -1.15, y: 0.4, z: 0 }
+  transition3DEndAngles: { x: -1.15, y: 0.4, z: 0 },
+  inputMode: 'visual',
+  manualConstraints: [],
+  manualObjective: null,
+  objectiveDirection: 'max',
+  parsedConstraints: []
 };

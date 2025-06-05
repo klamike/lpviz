@@ -187,22 +187,11 @@ export class CanvasManager {
   drawPolygon() {
     if (state.vertices.length === 0) return;
     if (state.polygonComplete) {
-      state.vertices.forEach((v, i) => {
-        const cp1 = this.toCanvasCoords(v.x, v.y);
-        const cp2 = this.toCanvasCoords(
-          state.vertices[(i + 1) % state.vertices.length].x,
-          state.vertices[(i + 1) % state.vertices.length].y
-        );
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = state.highlightIndex === i ? "red" : "black";
-        this.ctx.lineWidth = state.highlightIndex === i ? 4 : 2;
-        this.ctx.moveTo(cp1.x, cp1.y);
-        this.ctx.lineTo(cp2.x, cp2.y);
-        this.ctx.stroke();
-      });
-      
-      if (state.is3DMode || state.isTransitioning3D) {
-        this.ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+      if (state.vertices.length >= 3 && state.inputMode !== 'manual') {
+        this.ctx.fillStyle = (state.is3DMode || state.isTransitioning3D) 
+          ? "rgba(255, 255, 255, 0.3)"
+          : "rgba(230, 230, 230, 0.3)";
+        
         this.ctx.beginPath();
         const start = this.toCanvasCoords(state.vertices[0].x, state.vertices[0].y);
         this.ctx.moveTo(start.x, start.y);
@@ -213,6 +202,28 @@ export class CanvasManager {
         this.ctx.closePath();
         this.ctx.fill();
       }
+      state.vertices.forEach((v, i) => {
+        const cp1 = this.toCanvasCoords(v.x, v.y);
+        const cp2 = this.toCanvasCoords(
+          state.vertices[(i + 1) % state.vertices.length].x,
+          state.vertices[(i + 1) % state.vertices.length].y
+        );
+        this.ctx.beginPath();
+        
+        if (state.inputMode === 'manual') {
+          this.ctx.strokeStyle = "black";
+          this.ctx.lineWidth = 2;
+          this.ctx.setLineDash([]);
+        } else {
+          this.ctx.strokeStyle = state.highlightIndex === i ? "red" : "black";
+          this.ctx.lineWidth = state.highlightIndex === i ? 4 : 2;
+        }
+        
+        this.ctx.moveTo(cp1.x, cp1.y);
+        this.ctx.lineTo(cp2.x, cp2.y);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+      });
       
       state.vertices.forEach((pt) => {
         const cp = this.toCanvasCoords(pt.x, pt.y);
@@ -254,6 +265,54 @@ export class CanvasManager {
         this.ctx.beginPath();
         this.ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI);
         this.ctx.fill();
+      });
+    }
+  }
+
+  drawConstraintLines() {
+    if (state.inputMode === 'manual' && state.computedLines && state.computedLines.length > 0) {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      state.computedLines.forEach((line, index) => {
+        const [A, B, C] = line;
+        
+        if (Math.abs(A) < 1e-10 && Math.abs(B) < 1e-10) return;
+        
+        let x1, y1, x2, y2;
+        
+        const margin = 50;
+        const topLeft = this.toLogicalCoords(-margin, -margin);
+        const bottomRight = this.toLogicalCoords(width + margin, height + margin);
+        
+        const minX = Math.min(topLeft.x, bottomRight.x) - margin;
+        const maxX = Math.max(topLeft.x, bottomRight.x) + margin;
+        const minY = Math.min(topLeft.y, bottomRight.y) - margin;
+        const maxY = Math.max(topLeft.y, bottomRight.y) + margin;
+        
+        if (Math.abs(B) > Math.abs(A)) {
+          x1 = minX;
+          y1 = (C - A * x1) / B;
+          x2 = maxX;
+          y2 = (C - A * x2) / B;
+        } else {
+          y1 = minY;
+          x1 = (C - B * y1) / A;
+          y2 = maxY;
+          x2 = (C - B * y2) / A;
+        }
+        
+        const start = this.toCanvasCoords(x1, y1);
+        const end = this.toCanvasCoords(x2, y2);
+        
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = state.highlightIndex === index ? "red" : "rgba(100, 100, 100, 0.7)";
+        this.ctx.lineWidth = state.highlightIndex === index ? 3 : 1;
+        this.ctx.setLineDash(state.highlightIndex === index ? [] : [5, 5]);
+        this.ctx.moveTo(start.x, start.y);
+        this.ctx.lineTo(end.x, end.y);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
       });
     }
   }
@@ -409,6 +468,7 @@ export class CanvasManager {
     this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     this.drawGrid();
     this.drawPolygon();
+    this.drawConstraintLines();
     this.drawAnalyticCenter();
     this.drawObjective();
     this.drawIteratePath();
