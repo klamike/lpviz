@@ -317,6 +317,15 @@ canvas {
   fill: #eee;
 }
 
+#shareButton {
+  width: 45px;
+  height: 45px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ================================
     Z-Scale Vertical Slider
     ================================ */

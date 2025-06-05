@@ -1,6 +1,7 @@
 import { CanvasManager } from "./ui/canvasManager.js";
 import { UIManager } from "./ui/uiManager.js";
 import { setupEventHandlers } from "./ui/eventHandlers.js";
+import JSONCrush from "jsoncrush";
 
 const canvas = document.getElementById("gridCanvas");
 const canvasManager = new CanvasManager(canvas);
@@ -16,7 +17,20 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
-setupEventHandlers(canvasManager, uiManager);
+const handlers = setupEventHandlers(canvasManager, uiManager);
+
+const params = new URLSearchParams(window.location.search);
+if (params.has("s")) {
+  try {
+    const crushed = decodeURIComponent(params.get("s"));
+    const jsonString = JSONCrush.uncrush(crushed);
+    const data = JSON.parse(jsonString);
+    handlers.loadStateFromObject(data);
+    history.replaceState(null, "", window.location.pathname);
+  } catch (err) {
+    console.error("Failed to load shared state", err);
+  }
+}
 
 uiManager.update3DButtonState();
 uiManager.updateZScaleValue();

@@ -144,7 +144,7 @@
               </div>
               <div style="margin-bottom: 10px;">
                 <label for="constraintsInput" style="display: block; margin-bottom: 5px;">Constraints (one per line):</label>
-                <textarea id="constraintsInput" rows="6" placeholder="x + y &lt;= 10&#10;2x - y &gt;= 0&#10;x &gt;= 0&#10;y &gt;= 0"
+                <textarea id="constraintsInput" rows="6" placeholder="x + y &lt;= 10&#10;2x - y &gt;= 0&#10;x &gt;= 1&#10;y &gt;= 0"
                           style="width: 100%; background: #222; color: #eee; border: 1px solid #555; padding: 5px; font-family: 'JuliaMono', monospace; resize: vertical; box-sizing: border-box;"></textarea>
                 <div style="font-size: 11px; color: #999; margin-top: 3px;">
                   Examples: "x + y &lt;= 5", "2x - 3y &gt;= 1", "x &gt;= 0"
@@ -206,8 +206,14 @@
         </svg>
       </button>
       <button id="toggle3DButton" title="Toggle 3D Mode">3D</button>
+      <button id="shareButton" title="Share this configuration">
+        <svg fill="currentColor" width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="share-alt" class="icon glyph">
+          <path d="M20,21H4a2,2,0,0,1-2-2V6A2,2,0,0,1,4,4H8A1,1,0,0,1,8,6H4V19H20V13a1,1,0,0,1,2,0v6A2,2,0,0,1,20,21Z"></path>
+          <path d="M21.62,6.22l-5-4a1,1,0,0,0-1.05-.12A1,1,0,0,0,15,3V4.19a9.79,9.79,0,0,0-7,7.65,1,1,0,0,0,.62,1.09A1,1,0,0,0,9,13a1,1,0,0,0,.83-.45C11,10.78,13.58,10.24,15,10.07V11a1,1,0,0,0,.57.9,1,1,0,0,0,1.05-.12l5-4a1,1,0,0,0,0-1.56Z"></path>
+        </svg>
+      </button>
       <div id="zScaleSliderContainer" style="display: none; margin-top: 10px; text-align: center;">
-        <label for="zScaleSlider" style="display: block; font-size: 10px; color: #333; margin-bottom: 5px;">Z Scale</label>
+        <label for="zScaleSlider" style="display: block; font-size: 10px; color: #333; margin-bottom: 5px;">Scale</label>
         <input type="range" id="zScaleSlider" min="0.01" max="10" step="0.01" value="0.1" 
                orient="vertical" title="Adjust Z-axis scale">
         <div id="zScaleValue" style="font-size: 9px; color: #666; margin-top: 5px;">0.10</div>

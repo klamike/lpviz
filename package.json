@@ -12,6 +12,7 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "jsoncrush": "^1.1.8",
     "ml-matrix": "^6.12.1",
     "sprintf-js": "^1.1.3"
   }
