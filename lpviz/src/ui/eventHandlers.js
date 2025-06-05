@@ -989,6 +989,233 @@ export function setupEventHandlers(canvasManager, uiManager) {
     canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - logical.y;
     canvasManager.draw();
   });
+
+  // Manual Input Event Handlers
+  setupManualInputHandlers(canvasManager, uiManager);
   
+}
+
+function setupManualInputHandlers(canvasManager, uiManager) {
+  const inputModeToggle = document.getElementById("inputModeToggle");
+  const manualInputControls = document.getElementById("manualInputControls");
+  const applyConstraintsButton = document.getElementById("applyConstraintsButton");
+  const constraintErrors = document.getElementById("constraintErrors");
+  inputModeToggle.addEventListener("click", () => {
+    console.log('Toggling input mode, current mode:', state.inputMode);
+    if (state.inputMode === 'visual') {
+      state.inputMode = 'manual';
+      inputModeToggle.textContent = 'Visual Mode';
+      manualInputControls.style.display = 'block';
+      console.log('Switched to manual input mode');
+    } else {
+      state.inputMode = 'visual';
+      inputModeToggle.textContent = 'Manual Input Mode';
+      manualInputControls.style.display = 'none';
+      console.log('Switched to visual input mode');
+    }
+  });
+
+  applyConstraintsButton.addEventListener("click", () => {
+    applyManualConstraints(canvasManager, uiManager);
+    applyManualConstraints(canvasManager, uiManager); // FIXME: why does it not work the first time...
+  });
+}
+
+async function applyManualConstraints(canvasManager, uiManager) {
+  console.log('Apply constraints button clicked');
+  const constraintsInput = document.getElementById("constraintsInput");
+  const objectiveInput = document.getElementById("objectiveInput");
+  const objectiveDirection = document.getElementById("objectiveDirection");
+  const constraintErrors = document.getElementById("constraintErrors");
+
+  console.log('Constraints input:', constraintsInput.value);
+  console.log('Objective input:', objectiveInput.value);
+
+  constraintErrors.style.display = 'none';
+  constraintErrors.innerHTML = '';
+
+  try {
+    const { parseConstraints, parseObjective } = await import('../utils/constraintParser.js');
+
+    const constraintLines = constraintsInput.value.split('\n').filter(line => line.trim() !== '');
+    const constraintResult = parseConstraints(constraintLines);
+
+    if (!constraintResult.success) {
+      constraintErrors.innerHTML = constraintResult.errors.join('<br>');
+      constraintErrors.style.display = 'block';
+      return;
+    }
+
+    const objectiveStr = objectiveInput.value.trim();
+    let objectiveResult = null;
+    if (objectiveStr) {
+      const fullObjectiveStr = objectiveDirection.value + ' ' + objectiveStr;
+      objectiveResult = parseObjective(fullObjectiveStr);
+      if (!objectiveResult.success) {
+        constraintErrors.innerHTML = 'Objective error: ' + objectiveResult.error;
+        constraintErrors.style.display = 'block';
+        return;
+      }
+    }
+
+    state.manualConstraints = constraintLines;
+    state.parsedConstraints = constraintResult.constraints;
+    state.objectiveDirection = objectiveDirection.value;
+    
+    if (objectiveResult) {
+      state.manualObjective = objectiveStr;
+      const sign = objectiveResult.direction === 'min' ? -1 : 1;
+      state.objectiveVector = { x: objectiveResult.x * sign, y: objectiveResult.y * sign };
+    }
+
+    state.computedLines = constraintResult.constraints;
+    
+    const vertices = computeVerticesFromConstraints(constraintResult.constraints);
+    if (vertices.length > 0) {
+      state.computedVertices = vertices;
+      
+      const sortedVertices = sortVerticesCounterClockwise(vertices);
+      state.vertices = sortedVertices.map(v => ({ x: v[0], y: v[1] }));
+      
+      updateConstraintDisplay(constraintResult.constraints, canvasManager);
+      
+      const maximizeDiv = document.getElementById("maximize");
+      if (objectiveResult) {
+        maximizeDiv.textContent = objectiveResult.direction === 'min' ? 'minimize' : 'maximize';
+        maximizeDiv.style.display = "block";
+      }
+      
+      uiManager.updateObjectiveDisplay();
+      uiManager.updateSolverModeButtons();
+      canvasManager.draw();
+      
+      state.polygonComplete = true;
+      uiManager.hideNullStateMessage();
+      
+      console.log('Manual constraints applied successfully');
+      console.log('Vertices:', state.vertices);
+    } else {
+      constraintErrors.innerHTML = 'No feasible region found or unbounded region (not supported in MVP)';
+      constraintErrors.style.display = 'block';
+    }
+
+  } catch (error) {
+    console.error('Error applying constraints:', error);
+    constraintErrors.innerHTML = 'Error parsing constraints: ' + error.message;
+    constraintErrors.style.display = 'block';
+  }
+}
+
+function computeVerticesFromConstraints(constraints) {
+  const vertices = [];
+  const tol = 1e-6;
+  
+  for (let i = 0; i < constraints.length - 1; i++) {
+    for (let j = i + 1; j < constraints.length; j++) {
+      const [A1, B1, C1] = constraints[i];
+      const [A2, B2, C2] = constraints[j];
+      const det = A1 * B2 - A2 * B1;
+
+      if (Math.abs(det) < tol) continue;
+
+      const x = (C1 * B2 - C2 * B1) / det;
+      const y = (A1 * C2 - A2 * C1) / det;
+
+      let feasible = true;
+      for (const [A, B, C] of constraints) {
+        if (A * x + B * y > C + tol) {
+          feasible = false;
+          break;
+        }
+      }
+
+      if (feasible) {
+        vertices.push([parseFloat(x.toFixed(2)), parseFloat(y.toFixed(2))]);
+      }
+    }
+  }
+
+  return vertices;
+}
+
+function sortVerticesCounterClockwise(vertices) {
+  if (vertices.length <= 2) return vertices;  
+  const cx = vertices.reduce((sum, v) => sum + v[0], 0) / vertices.length;
+  const cy = vertices.reduce((sum, v) => sum + v[1], 0) / vertices.length;
+  return vertices.slice().sort((a, b) => {
+    const angleA = Math.atan2(a[1] - cy, a[0] - cx);
+    const angleB = Math.atan2(b[1] - cy, b[0] - cx);
+    return angleA - angleB;
+  });
+}
+
+function updateConstraintDisplay(constraints, canvasManager) {
+  const inequalitiesDiv = document.getElementById("inequalities");
+  
+  const formattedConstraints = constraints.map(([A, B, C]) => {
+    return formatConstraintForDisplay(A, B, C);
+  });
+
+  inequalitiesDiv.innerHTML = formattedConstraints
+    .map((ineq, index) => `
+      <div class="inequality-item" data-index="${index}">
+        ${ineq}
+      </div>
+    `)
+    .join("");
+
+  document.querySelectorAll(".inequality-item").forEach((item) => {
+    item.addEventListener("mouseenter", () => {
+      state.highlightIndex = parseInt(item.getAttribute("data-index"));
+      canvasManager.draw();
+    });
+    item.addEventListener("mouseleave", () => {
+      state.highlightIndex = null;
+      canvasManager.draw();
+    });
+  });
+
+  if (constraints.length > 0) {
+    document.getElementById("subjectTo").style.display = "block";
+  }
+}
+
+function formatConstraintForDisplay(A, B, C) {
+  const formatFloat = (x) => x === Math.floor(x) ? x : parseFloat(x.toFixed(3));
+  
+  let A_disp = formatFloat(A);
+  let B_disp = formatFloat(B);
+  let C_disp = formatFloat(C);
+
+  let ineq_sign = "≤";
+  if (A_disp <= 0 && B_disp <= 0 && C_disp <= 0 && !(A_disp === 0 && B_disp === 0 && C_disp === 0)) {
+    A_disp = -A_disp;
+    B_disp = -B_disp;
+    C_disp = -C_disp;
+    ineq_sign = "≥";
+  }
+
+  let Ax_str = "";
+  if (A_disp === 1) Ax_str = "x";
+  else if (A_disp === -1) Ax_str = "-x";
+  else if (A_disp !== 0) Ax_str = `${A_disp}x`;
+
+  let By_str = "";
+  if (B_disp !== 0) {
+    const B_abs_val = Math.abs(B_disp);
+    const B_term_val = B_abs_val === 1 ? "y" : `${B_abs_val}y`;
+
+    if (A_disp === 0) {
+      By_str = B_disp < 0 ? `-${B_term_val}` : B_term_val;
+    } else {
+      By_str = B_disp < 0 ? ` - ${B_term_val}` : ` + ${B_term_val}`;
+    }
+  }
+  
+  if (Ax_str === "" && By_str === "") {
+    return `0 ${ineq_sign} ${C_disp}`;
+  }
+
+  return `${Ax_str}${By_str} ${ineq_sign} ${C_disp}`.trim();
 }
 
