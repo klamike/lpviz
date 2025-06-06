@@ -126,36 +126,6 @@
               </div>
             </div>
           </div>
-          <div class="controlPanel" id="manualInputPanel" style="margin-top: 10px; margin-bottom: 20px;">
-            <div style="margin-bottom: 10px;">
-              <button id="inputModeToggle" style="width: 100%;">Manual Input Mode</button>
-            </div>
-            <div id="manualInputControls" style="display: none;">
-              <div style="margin-bottom: 10px;">
-                <label for="objectiveInput" style="display: block; margin-bottom: 5px;">Objective Function:</label>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                  <select id="objectiveDirection" style="background: #222; color: #eee; border: 1px solid #555; padding: 2px;">
-                    <option value="max">max</option>
-                    <option value="min">min</option>
-                  </select>
-                  <input type="text" id="objectiveInput" placeholder="3x + 2y" 
-                         style="flex: 1; background: #222; color: #eee; border: 1px solid #555; padding: 5px;">
-                </div>
-              </div>
-              <div style="margin-bottom: 10px;">
-                <label for="constraintsInput" style="display: block; margin-bottom: 5px;">Constraints (one per line):</label>
-                <textarea id="constraintsInput" rows="6" placeholder="x + y &lt;= 10&#10;2x - y &gt;= 0&#10;x &gt;= 1&#10;y &gt;= 0"
-                          style="width: 100%; background: #222; color: #eee; border: 1px solid #555; padding: 5px; font-family: 'JuliaMono', monospace; resize: vertical; box-sizing: border-box;"></textarea>
-                <div style="font-size: 11px; color: #999; margin-top: 3px;">
-                  Examples: "x + y &lt;= 5", "2x - 3y &gt;= 1", "x &gt;= 0"
-                </div>
-              </div>
-              <div style="margin-bottom: 10px;">
-                <button id="applyConstraintsButton" style="width: 100%;">Apply</button>
-              </div>
-              <div id="constraintErrors" style="color: #ff6b6b; font-size: 12px; margin-top: 5px; display: none;"></div>
-            </div>
-          </div>
           <label style="display: none;" for="replaySpeedSlider">Speed:</label>
           <input style="display: none;" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1"
             autocomplete="off">
