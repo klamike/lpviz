@@ -9,14 +9,20 @@ export function parseConstraint(constraintStr) {
     if (cleaned.includes('<=')) {
       operator = '<=';
       parts = cleaned.split('<=');
+    } else if (cleaned.includes('≥')) {
+      operator = '>=';
+      parts = cleaned.split('≥');
     } else if (cleaned.includes('>=')) {
       operator = '>=';
       parts = cleaned.split('>=');
-    } else if (cleaned.includes('=') && !cleaned.includes('<=') && !cleaned.includes('>=')) {
+    } else if (cleaned.includes('≤')) {
+      operator = '<=';
+      parts = cleaned.split('≤');
+    } else if (cleaned.includes('=') && !cleaned.includes('<=') && !cleaned.includes('>=') && !cleaned.includes('≤') && !cleaned.includes('≥')) {
       operator = '=';
       parts = cleaned.split('=');
     } else {
-      return { success: false, error: "No valid operator found (<=, >=, =)" };
+      return { success: false, error: "No valid operator found (<=, >=, =, ≤, ≥)" };
     }
     
     if (parts.length !== 2) {
