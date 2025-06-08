@@ -1006,7 +1006,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
 
   // Manual Input Event Handlers
-  setupManualInputHandlers(canvasManager, uiManager);
+  // setupManualInputHandlers(canvasManager, uiManager);
 
   function generateShareLink() {
     const settings = {};
