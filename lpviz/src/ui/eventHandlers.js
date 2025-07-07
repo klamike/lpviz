@@ -74,7 +74,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
         (v) => distance(logicalCoords, v) < 0.5
       );
       if (idx !== -1) {
-        state.draggingPointIndex = idx;
+        // Don't immediately set draggingPointIndex - wait for actual movement
+        state.potentialDragPointIndex = idx;
+        state.dragStartPos = { x: clientX, y: clientY };
       }
       return; // Don't allow panning or objective drag before polygon is complete
     } else {
@@ -96,7 +98,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
         (v) => distance(logicalCoords, v) < 0.5
       );
       if (idx !== -1) {
-        state.draggingPointIndex = idx;
+        state.potentialDragPointIndex = idx;
+        state.dragStartPos = { x: clientX, y: clientY };
         return;
       }
 
@@ -117,6 +120,18 @@ export function setupEventHandlers(canvasManager, uiManager) {
     const rect = canvas.getBoundingClientRect();
     const localX = clientX - rect.left;
     const localY = clientY - rect.top;
+
+    // Check if we should start dragging a point (after some movement)
+    if (state.potentialDragPointIndex !== null && state.draggingPointIndex === null) {
+      const dragDistance = Math.hypot(
+        clientX - state.dragStartPos.x,
+        clientY - state.dragStartPos.y
+      );
+      if (dragDistance > 5) { // Threshold to distinguish click from drag
+        state.draggingPointIndex = state.potentialDragPointIndex;
+        state.potentialDragPointIndex = null;
+      }
+    }
 
     if (state.draggingPointIndex !== null) {
       state.vertices[state.draggingPointIndex] = canvasManager.toLogicalCoords(localX, localY);
@@ -151,6 +166,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
   }
 
   function handleDragEnd() {
+    // Clear potential drag state
+    state.potentialDragPointIndex = null;
+    state.dragStartPos = null;
+    
     if (state.isPanning) {
       state.isPanning = false;
       state.wasPanning = true; // Keep track for click event logic

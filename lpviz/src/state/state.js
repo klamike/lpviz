@@ -19,6 +19,8 @@ export const state = {
   rotateObjectiveMode: false,
   barrierWeightsVisible: false,
   draggingPointIndex: null,
+  potentialDragPointIndex: null,
+  dragStartPos: null,
   draggingObjective: false,
   barrierWeights: [],
   solverMode: "central",
