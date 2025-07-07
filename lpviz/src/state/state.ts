@@ -27,7 +27,7 @@ export interface State {
   draggingObjective: boolean;
   barrierWeights: number[];
   solverMode: string;
-  animationIntervalId: any;
+  animationIntervalId: number | null;
   originalIteratePath: number[][];
   isPanning: boolean;
   lastPan: { x: number; y: number };
@@ -54,7 +54,7 @@ export interface State {
   manualConstraints: string[];
   manualObjective: string | null;
   objectiveDirection: 'max' | 'min';
-  parsedConstraints: any[];
+  parsedConstraints: number[][];
 }
 
 export const state: State = {

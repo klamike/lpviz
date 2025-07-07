@@ -3,7 +3,7 @@ import { sprintf } from 'sprintf-js';
 import { dot, normInf, vectorAdd, vectorSub, scale, zeros, ones, copy, linesToAb } from '../utils/blas';
 
 // --- Central Path specific functions ---
-function centroid(vertices: string | any[]) {
+function centroid(vertices: number[][]) {
   if (!vertices || vertices.length === 0) return [0, 0]; // Default for 2D if no vertices
   const n = vertices[0].length;
   const summed = zeros(n);
@@ -50,7 +50,7 @@ function centralPathMu(niter: number) {
 }
 
 
-function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: number, x0Vec: number[], opts: any = {}) {
+function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: number, x0Vec: number[], opts: { maxit?: number, epsilon?: number, verbose?: boolean } = {}) {
   const { maxit = 2000, epsilon = 1e-4, verbose = false } = opts;
   
   let x = copy(x0Vec);
@@ -178,7 +178,7 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
 }
 
 
-export function centralPath(vertices: number[][], lines: number[][], objective: number[], opts: any = {}) {
+export function centralPath(vertices: number[][], lines: number[][], objective: number[], opts: { niter?: number, weights?: number[] | null, verbose?: boolean } = {}) {
   const { niter = 100, weights = null, verbose = false } = opts;
 
   if (niter > 2**10) {

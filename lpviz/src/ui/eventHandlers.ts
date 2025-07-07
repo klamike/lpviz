@@ -636,9 +636,9 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     state.highlightIteratePathIndex = null;
     canvasManager.draw();
     let currentIndex = 0;
-    state.animationIntervalId = setInterval(() => {
+    const intervalId = setInterval(() => {
       if (currentIndex >= iteratesToAnimate.length) {
-        clearInterval(state.animationIntervalId);
+        clearInterval(intervalId);
         state.animationIntervalId = null;
         return;
       }
@@ -728,10 +728,13 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       );
       const sol = result.iterates.solution;
       const logArray = sol.log;
-      const iteratesArray = sol.x.map((x: number) => [x]);
-      state.originalIteratePath = [...iteratesArray];
+      const iteratesArray = sol.x.map((val, i) => sol.x[i]);
+      // @ts-ignore
+      state.originalIteratePath = [...iteratesArray];  
+      // @ts-ignore
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
+        // @ts-ignore
         state.accumulatedTraces.push([...iteratesArray]);
       }
       let html = "";
@@ -1216,9 +1219,8 @@ async function applyManualConstraints(canvasManager: CanvasManager, uiManager: U
         return;
       }
     }
-
     state.manualConstraints = constraintLines;
-    state.parsedConstraints = constraintResult.constraints;
+    state.parsedConstraints = constraintResult.constraints as number[][];
     state.objectiveDirection = objectiveDirection.value as 'max' | 'min';
     
     if (objectiveResult) {
@@ -1234,9 +1236,9 @@ async function applyManualConstraints(canvasManager: CanvasManager, uiManager: U
       state.computedVertices = vertices;
       
       const sortedVertices = sortVerticesCounterClockwise(vertices);
-      state.vertices = sortedVertices.map((v: Vec2) => ({ x: v.x, y: v.y } as Vec2));
+      state.vertices = sortedVertices.map((v: number[]) => ({ x: v[0], y: v[1] } as Vec2));
       
-      updateConstraintDisplay(constraintResult.constraints, canvasManager);
+      updateConstraintDisplay(constraintResult.constraints as number[][], canvasManager);
       
       const maximizeDiv = document.getElementById("maximize") as HTMLElement;
       if (objectiveResult) {
@@ -1298,10 +1300,10 @@ function computeVerticesFromConstraints(constraints: number[][]) {
   return vertices;
 }
 
-function sortVerticesCounterClockwise(vertices: any[]) {
+function sortVerticesCounterClockwise(vertices: number[][]) {
   if (vertices.length <= 2) return vertices;  
-  const cx = vertices.reduce((sum: any, v: any[]) => sum + v[0], 0) / vertices.length;
-  const cy = vertices.reduce((sum: any, v: any[]) => sum + v[1], 0) / vertices.length;
+  const cx = vertices.reduce((sum: number, v: number[]) => sum + v[0], 0) / vertices.length;
+  const cy = vertices.reduce((sum: number, v: number[]) => sum + v[1], 0) / vertices.length;
   return vertices.slice().sort((a: number[], b: number[]) => {
     const angleA = Math.atan2(a[1] - cy, a[0] - cx);
     const angleB = Math.atan2(b[1] - cy, b[0] - cx);
@@ -1309,7 +1311,7 @@ function sortVerticesCounterClockwise(vertices: any[]) {
   });
 }
 
-function updateConstraintDisplay(constraints: any[], canvasManager: { draw: () => void; }) {
+function updateConstraintDisplay(constraints: number[][], canvasManager: { draw: () => void; }) {
   const inequalitiesDiv = document.getElementById("inequalities") as HTMLElement;
   
   const formattedConstraints = constraints.map(([A, B, C]) => {
@@ -1317,7 +1319,7 @@ function updateConstraintDisplay(constraints: any[], canvasManager: { draw: () =
   });
 
   inequalitiesDiv.innerHTML = formattedConstraints
-    .map((ineq: any, index: any) => `
+    .map((ineq: string, index: number) => `
       <div class="inequality-item" data-index="${index}">
         ${ineq}
       </div>
@@ -1340,7 +1342,7 @@ function updateConstraintDisplay(constraints: any[], canvasManager: { draw: () =
   }
 }
 
-function formatConstraintForDisplay(A: any, B: any, C: any) {
+function formatConstraintForDisplay(A: number, B: number, C: number) {
   const formatFloat = (x: number) => x === Math.floor(x) ? x : parseFloat(x.toFixed(3));
   
   let A_disp = formatFloat(A);

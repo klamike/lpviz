@@ -1,4 +1,4 @@
-import { state } from "../state/state";
+import { state, Vec2 } from "../state/state";
 import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
 
 export class CanvasManager {
@@ -388,7 +388,7 @@ export class CanvasManager {
 
   drawIteratePath() {
     if (state.traceEnabled) {
-      const drawPath = (path: string | any[]) => {
+      const drawPath = (path: number[][]) => {
         if (path.length > 0) {
           this.ctx.strokeStyle = "rgba(255, 165, 0, 0.6)";
           this.ctx.lineWidth = 1.5;
@@ -422,7 +422,7 @@ export class CanvasManager {
         }
       };
       
-      const drawPoints = (path: any[]) => {
+      const drawPoints = (path: number[][]) => {
         path.forEach((entry: number[]) => {
           const z = entry[2] !== undefined ? entry[2] : 
             (state.objectiveVector ? state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1] : 0);
@@ -482,7 +482,7 @@ export class CanvasManager {
     this.drawIteratePath();
   }
 
-  isPolygonConvex(points: string | any[]) {
+  isPolygonConvex(points: Vec2[]) {
     if (points.length < 3) return true;
     let prevCross = 0;
     for (let i = 0, n = points.length; i < n; i++) {
@@ -498,7 +498,7 @@ export class CanvasManager {
     return true;
   }
 
-  isLineVisible(startPoint: { x: any; y: any; }, endPoint: { x: any; y: any; }, width: number, height: number) {
+  isLineVisible(startPoint: Vec2, endPoint: Vec2, width: number, height: number) {
     const margin = 100;
     
     const minX = Math.min(startPoint.x, endPoint.x);

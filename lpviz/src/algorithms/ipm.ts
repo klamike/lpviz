@@ -49,7 +49,7 @@ export function ipm(lines: number[][], objective: number[],
   });
 }
 
-function ipmCore(Araw: number[][], b: number[], c: number[], opts: any) {
+function ipmCore(Araw: number[][], b: number[], c: number[], opts: { eps_p: number, eps_d: number, eps_opt: number, maxit: number, alphaMax: number, verbose: boolean }) {
   const {
     eps_p,
     eps_d,
@@ -151,7 +151,7 @@ function ipmCore(Araw: number[][], b: number[], c: number[], opts: any) {
     pushIter(res.iterates.predictor, dxAff, dsAff, dyAff, muAff);
 
     // Corrector (if needed) -----------------------------------------
-    let dx: any[], ds: any[], dy: any[], stepP: number, stepD: number;
+    let dx: number[], ds: number[], dy: number[], stepP: number, stepD: number;
     if (!(alphaP >= 0.9 && alphaD >= 0.9)) {
       const sigma = Math.max(1e-8, Math.min(1 - 1e-8, (muAff / mu) ** 3));
       const rhsCor = [...zeros(m), ...zeros(n), ...s.map((si, i) => sigma * mu - dsAff[i] * dyAff[i])];
@@ -187,18 +187,18 @@ function alphaScalar(xi: number, dxi: number) {
   return dxi >= 0 ? 1.0 : -xi / dxi;
 }
 
-function alphaStep(x: any[], dx: any[]) {
+function alphaStep(x: number[], dx: number[]) {
   return Math.min(1.0, Math.min(...x.map((xi: number, i: number) => alphaScalar(xi, dx[i]))));
 }
 
-function pushIter(d: { x: any; s: any; y: any; mu: any; log?: any[]; }, x: any[], s: any[], y: any[], mu: number) {
+function pushIter(d: { x: any; s: any; y: any; mu: any; log?: any[]; }, x: number[], s: number[], y: number[], mu: number) {
   d.x.push(copy(x));
   d.s.push(copy(s));
-  d.y.push(copy(y));
+  d.y.push(copy(y) as number[]);
   d.mu.push(mu);
 }
-
-function logIter(d: { x: any; s?: any[]; y?: any[]; mu?: any[]; log: any; }, verbose: any, x: any[], mu: number, pObj: number, pRes: any) {
+  
+function logIter(d: { x: any; s: any; y: any; mu: any; log: any; }, verbose: boolean, x: number[], mu: number, pObj: number, pRes: number) {
   const msg = sprintf(
     "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n",
     d.x.length, x[0], x[1] ?? 0, -pObj, pRes, mu,
@@ -207,7 +207,7 @@ function logIter(d: { x: any; s?: any[]; y?: any[]; mu?: any[]; log: any; }, ver
   d.log.push(msg);
 }
 
-function logFinal(d: { x: any; s?: any[]; y?: any[]; mu?: any[]; log: any; }, verbose: any, converged: boolean, tSolve: number) {
+function logFinal(d: { x: any; s: any; y: any; mu: any; log: any; }, verbose: boolean, converged: boolean, tSolve: number) {
   const msg = converged
     ? `Converged to primal-dual optimal solution in ${tSolve} ms\n`
     : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;

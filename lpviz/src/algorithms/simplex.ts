@@ -25,7 +25,10 @@ function hstack(...mats: Matrix[]) {
   return out;
 }
 
-export function simplex(lines: number[][], objective: number[], opts: any = {}) {
+export function simplex(lines: number[][], objective: number[], opts: { tol: number, verbose: boolean } = {
+  tol: 1e-6,
+  verbose: false,
+}) {
   const { tol = 1e-6, verbose = false } = opts;
 
   const { A: A_orig, b } = linesToAb(lines);
@@ -84,7 +87,7 @@ export function simplex(lines: number[][], objective: number[], opts: any = {}) 
 /* ======================================================================== */
 /*  Core simplex:  max cᵀx  s.t.  A x = b , x ≥ 0  (basis given)            */
 /* ======================================================================== */
-function simplexCore(cVec: number[], A: Matrix, bVec: number[], basisInit: boolean[], cfg: any) {
+function simplexCore(cVec: number[], A: Matrix, bVec: number[], basisInit: boolean[], cfg: { tol: number, verbose: boolean, phase1: boolean, nOrig: number, m: number }) {
   const { tol, verbose, phase1, nOrig, m } = cfg;
   const mRows = A.rows;
   const nCols = A.columns;

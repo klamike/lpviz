@@ -130,7 +130,13 @@ function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: { maxit:
   return [iterates, logs];
 }
 
-function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: any = {}) {
+function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: { maxit: number, eta: number, tau: number, tol: number, verbose: boolean } = {
+  maxit: 1000,
+  eta: 0.25,
+  tau: 0.25,
+  tol: 1e-4,
+  verbose: false,
+}) {
   const {
     maxit = 1000,
     eta = 0.25,
@@ -223,7 +229,16 @@ function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: any = 
  * Usage for directly providing A, b, c for standard form:
  *   pdhg(A_matrixInstance, b_vector, { isStandardProblem: true, cStandard: c_vector, maxit, eta, tau, verbose, tol })
  */
-export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: number[] | number[][], options: any = {}) {
+export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: number[] | number[][], options: { ineq: boolean, maxit: number, eta: number, tau: number, verbose: boolean, tol: number, isStandardProblem: boolean, cStandard: number[] } = {
+  ineq: false,
+  maxit: 1000,
+  eta: 0.25,
+  tau: 0.25,
+  verbose: false,
+  tol: 1e-4,
+  isStandardProblem: false,
+  cStandard: [],
+}) {
   const {
     ineq = false,
     maxit = 1000,
