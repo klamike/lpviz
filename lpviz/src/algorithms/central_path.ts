@@ -1,6 +1,7 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { dot, normInf, vectorAdd, vectorSub, scale, zeros, ones, copy, linesToAb } from '../utils/blas';
+import { CentralPathOptions, CentralPathXkOptions } from '../types/solverOptions';
 
 // --- Central Path specific functions ---
 function centroid(vertices: number[][]) {
@@ -50,8 +51,8 @@ function centralPathMu(niter: number) {
 }
 
 
-function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: number, x0Vec: number[], opts: { maxit?: number, epsilon?: number, verbose?: boolean } = {}) {
-  const { maxit = 2000, epsilon = 1e-4, verbose = false } = opts;
+function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: number, x0Vec: number[], opts: CentralPathXkOptions) {
+  const { maxit, epsilon, verbose } = opts;
   
   let x = copy(x0Vec);
 
@@ -178,8 +179,8 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
 }
 
 
-export function centralPath(vertices: number[][], lines: number[][], objective: number[], opts: { niter?: number, weights?: number[] | null, verbose?: boolean } = {}) {
-  const { niter = 100, weights = null, verbose = false } = opts;
+export function centralPath(vertices: number[][], lines: number[][], objective: number[], opts: CentralPathOptions) {
+  const { niter, weights, verbose } = opts;
 
   if (niter > 2**10) {
     throw new Error("niter > 2^10 not allowed");

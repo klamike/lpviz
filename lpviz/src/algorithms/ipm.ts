@@ -1,32 +1,11 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from '../utils/blas';
+import { IPMOptions } from '../types/solverOptions';
 
 
-export function ipm(lines: number[][], objective: number[],
-  opts: {
-    eps_p: number,
-    eps_d: number,
-    eps_opt: number,
-    maxit: number,
-    alphaMax: number,
-    verbose: boolean
-  } = {
-  eps_p: 1e-6,
-  eps_d: 1e-6,
-  eps_opt: 1e-6,
-  maxit: 30,
-  alphaMax: 0.999,
-  verbose: false
-}) {
-  const {
-    eps_p = 1e-6,
-    eps_d = 1e-6,
-    eps_opt = 1e-6,
-    maxit = 30,
-    alphaMax = 0.999,
-    verbose = false,
-  } = opts;
+export function ipm(lines: number[][], objective: number[], opts: IPMOptions) {
+  const { eps_p, eps_d, eps_opt, maxit, alphaMax, verbose } = opts;
 
   if (maxit > 2 ** 16) {
     throw new Error('maxit > 2^16 not allowed');
@@ -49,7 +28,7 @@ export function ipm(lines: number[][], objective: number[],
   });
 }
 
-function ipmCore(Araw: number[][], b: number[], c: number[], opts: { eps_p: number, eps_d: number, eps_opt: number, maxit: number, alphaMax: number, verbose: boolean }) {
+function ipmCore(Araw: number[][], b: number[], c: number[], opts: IPMOptions) {
   const {
     eps_p,
     eps_d,

@@ -1,6 +1,7 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { zeros, ones, copy, dot, vectorSub, mtmul, linesToAb } from '../utils/blas';
+import { SimplexOptions } from '../types/solverOptions';
 
 function hstack(...mats: Matrix[]) {
   if (mats.length === 0) return new Matrix([]);
@@ -25,11 +26,8 @@ function hstack(...mats: Matrix[]) {
   return out;
 }
 
-export function simplex(lines: number[][], objective: number[], opts: { tol: number, verbose: boolean } = {
-  tol: 1e-6,
-  verbose: false,
-}) {
-  const { tol = 1e-6, verbose = false } = opts;
+export function simplex(lines: number[][], objective: number[], opts: SimplexOptions) {
+  const { tol, verbose } = opts;
 
   const { A: A_orig, b } = linesToAb(lines);
   const m = A_orig.rows;

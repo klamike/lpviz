@@ -1,6 +1,7 @@
 import { Matrix } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul } from '../utils/blas';
+import { PDHGCoreOptions, PDHGOptions } from '../types/solverOptions';
 
 function pdhgEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: number[]) {
   const Ax = mvmul(A, xk);
@@ -43,20 +44,8 @@ function pdhgIneqEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: 
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: { maxit: number, eta: number, tau: number, tol: number, verbose: boolean } = {
-  maxit: 0,
-  eta: 0,
-  tau: 0,
-  tol: 0,
-  verbose: false
-}) {
-  const {
-    maxit = 1000,
-    eta = 0.25,
-    tau = 0.25,
-    tol = 1e-4,
-    verbose = false,
-  } = options;
+function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: PDHGCoreOptions) {
+  const { maxit, eta, tau, tol, verbose } = options;
 
   const m = A.rows;
   const n = A.columns;
@@ -130,20 +119,8 @@ function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: { maxit:
   return [iterates, logs];
 }
 
-function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: { maxit: number, eta: number, tau: number, tol: number, verbose: boolean } = {
-  maxit: 1000,
-  eta: 0.25,
-  tau: 0.25,
-  tol: 1e-4,
-  verbose: false,
-}) {
-  const {
-    maxit = 1000,
-    eta = 0.25,
-    tau = 0.25,
-    tol = 1e-4,
-    verbose = false,
-  } = options;
+function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: PDHGCoreOptions) {
+  const { maxit, eta, tau, tol, verbose } = options;
 
   const m = A.rows;
   const n = A.columns;
@@ -229,16 +206,7 @@ function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: { maxi
  * Usage for directly providing A, b, c for standard form:
  *   pdhg(A_matrixInstance, b_vector, { isStandardProblem: true, cStandard: c_vector, maxit, eta, tau, verbose, tol })
  */
-export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: number[] | number[][], options: { ineq: boolean, maxit: number, eta: number, tau: number, verbose: boolean, tol: number, isStandardProblem: boolean, cStandard: number[] } = {
-  ineq: false,
-  maxit: 1000,
-  eta: 0.25,
-  tau: 0.25,
-  verbose: false,
-  tol: 1e-4,
-  isStandardProblem: false,
-  cStandard: [],
-}) {
+export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: number[] | number[][], options: PDHGOptions) {
   const {
     ineq = false,
     maxit = 1000,
