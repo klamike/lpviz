@@ -1,9 +1,9 @@
-import { CanvasManager } from "./ui/canvasManager.js";
-import { UIManager } from "./ui/uiManager.js";
-import { setupEventHandlers } from "./ui/eventHandlers.js";
+import { CanvasManager } from "./ui/canvasManager";
+import { UIManager } from "./ui/uiManager";
+import { setupEventHandlers } from "./ui/eventHandlers";
 import JSONCrush from "jsoncrush";
 
-const canvas = document.getElementById("gridCanvas");
+const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
 const canvasManager = new CanvasManager(canvas);
 const uiManager = new UIManager();
 
@@ -22,7 +22,7 @@ const handlers = setupEventHandlers(canvasManager, uiManager);
 const params = new URLSearchParams(window.location.search);
 if (params.has("s")) {
   try {
-    const crushed = decodeURIComponent(params.get("s"));
+    const crushed = decodeURIComponent(params.get("s") || "");
     const jsonString = JSONCrush.uncrush(crushed);
     const data = JSON.parse(jsonString);
     handlers.loadStateFromObject(data);

@@ -1,14 +1,20 @@
-import { state } from "../state/state.js";
+import { state } from "../state/state";
+import { CanvasManager } from "../ui/canvasManager";
+import { UIManager } from "../ui/uiManager";
 
-function easeInOutCubic(t) {
+function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-function lerpAngle(start, end, t) {
+function lerpAngle(start: number, end: number, t: number): number {
   return start + (end - start) * t;
 }
 
-export function start3DTransition(canvasManager, uiManager, targetMode) {
+export function start3DTransition(
+  canvasManager: CanvasManager,
+  uiManager: UIManager,
+  targetMode: boolean
+) {
   if (state.isTransitioning3D) {
     return;
   }
@@ -36,7 +42,12 @@ export function start3DTransition(canvasManager, uiManager, targetMode) {
   animate3DTransition(canvasManager, uiManager, targetMode, transitionDuration);
 }
 
-function animate3DTransition(canvasManager, uiManager, targetMode, transitionDuration) {
+function animate3DTransition(
+  canvasManager: CanvasManager,
+  uiManager: UIManager,
+  targetMode: boolean,
+  transitionDuration: number
+) {
   const currentTime = performance.now();
   const elapsed = currentTime - state.transitionStartTime;
   const progress = Math.min(elapsed / transitionDuration, 1);

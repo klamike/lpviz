@@ -28,3 +28,4 @@ server.so
 node_modules/
 bun.lock
 dist/
+dist-ts/

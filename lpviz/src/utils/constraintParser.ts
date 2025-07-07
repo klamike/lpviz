@@ -1,5 +1,5 @@
 
-export function parseConstraint(constraintStr) {
+export function parseConstraint(constraintStr: string) {
   try {
     const cleaned = constraintStr.trim().replace(/\s+/g, ' ');
     
@@ -43,21 +43,19 @@ export function parseConstraint(constraintStr) {
     }
     
     let finalA = A, finalB = B, finalC = C;
-    
     if (operator === '>=') {
-      finalA = -A;
-      finalB = -B;
-      finalC = -C;
+      finalA = -(A ?? 0);
+      finalB = -(B ?? 0);
+      finalC = -(C ?? 0);
     }
-    
     return { success: true, constraint: [finalA, finalB, finalC] };
     
   } catch (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-function parseLinearExpression(expr) {
+function parseLinearExpression(expr: string) {
   try {
     let x_coeff = 0;
     let y_coeff = 0;
@@ -108,11 +106,11 @@ function parseLinearExpression(expr) {
     return { success: true, x: x_coeff, y: y_coeff };
     
   } catch (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-export function parseObjective(objectiveStr) {
+export function parseObjective(objectiveStr: string) {
   try {
     const cleaned = objectiveStr.trim().toLowerCase();
     
@@ -138,11 +136,11 @@ export function parseObjective(objectiveStr) {
     return { success: true, direction, x, y };
     
   } catch (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-export function parseConstraints(constraintStrings) {
+export function parseConstraints(constraintStrings: string[]) {
   const constraints = [];
   const errors = [];
   
