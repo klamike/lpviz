@@ -1,10 +1,18 @@
-import { state } from "../state/state.js";
-import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d.js";
+import { state, Vec2 } from "../state/state";
+import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
 
 export class CanvasManager {
-  constructor(canvas) {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  gridSpacing: number;
+  scaleFactor: number;
+  offset: { x: number; y: number };
+  centerX: number;
+  centerY: number;
+
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    this.ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
     this.gridSpacing = 20;
     this.scaleFactor = 1;
     this.offset = { x: 0, y: 0 };
@@ -19,12 +27,12 @@ export class CanvasManager {
     this.canvas.style.width = `${window.innerWidth}px`;
     this.canvas.style.height = `${window.innerHeight}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const sidebarWidth = document.getElementById("sidebar").offsetWidth;
+    const sidebarWidth = document.getElementById("sidebar")?.offsetWidth || 0;
     this.centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
     this.centerY = window.innerHeight / 2;
   }
 
-  toLogicalCoords(x, y) {
+  toLogicalCoords(x: number, y: number) {
     if (state.is3DMode || state.isTransitioning3D) {
       let projected2D = {
         x: (x - this.centerX) / (this.gridSpacing * this.scaleFactor) - this.offset.x,
@@ -51,7 +59,7 @@ export class CanvasManager {
     }
   }
 
-  toCanvasCoords(x, y, z) {
+  toCanvasCoords(x: number, y: number, z?: number) {
     if (state.is3DMode || state.isTransitioning3D) {
       let actualZ = z;
       if (actualZ === undefined && state.objectiveVector) {
@@ -279,7 +287,7 @@ export class CanvasManager {
         
         if (Math.abs(A) < 1e-10 && Math.abs(B) < 1e-10) return;
         
-        let x1, y1, x2, y2;
+        let x1: number, y1: number, x2: number, y2: number;
         
         const margin = 50;
         const topLeft = this.toLogicalCoords(-margin, -margin);
@@ -356,7 +364,7 @@ export class CanvasManager {
     }
   }
 
-  drawStar(cx, cy, spikes, outerRadius, innerRadius, fillStyle) {
+  drawStar(cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number, fillStyle: string | CanvasGradient | CanvasPattern) {
     let rot = (Math.PI / 2) * 3;
     let x = cx;
     let y = cy;
@@ -378,59 +386,45 @@ export class CanvasManager {
     this.ctx.fill();
   }
 
+  drawSingleTrace(path: number[][]) {
+    if (path.length === 0) return;
+    
+    this.ctx.strokeStyle = "rgba(255, 165, 0, 0.6)";
+    this.ctx.lineWidth = 1.5;
+    this.ctx.beginPath();
+    
+    const startZ = path[0][2] !== undefined ? path[0][2] : 
+      (state.objectiveVector ? state.objectiveVector.x * path[0][0] + state.objectiveVector.y * path[0][1] : 0);
+    const start = this.toCanvasCoords(path[0][0], path[0][1], startZ);
+    this.ctx.moveTo(start.x, start.y);
+    
+    for (let i = 1; i < path.length; i++) {
+      const z = path[i][2] !== undefined ? path[i][2] : 
+        (state.objectiveVector ? state.objectiveVector.x * path[i][0] + state.objectiveVector.y * path[i][1] : 0);
+      const pt = this.toCanvasCoords(path[i][0], path[i][1], z);
+      this.ctx.lineTo(pt.x, pt.y);
+    }
+    
+    this.ctx.stroke();
+  
+    path.forEach((entry: number[]) => {
+      const z = entry[2] !== undefined ? entry[2] : 
+        (state.objectiveVector ? state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1] : 0);
+      const cp = this.toCanvasCoords(entry[0], entry[1], z);
+      this.ctx.beginPath();
+      this.ctx.fillStyle = "rgba(255, 165, 0, 0.8)";
+      this.ctx.arc(cp.x, cp.y, 2, 0, 2 * Math.PI);
+      this.ctx.fill();
+    });
+  }
+
   drawIteratePath() {
     if (state.traceEnabled) {
-      const drawPath = (path) => {
-        if (path.length > 0) {
-          this.ctx.strokeStyle = "rgba(255, 165, 0, 0.6)";
-          this.ctx.lineWidth = 1.5;
-          this.ctx.beginPath();
-          
-          const startZ = path[0][2] !== undefined ? path[0][2] : 
-            (state.objectiveVector ? state.objectiveVector.x * path[0][0] + state.objectiveVector.y * path[0][1] : 0);
-          const start = this.toCanvasCoords(path[0][0], path[0][1], startZ);
-          this.ctx.moveTo(start.x, start.y);
-          
-          for (let i = 1; i < path.length; i++) {
-            const z = path[i][2] !== undefined ? path[i][2] : 
-              (state.objectiveVector ? state.objectiveVector.x * path[i][0] + state.objectiveVector.y * path[i][1] : 0);
-            const pt = this.toCanvasCoords(path[i][0], path[i][1], z);
-            this.ctx.lineTo(pt.x, pt.y);
-          }
-          
-          if (path.length > 1) {
-            const endZ = path[path.length - 1][2] !== undefined ? path[path.length - 1][2] : 
-              (state.objectiveVector ? state.objectiveVector.x * path[path.length - 1][0] + state.objectiveVector.y * path[path.length - 1][1] : 0);
-            
-            if (endZ > startZ) {
-              console.log(`🔺 Z INCREASE DETECTED: Path with ${path.length} points has z increase from ${startZ.toFixed(4)} to ${endZ.toFixed(4)} (Δz = +${(endZ - startZ).toFixed(4)})`);
-              console.log(`   Start point: (${path[0][0].toFixed(3)}, ${path[0][1].toFixed(3)}, z=${startZ.toFixed(4)})`);
-              console.log(`   End point: (${path[path.length-1][0].toFixed(3)}, ${path[path.length-1][1].toFixed(3)}, z=${endZ.toFixed(4)})`);
-            }
-          }
-          
-          this.ctx.stroke();
-          this.ctx.beginPath();
-        }
-      };
-      
-      const drawPoints = (path) => {
-        path.forEach(entry => {
-          const z = entry[2] !== undefined ? entry[2] : 
-            (state.objectiveVector ? state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1] : 0);
-          const cp = this.toCanvasCoords(entry[0], entry[1], z);
-          this.ctx.beginPath();
-          this.ctx.fillStyle = "rgba(255, 165, 0, 0.8)";
-          this.ctx.arc(cp.x, cp.y, 2, 0, 2 * Math.PI);
-          this.ctx.fill();
+      if (state.traceBuffer && state.traceBuffer.length > 0) {
+        state.traceBuffer.forEach(traceEntry => {
+          this.drawSingleTrace(traceEntry.path);
         });
-      };
-      
-      if (state.accumulatedTraces && state.accumulatedTraces.length > 0) {
-        state.accumulatedTraces.forEach(drawPath);
-        state.accumulatedTraces.forEach(drawPoints);
       }
-      
     }
     
     if (state.iteratePath && state.iteratePath.length > 0) {
@@ -438,19 +432,19 @@ export class CanvasManager {
       this.ctx.lineWidth = 2;
       this.ctx.beginPath();
       
-      const startZ = state.iteratePath[0][2] !== undefined ? state.iteratePath[0][2] : state.objectiveVector.x * state.iteratePath[0][0] + state.objectiveVector.y * state.iteratePath[0][1];
+      const startZ = state.iteratePath[0][2] !== undefined ? state.iteratePath[0][2] : state.objectiveVector ? state.objectiveVector.x * state.iteratePath[0][0] + state.objectiveVector.y * state.iteratePath[0][1] : 0;
       const start = this.toCanvasCoords(state.iteratePath[0][0], state.iteratePath[0][1], startZ);
       this.ctx.moveTo(start.x, start.y);
       
       for (let i = 1; i < state.iteratePath.length; i++) {
-        const z = state.iteratePath[i][2] !== undefined ? state.iteratePath[i][2] : state.objectiveVector.x * state.iteratePath[i][0] + state.objectiveVector.y * state.iteratePath[i][1];
+        const z = state.iteratePath[i][2] !== undefined ? state.iteratePath[i][2] : state.objectiveVector ? state.objectiveVector.x * state.iteratePath[i][0] + state.objectiveVector.y * state.iteratePath[i][1] : 0;
         const pt = this.toCanvasCoords(state.iteratePath[i][0], state.iteratePath[i][1], z);
         this.ctx.lineTo(pt.x, pt.y);
       }
       this.ctx.stroke();
       
       state.iteratePath.forEach((entry, i) => {
-        const z = entry[2] !== undefined ? entry[2] : state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1];
+        const z = entry[2] !== undefined ? entry[2] : state.objectiveVector ? state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1] : 0;
         const cp = this.toCanvasCoords(entry[0], entry[1], z);
         if (i === state.iteratePath.length - 1) {
           this.drawStar(cp.x, cp.y, 5, 8, 4, "green");
@@ -474,7 +468,7 @@ export class CanvasManager {
     this.drawIteratePath();
   }
 
-  isPolygonConvex(points) {
+  isPolygonConvex(points: Vec2[]) {
     if (points.length < 3) return true;
     let prevCross = 0;
     for (let i = 0, n = points.length; i < n; i++) {
@@ -490,7 +484,7 @@ export class CanvasManager {
     return true;
   }
 
-  isLineVisible(startPoint, endPoint, width, height) {
+  isLineVisible(startPoint: Vec2, endPoint: Vec2, width: number, height: number) {
     const margin = 100;
     
     const minX = Math.min(startPoint.x, endPoint.x);

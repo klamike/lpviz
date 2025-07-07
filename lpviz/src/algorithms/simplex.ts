@@ -1,8 +1,9 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { zeros, ones, copy, dot, vectorSub, mtmul, linesToAb } from '../utils/blas.js';
+import { zeros, ones, copy, dot, vectorSub, mtmul, linesToAb } from '../utils/blas';
+import { SimplexOptions } from '../types/solverOptions';
 
-function hstack(...mats) {
+function hstack(...mats: Matrix[]) {
   if (mats.length === 0) return new Matrix([]);
   const rows = mats[0].rows;
   if (!mats.every(M => M.rows === rows)) {
@@ -25,8 +26,8 @@ function hstack(...mats) {
   return out;
 }
 
-export function simplex(lines, objective, opts = {}) {
-  const { tol = 1e-6, verbose = false } = opts;
+export function simplex(lines: number[][], objective: number[], opts: SimplexOptions) {
+  const { tol, verbose } = opts;
 
   const { A: A_orig, b } = linesToAb(lines);
   const m = A_orig.rows;
@@ -49,8 +50,7 @@ export function simplex(lines, objective, opts = {}) {
 
   const Im = Matrix.eye(m);
   const A1 = hstack(Apos, Aneg, Gamma.mmul(Im), Im);
-
-  const c1 = [].concat(zeros(2 * n + m), ones(m).map(_ => -1)); // –Σ t
+  const c1: number[] = [...zeros(2 * n + m), ...ones(m).map(_ => -1)]; // –Σ t
 
   const basis1_init = Array(2 * n + 2 * m).fill(false);    // start: t basic
   for (let i = 0; i < m; ++i) basis1_init[2 * n + m + i] = true;
@@ -62,19 +62,18 @@ export function simplex(lines, objective, opts = {}) {
   );
 
   /* ----------  Phase-2  -------------------------------------------------- */
-  const c2 = [].concat(c_objective, c_objective.map(v => -v), zeros(m));  //  c x₁ – c x₂
+  const c2: number[] = [...c_objective, ...c_objective.map(v => -v), ...zeros(m)];  //  c x₁ – c x₂
   const A_orig_neg_data = A_orig.to2DArray().map(row => row.map(v => -v));
   const A_orig_neg = new Matrix(A_orig_neg_data);
   const A2 = hstack(A_orig, A_orig_neg, Im);
 
   if (verbose) console.log("Phase Two");
   const [iters2, _basis2, log2] = simplexCore(
-    c2, A2, b, rawBasis1,
+    c2, A2, b, rawBasis1 as boolean[],
     { tol, verbose, phase1: false, nOrig: n, m }
   );
-
-  const all_tableau_iters = iters2; // for plotting, we only look at phase 2
-  const xIters = all_tableau_iters.map(tableau_x => {
+  const all_tableau_iters = iters2 as number[][]; // for plotting, we only look at phase 2
+  const xIters = all_tableau_iters.map((tableau_x: number[]) => {
     const x1 = tableau_x.slice(0, n);
     const x2 = tableau_x.slice(n, 2 * n);
     return vectorSub(x1, x2);
@@ -86,7 +85,7 @@ export function simplex(lines, objective, opts = {}) {
 /* ======================================================================== */
 /*  Core simplex:  max cᵀx  s.t.  A x = b , x ≥ 0  (basis given)            */
 /* ======================================================================== */
-function simplexCore(cVec, A, bVec, basisInit, cfg) {
+function simplexCore(cVec: number[], A: Matrix, bVec: number[], basisInit: boolean[], cfg: { tol: number, verbose: boolean, phase1: boolean, nOrig: number, m: number }) {
   const { tol, verbose, phase1, nOrig, m } = cfg;
   const mRows = A.rows;
   const nCols = A.columns;
@@ -111,15 +110,19 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
   let iter = 0;
   const iterMax = 1 << 16;
 
+  let basisIndices: number[] = [];
+  let x_tableau: number[] = [];
+  let objVal = 0;
+
   while (true) {
     if (++iter > iterMax) throw new Error(`Simplex stalled after ${iterMax} iterations`);
 
     /* --- Construct B matrix from A based on basis --- */
-    const basisIndices = [];
+    basisIndices = [];
     for(let i=0; i<nCols; ++i) if(basis[i]) basisIndices.push(i);
 
     if (basisIndices.length !== mRows) {
-        throw new Error(`Basis size ${basisIndices.length} does not match number of constraints ${mRows}. Basis: ${basis.map(bVal => bVal?1:0).join('')}`);
+        throw new Error(`Basis size ${basisIndices.length} does not match number of constraints ${mRows}. Basis: ${(basis as boolean[]).map(bVal => bVal?1:0).join('')}`);
     }
 
     const B = Matrix.zeros(mRows, mRows);
@@ -138,11 +141,11 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
         console.error("B:", B.to2DArray());
         console.error("bVec:", bVec);
         console.error("Basis Indices:", basisIndices);
-        console.error("Basis bool array:", basis.map(bVal => bVal?1:0).join(''));
+        console.error("Basis bool array:", (basis as boolean[]).map(bVal => bVal?1:0).join(''));
         throw e;
     }
 
-    const x_tableau = zeros(nCols);
+    x_tableau = zeros(nCols);
     basisIndices.forEach((col_idx, k) => { x_tableau[col_idx] = xB[k]; });
     iterations.push(copy(x_tableau));
 
@@ -155,7 +158,7 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
     const z = cVec.map((ci, j) => ci - ATy[j]);
 
     /* Logging ------------------------------------------------------------ */
-    const objVal = dot(cVec, x_tableau);
+    objVal = dot(cVec, x_tableau);
     const x0_log = x_tableau[0] !== undefined ? x_tableau[0] : 0.0;
     const y0_log = y[0] !== undefined ? y[0] : 0.0;
 
@@ -164,7 +167,7 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
                          x0_log,
                          y0_log,
                          objVal,
-                         basis.map(bVal => (bVal ? 1 : 0)).join(''));
+                         (basis as boolean[]).map(bVal => (bVal ? 1 : 0)).join(''));
     if (verbose) console.log(line);
     logs.push(line);
 
@@ -216,8 +219,8 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
     const leave_original_idx = basisIndices[leave_idx_in_basis_indices];
 
     /* Pivot -------------------------------------------------------------- */
-    basis[enter_idx] = true;
-    basis[leave_original_idx] = false;
+    (basis as boolean[])[enter_idx] = true;
+    (basis as boolean[])[leave_original_idx] = false;
   }
 
   /* ---------------- Phase-1 clean-up ----------------------------------- */
@@ -251,17 +254,17 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
     
     finalBasis = finalBasis.slice(0, 2 * nOrig + m);
 
-    let currentBasicCount = finalBasis.filter(bVal => bVal).length;
+    let currentBasicCount = (finalBasis as boolean[]).filter(bVal => bVal).length;
     if (currentBasicCount < m) {
       for (let j = 2 * nOrig; j < 2 * nOrig + m && currentBasicCount < m; ++j) {
-        if (!finalBasis[j]) {
-          finalBasis[j] = true;
+        if (!(finalBasis as boolean[])[j]) {
+          (finalBasis as boolean[])[j] = true;
           currentBasicCount++;
         }
       }
     }
-     if (finalBasis.filter(bVal => bVal).length !== m) {
-        const basisSizeError = `Phase 1 resulted in a basis for Phase 2 of size ${finalBasis.filter(bVal => bVal).length}, expected ${m}.`;
+     if ((finalBasis as boolean[]).filter(bVal => bVal).length !== m) {
+        const basisSizeError = `Phase 1 resulted in a basis for Phase 2 of size ${(finalBasis as boolean[]).filter(bVal => bVal).length}, expected ${m}.`;
         if(verbose) console.warn(basisSizeError);
         logs.push(basisSizeError);
      }
@@ -269,7 +272,7 @@ function simplexCore(cVec, A, bVec, basisInit, cfg) {
 
   const tail = sprintf('Phase %d finished – basis %s\n',
                        phase1 ? 1 : 2,
-                       finalBasis.map(bVal => (bVal ? 1 : 0)).join(''));
+                       (finalBasis as boolean[]).map(bVal => (bVal ? 1 : 0)).join(''));
   if (verbose) console.log(tail);
   logs.push(tail);
 
