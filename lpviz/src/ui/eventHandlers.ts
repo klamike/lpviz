@@ -557,7 +557,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   objectiveAngleStepSlider.addEventListener("input", () => {
     objectiveAngleStepValue.textContent = parseFloat(objectiveAngleStepSlider.value).toFixed(2);
     if (state.traceEnabled) {
-      state.accumulatedTraces = [];
+      state.traceBuffer = [];
       state.totalRotationAngle = 0;
       state.rotationCount = 0;
       canvasManager.draw();
@@ -583,7 +583,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
 
   startRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = true;
-    state.accumulatedTraces = [];
+    state.traceBuffer = [];
     state.totalRotationAngle = 0;
     state.rotationCount = 0;
     if (!state.objectiveVector) {
@@ -613,7 +613,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   traceCheckbox.addEventListener("change", () => {
     state.traceEnabled = traceCheckbox.checked;
     if (!state.traceEnabled) {
-      state.accumulatedTraces = [];
+      state.traceBuffer = [];
       state.totalRotationAngle = 0;
       state.rotationCount = 0;
       canvasManager.draw();
@@ -709,6 +709,29 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
 
   resultDiv.addEventListener("scroll", updateHoverState);
 
+  function addTraceToBuffer(iteratesArray: number[][]) {
+    if (!state.traceEnabled || iteratesArray.length === 0) return;
+    
+    const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
+    const angleStep = parseFloat(objectiveAngleStepSlider.value);
+
+    const maxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
+    state.maxTraceCount = maxTracesPerRotation;
+    
+    state.traceBuffer.push({
+      path: [...iteratesArray],
+      angle: state.totalRotationAngle
+    });
+    
+    while (state.traceBuffer.length > state.maxTraceCount) {
+      state.traceBuffer.shift();
+    }
+    
+    if (state.totalRotationAngle >= 2 * Math.PI) {
+      state.rotationCount = Math.floor(state.totalRotationAngle / (2 * Math.PI));
+    }
+  }
+
   // Helper: computePath calls the appropriate API based on solver mode
   async function computePath() {
     animateButton.disabled = false;
@@ -734,8 +757,8 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       // @ts-ignore
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
-        // @ts-ignore
-        state.accumulatedTraces.push([...iteratesArray]);
+        // @ts-ignore - IPM case has different format, skip for now
+        // TODO: Convert IPM format to work with optimized buffer
       }
       let html = "";
       html += `<div class="iterate-header">${logArray[0]}</div>`;
@@ -757,7 +780,8 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
-        state.accumulatedTraces.push([...iteratesArray]);
+        // Use optimized trace buffer
+        addTraceToBuffer(iteratesArray);
       }
       
       let html = "";
@@ -791,7 +815,8 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
-        state.accumulatedTraces.push([...iteratesArray]);
+        // Use optimized trace buffer
+        addTraceToBuffer(iteratesArray);
       }
       let html = "";
       html += `<div class="iterate-header">${logArray[0]}</div>`;
@@ -822,7 +847,8 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       if (state.traceEnabled && iteratesArray.length > 0) {
         if (state.rotateObjectiveMode && state.totalRotationAngle >= 2 * Math.PI + 0.9*parseFloat(objectiveAngleStepSlider.value)) {
         } else {
-          state.accumulatedTraces.push([...iteratesArray]);
+          // Use optimized trace buffer
+          addTraceToBuffer(iteratesArray);
         }
       }
       let html = "";

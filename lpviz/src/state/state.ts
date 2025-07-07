@@ -1,6 +1,11 @@
 export interface Vec2 { x: number; y: number; }
 export interface Vec3 { x: number; y: number; z: number; }
 
+export interface TraceEntry {
+  path: number[][];
+  angle: number;
+}
+
 export interface State {
   vertices: Vec2[];
   currentMouse: Vec2 | null;
@@ -41,10 +46,12 @@ export interface State {
   lastRotationMouse: { x: number; y: number };
   zScale: number;
   traceEnabled: boolean;
-  accumulatedTraces: number[][][];
   currentTracePath: number[][];
   totalRotationAngle: number;
   rotationCount: number;
+  traceBuffer: TraceEntry[];
+  maxTraceCount: number;
+  lastDrawnTraceIndex: number;
   isTransitioning3D: boolean;
   transitionStartTime: number;
   transitionDuration: number;
@@ -97,10 +104,12 @@ export const state: State = {
   lastRotationMouse: { x: 0, y: 0 },
   zScale: 0.1,
   traceEnabled: false,
-  accumulatedTraces: [],
   currentTracePath: [],
   totalRotationAngle: 0,
   rotationCount: 0,
+  traceBuffer: [],
+  maxTraceCount: 0,
+  lastDrawnTraceIndex: -1,
   isTransitioning3D: false,
   transitionStartTime: 0,
   transitionDuration: 500,
@@ -154,10 +163,12 @@ export function resetState(): void {
     lastRotationMouse: { x: 0, y: 0 },
     zScale: 0.1,
     traceEnabled: false,
-    accumulatedTraces: [],
     currentTracePath: [],
     totalRotationAngle: 0,
     rotationCount: 0,
+    traceBuffer: [],
+    maxTraceCount: 0,
+    lastDrawnTraceIndex: -1,
     isTransitioning3D: false,
     transitionStartTime: 0,
     transitionDuration: 500,
