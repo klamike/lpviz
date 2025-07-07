@@ -1,23 +1,43 @@
-import { state } from "../state/state.js";
+import { state, Vec2 } from "../state/state";
 import {
   fetchPolytope,
   fetchCentralPath,
   fetchSimplex,
   fetchIPM,
   fetchPDHG,
-} from "../services/apiClient.js";
-import { start3DTransition } from "../utils/transitions.js";
+} from "../services/apiClient";
+import { start3DTransition } from "../utils/transitions";
 import JSONCrush from "jsoncrush";
+import { CanvasManager } from "./canvasManager";
+import { UIManager } from "./uiManager";
 
-export function setupEventHandlers(canvasManager, uiManager) {
+interface Settings {
+  alphaMax?: number;
+  maxitIPM?: number;
+  pdhgEta?: number;
+  pdhgTau?: number;
+  maxitPDHG?: number;
+  pdhgIneqMode?: boolean;
+  centralPathIter?: number;
+  objectiveAngleStep?: number;
+}
+
+interface ShareState {
+  vertices: { x: number; y: number }[];
+  objective: { x: number; y: number } | null;
+  solverMode: string;
+  settings: Settings;
+}
+
+export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager) {
   const canvas = canvasManager.canvas;
 
-  const distance = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
-  const computeCentroid = (pts) => ({
-    x: pts.reduce((s, pt) => s + pt.x, 0) / pts.length,
-    y: pts.reduce((s, pt) => s + pt.y, 0) / pts.length,
+  const distance = (p1: { x: number; y: number; }, p2: Vec2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  const computeCentroid = (pts: Vec2[]) => ({
+    x: pts.reduce((s: number, pt: Vec2) => s + pt.x, 0) / pts.length,
+    y: pts.reduce((s: number, pt: Vec2) => s + pt.y, 0) / pts.length,
   });
-  const isPolygonConvex = (pts) => {
+  const isPolygonConvex = (pts: Vec2[]) => {
     if (pts.length < 3) return true;
     let prevCross = 0;
     for (let i = 0, n = pts.length; i < n; i++) {
@@ -33,7 +53,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
     return true;
   };
-  const isPointInsidePolygon = (point, poly) => {
+  const isPointInsidePolygon = (point: Vec2, poly: Vec2[]) => {
     let inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
       const xi = poly[i].x,
@@ -50,7 +70,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
     return inside;
   };
-  const isPointNearSegment = (point, v1, v2) => {
+  const isPointNearSegment = (point: Vec2, v1: Vec2, v2: Vec2) => {
     const dx = v2.x - v1.x;
     const dy = v2.y - v1.y;
     const len2 = dx * dx + dy * dy;
@@ -63,7 +83,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   };
 
   // ----- Refactored Drag Handlers -----
-  function handleDragStart(clientX, clientY) {
+  function handleDragStart(clientX: number, clientY: number) {
     const rect = canvas.getBoundingClientRect();
     const localX = clientX - rect.left;
     const localY = clientY - rect.top;
@@ -116,7 +136,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
   }
 
-  function handleDragMove(clientX, clientY) {
+  function handleDragMove(clientX: number, clientY: number) {
     const rect = canvas.getBoundingClientRect();
     const localX = clientX - rect.left;
     const localY = clientY - rect.top;
@@ -124,8 +144,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
     // Check if we should start dragging a point (after some movement)
     if (state.potentialDragPointIndex !== null && state.draggingPointIndex === null) {
       const dragDistance = Math.hypot(
-        clientX - state.dragStartPos.x,
-        clientY - state.dragStartPos.y
+        clientX - (state.dragStartPos?.x || 0),
+        clientY - (state.dragStartPos?.y || 0)
       );
       if (dragDistance > 5) { // Threshold to distinguish click from drag
         state.draggingPointIndex = state.potentialDragPointIndex;
@@ -151,7 +171,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
       canvasManager.offset.y -= dy / (canvasManager.gridSpacing * canvasManager.scaleFactor);
       state.lastPan = { x: clientX, y: clientY };
       canvasManager.draw();
-      document.getElementById("unzoomButton").disabled = false;
+      (document.getElementById("unzoomButton") as HTMLButtonElement).disabled = false;
       return;
     }
 
@@ -196,7 +216,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   }
 
   // ----- Canvas Event Listeners -----
-  canvas.addEventListener("mousedown", (e) => {
+  canvas.addEventListener("mousedown", (e: { shiftKey: boolean; clientX: number; clientY: number; }) => {
     if (state.is3DMode && e.shiftKey && !state.isTransitioning3D) {
       state.isRotatingCamera = true;
       state.lastRotationMouse = { x: e.clientX, y: e.clientY };
@@ -205,7 +225,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     handleDragStart(e.clientX, e.clientY);
   });
 
-  canvas.addEventListener("mousemove", (e) => {
+  canvas.addEventListener("mousemove", (e: { clientX: number; clientY: number; }) => {
     if (state.isRotatingCamera) {
       const deltaX = e.clientX - state.lastRotationMouse.x;
       const deltaY = e.clientY - state.lastRotationMouse.y;
@@ -229,17 +249,16 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
     handleDragEnd();
   });
-
   // Touch event listeners
-  canvas.addEventListener("touchstart", (e) => {
+  canvas.addEventListener("touchstart", (e: TouchEvent) => {
     if (e.touches.length === 1) { // Handle single touch for dragging
       const touch = e.touches[0];
       handleDragStart(touch.clientX, touch.clientY);
     }
   }, { passive: false });
 
-  canvas.addEventListener("touchmove", (e) => {
-    if (e.touches.length === 1) { 
+  canvas.addEventListener("touchmove", (e: TouchEvent) => {
+    if (e.touches.length === 1) {
       // Only prevent default if a drag/pan is actually happening
       if (state.isPanning || state.draggingPointIndex !== null || state.draggingObjective) {
         e.preventDefault(); // Prevent page scroll during drag
@@ -249,7 +268,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
   }, { passive: false });
 
-  canvas.addEventListener("touchend", (e) => {
+  canvas.addEventListener("touchend", (e: TouchEvent) => {
     // touchend doesn't have e.touches for the ended touch, 
     // but handleDragEnd() relies on state flags, not coordinates.
     // e.changedTouches[0] could provide the last point if needed.
@@ -259,7 +278,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     handleDragEnd();
   }, { passive: false });
 
-  canvas.addEventListener("dblclick", (e) => {
+  canvas.addEventListener("dblclick", (e: { clientX: number; clientY: number; }) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
@@ -287,7 +306,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
       }
     }
   });
-  canvas.addEventListener("click", (e) => {
+  canvas.addEventListener("click", (e: { clientX: number; clientY: number; }) => {
     if (state.wasPanning) {
       state.wasPanning = false;
       return;
@@ -338,18 +357,18 @@ export function setupEventHandlers(canvasManager, uiManager) {
     } else if (state.polygonComplete && state.objectiveVector === null) {
       state.historyStack.push({
         vertices: JSON.parse(JSON.stringify(state.vertices)),
-        objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
+        objectiveVector: state.objectiveVector ? JSON.parse(JSON.stringify(state.objectiveVector)) : null,
       });
       state.objectiveVector = state.currentObjective || pt;
-      document.getElementById("maximize").style.display = "block";
-      document.getElementById("ipmButton").disabled = false;
-      document.getElementById("simplexButton").disabled = false;
-      document.getElementById("pdhgButton").disabled = false;
-      document.getElementById("iteratePathButton").disabled = true;
-      document.getElementById("traceButton").disabled = false;
-      document.getElementById("animateButton").disabled = false;
-      document.getElementById("startRotateObjectiveButton").disabled = false;
-      document.getElementById("zoomButton").disabled = false;
+      (document.getElementById("maximize") as HTMLElement).style.display = "block";
+      (document.getElementById("ipmButton") as HTMLButtonElement).disabled = false;
+      (document.getElementById("simplexButton") as HTMLButtonElement).disabled = false;
+      (document.getElementById("pdhgButton") as HTMLButtonElement).disabled = false;
+      (document.getElementById("iteratePathButton") as HTMLButtonElement).disabled = true;
+      (document.getElementById("traceButton") as HTMLButtonElement).disabled = false;
+      (document.getElementById("animateButton") as HTMLButtonElement).disabled = false;
+      (document.getElementById("startRotateObjectiveButton") as HTMLButtonElement).disabled = false;
+      (document.getElementById("zoomButton") as HTMLButtonElement).disabled = false;
       uiManager.updateObjectiveDisplay();
       canvasManager.draw();
     }
@@ -391,11 +410,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
   window.addEventListener("load", () => {
     const canvas = document.getElementById("gridCanvas");
-    canvas.focus();
+    canvas?.focus();
   });
 
   // ----- UI Button Handlers -----
-  uiManager.zoomButton.addEventListener("click", () => {
+  uiManager.zoomButton?.addEventListener("click", () => {
     if (state.vertices.length > 0) {
       let minX = Infinity,
         maxX = -Infinity,
@@ -413,7 +432,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
       canvasManager.offset.x = -centroid.x;
       canvasManager.offset.y = -centroid.y;
       const padding = 50;
-      const sidebarWidth = document.getElementById("sidebar").offsetWidth;
+      const sidebarWidth = document.getElementById("sidebar")?.offsetWidth ?? 0;
       const availWidth = (window.innerWidth - sidebarWidth) - 2 * padding;
       const availHeight = window.innerHeight - 2 * padding;
       if (polyWidth > 0 && polyHeight > 0) {
@@ -429,7 +448,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
   });
 
-  uiManager.unzoomButton.addEventListener("click", () => {
+  uiManager.unzoomButton?.addEventListener("click", () => {
     canvasManager.scaleFactor = 1;
     canvasManager.offset.x = 0;
     canvasManager.offset.y = 0;
@@ -439,7 +458,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
     canvasManager.draw();
     uiManager.updateZoomButtonsState(canvasManager);
   });
-  uiManager.toggle3DButton.addEventListener("click", () => {
+  uiManager.toggle3DButton?.addEventListener("click", () => {
     if (state.isTransitioning3D) {
       return;
     }
@@ -447,8 +466,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
     const targetMode = !state.is3DMode;
     start3DTransition(canvasManager, uiManager, targetMode);
   });
-  uiManager.zScaleSlider.addEventListener("input", () => {
-    state.zScale = parseFloat(uiManager.zScaleSlider.value);
+  uiManager.zScaleSlider?.addEventListener("input", () => {
+    state.zScale = parseFloat(uiManager.zScaleSlider?.value || "0.1");
     uiManager.updateZScaleValue();
     if (state.is3DMode || state.isTransitioning3D) {
       canvasManager.draw();
@@ -456,10 +475,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
 
   // Solver Mode Buttons
-  const iteratePathButton = document.getElementById("iteratePathButton");
-  const ipmButton = document.getElementById("ipmButton");
-  const simplexButton = document.getElementById("simplexButton");
-  const pdhgButton = document.getElementById("pdhgButton");
+  const iteratePathButton = document.getElementById("iteratePathButton") as HTMLButtonElement;
+  const ipmButton = document.getElementById("ipmButton") as HTMLButtonElement;
+  const simplexButton = document.getElementById("simplexButton") as HTMLButtonElement;
+  const pdhgButton = document.getElementById("pdhgButton") as HTMLButtonElement;
 
   iteratePathButton.addEventListener("click", () => {
     state.solverMode = "central";
@@ -467,9 +486,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
     ipmButton.disabled = false;
     simplexButton.disabled = false;
     pdhgButton.disabled = false;
-    document.getElementById("ipmSettings").style.display = "none";
-    document.getElementById("pdhgSettings").style.display = "none";
-    document.getElementById("centralPathSettings").style.display = "block";
+    (document.getElementById("ipmSettings") as HTMLElement).style.display = "none";
+    (document.getElementById("pdhgSettings") as HTMLElement).style.display = "none";
+    (document.getElementById("centralPathSettings") as HTMLElement).style.display = "block";
   });
   ipmButton.addEventListener("click", () => {
     state.solverMode = "ipm";
@@ -477,9 +496,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
     iteratePathButton.disabled = false;
     simplexButton.disabled = false;
     pdhgButton.disabled = false;
-    document.getElementById("ipmSettings").style.display = "block";
-    document.getElementById("pdhgSettings").style.display = "none";
-    document.getElementById("centralPathSettings").style.display = "none";
+    (document.getElementById("ipmSettings") as HTMLElement).style.display = "block";
+    (document.getElementById("pdhgSettings") as HTMLElement).style.display = "none";
+    (document.getElementById("centralPathSettings") as HTMLElement).style.display = "none";
   });
   simplexButton.addEventListener("click", () => {
     state.solverMode = "simplex";
@@ -487,9 +506,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
     ipmButton.disabled = false;
     iteratePathButton.disabled = false;
     pdhgButton.disabled = false;
-    document.getElementById("ipmSettings").style.display = "none";
-    document.getElementById("pdhgSettings").style.display = "none";
-    document.getElementById("centralPathSettings").style.display = "none";
+    (document.getElementById("ipmSettings") as HTMLElement).style.display = "none";
+    (document.getElementById("pdhgSettings") as HTMLElement).style.display = "none";
+    (document.getElementById("centralPathSettings") as HTMLElement).style.display = "none";
   });
   pdhgButton.addEventListener("click", () => {
     state.solverMode = "pdhg";
@@ -497,33 +516,33 @@ export function setupEventHandlers(canvasManager, uiManager) {
     simplexButton.disabled = false;
     ipmButton.disabled = false;
     iteratePathButton.disabled = false;
-    document.getElementById("ipmSettings").style.display = "none";
-    document.getElementById("pdhgSettings").style.display = "block";
-    document.getElementById("centralPathSettings").style.display = "none";
+    (document.getElementById("ipmSettings") as HTMLElement).style.display = "none";
+    (document.getElementById("pdhgSettings") as HTMLElement).style.display = "block";
+    (document.getElementById("centralPathSettings") as HTMLElement).style.display = "none";
   });
 
   // Input event listeners for IPM and PDHG settings
-  const alphaMaxSlider = document.getElementById("alphaMaxSlider");
-  const pdhgEtaSlider = document.getElementById("pdhgEtaSlider");
-  const pdhgTauSlider = document.getElementById("pdhgTauSlider");
-  const maxitInput = document.getElementById("maxitInput");
-  const maxitInputPDHG = document.getElementById("maxitInputPDHG");
-  const pdhgIneqMode = document.getElementById("pdhgIneqMode");
-  const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider");
-  const objectiveAngleStepValue = document.getElementById("objectiveAngleStepValue");
-  const centralPathIterSlider = document.getElementById("centralPathIterSlider");
-  const centralPathIterValue = document.getElementById("centralPathIterValue");
+  const alphaMaxSlider = document.getElementById("alphaMaxSlider") as HTMLInputElement;
+  const pdhgEtaSlider = document.getElementById("pdhgEtaSlider") as HTMLInputElement;
+  const pdhgTauSlider = document.getElementById("pdhgTauSlider") as HTMLInputElement;
+  const maxitInput = document.getElementById("maxitInput") as HTMLInputElement;
+  const maxitInputPDHG = document.getElementById("maxitInputPDHG") as HTMLInputElement;
+  const pdhgIneqMode = document.getElementById("pdhgIneqMode") as HTMLInputElement;
+  const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
+  const objectiveAngleStepValue = document.getElementById("objectiveAngleStepValue") as HTMLElement;
+  const centralPathIterSlider = document.getElementById("centralPathIterSlider") as HTMLInputElement;
+  const centralPathIterValue = document.getElementById("centralPathIterValue") as HTMLElement;
 
   alphaMaxSlider.addEventListener("input", () => {
-    document.getElementById("alphaMaxValue").textContent = parseFloat(alphaMaxSlider.value).toFixed(3);
+    (document.getElementById("alphaMaxValue") as HTMLElement).textContent = parseFloat(alphaMaxSlider.value).toFixed(3);
     if (state.solverMode === "ipm") computePath();
   });
   pdhgEtaSlider.addEventListener("input", () => {
-    document.getElementById("pdhgEtaValue").textContent = parseFloat(pdhgEtaSlider.value).toFixed(3);
+    (document.getElementById("pdhgEtaValue") as HTMLElement).textContent = parseFloat(pdhgEtaSlider.value).toFixed(3);
     if (state.solverMode === "pdhg") computePath();
   });
   pdhgTauSlider.addEventListener("input", () => {
-    document.getElementById("pdhgTauValue").textContent = parseFloat(pdhgTauSlider.value).toFixed(3);
+    (document.getElementById("pdhgTauValue") as HTMLElement).textContent = parseFloat(pdhgTauSlider.value).toFixed(3);
     if (state.solverMode === "pdhg") computePath();
   });
   maxitInput.addEventListener("input", () => {
@@ -551,16 +570,16 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
 
   // Trace/Solve Button
-  const traceButton = document.getElementById("traceButton");
+  const traceButton = document.getElementById("traceButton") as HTMLButtonElement;
   traceButton.addEventListener("click", () => {
     computePath();
     state.iteratePathComputed = true;
   });
 
   // Rotate Objective Buttons
-  const startRotateObjectiveButton = document.getElementById("startRotateObjectiveButton");
-  const stopRotateObjectiveButton = document.getElementById("stopRotateObjectiveButton");
-  const objectiveRotationSettings = document.getElementById("objectiveRotationSettings");
+  const startRotateObjectiveButton = document.getElementById("startRotateObjectiveButton") as HTMLButtonElement;
+  const stopRotateObjectiveButton = document.getElementById("stopRotateObjectiveButton") as HTMLButtonElement;
+  const objectiveRotationSettings = document.getElementById("objectiveRotationSettings") as HTMLElement;
 
   startRotateObjectiveButton.addEventListener("click", () => {
     state.rotateObjectiveMode = true;
@@ -589,7 +608,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
 
   // Trace Checkbox
-  const traceCheckbox = document.getElementById("traceCheckbox");
+  const traceCheckbox = document.getElementById("traceCheckbox") as HTMLInputElement;
   traceCheckbox.checked = false;
   traceCheckbox.addEventListener("change", () => {
     state.traceEnabled = traceCheckbox.checked;
@@ -602,9 +621,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
 
   // Animate Button
-  const animateButton = document.getElementById("animateButton");
-  const replaySpeedSlider = document.getElementById("replaySpeedSlider");
-  const shareButton = document.getElementById("shareButton");
+  const animateButton = document.getElementById("animateButton") as HTMLButtonElement;
+  const replaySpeedSlider = document.getElementById("replaySpeedSlider") as HTMLInputElement;
+  const shareButton = document.getElementById("shareButton") as HTMLButtonElement;
   animateButton.addEventListener("click", () => {
     if (state.rotateObjectiveMode) return;
     if (state.animationIntervalId !== null) {
@@ -636,8 +655,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
   });
 
   // Sidebar Resize
-  const sidebar = document.getElementById("sidebar");
-  const handle = document.getElementById("sidebarHandle");
+  const sidebar = document.getElementById("sidebar") as HTMLElement;
+  const handle = document.getElementById("sidebarHandle") as HTMLElement;
   let isResizing = false;
   handle.addEventListener("mousedown", (e) => {
     isResizing = true;
@@ -662,8 +681,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
   // Result Hover (for central path items)
   let cpMouseX = 0;
   let cpMouseY = 0;
-  let cpCurrentHovered = null;
-  const resultDiv = document.getElementById("result");
+  let cpCurrentHovered: HTMLElement | null = null;
+  const resultDiv = document.getElementById("result") as HTMLElement;
   document.addEventListener("mousemove", (e) => {
     cpMouseX = e.clientX;
     cpMouseY = e.clientY;
@@ -679,7 +698,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
         }
         el.classList.add("hover");
         el.dispatchEvent(new Event("mouseenter", { bubbles: true }));
-        cpCurrentHovered = el;
+        cpCurrentHovered = el as HTMLElement;
       }
     } else if (cpCurrentHovered) {
       cpCurrentHovered.classList.remove("hover");
@@ -702,14 +721,14 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const maxit = parseInt(maxitInput.value, 10);
       const result = await fetchIPM(
         state.computedLines,
-        [state.objectiveVector.x, state.objectiveVector.y],
+        [state.objectiveVector!.x, state.objectiveVector!.y],
         getBarrierWeights(),
         alphaMax,
         maxit
       );
       const sol = result.iterates.solution;
       const logArray = sol.log;
-      const iteratesArray = sol.x.map((val, i) => sol.x[i]);
+      const iteratesArray = sol.x.map((x: number) => [x]);
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
@@ -727,9 +746,9 @@ export function setupEventHandlers(canvasManager, uiManager) {
     } else if (state.solverMode === "simplex") {
       const result = await fetchSimplex(
         state.computedLines,
-        [state.objectiveVector.x, state.objectiveVector.y]
+        [state.objectiveVector!.x, state.objectiveVector!.y]
       );
-      const iteratesArray = result[0].map((entry) => entry);
+      const iteratesArray = result[0].map((entry) => entry as number[]);
       const phase1logs = result[1][0];
       const phase2logs = result[1][1];
       state.originalIteratePath = [...iteratesArray];
@@ -753,18 +772,18 @@ export function setupEventHandlers(canvasManager, uiManager) {
       updateResult(html);
     } else if (state.solverMode === "pdhg") {
       const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
-      const pdhgIneq = document.getElementById("pdhgIneqMode").checked;
+      const pdhgIneq = (document.getElementById("pdhgIneqMode") as HTMLInputElement).checked;
       const eta = parseFloat(pdhgEtaSlider.value);
       const tau = parseFloat(pdhgTauSlider.value);
       const result = await fetchPDHG(
         state.computedLines,
-        [state.objectiveVector.x, state.objectiveVector.y],
+        [state.objectiveVector!.x, state.objectiveVector!.y],
         pdhgIneq,
         maxitPDHG,
         eta,
         tau
       );
-      const iteratesArray = result[0].map((entry) => entry);
+      const iteratesArray = result[0].map((entry) => entry as number[]);
       const logArray = result[1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
@@ -787,11 +806,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const result = await fetchCentralPath(
         state.computedVertices,
         state.computedLines,
-        [state.objectiveVector.x, state.objectiveVector.y],
+        [state.objectiveVector!.x, state.objectiveVector!.y],
         weights,
         maxitCentral
       );
-      const iteratesArray = result.central_path.map((entry) => entry);
+      const iteratesArray = result.central_path?.map((entry) => entry as number[]) ?? [];
       const logArray = result.logs;
       const tsolve = result.tsolve;
       state.originalIteratePath = [...iteratesArray];
@@ -817,7 +836,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
 
   function getBarrierWeights() {
     const items = document.querySelectorAll(".inequality-item");
-    let weights = [];
+    let weights: number[] = [];
     items.forEach((item) => {
       const input = item.querySelector("input");
       weights.push(input ? parseFloat(input.value) : 1);
@@ -876,12 +895,12 @@ export function setupEventHandlers(canvasManager, uiManager) {
   }
   
   
-  function updateResult(html) {
+  function updateResult(html: string) {
     resultDiv.innerHTML = html;
     document.querySelectorAll(".iterate-header, .iterate-item, .iterate-footer")
       .forEach((item) => {
         item.addEventListener("mouseenter", () => {
-          state.highlightIteratePathIndex = parseInt(item.getAttribute("data-index"));
+          state.highlightIteratePathIndex = parseInt(item.getAttribute("data-index") || "0");
           canvasManager.draw();
         });
         item.addEventListener("mouseleave", () => {
@@ -899,10 +918,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
       const result = await fetchPolytope(points);
       if (result.inequalities) {
         if (!isPolygonConvex(state.vertices)) {
-          uiManager.inequalitiesDiv.innerHTML = "Nonconvex";
+          (uiManager.inequalitiesDiv as HTMLElement).innerHTML = "Nonconvex";
           return;
         }
-        uiManager.inequalitiesDiv.innerHTML = result.inequalities
+        (uiManager.inequalitiesDiv as HTMLElement).innerHTML = result.inequalities
           .slice(0, state.polygonComplete ? result.inequalities.length : result.inequalities.length - 1)
           .map(
             (ineq, index) => `
@@ -922,22 +941,23 @@ export function setupEventHandlers(canvasManager, uiManager) {
           .join("");
         document.querySelectorAll(".inequality-item").forEach((item) => {
           item.addEventListener("mouseenter", () => {
-            state.highlightIndex = parseInt(item.getAttribute("data-index"));
+            state.highlightIndex = parseInt(item.getAttribute("data-index") || "0");
             canvasManager.draw();
           });
           item.addEventListener("mouseleave", () => {
             state.highlightIndex = null;
             canvasManager.draw();
           });
-          item.querySelectorAll('input[type="number"]').forEach((input) => {
-            input.addEventListener("change", () => {
-              const index = parseInt(input.id.split("-")[1]);
-              state.barrierWeights[index] = parseFloat(input.value);
+          item.querySelectorAll('input[type="number"]').forEach((el) => {
+            const inputEl = el as HTMLInputElement;
+            inputEl.addEventListener("change", () => {
+              const index = parseInt(inputEl.id.split("-")[1]);
+              state.barrierWeights[index] = parseFloat(inputEl.value);
             });
           });
         });
         if (result.lines.length > 0) {
-          document.getElementById("subjectTo").style.display = "block";
+          (document.getElementById("subjectTo") as HTMLElement).style.display = "block";
         }
         state.computedVertices = result.vertices;
         state.computedLines = result.lines;
@@ -946,11 +966,11 @@ export function setupEventHandlers(canvasManager, uiManager) {
           computePath();
         }
       } else {
-        uiManager.inequalitiesDiv.textContent = "No inequalities returned.";
+        (uiManager.inequalitiesDiv as HTMLElement).textContent = "No inequalities returned.";
       }
     } catch (err) {
       console.error("Error:", err);
-      uiManager.inequalitiesDiv.textContent = "Error computing inequalities.";
+      (uiManager.inequalitiesDiv as HTMLElement).textContent = "Error computing inequalities.";
     }
   }
 
@@ -964,8 +984,8 @@ export function setupEventHandlers(canvasManager, uiManager) {
     
     const angleStep = parseFloat(objectiveAngleStepSlider.value);
     
-    const angle = Math.atan2(state.objectiveVector.y, state.objectiveVector.x);
-    const magnitude = Math.hypot(state.objectiveVector.x, state.objectiveVector.y);
+    const angle = Math.atan2(state.objectiveVector!.y, state.objectiveVector!.x);
+    const magnitude = Math.hypot(state.objectiveVector!.x, state.objectiveVector!.y);
     
     state.objectiveVector = {
       x: magnitude * Math.cos(angle + angleStep),
@@ -1003,7 +1023,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
       }
     }
   }
-  canvas.addEventListener("wheel", (e) => {
+  canvas.addEventListener("wheel", (e: { preventDefault: () => void; clientX: number; clientY: number; deltaY: number; }) => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -1028,7 +1048,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
   // setupManualInputHandlers(canvasManager, uiManager);
 
   function generateShareLink() {
-    const settings = {};
+    const settings: Settings = {};
     switch (state.solverMode) {
       case "ipm":
         settings.alphaMax = parseFloat(alphaMaxSlider.value);
@@ -1044,7 +1064,7 @@ export function setupEventHandlers(canvasManager, uiManager) {
         settings.centralPathIter = parseInt(centralPathIterSlider.value, 10);
         break;
     }
-    const data = {
+    const data: ShareState = {
       vertices: state.vertices,
       objective: state.objectiveVector,
       solverMode: state.solverMode,
@@ -1056,10 +1076,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
     return `${window.location.origin}${window.location.pathname}?s=${encoded}`;
   }
 
-  function loadStateFromObject(obj) {
+  function loadStateFromObject(obj: ShareState) {
     if (!obj) return;
     if (Array.isArray(obj.vertices)) {
-      state.vertices = obj.vertices.map(v => ({ x: v.x, y: v.y }));
+      state.vertices = obj.vertices.map((v: Vec2) => ({ x: v.x, y: v.y }));
       state.polygonComplete = state.vertices.length > 2;
     }
     if (obj.objective) {
@@ -1070,38 +1090,38 @@ export function setupEventHandlers(canvasManager, uiManager) {
     }
     const settings = obj.settings || {};
     if (settings.alphaMax !== undefined) {
-      alphaMaxSlider.value = settings.alphaMax;
-      document.getElementById("alphaMaxValue").textContent = parseFloat(alphaMaxSlider.value).toFixed(3);
+      alphaMaxSlider.value = settings.alphaMax.toString();
+      (document.getElementById("alphaMaxValue") as HTMLElement).textContent = parseFloat(alphaMaxSlider.value).toFixed(3);
     }
     if (settings.maxitIPM !== undefined) {
-      maxitInput.value = settings.maxitIPM;
+      maxitInput.value = settings.maxitIPM.toString();
     }
     if (settings.pdhgEta !== undefined) {
-      pdhgEtaSlider.value = settings.pdhgEta;
-      document.getElementById("pdhgEtaValue").textContent = parseFloat(pdhgEtaSlider.value).toFixed(3);
+      pdhgEtaSlider.value = settings.pdhgEta.toString();
+      (document.getElementById("pdhgEtaValue") as HTMLElement).textContent = parseFloat(pdhgEtaSlider.value).toFixed(3);
     }
     if (settings.pdhgTau !== undefined) {
-      pdhgTauSlider.value = settings.pdhgTau;
-      document.getElementById("pdhgTauValue").textContent = parseFloat(pdhgTauSlider.value).toFixed(3);
+      pdhgTauSlider.value = settings.pdhgTau.toString();
+      (document.getElementById("pdhgTauValue") as HTMLElement).textContent = parseFloat(pdhgTauSlider.value).toFixed(3);
     }
     if (settings.maxitPDHG !== undefined) {
-      maxitInputPDHG.value = settings.maxitPDHG;
+      maxitInputPDHG.value = settings.maxitPDHG.toString();
     }
     if (settings.pdhgIneqMode !== undefined) {
       pdhgIneqMode.checked = settings.pdhgIneqMode;
     }
     if (settings.centralPathIter !== undefined) {
-      centralPathIterSlider.value = settings.centralPathIter;
-      centralPathIterValue.textContent = settings.centralPathIter;
+      centralPathIterSlider.value = settings.centralPathIter.toString();
+      centralPathIterValue.textContent = settings.centralPathIter.toString();
     }
     if (settings.objectiveAngleStep !== undefined) {
-      objectiveAngleStepSlider.value = settings.objectiveAngleStep;
-      objectiveAngleStepValue.textContent = parseFloat(settings.objectiveAngleStep).toFixed(2);
+      objectiveAngleStepSlider.value = settings.objectiveAngleStep.toString();
+      objectiveAngleStepValue.textContent = settings.objectiveAngleStep.toFixed(2);
     }
     uiManager.hideNullStateMessage();
 
     if (state.polygonComplete && state.objectiveVector) {
-      document.getElementById("maximize").style.display = "block";
+      (document.getElementById("maximize") as HTMLElement).style.display = "block";
       
       iteratePathButton.disabled = state.solverMode === "central";
       ipmButton.disabled = state.solverMode === "ipm";
@@ -1111,16 +1131,16 @@ export function setupEventHandlers(canvasManager, uiManager) {
       traceButton.disabled = false;
       animateButton.disabled = false;
       startRotateObjectiveButton.disabled = false;
-      document.getElementById("zoomButton").disabled = false;
+      (document.getElementById("zoomButton") as HTMLButtonElement).disabled = false;
     } else {
       traceButton.disabled = true;
       animateButton.disabled = true;
       startRotateObjectiveButton.disabled = true;
     }
 
-    document.getElementById("ipmSettings").style.display = state.solverMode === "ipm" ? "block" : "none";
-    document.getElementById("pdhgSettings").style.display = state.solverMode === "pdhg" ? "block" : "none";
-    document.getElementById("centralPathSettings").style.display = state.solverMode === "central" ? "block" : "none";
+    (document.getElementById("ipmSettings") as HTMLElement).style.display = state.solverMode === "ipm" ? "block" : "none";
+    (document.getElementById("pdhgSettings") as HTMLElement).style.display = state.solverMode === "pdhg" ? "block" : "none";
+    (document.getElementById("centralPathSettings") as HTMLElement).style.display = state.solverMode === "central" ? "block" : "none";
 
     uiManager.updateObjectiveDisplay();
     uiManager.updateSolverModeButtons();
@@ -1135,11 +1155,10 @@ export function setupEventHandlers(canvasManager, uiManager) {
   
 }
 
-function setupManualInputHandlers(canvasManager, uiManager) {
-  const inputModeToggle = document.getElementById("inputModeToggle");
-  const manualInputControls = document.getElementById("manualInputControls");
-  const applyConstraintsButton = document.getElementById("applyConstraintsButton");
-  const constraintErrors = document.getElementById("constraintErrors");
+function setupManualInputHandlers(canvasManager: CanvasManager, uiManager: UIManager) {
+  const inputModeToggle = document.getElementById("inputModeToggle") as HTMLElement;
+  const manualInputControls = document.getElementById("manualInputControls") as HTMLElement;
+  const applyConstraintsButton = document.getElementById("applyConstraintsButton") as HTMLElement;
   inputModeToggle.addEventListener("click", () => {
     console.log('Toggling input mode, current mode:', state.inputMode);
     if (state.inputMode === 'visual') {
@@ -1155,18 +1174,18 @@ function setupManualInputHandlers(canvasManager, uiManager) {
     }
   });
 
-  applyConstraintsButton.addEventListener("click", () => {
+  applyConstraintsButton?.addEventListener("click", () => {
     applyManualConstraints(canvasManager, uiManager);
     applyManualConstraints(canvasManager, uiManager); // FIXME: why does it not work the first time...
   });
 }
 
-async function applyManualConstraints(canvasManager, uiManager) {
+async function applyManualConstraints(canvasManager: CanvasManager, uiManager: UIManager) {
   console.log('Apply constraints button clicked');
-  const constraintsInput = document.getElementById("constraintsInput");
-  const objectiveInput = document.getElementById("objectiveInput");
-  const objectiveDirection = document.getElementById("objectiveDirection");
-  const constraintErrors = document.getElementById("constraintErrors");
+  const constraintsInput = document.getElementById("constraintsInput") as HTMLTextAreaElement;
+  const objectiveInput = document.getElementById("objectiveInput") as HTMLInputElement;
+  const objectiveDirection = document.getElementById("objectiveDirection") as HTMLSelectElement;
+  const constraintErrors = document.getElementById("constraintErrors") as HTMLElement;
 
   console.log('Constraints input:', constraintsInput.value);
   console.log('Objective input:', objectiveInput.value);
@@ -1175,7 +1194,7 @@ async function applyManualConstraints(canvasManager, uiManager) {
   constraintErrors.innerHTML = '';
 
   try {
-    const { parseConstraints, parseObjective } = await import('../utils/constraintParser.js');
+    const { parseConstraints, parseObjective } = await import('../utils/constraintParser');
 
     const constraintLines = constraintsInput.value.split('\n').filter(line => line.trim() !== '');
     const constraintResult = parseConstraints(constraintLines);
@@ -1200,26 +1219,26 @@ async function applyManualConstraints(canvasManager, uiManager) {
 
     state.manualConstraints = constraintLines;
     state.parsedConstraints = constraintResult.constraints;
-    state.objectiveDirection = objectiveDirection.value;
+    state.objectiveDirection = objectiveDirection.value as 'max' | 'min';
     
     if (objectiveResult) {
       state.manualObjective = objectiveStr;
       const sign = objectiveResult.direction === 'min' ? -1 : 1;
-      state.objectiveVector = { x: objectiveResult.x * sign, y: objectiveResult.y * sign };
+      state.objectiveVector = { x: objectiveResult.x! * sign, y: objectiveResult.y! * sign };
     }
 
-    state.computedLines = constraintResult.constraints;
+    state.computedLines = constraintResult.constraints as number[][];
     
-    const vertices = computeVerticesFromConstraints(constraintResult.constraints);
+    const vertices = computeVerticesFromConstraints(constraintResult.constraints as number[][]);
     if (vertices.length > 0) {
       state.computedVertices = vertices;
       
       const sortedVertices = sortVerticesCounterClockwise(vertices);
-      state.vertices = sortedVertices.map(v => ({ x: v[0], y: v[1] }));
+      state.vertices = sortedVertices.map((v: Vec2) => ({ x: v.x, y: v.y } as Vec2));
       
       updateConstraintDisplay(constraintResult.constraints, canvasManager);
       
-      const maximizeDiv = document.getElementById("maximize");
+      const maximizeDiv = document.getElementById("maximize") as HTMLElement;
       if (objectiveResult) {
         maximizeDiv.textContent = objectiveResult.direction === 'min' ? 'minimize' : 'maximize';
         maximizeDiv.style.display = "block";
@@ -1241,12 +1260,13 @@ async function applyManualConstraints(canvasManager, uiManager) {
 
   } catch (error) {
     console.error('Error applying constraints:', error);
-    constraintErrors.innerHTML = 'Error parsing constraints: ' + error.message;
+    const msg = (error as Error).message;
+    constraintErrors.innerHTML = 'Error parsing constraints: ' + msg;
     constraintErrors.style.display = 'block';
   }
 }
 
-function computeVerticesFromConstraints(constraints) {
+function computeVerticesFromConstraints(constraints: number[][]) {
   const vertices = [];
   const tol = 1e-6;
   
@@ -1278,26 +1298,26 @@ function computeVerticesFromConstraints(constraints) {
   return vertices;
 }
 
-function sortVerticesCounterClockwise(vertices) {
+function sortVerticesCounterClockwise(vertices: any[]) {
   if (vertices.length <= 2) return vertices;  
-  const cx = vertices.reduce((sum, v) => sum + v[0], 0) / vertices.length;
-  const cy = vertices.reduce((sum, v) => sum + v[1], 0) / vertices.length;
-  return vertices.slice().sort((a, b) => {
+  const cx = vertices.reduce((sum: any, v: any[]) => sum + v[0], 0) / vertices.length;
+  const cy = vertices.reduce((sum: any, v: any[]) => sum + v[1], 0) / vertices.length;
+  return vertices.slice().sort((a: number[], b: number[]) => {
     const angleA = Math.atan2(a[1] - cy, a[0] - cx);
     const angleB = Math.atan2(b[1] - cy, b[0] - cx);
     return angleA - angleB;
   });
 }
 
-function updateConstraintDisplay(constraints, canvasManager) {
-  const inequalitiesDiv = document.getElementById("inequalities");
+function updateConstraintDisplay(constraints: any[], canvasManager: { draw: () => void; }) {
+  const inequalitiesDiv = document.getElementById("inequalities") as HTMLElement;
   
   const formattedConstraints = constraints.map(([A, B, C]) => {
     return formatConstraintForDisplay(A, B, C);
   });
 
   inequalitiesDiv.innerHTML = formattedConstraints
-    .map((ineq, index) => `
+    .map((ineq: any, index: any) => `
       <div class="inequality-item" data-index="${index}">
         ${ineq}
       </div>
@@ -1306,7 +1326,7 @@ function updateConstraintDisplay(constraints, canvasManager) {
 
   document.querySelectorAll(".inequality-item").forEach((item) => {
     item.addEventListener("mouseenter", () => {
-      state.highlightIndex = parseInt(item.getAttribute("data-index"));
+      state.highlightIndex = parseInt(item.getAttribute("data-index") || "0");
       canvasManager.draw();
     });
     item.addEventListener("mouseleave", () => {
@@ -1316,12 +1336,12 @@ function updateConstraintDisplay(constraints, canvasManager) {
   });
 
   if (constraints.length > 0) {
-    document.getElementById("subjectTo").style.display = "block";
+    (document.getElementById("subjectTo") as HTMLElement).style.display = "block";
   }
 }
 
-function formatConstraintForDisplay(A, B, C) {
-  const formatFloat = (x) => x === Math.floor(x) ? x : parseFloat(x.toFixed(3));
+function formatConstraintForDisplay(A: any, B: any, C: any) {
+  const formatFloat = (x: number) => x === Math.floor(x) ? x : parseFloat(x.toFixed(3));
   
   let A_disp = formatFloat(A);
   let B_disp = formatFloat(B);

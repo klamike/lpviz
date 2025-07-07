@@ -1,10 +1,11 @@
-import { pdhg as localPdhgSolver } from "../algorithms/pdhg.js";
-import { polytope as localPolytopeSolver } from "../algorithms/polytope.js";
-import { ipm as localIpmSolver } from "../algorithms/ipm.js";
-import { centralPath as localCentralPathSolver } from "../algorithms/central_path.js";
-import { simplex as localSimplexSolver } from "../algorithms/simplex.js";
+import { pdhg as localPdhgSolver } from "../algorithms/pdhg";
+import { polytope as localPolytopeSolver } from "../algorithms/polytope";
+import { ipm as localIpmSolver } from "../algorithms/ipm";
+import { centralPath as localCentralPathSolver } from "../algorithms/central_path";
+import { simplex as localSimplexSolver } from "../algorithms/simplex";
+import Matrix from "ml-matrix";
 
-export async function fetchPolytope(points) {
+export async function fetchPolytope(points: string | any[]) {
   try {
     const result = localPolytopeSolver(points);
     return Promise.resolve(result);
@@ -14,7 +15,7 @@ export async function fetchPolytope(points) {
   }
 }
 
-export async function fetchCentralPath(vertices, lines, objective, weights, niter) {
+export async function fetchCentralPath(vertices: number[][], lines: number[][], objective: number[], weights: any[], niter: number) {
   try {
     const options = { niter, weights, verbose: false };
     const result = localCentralPathSolver(vertices, lines, objective, options);
@@ -25,7 +26,7 @@ export async function fetchCentralPath(vertices, lines, objective, weights, nite
   }
 }
 
-export async function fetchSimplex(lines, objective) {
+export async function fetchSimplex(lines: number[][], objective: number[]) {
   try {
     const result = await localSimplexSolver(lines, objective, {});
     return Promise.resolve(result);
@@ -35,9 +36,9 @@ export async function fetchSimplex(lines, objective) {
   }
 }
 
-export async function fetchIPM(lines, objective, weights, alphamax, maxit) {
+export async function fetchIPM(lines: number[][], objective: number[], weights: any[], alphamax: number, maxit: number) {
   try {
-    const options = { alphaMax: alphamax, maxit, verbose: false };
+    const options = { eps_p: 1e-6, eps_d: 1e-6, eps_opt: 1e-6, alphaMax: alphamax, maxit, verbose: false };
     const result = localIpmSolver(lines, objective, options);
     return Promise.resolve(result);
   } catch (error) {
@@ -46,7 +47,7 @@ export async function fetchIPM(lines, objective, weights, alphamax, maxit) {
   }
 }
 
-export async function fetchPDHG(lines, objective, ineq, maxit, eta, tau) {
+export async function fetchPDHG(lines: Matrix | number[][], objective: number[] | number[][], ineq: boolean, maxit: number, eta: number, tau: number) {
   try {
     const options = { ineq, maxit, eta, tau, verbose: false };
     const result = localPdhgSolver(lines, objective, options);

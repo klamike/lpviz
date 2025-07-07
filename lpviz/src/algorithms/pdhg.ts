@@ -1,8 +1,8 @@
 import { Matrix } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul } from '../utils/blas.js';
+import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul } from '../utils/blas';
 
-function pdhgEpsilon(A, b, c, xk, yk) {
+function pdhgEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: number[]) {
   const Ax = mvmul(A, xk);
   const primalFeasNum = norm(vectorSub(Ax, b));
   const primalFeasDen = 1 + norm(b);
@@ -23,7 +23,7 @@ function pdhgEpsilon(A, b, c, xk, yk) {
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-function pdhgIneqEpsilon(A, b, c, xk, yk) {
+function pdhgIneqEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: number[]) {
   const Ax = mvmul(A, xk);
   const Ax_minus_b = vectorSub(Ax, b);
   const primalFeasNum = norm(projNonNegative(Ax_minus_b));
@@ -43,7 +43,13 @@ function pdhgIneqEpsilon(A, b, c, xk, yk) {
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-function pdhgStandardForm(A, b, c, options = {}) {
+function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: { maxit: number, eta: number, tau: number, tol: number, verbose: boolean } = {
+  maxit: 0,
+  eta: 0,
+  tau: 0,
+  tol: 0,
+  verbose: false
+}) {
   const {
     maxit = 1000,
     eta = 0.25,
@@ -112,7 +118,7 @@ function pdhgStandardForm(A, b, c, options = {}) {
   const endTime = performance.now();
   const tsolve = (endTime - startTime).toFixed(2);
 
-  let finalLogMsg;
+  let finalLogMsg: string;
   if (epsilonK <= tol) {
     finalLogMsg = `Converged to primal-dual optimal solution in ${tsolve}ms`;
   } else {
@@ -124,7 +130,7 @@ function pdhgStandardForm(A, b, c, options = {}) {
   return [iterates, logs];
 }
 
-function pdhgInequalityForm(A, b, c, options = {}) {
+function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: any = {}) {
   const {
     maxit = 1000,
     eta = 0.25,
@@ -194,7 +200,7 @@ function pdhgInequalityForm(A, b, c, options = {}) {
   const endTime = performance.now();
   const tsolve = parseFloat((endTime - startTime).toFixed(2));
 
-  let finalLogMsg;
+  let finalLogMsg: string;
   if (epsilonK <= tol) {
     finalLogMsg = `Converged to primal-dual optimal solution in ${tsolve}ms`;
   } else {
@@ -217,7 +223,7 @@ function pdhgInequalityForm(A, b, c, options = {}) {
  * Usage for directly providing A, b, c for standard form:
  *   pdhg(A_matrixInstance, b_vector, { isStandardProblem: true, cStandard: c_vector, maxit, eta, tau, verbose, tol })
  */
-export function pdhg(linesOrMatrixA, objectiveOrVectorB, options = {}) {
+export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: number[] | number[][], options: any = {}) {
   const {
     ineq = false,
     maxit = 1000,
@@ -241,14 +247,14 @@ export function pdhg(linesOrMatrixA, objectiveOrVectorB, options = {}) {
       linesOrMatrixA instanceof Matrix
         ? linesOrMatrixA
         : new Matrix(linesOrMatrixA);
-    const b_direct = objectiveOrVectorB;
+    const b_direct = objectiveOrVectorB as number[];
     const c_direct = cStandard;
     return pdhgStandardForm(A_direct, b_direct, c_direct, solverOptions);
   }
 
   // Otherwise, interpret linesOrMatrixA as rows with last column = b
   const { A, b } = linesToAb(linesOrMatrixA);
-  const c_objective = objectiveOrVectorB;
+  const c_objective = objectiveOrVectorB as number[];
   const m = A.rows;
   const n_orig = A.columns;
 
@@ -288,9 +294,8 @@ export function pdhg(linesOrMatrixA, objectiveOrVectorB, options = {}) {
       c_hat,
       solverOptions
     );
-
     // Reconstruct x = x+ - x-
-    const x_iterates = chi_iterates.map((chi_k) => {
+    const x_iterates = (chi_iterates as number[][]).map((chi_k: number[]) => {
       const x_plus = chi_k.slice(0, n_orig);
       const x_minus = chi_k.slice(n_orig, 2 * n_orig);
       return vectorSub(x_plus, x_minus);

@@ -1,9 +1,24 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from '../utils/blas.js';
+import { zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from '../utils/blas';
 
 
-export function ipm(lines, objective, opts = {}) {
+export function ipm(lines: number[][], objective: number[],
+  opts: {
+    eps_p: number,
+    eps_d: number,
+    eps_opt: number,
+    maxit: number,
+    alphaMax: number,
+    verbose: boolean
+  } = {
+  eps_p: 1e-6,
+  eps_d: 1e-6,
+  eps_opt: 1e-6,
+  maxit: 30,
+  alphaMax: 0.999,
+  verbose: false
+}) {
   const {
     eps_p = 1e-6,
     eps_d = 1e-6,
@@ -21,7 +36,7 @@ export function ipm(lines, objective, opts = {}) {
 
   // Convert   A x ≤ b,  max c^T x   →   −A x ≥ −b,  min −c^T x
   const Aneg = A.to2DArray().map(row => row.map(v => -v)); // TODO: just keep it a matrix
-  const bneg = b.map(v => -v);
+  const bneg = b.map((v: number) => -v);
   const cneg = objective.map(v => -v);
 
   return ipmCore(Aneg, bneg, cneg, {
@@ -34,7 +49,7 @@ export function ipm(lines, objective, opts = {}) {
   });
 }
 
-function ipmCore(Araw, b, c, opts) {
+function ipmCore(Araw: number[][], b: number[], c: number[], opts: any) {
   const {
     eps_p,
     eps_d,
@@ -51,9 +66,9 @@ function ipmCore(Araw, b, c, opts) {
   // Result structure replicates Julia layout
   const res = {
     iterates: {
-      solution:  { x: [], s: [], y: [], mu: [], log: [] },
-      predictor: { x: [], s: [], y: [], mu: [] },
-      corrector: { x: [], s: [], y: [], mu: [] },
+      solution:  { x: [] as number[], s: [] as number[], y: [] as number[], mu: [] as number[], log: [] as string[] },
+      predictor: { x: [] as number[], s: [] as number[], y: [] as number[], mu: [] as number[] },
+      corrector: { x: [] as number[], s: [] as number[], y: [] as number[], mu: [] as number[] },
     },
   };
 
@@ -74,7 +89,7 @@ function ipmCore(Araw, b, c, opts) {
     "%5s %8s %8s %10s %10s %10s\n",
     'Iter', 'x', 'y', 'Obj', 'Infeas', ' µ',
   );
-  if (verbose) process.stdout.write(banner);
+  if (verbose) console.log(banner);
   res.iterates.solution.log.push(banner);
 
   while (niter <= maxit) {
@@ -122,11 +137,7 @@ function ipmCore(Araw, b, c, opts) {
     }
 
     // Predictor ------------------------------------------------------
-    const rhsAff = [].concat(
-      r_p,
-      r_d,
-      s.map((si, i) => -si * y[i]),
-    );
+    const rhsAff = [...r_p, ...r_d, ...s.map((si, i) => -si * y[i])];
 
     deltaAff = solve(K, Matrix.columnVector(rhsAff)).to1DArray();
     const dxAff = deltaAff.slice(0, n);
@@ -140,14 +151,10 @@ function ipmCore(Araw, b, c, opts) {
     pushIter(res.iterates.predictor, dxAff, dsAff, dyAff, muAff);
 
     // Corrector (if needed) -----------------------------------------
-    let dx, ds, dy, stepP, stepD;
+    let dx: any[], ds: any[], dy: any[], stepP: number, stepD: number;
     if (!(alphaP >= 0.9 && alphaD >= 0.9)) {
       const sigma = Math.max(1e-8, Math.min(1 - 1e-8, (muAff / mu) ** 3));
-      const rhsCor = [].concat(
-        zeros(m),
-        zeros(n),
-        s.map((si, i) => sigma * mu - dsAff[i] * dyAff[i]),
-      );
+      const rhsCor = [...zeros(m), ...zeros(n), ...s.map((si, i) => sigma * mu - dsAff[i] * dyAff[i])];
       deltaCor = solve(K, Matrix.columnVector(rhsCor)).to1DArray();
 
       dx = vectorAdd(dxAff, deltaCor.slice(0, n));
@@ -176,34 +183,34 @@ function ipmCore(Araw, b, c, opts) {
 }
 
 
-function alphaScalar(xi, dxi) {
+function alphaScalar(xi: number, dxi: number) {
   return dxi >= 0 ? 1.0 : -xi / dxi;
 }
 
-function alphaStep(x, dx) {
-  return Math.min(1.0, Math.min(...x.map((xi, i) => alphaScalar(xi, dx[i]))));
+function alphaStep(x: any[], dx: any[]) {
+  return Math.min(1.0, Math.min(...x.map((xi: number, i: number) => alphaScalar(xi, dx[i]))));
 }
 
-function pushIter(d, x, s, y, mu) {
+function pushIter(d: { x: any; s: any; y: any; mu: any; log?: any[]; }, x: any[], s: any[], y: any[], mu: number) {
   d.x.push(copy(x));
   d.s.push(copy(s));
   d.y.push(copy(y));
   d.mu.push(mu);
 }
 
-function logIter(d, verbose, x, mu, pObj, pRes) {
+function logIter(d: { x: any; s?: any[]; y?: any[]; mu?: any[]; log: any; }, verbose: any, x: any[], mu: number, pObj: number, pRes: any) {
   const msg = sprintf(
     "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n",
     d.x.length, x[0], x[1] ?? 0, -pObj, pRes, mu,
   );
-  if (verbose) process.stdout.write(msg);
+  if (verbose) console.log(msg);
   d.log.push(msg);
 }
 
-function logFinal(d, verbose, converged, tSolve) {
+function logFinal(d: { x: any; s?: any[]; y?: any[]; mu?: any[]; log: any; }, verbose: any, converged: boolean, tSolve: number) {
   const msg = converged
     ? `Converged to primal-dual optimal solution in ${tSolve} ms\n`
     : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;
-  if (verbose) process.stdout.write(msg);
+  if (verbose) console.log(msg);
   d.log.push(msg);
 }
