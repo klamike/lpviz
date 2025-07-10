@@ -1,4 +1,5 @@
-import { state, Vec2 } from "../state/state";
+import { state } from "../state/state";
+import { PointXY } from "../types/arrays";
 import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
 
 export class CanvasManager {
@@ -325,17 +326,6 @@ export class CanvasManager {
     }
   }
 
-  drawAnalyticCenter() {
-    if (state.analyticCenter) {
-      const z = state.analyticCenter[2] !== undefined ? state.analyticCenter[2] : 0;
-      const ac = this.toCanvasCoords(state.analyticCenter[0], state.analyticCenter[1], z);
-      this.ctx.fillStyle = "black";
-      this.ctx.beginPath();
-      this.ctx.arc(ac.x, ac.y, 6, 0, 2 * Math.PI);
-      this.ctx.fill();
-    }
-  }
-
   drawObjective() {
     const target =
       state.objectiveVector ||
@@ -463,12 +453,11 @@ export class CanvasManager {
     this.drawGrid();
     this.drawPolygon();
     this.drawConstraintLines();
-    this.drawAnalyticCenter();
     this.drawObjective();
     this.drawIteratePath();
   }
 
-  isPolygonConvex(points: Vec2[]) {
+  isPolygonConvex(points: PointXY[]) {
     if (points.length < 3) return true;
     let prevCross = 0;
     for (let i = 0, n = points.length; i < n; i++) {
@@ -484,7 +473,7 @@ export class CanvasManager {
     return true;
   }
 
-  isLineVisible(startPoint: Vec2, endPoint: Vec2, width: number, height: number) {
+  isLineVisible(startPoint: PointXY, endPoint: PointXY, width: number, height: number) {
     const margin = 100;
     
     const minX = Math.min(startPoint.x, endPoint.x);
