@@ -2,8 +2,9 @@ import { Matrix } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul } from '../utils/blas';
 import { PDHGCoreOptions, PDHGOptions } from '../types/solverOptions';
+import { ArrayMatrix, VecM, VecN, Vec2N, Vec2Ns } from '../types/arrays';
 
-function pdhgEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: number[]) {
+function pdhgEpsilon(A: Matrix, b: VecM, c: VecN, xk: VecN, yk: VecM) {
   const Ax = mvmul(A, xk);
   const primalFeasNum = norm(vectorSub(Ax, b));
   const primalFeasDen = 1 + norm(b);
@@ -24,7 +25,7 @@ function pdhgEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: numb
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-function pdhgIneqEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: number[]) {
+function pdhgIneqEpsilon(A: Matrix, b: VecM, c: VecN, xk: VecN, yk: VecM) {
   const Ax = mvmul(A, xk);
   const Ax_minus_b = vectorSub(Ax, b);
   const primalFeasNum = norm(projNonNegative(Ax_minus_b));
@@ -44,7 +45,7 @@ function pdhgIneqEpsilon(A: Matrix, b: number[], c: number[], xk: number[], yk: 
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: PDHGCoreOptions) {
+function pdhgStandardForm(A: Matrix, b: VecM, c: VecN, options: PDHGCoreOptions) {
   const { maxit, eta, tau, tol, verbose } = options;
 
   const m = A.rows;
@@ -62,7 +63,7 @@ function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: PDHGCore
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
-  const iterates = [];
+  const iterates: Vec2Ns = [];
   const startTime = performance.now();
 
   while (k < maxit && epsilonK > tol) {
@@ -116,10 +117,14 @@ function pdhgStandardForm(A: Matrix, b: number[], c: number[], options: PDHGCore
   if (verbose) console.log(finalLogMsg);
   logs.push(finalLogMsg);
 
-  return [iterates, logs];
+  // return [iterates, logs];
+  return {
+    iterations: iterates,
+    logs: logs
+  };
 }
 
-function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: PDHGCoreOptions) {
+function pdhgInequalityForm(A: Matrix, b: VecM, c: VecN, options: PDHGCoreOptions) {
   const { maxit, eta, tau, tol, verbose } = options;
 
   const m = A.rows;
@@ -137,7 +142,7 @@ function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: PDHGCo
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
-  const iterates = [];
+  const iterates: Vec2Ns = [];
   const startTime = performance.now();
 
   while (k <= maxit && epsilonK > tol) {
@@ -192,7 +197,11 @@ function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: PDHGCo
   if (verbose) console.log(finalLogMsg);
   logs.push(finalLogMsg);
 
-  return [iterates, logs];
+  // return [iterates, logs];
+  return {
+    iterations: iterates,
+    logs: logs
+  };
 }
 /**
  * Main PDHG interface.
@@ -206,7 +215,7 @@ function pdhgInequalityForm(A: Matrix, b: number[], c: number[], options: PDHGCo
  * Usage for directly providing A, b, c for standard form:
  *   pdhg(A_matrixInstance, b_vector, { isStandardProblem: true, cStandard: c_vector, maxit, eta, tau, verbose, tol })
  */
-export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: number[] | number[][], options: PDHGOptions) {
+export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: VecM | VecN, options: PDHGOptions) {
   const {
     ineq = false,
     maxit = 1000,
@@ -230,14 +239,14 @@ export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: nu
       linesOrMatrixA instanceof Matrix
         ? linesOrMatrixA
         : new Matrix(linesOrMatrixA);
-    const b_direct = objectiveOrVectorB as number[];
+    const b_direct: VecM = objectiveOrVectorB;
     const c_direct = cStandard;
     return pdhgStandardForm(A_direct, b_direct, c_direct, solverOptions);
   }
 
   // Otherwise, interpret linesOrMatrixA as rows with last column = b
   const { A, b } = linesToAb(linesOrMatrixA);
-  const c_objective = objectiveOrVectorB as number[];
+  const c_objective: VecN = objectiveOrVectorB;
   const m = A.rows;
   const n_orig = A.columns;
 
@@ -271,19 +280,23 @@ export function pdhg(linesOrMatrixA: Matrix | number[][], objectiveOrVectorB: nu
       ...new Array(m).fill(0),
     ];
 
-    const [chi_iterates, logs] = pdhgStandardForm(
+    const { iterations: chi_iterates, logs } = pdhgStandardForm(
       A_hat,
       b,
       c_hat,
       solverOptions
     );
     // Reconstruct x = x+ - x-
-    const x_iterates = (chi_iterates as number[][]).map((chi_k: number[]) => {
-      const x_plus = chi_k.slice(0, n_orig);
-      const x_minus = chi_k.slice(n_orig, 2 * n_orig);
+    const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
+      const x_plus: VecN = chi_k.slice(0, n_orig);
+      const x_minus: VecN = chi_k.slice(n_orig, 2 * n_orig);
       return vectorSub(x_plus, x_minus);
     });
 
-    return [x_iterates, logs];
+    // return [x_iterates, logs];
+    return {
+      iterations: x_iterates,
+      logs
+    };
   }
 }

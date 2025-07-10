@@ -1,4 +1,5 @@
-import { state, Vec2 } from "../state/state";
+import { state } from "../state/state";
+import { PointXY } from "../types/arrays";
 import {
   fetchPolytope,
   fetchCentralPath,
@@ -32,12 +33,12 @@ interface ShareState {
 export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager) {
   const canvas = canvasManager.canvas;
 
-  const distance = (p1: { x: number; y: number; }, p2: Vec2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
-  const computeCentroid = (pts: Vec2[]) => ({
-    x: pts.reduce((s: number, pt: Vec2) => s + pt.x, 0) / pts.length,
-    y: pts.reduce((s: number, pt: Vec2) => s + pt.y, 0) / pts.length,
+  const distance = (p1: { x: number; y: number; }, p2: PointXY) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  const computeCentroid = (pts: PointXY[]) => ({
+    x: pts.reduce((s: number, pt: PointXY) => s + pt.x, 0) / pts.length,
+    y: pts.reduce((s: number, pt: PointXY) => s + pt.y, 0) / pts.length,
   });
-  const isPolygonConvex = (pts: Vec2[]) => {
+  const isPolygonConvex = (pts: PointXY[]) => {
     if (pts.length < 3) return true;
     let prevCross = 0;
     for (let i = 0, n = pts.length; i < n; i++) {
@@ -53,7 +54,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     }
     return true;
   };
-  const isPointInsidePolygon = (point: Vec2, poly: Vec2[]) => {
+  const isPointInsidePolygon = (point: PointXY, poly: PointXY[]) => {
     let inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
       const xi = poly[i].x,
@@ -70,7 +71,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     }
     return inside;
   };
-  const isPointNearSegment = (point: Vec2, v1: Vec2, v2: Vec2) => {
+  const isPointNearSegment = (point: PointXY, v1: PointXY, v2: PointXY) => {
     const dx = v2.x - v1.x;
     const dy = v2.y - v1.y;
     const len2 = dx * dx + dy * dy;
@@ -774,9 +775,9 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
         state.computedLines,
         [state.objectiveVector!.x, state.objectiveVector!.y]
       );
-      const iteratesArray = result[0].map((entry) => entry as number[]);
-      const phase1logs = result[1][0];
-      const phase2logs = result[1][1];
+      const iteratesArray = result.iterations;
+      const phase1logs = result.logs[0];
+      const phase2logs = result.logs[1];
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
@@ -810,8 +811,8 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
         eta,
         tau
       );
-      const iteratesArray = result[0].map((entry) => entry as number[]);
-      const logArray = result[1];
+      const iteratesArray = result.iterations;
+      const logArray = result.logs;
       state.originalIteratePath = [...iteratesArray];
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
@@ -838,7 +839,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
         weights,
         maxitCentral
       );
-      const iteratesArray = result.central_path?.map((entry) => entry as number[]) ?? [];
+      const iteratesArray = result.iterations;
       const logArray = result.logs;
       const tsolve = result.tsolve;
       state.originalIteratePath = [...iteratesArray];
@@ -1108,7 +1109,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   function loadStateFromObject(obj: ShareState) {
     if (!obj) return;
     if (Array.isArray(obj.vertices)) {
-      state.vertices = obj.vertices.map((v: Vec2) => ({ x: v.x, y: v.y }));
+      state.vertices = obj.vertices.map((v: PointXY) => ({ x: v.x, y: v.y }));
       state.polygonComplete = state.vertices.length > 2;
     }
     if (obj.objective) {
@@ -1262,7 +1263,7 @@ async function applyManualConstraints(canvasManager: CanvasManager, uiManager: U
       state.computedVertices = vertices;
       
       const sortedVertices = sortVerticesCounterClockwise(vertices);
-      state.vertices = sortedVertices.map((v: number[]) => ({ x: v[0], y: v[1] } as Vec2));
+      state.vertices = sortedVertices.map((v: number[]) => ({ x: v[0], y: v[1] } as PointXY));
       
       updateConstraintDisplay(constraintResult.constraints as number[][], canvasManager);
       

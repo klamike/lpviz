@@ -1,5 +1,5 @@
-export interface Vec2 { x: number; y: number; }
-export interface Vec3 { x: number; y: number; z: number; }
+import { PointXY, PointXYZ, VecM } from '../types/arrays';
+import { Vertices, Lines, VecNs } from '../types/arrays';
 
 export interface TraceEntry {
   path: number[][];
@@ -7,18 +7,18 @@ export interface TraceEntry {
 }
 
 export interface State {
-  vertices: Vec2[];
-  currentMouse: Vec2 | null;
+  vertices: PointXY[];
+  currentMouse: PointXY | null;
   polygonComplete: boolean;
-  interiorPoint: Vec2 | null;
-  objectiveVector: Vec2 | null;
-  currentObjective: Vec2 | null;
-  computedVertices: number[][];
-  computedLines: number[][];
+  interiorPoint: PointXY | null;
+  objectiveVector: PointXY | null;
+  currentObjective: PointXY | null;
+  computedVertices: Vertices;
+  computedLines: Lines;
   snapToGrid: boolean;
   highlightIndex: number | null;
-  analyticCenter: number[] | null;
-  iteratePath: number[][];
+  analyticCenter: PointXY | null;
+  iteratePath: VecNs;
   iteratePathComputed: boolean;
   historyStack: any[];
   redoStack: any[];
@@ -30,23 +30,23 @@ export interface State {
   potentialDragPointIndex: number | null;
   dragStartPos: { x: number; y: number } | null;
   draggingObjective: boolean;
-  barrierWeights: number[];
+  barrierWeights: VecM;
   solverMode: string;
   animationIntervalId: number | null;
-  originalIteratePath: number[][];
+  originalIteratePath: VecNs;
   isPanning: boolean;
   lastPan: { x: number; y: number };
   wasPanning: boolean;
   wasDraggingPoint: boolean;
   wasDraggingObjective: boolean;
   is3DMode: boolean;
-  viewAngle: Vec3;
+  viewAngle: PointXYZ;
   focalDistance: number;
   isRotatingCamera: boolean;
   lastRotationMouse: { x: number; y: number };
   zScale: number;
   traceEnabled: boolean;
-  currentTracePath: number[][];
+  currentTracePath: VecNs;
   totalRotationAngle: number;
   rotationCount: number;
   traceBuffer: TraceEntry[];
@@ -55,13 +55,13 @@ export interface State {
   isTransitioning3D: boolean;
   transitionStartTime: number;
   transitionDuration: number;
-  transition3DStartAngles: Vec3;
-  transition3DEndAngles: Vec3;
+  transition3DStartAngles: PointXYZ;
+  transition3DEndAngles: PointXYZ;
   inputMode: 'visual' | 'manual';
   manualConstraints: string[];
   manualObjective: string | null;
   objectiveDirection: 'max' | 'min';
-  parsedConstraints: number[][];
+  parsedConstraints: Lines;
 }
 
 export const state: State = {
