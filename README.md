@@ -30,3 +30,5 @@ bun install                                 # install frontend dependencies
 ```
 
 Then, you can run `bun run dev` to start the server.
+
+Note that `lpviz` is a static website - all computations run in the browser.
