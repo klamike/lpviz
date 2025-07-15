@@ -1,4 +1,6 @@
-function centroid(vertices: number[][]) {
+import { Lines, Vertices } from '../types/arrays';
+
+function centroid(vertices: Vertices) {
     // compute centroid of vertices
     const n = vertices.length;
     if (n === 0) {
@@ -57,8 +59,8 @@ function polytope_format(A: number, B: number, C: number) {
     return `${Ax_str}${By_str} ${ineq_sign} ${C_disp}`.trim();
 }
 
-function polytope_points(lines: number[][], tol = 1e-6) {
-    const poly_vertices = [];
+function polytope_points(lines: Lines, tol = 1e-6) {
+    const poly_vertices: Vertices = [];
     const n = lines.length;
 
     for (let i = 0; i < n - 1; i++) {
@@ -90,12 +92,12 @@ function polytope_points(lines: number[][], tol = 1e-6) {
     return poly_vertices;
 }
 
-function polytope_edges(points: number[][], tol = 1e-6) {
+function polytope_edges(points: Vertices, tol = 1e-6) {
     // Walk the points and form lines between them.
     // NOTE: This function is written as if the `points` always represent a closed polygon.
     //       While the user is still drawing, the frontend will not display the last line.
     const inequalities: string[] = [];
-    const lines: number[][] = [];
+    const lines: Lines = [];
     const n = points.length;
     if (n < 2) return { inequalities, lines }; 
 
@@ -130,7 +132,7 @@ function polytope_edges(points: number[][], tol = 1e-6) {
     return { inequalities, lines };
 }
 
-export function polytope(points: number[][]) {
+export function polytope(points: Vertices) {
     // Constructs the polytope representation from a set of points in 2D.
     if (points.length > 256) { // 2^8 = 256
         throw new Error("points.length > 256 not allowed");

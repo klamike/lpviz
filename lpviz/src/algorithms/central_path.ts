@@ -2,9 +2,10 @@ import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { dot, normInf, vectorAdd, vectorSub, scale, zeros, ones, copy, linesToAb } from '../utils/blas';
 import { CentralPathOptions, CentralPathXkOptions } from '../types/solverOptions';
+import { Lines, Vertices, VecM, VecN, VecNs } from '../types/arrays';
 
 // --- Central Path specific functions ---
-function centroid(vertices: number[][]) {
+function centroid(vertices: Vertices) {
   if (!vertices || vertices.length === 0) return [0, 0]; // Default for 2D if no vertices
   const n = vertices[0].length;
   const summed = zeros(n);
@@ -16,7 +17,7 @@ function centroid(vertices: number[][]) {
   return scale(summed, 1.0 / vertices.length);
 }
 
-function centralPathFilter(lines: number[][], weights: number[] | null) {
+function centralPathFilter(lines: Lines, weights: VecM | null) {
   if (weights && lines.length !== weights.length) {
     throw new Error("Length of lines and weights must match");
   }
@@ -40,7 +41,7 @@ function centralPathMu(niter: number) {
   if (niter <= 0) return [];
   if (niter === 1) return [1000.0]; // range(3, stop=-5, length=1) -> 3.0.  10^3 = 1000
 
-  const mus = [];
+  const mus: VecM = [];
   const startVal = 3.0;
   const stopVal = -5.0;
   const step = (stopVal - startVal) / (niter - 1);
@@ -51,7 +52,7 @@ function centralPathMu(niter: number) {
 }
 
 
-function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: number, x0Vec: number[], opts: CentralPathXkOptions) {
+function centralPathXk(Amatrix: Matrix, bVec: VecM, cVec: VecN, mu: number, x0Vec: VecN, opts: CentralPathXkOptions) {
   const { maxit, epsilon, verbose } = opts;
   
   let x = copy(x0Vec);
@@ -70,7 +71,7 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
   }
 
   for (let k = 1; k <= maxit; k++) {
-    const Ax_val = Amatrix.mmul(Matrix.columnVector(x as number[])).to1DArray();
+    const Ax_val = Amatrix.mmul(Matrix.columnVector(x)).to1DArray();
     const r = vectorSub(bVec, Ax_val);
 
     if (r.some((ri: number) => ri <= 0)) {
@@ -90,7 +91,7 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
     const AT_diag_invR2 = Amatrix.transpose().mmul(invR2_diag);
     const hess = AT_diag_invR2.mmul(Amatrix).mul(mu); // hessian is n x n
 
-    let dx: number[];
+    let dx: VecN;
     try {
         // Newton step: dx = hess \ grad  => solve(hess, grad)
         dx = solve(hess, Matrix.columnVector(grad)).to1DArray();
@@ -104,7 +105,7 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
     let alpha = 1.0;
     let safetyBreaks = 0;
     while (true) {
-      const xNew = vectorAdd(x as number[], scale(dx, alpha));
+      const xNew = vectorAdd(x, scale(dx, alpha));
       const rNew = vectorSub(bVec, Amatrix.mmul(Matrix.columnVector(xNew)).to1DArray());
       if (rNew.every((ri: number) => ri > 1e-12)) { // Add small tolerance, strictly > 0
           break;
@@ -125,7 +126,7 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
     const t = 0.5;  // Shrink factor for alpha
     const beta = 0.01; // Sufficient decrease parameter (typically small)
     const gradDotDx = dot(grad, dx);
-    const fx = calculateObjective(x as number[]);
+    const fx = calculateObjective(x);
     if (fx === -Infinity) { // Should not happen if x is feasible
         console.error("Current point x is out of domain before backtracking at iteration " + k);
         return null;
@@ -133,8 +134,8 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
 
     safetyBreaks = 0;
     while (true) {
-        const xNew = vectorAdd(x as number[], scale(dx, alpha));
-        const fxNew = calculateObjective(xNew as number[]);
+        const xNew = vectorAdd(x, scale(dx, alpha));
+        const fxNew = calculateObjective(xNew);
 
         if (fxNew === -Infinity) { // Still possible if alpha makes it jump out
              alpha *= t;
@@ -160,7 +161,7 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
         }
     }
 
-    x = vectorAdd(x as number[], scale(dx, alpha));
+    x = vectorAdd(x, scale(dx, alpha));
 
     if (normInf(grad) < epsilon) {
       if (verbose) console.log("Converged in " + k + " iterations with mu = " + mu);
@@ -179,7 +180,7 @@ function centralPathXk(Amatrix: Matrix, bVec: number[], cVec: number[], mu: numb
 }
 
 
-export function centralPath(vertices: number[][], lines: number[][], objective: number[], opts: CentralPathOptions) {
+export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, opts: CentralPathOptions) {
   const { niter, weights, verbose } = opts;
 
   if (niter > 2**10) {
@@ -191,14 +192,14 @@ export function centralPath(vertices: number[][], lines: number[][], objective: 
   
   if (filteredLines.length === 0) {
       console.warn("No lines remaining after filtering. Returning empty path.");
-      return { centralPath: [] as number[][], logs: ["No lines to process after filtering."], tsolve: 0 };
+      return { iterations: [] as VecNs, logs: ["No lines to process after filtering."], tsolve: 0 };
   }
 
-  const { A: Araw, b: bVec } = linesToAb(filteredLines as number[][]);
+  const { A: Araw, b: bVec } = linesToAb(filteredLines);
   const Amatrix = new Matrix(Araw);
   const muValues = centralPathMu(niter);
 
-  const centralPathArray: number[][] = [];
+  const centralPathArray: VecNs = [];
   const logs: string[] = [];
   
   let logMsg = sprintf("  %-4s %8s %8s %10s %10s  \n", "Iter", "x", "y", "Obj", "µ");
@@ -247,5 +248,5 @@ export function centralPath(vertices: number[][], lines: number[][], objective: 
     }
   }
   const tsolve = (Date.now() - tStart) / 1000.0; // seconds
-  return { central_path: centralPathArray, logs: logs, tsolve: tsolve };
+  return { iterations: centralPathArray, logs: logs, tsolve: tsolve };
 } 

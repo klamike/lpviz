@@ -2,9 +2,10 @@ import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { zeros, ones, copy, dot, normInf, vectorAdd, vectorSub, scale, linesToAb } from '../utils/blas';
 import { IPMOptions } from '../types/solverOptions';
+import { Lines, VecM, VecN, ArrayMatrix } from '../types/arrays';
 
 
-export function ipm(lines: number[][], objective: number[], opts: IPMOptions) {
+export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
   const { eps_p, eps_d, eps_opt, maxit, alphaMax, verbose } = opts;
 
   if (maxit > 2 ** 16) {
@@ -28,7 +29,7 @@ export function ipm(lines: number[][], objective: number[], opts: IPMOptions) {
   });
 }
 
-function ipmCore(Araw: number[][], b: number[], c: number[], opts: IPMOptions) {
+function ipmCore(Araw: ArrayMatrix, b: VecM, c: VecN, opts: IPMOptions) {
   const {
     eps_p,
     eps_d,
@@ -45,9 +46,9 @@ function ipmCore(Araw: number[][], b: number[], c: number[], opts: IPMOptions) {
   // Result structure replicates Julia layout
   const res = {
     iterates: {
-      solution:  { x: [] as number[], s: [] as number[], y: [] as number[], mu: [] as number[], log: [] as string[] },
-      predictor: { x: [] as number[], s: [] as number[], y: [] as number[], mu: [] as number[] },
-      corrector: { x: [] as number[], s: [] as number[], y: [] as number[], mu: [] as number[] },
+      solution:  { x: [] as VecN, s: [] as VecM, y: [] as VecM, mu: [] as VecM, log: [] as string[] },
+      predictor: { x: [] as VecN, s: [] as VecM, y: [] as VecM, mu: [] as VecM },
+      corrector: { x: [] as VecN, s: [] as VecM, y: [] as VecM, mu: [] as VecM },
     },
   };
 
@@ -130,7 +131,7 @@ function ipmCore(Araw: number[][], b: number[], c: number[], opts: IPMOptions) {
     pushIter(res.iterates.predictor, dxAff, dsAff, dyAff, muAff);
 
     // Corrector (if needed) -----------------------------------------
-    let dx: number[], ds: number[], dy: number[], stepP: number, stepD: number;
+    let dx: VecN, ds: VecM, dy: VecM, stepP: number, stepD: number;
     if (!(alphaP >= 0.9 && alphaD >= 0.9)) {
       const sigma = Math.max(1e-8, Math.min(1 - 1e-8, (muAff / mu) ** 3));
       const rhsCor = [...zeros(m), ...zeros(n), ...s.map((si, i) => sigma * mu - dsAff[i] * dyAff[i])];
@@ -166,27 +167,27 @@ function alphaScalar(xi: number, dxi: number) {
   return dxi >= 0 ? 1.0 : -xi / dxi;
 }
 
-function alphaStep(x: number[], dx: number[]) {
+function alphaStep(x: VecN, dx: VecN) {
   return Math.min(1.0, Math.min(...x.map((xi: number, i: number) => alphaScalar(xi, dx[i]))));
 }
 
-function pushIter(d: { x: any; s: any; y: any; mu: any; log?: any[]; }, x: number[], s: number[], y: number[], mu: number) {
+function pushIter(d: any, x: VecN, s: VecM, y: VecM, mu: number) {
   d.x.push(copy(x));
   d.s.push(copy(s));
-  d.y.push(copy(y) as number[]);
+  d.y.push(copy(y));
   d.mu.push(mu);
 }
   
-function logIter(d: { x: any; s: any; y: any; mu: any; log: any; }, verbose: boolean, x: number[], mu: number, pObj: number, pRes: number) {
+function logIter(d: any, verbose: boolean, x: VecN, mu: number, pObj: number, pRes: number) {
   const msg = sprintf(
     "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n",
-    d.x.length, x[0], x[1] ?? 0, -pObj, pRes, mu,
+    d.x.length, x[0], x[1], -pObj, pRes, mu,
   );
   if (verbose) console.log(msg);
   d.log.push(msg);
 }
 
-function logFinal(d: { x: any; s: any; y: any; mu: any; log: any; }, verbose: boolean, converged: boolean, tSolve: number) {
+function logFinal(d: any, verbose: boolean, converged: boolean, tSolve: number) {
   const msg = converged
     ? `Converged to primal-dual optimal solution in ${tSolve} ms\n`
     : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;
