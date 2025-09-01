@@ -1,4 +1,4 @@
-import { state, SolverMode } from "../state/state";
+import { state, SolverMode, handleStepSizeChange, resetTraceState } from "../state/state";
 import { start3DTransition } from "../utils/transitions";
 import { 
   getElement, 
@@ -112,12 +112,11 @@ export function setupUIControls(
       element.addEventListener("click", () => {
         state.solverMode = mode;
         
-        // Restart traces if switching solver while rotating objective
-        if (state.rotateObjectiveMode && state.traceEnabled) {
-          state.traceBuffer = [];
-          state.totalRotationAngle = 0;
-          state.rotationCount = 0;
-          canvasManager.draw();
+        if (state.rotateObjectiveMode) {
+          resetTraceState();
+          if (state.traceEnabled) {
+            canvasManager.draw();
+          }
         }
         
         // Update button states
@@ -146,6 +145,14 @@ export function setupUIControls(
     
     slider.addEventListener("input", () => {
       display.textContent = parseFloat(slider.value).toFixed(decimalPlaces);
+      
+      if (solverMode) {
+        resetTraceState();
+        if (state.traceEnabled) {
+          canvasManager.draw();
+        }
+      }
+      
       if (customCallback) {
         customCallback();
       } else if (solverMode && state.solverMode === solverMode) {
@@ -159,6 +166,11 @@ export function setupUIControls(
   function setupInputWithSolverMode(inputId: string, solverMode: string, eventType: "input" | "change" = "input") {
     const input = getElement<HTMLInputElement>(inputId);
     input.addEventListener(eventType, () => {
+      resetTraceState();
+      if (state.traceEnabled) {
+        canvasManager.draw();
+      }
+      
       if (state.solverMode === solverMode) computePath();
     });
     return input;
@@ -180,9 +192,7 @@ export function setupUIControls(
     // Special callback for objective angle step
     const objectiveAngleStepSlider = setupSliderWithDisplay("objectiveAngleStepSlider", "objectiveAngleStepValue", 2, undefined, () => {
       if (state.traceEnabled) {
-        state.traceBuffer = [];
-        state.totalRotationAngle = 0;
-        state.rotationCount = 0;
+        handleStepSizeChange();
         canvasManager.draw();
       }
     });
@@ -220,9 +230,7 @@ export function setupUIControls(
 
     startRotateButton.addEventListener("click", () => {
       state.rotateObjectiveMode = true;
-      state.traceBuffer = [];
-      state.totalRotationAngle = 0;
-      state.rotationCount = 0;
+      resetTraceState();
       
       if (!state.objectiveVector) {
         state.objectiveVector = { x: 1, y: 0 };
@@ -254,10 +262,10 @@ export function setupUIControls(
     traceCheckbox.addEventListener("change", () => {
       state.traceEnabled = traceCheckbox.checked;
       if (!state.traceEnabled) {
-        state.traceBuffer = [];
-        state.totalRotationAngle = 0;
-        state.rotationCount = 0;
+        resetTraceState();
         canvasManager.draw();
+      } else {
+        handleStepSizeChange();
       }
     });
 

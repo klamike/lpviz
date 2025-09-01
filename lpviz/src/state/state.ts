@@ -177,17 +177,12 @@ export function updateIteratePaths(iteratesArray: number[][]): void {
 export function addTraceToBuffer(iteratesArray: number[][]): void {
   if (!state.traceEnabled || iteratesArray.length === 0) return;
   
-  const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
-  const angleStep = parseFloat(objectiveAngleStepSlider?.value || "0.1");
-
-  const maxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
-  state.maxTraceCount = maxTracesPerRotation;
-  
   state.traceBuffer.push({
     path: [...iteratesArray],
     angle: state.totalRotationAngle
   });
   
+  // Only trim traces if we exceed the buffer limit
   while (state.traceBuffer.length > state.maxTraceCount) {
     state.traceBuffer.shift();
   }
@@ -201,5 +196,29 @@ export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {
   updateIteratePaths(iteratesArray);
   if (state.traceEnabled && iteratesArray.length > 0) {
     addTraceToBuffer(iteratesArray);
+  }
+}
+
+export function resetTraceState(): void {
+  if (state.traceEnabled) {
+    state.traceBuffer = [];
+    state.totalRotationAngle = 0;
+    state.rotationCount = 0;
+  }
+}
+
+export function handleStepSizeChange(): void {
+  if (!state.traceEnabled) return;
+  
+  const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
+  const angleStep = parseFloat(objectiveAngleStepSlider?.value || "0.1");
+  const newMaxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
+  
+  // Update maxTraceCount to the new value
+  state.maxTraceCount = newMaxTracesPerRotation;
+  
+  // If the new limit is smaller than current buffer, trim from the beginning (oldest traces)
+  while (state.traceBuffer.length > state.maxTraceCount) {
+    state.traceBuffer.shift();
   }
 }
