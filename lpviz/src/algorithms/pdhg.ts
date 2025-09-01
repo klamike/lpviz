@@ -1,23 +1,23 @@
 import { Matrix } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { dot, normInf, vectorAdd, vectorSub, scale, norm, projNonNegative, linesToAb, mvmul, mtmul } from '../utils/blas';
+import { vdot, vnormInf, vadd, vsub, vscale, vnorm, vprojNonNegative, linesToAb, mvmul, mtmul } from '../utils/blas';
 import { PDHGCoreOptions, PDHGOptions } from '../types/solverOptions';
 import { ArrayMatrix, VecM, VecN, Vec2N, Vec2Ns } from '../types/arrays';
 
 function pdhgEpsilon(A: Matrix, b: VecM, c: VecN, xk: VecN, yk: VecM) {
   const Ax = mvmul(A, xk);
-  const primalFeasNum = norm(vectorSub(Ax, b));
-  const primalFeasDen = 1 + norm(b);
+  const primalFeasNum = vnorm(vsub(Ax, b));
+  const primalFeasDen = 1 + vnorm(b);
   const primalFeasibility = primalFeasNum / primalFeasDen;
 
   const ATy = mtmul(A, yk);
-  const negATy_minus_c = vectorSub(scale(ATy, -1), c);
-  const dualFeasNum = norm(projNonNegative(negATy_minus_c));
-  const dualFeasDen = 1 + norm(c);
+  const negATy_minus_c = vsub(vscale(ATy, -1), c);
+  const dualFeasNum = vnorm(vprojNonNegative(negATy_minus_c));
+  const dualFeasDen = 1 + vnorm(c);
   const dualFeasibility = dualFeasNum / dualFeasDen;
 
-  const cTx = dot(c, xk);
-  const bTy = dot(b, yk);
+  const cTx = vdot(c, xk);
+  const bTy = vdot(b, yk);
   const dualityGapNum = Math.abs(cTx + bTy);
   const dualityGapDen = 1 + Math.abs(cTx) + Math.abs(bTy);
   const dualityGap = dualityGapNum / dualityGapDen;
@@ -27,17 +27,17 @@ function pdhgEpsilon(A: Matrix, b: VecM, c: VecN, xk: VecN, yk: VecM) {
 
 function pdhgIneqEpsilon(A: Matrix, b: VecM, c: VecN, xk: VecN, yk: VecM) {
   const Ax = mvmul(A, xk);
-  const Ax_minus_b = vectorSub(Ax, b);
-  const primalFeasNum = norm(projNonNegative(Ax_minus_b));
-  const primalFeasDen = 1 + norm(b);
+  const Ax_minus_b = vsub(Ax, b);
+  const primalFeasNum = vnorm(vprojNonNegative(Ax_minus_b));
+  const primalFeasDen = 1 + vnorm(b);
   const primalFeasibility = primalFeasNum / primalFeasDen;
 
-  const dualFeasNum = norm(projNonNegative(scale(yk, -1)));
-  const dualFeasDen = 1 + norm(c);
+  const dualFeasNum = vnorm(vprojNonNegative(vscale(yk, -1)));
+  const dualFeasDen = 1 + vnorm(c);
   const dualFeasibility = dualFeasNum / dualFeasDen;
 
-  const cTx = dot(c, xk);
-  const bTy = dot(b, yk);
+  const cTx = vdot(c, xk);
+  const bTy = vdot(b, yk);
   const dualityGapNum = Math.abs(bTy + cTx);
   const dualityGapDen = 1 + Math.abs(cTx) + Math.abs(bTy);
   const dualityGap = dualityGapNum / dualityGapDen;
@@ -69,12 +69,12 @@ function pdhgStandardForm(A: Matrix, b: VecM, c: VecN, options: PDHGCoreOptions)
   while (k < maxit && epsilonK > tol) {
     iterates.push([...xk]);
 
-    const pObj = -dot(c, xk);
-    const dObj = -dot(b, yk);
+    const pObj = -vdot(c, xk);
+    const dObj = -vdot(b, yk);
     const A_xk = mvmul(A, xk);
-    const pFeas = normInf(vectorSub(A_xk, b));
+    const pFeas = vnormInf(vsub(A_xk, b));
     const AT_yk = mtmul(A, yk);
-    const dFeas = normInf(projNonNegative(vectorSub(scale(AT_yk, -1), c)));
+    const dFeas = vnormInf(vprojNonNegative(vsub(vscale(AT_yk, -1), c)));
 
     let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
       k,
@@ -89,14 +89,14 @@ function pdhgStandardForm(A: Matrix, b: VecM, c: VecN, options: PDHGCoreOptions)
     logs.push(logMsg);
 
     // Gradient and updates
-    const gradX = vectorAdd(c, mtmul(A, yk));
-    const x_intermediate = vectorSub(xk, scale(gradX, eta));
-    const xk_plus_1 = projNonNegative(x_intermediate);
+    const gradX = vadd(c, mtmul(A, yk));
+    const x_intermediate = vsub(xk, vscale(gradX, eta));
+    const xk_plus_1 = vprojNonNegative(x_intermediate);
 
-    const x_extrapolated = vectorAdd(xk_plus_1, vectorSub(xk_plus_1, xk));
+    const x_extrapolated = vadd(xk_plus_1, vsub(xk_plus_1, xk));
     const Ax_extrapolated = mvmul(A, x_extrapolated);
-    const y_update_term = vectorSub(Ax_extrapolated, b);
-    const yk_plus_1 = vectorAdd(yk, scale(y_update_term, tau));
+    const y_update_term = vsub(Ax_extrapolated, b);
+    const yk_plus_1 = vadd(yk, vscale(y_update_term, tau));
 
     xk = xk_plus_1;
     yk = yk_plus_1;
@@ -148,12 +148,12 @@ function pdhgInequalityForm(A: Matrix, b: VecM, c: VecN, options: PDHGCoreOption
   while (k <= maxit && epsilonK > tol) {
     iterates.push([...xk]);
 
-    const pObj = dot(c, xk);
-    const dObj = dot(b, yk);
+    const pObj = vdot(c, xk);
+    const dObj = vdot(b, yk);
 
     const Axk = mvmul(A, xk);
-    const pFeasVal = normInf(projNonNegative(vectorSub(Axk, b)));
-    const dFeasVal = normInf(projNonNegative(scale(yk, -1)));
+    const pFeasVal = vnormInf(vprojNonNegative(vsub(Axk, b)));
+    const dFeasVal = vnormInf(vprojNonNegative(vscale(yk, -1)));
 
     let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
       k,
@@ -168,15 +168,15 @@ function pdhgInequalityForm(A: Matrix, b: VecM, c: VecN, options: PDHGCoreOption
     logs.push(logMsg);
 
     // y update
-    const Axk_minus_b = vectorSub(Axk, b);
-    const y_intermediate = vectorAdd(yk, scale(Axk_minus_b, tau));
-    const yk_plus_1 = projNonNegative(y_intermediate);
+    const Axk_minus_b = vsub(Axk, b);
+    const y_intermediate = vadd(yk, vscale(Axk_minus_b, tau));
+    const yk_plus_1 = vprojNonNegative(y_intermediate);
 
     // x update
-    const y_extrapolated = vectorAdd(yk_plus_1, vectorSub(yk_plus_1, yk));
+    const y_extrapolated = vadd(yk_plus_1, vsub(yk_plus_1, yk));
     const AT_y_extrapolated = mtmul(A, y_extrapolated);
-    const gradX = vectorAdd(c, AT_y_extrapolated);
-    const xk_plus_1 = vectorSub(xk, scale(gradX, eta));
+    const gradX = vadd(c, AT_y_extrapolated);
+    const xk_plus_1 = vsub(xk, vscale(gradX, eta));
 
     xk = xk_plus_1;
     yk = yk_plus_1;
@@ -253,7 +253,7 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
   if (ineq) {
     // For inequalities, we minimize c^T x subject to A x <= b
     // Convert to maximizing -c^T x subject to A x <= b, so dual flip sign of c
-    const c_min = scale(c_objective, -1);
+    const c_min = vscale(c_objective, -1);
     return pdhgInequalityForm(A, b, c_min, solverOptions);
   } else {
     // Equality-constrained LP in standard form:
@@ -275,7 +275,7 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
 
     // c_hat = [-c; c; 0_m]
     const c_hat = [
-      ...scale(c_objective, -1),
+      ...vscale(c_objective, -1),
       ...c_objective,
       ...new Array(m).fill(0),
     ];
@@ -290,7 +290,7 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
     const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
       const x_plus: VecN = chi_k.slice(0, n_orig);
       const x_minus: VecN = chi_k.slice(n_orig, 2 * n_orig);
-      return vectorSub(x_plus, x_minus);
+      return vsub(x_plus, x_minus);
     });
 
     // return [x_iterates, logs];

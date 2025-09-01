@@ -1,6 +1,6 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { zeros, ones, copy, dot, vectorSub, mtmul, linesToAb } from '../utils/blas';
+import { vzeros, vones, vcopy, vdot, vsub, mtmul, linesToAb } from '../utils/blas';
 import { SimplexOptions } from '../types/solverOptions';
 import { ArrayMatrix, Lines, Vec2N, VecM, VecN, Vec2Ns } from '../types/arrays';
 
@@ -52,7 +52,7 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
 
   const Im = Matrix.eye(m);
   const A1 = hstack(Apos, Aneg, Gamma.mmul(Im), Im);
-  const c1 = [...zeros(2 * n + m), ...ones(m).map(_ => -1)]; // –Σ t
+  const c1 = [...vzeros(2 * n + m), ...vones(m).map(_ => -1)]; // –Σ t
 
   const basis1_init = Array(2 * n + 2 * m).fill(false);    // start: t basic
   for (let i = 0; i < m; ++i) basis1_init[2 * n + m + i] = true;
@@ -64,7 +64,7 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   );
 
   /* ----------  Phase-2  -------------------------------------------------- */
-  const c2 = [...c_objective, ...c_objective.map(v => -v), ...zeros(m)];  //  c x₁ – c x₂
+  const c2 = [...c_objective, ...c_objective.map(v => -v), ...vzeros(m)];  //  c x₁ – c x₂
   const A_orig_neg_data = A_orig.to2DArray().map(row => row.map(v => -v));
   const A_orig_neg = new Matrix(A_orig_neg_data);
   const A2 = hstack(A_orig, A_orig_neg, Im);
@@ -78,7 +78,7 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   const xIters = all_tableau_iters.map((tableau_x: Vec2N) => {
     const x1: VecN = tableau_x.slice(0, n);
     const x2: VecN = tableau_x.slice(n, 2 * n);
-    return vectorSub(x1, x2);
+    return vsub(x1, x2);
   });
 
   return {
@@ -99,7 +99,7 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
       throw new Error(`Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.length=${bVec.length} vs m=${m}`);
   }
 
-  let basis = copy(basisInit);           // mutable copy
+  let basis = vcopy(basisInit);           // mutable copy
   const iterations: Vec2Ns = [];
   const logs       = [];
 
@@ -150,9 +150,9 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
         throw e;
     }
 
-    x_tableau = zeros(nCols);
+    x_tableau = vzeros(nCols);
     basisIndices.forEach((col_idx, k) => { x_tableau[col_idx] = xB[k]; });
-    iterations.push(copy(x_tableau));
+    iterations.push(vcopy(x_tableau));
 
     /* --- Dual:  Bᵀ y = c_B --------------------------------------------- */
     const cB = basisIndices.map(j => cVec[j]);
@@ -163,7 +163,7 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
     const z = cVec.map((ci, j) => ci - ATy[j]);
 
     /* Logging ------------------------------------------------------------ */
-    objVal = dot(cVec, x_tableau);
+    objVal = vdot(cVec, x_tableau);
     const x0_log = x_tableau[0] !== undefined ? x_tableau[0] : 0.0;
     const y0_log = y[0] !== undefined ? y[0] : 0.0;
 
@@ -229,7 +229,7 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
   }
 
   /* ---------------- Phase-1 clean-up ----------------------------------- */
-  let finalBasis = copy(basis);
+  let finalBasis = vcopy(basis);
   if (phase1) {
     const artificial_vars_start_index = 2 * nOrig + m;
 
