@@ -5,7 +5,9 @@ import {
   showElement, 
   hideElement, 
   adjustFontSize,
-  setupHoverHighlight 
+  adjustLogoFontSize,
+  adjustTerminalHeight,
+  calculateMinSidebarWidth,
 } from "../utils/uiHelpers";
 import { prepareAnimationInterval } from "../state/state";
 import { 
@@ -361,6 +363,9 @@ export function setupUIControls(
     const handle = getElement<HTMLElement>("sidebarHandle");
     let isResizing = false;
     
+    // Calculate intelligent minimum width based on content
+    const minSidebarWidth = calculateMinSidebarWidth();
+    
     handle.addEventListener("mousedown", (e) => {
       isResizing = true;
       e.preventDefault();
@@ -369,17 +374,22 @@ export function setupUIControls(
     document.addEventListener("mousemove", (e) => {
       if (!isResizing) return;
       
-      const newWidth = Math.max(200, Math.min(e.clientX, 1000));
+      const newWidth = Math.max(minSidebarWidth, Math.min(e.clientX, 1000));
       sidebar.style.width = `${newWidth}px`;
       handle.style.left = `${newWidth}px`;
       canvasManager.centerX = newWidth + (window.innerWidth - newWidth) / 2;
       canvasManager.draw();
+      adjustFontSize();
+      adjustLogoFontSize();
+      adjustTerminalHeight();
     });
     
     document.addEventListener("mouseup", () => {
       if (isResizing) {
         isResizing = false;
         adjustFontSize();
+        adjustLogoFontSize();
+        adjustTerminalHeight();
       }
     });
   }
