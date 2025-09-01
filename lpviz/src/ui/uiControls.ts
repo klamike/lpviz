@@ -16,7 +16,7 @@ import {
   computePDHGSolution,
   computeCentralPathSolution 
 } from "../services/solverService";
-import { isPolygonConvex } from "../utils/math2D";
+import { isPolygonConvex } from "../utils/math2d";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 

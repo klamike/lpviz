@@ -1,6 +1,6 @@
 import { state } from "../state/state";
 import { PointXY } from "../types/arrays";
-import { distance, pointCentroid, isPolygonConvex, isPointInsidePolygon, isPointNearSegment } from "../utils/math2D";
+import { distance, pointCentroid, isPolygonConvex, isPointInsidePolygon, isPointNearSegment } from "../utils/math2d";
 import { showElement, setButtonsEnabled } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
