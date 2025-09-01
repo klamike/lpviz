@@ -756,14 +756,13 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       );
       const sol = result.iterates.solution;
       const logArray = sol.log;
-      const iteratesArray = sol.x.map((val, i) => sol.x[i]);
+      const iteratesArray: number[][] = sol.x as unknown as number[][];
       // @ts-ignore
       state.originalIteratePath = [...iteratesArray];  
       // @ts-ignore
       state.iteratePath = iteratesArray;
       if (state.traceEnabled && iteratesArray.length > 0) {
-        // @ts-ignore - IPM case has different format, skip for now
-        // TODO: Convert IPM format to work with optimized buffer
+        addTraceToBuffer(iteratesArray);
       }
       let html = "";
       html += `<div class="iterate-header">${logArray[0]}</div>`;
