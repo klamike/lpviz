@@ -1,7 +1,7 @@
 import { pdhg as localPdhgSolver } from "../algorithms/pdhg";
 import { polytope as localPolytopeSolver } from "../algorithms/polytope";
 import { ipm as localIpmSolver } from "../algorithms/ipm";
-import { centralPath as localCentralPathSolver } from "../algorithms/central_path";
+import { centralPath as localCentralPathSolver } from "../algorithms/centralPath";
 import { simplex as localSimplexSolver } from "../algorithms/simplex";
 import Matrix from "ml-matrix";
 import { VecM, VecN, Vertices, Lines, ArrayMatrix } from "../types/arrays";

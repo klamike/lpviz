@@ -41,10 +41,6 @@ export function setButtonState(id: string, enabled: boolean): void {
   if (button) button.disabled = !enabled;
 }
 
-export function getElementValue(elementId: string): string {
-  const element = document.getElementById(elementId) as HTMLInputElement;
-  return element?.value || "";
-}
 
 export function getElementChecked(elementId: string): boolean {
   const element = document.getElementById(elementId) as HTMLInputElement;

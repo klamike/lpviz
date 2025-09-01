@@ -19,8 +19,6 @@ export const vadd = <T extends number[]>(a: T, b: T): T =>
   (a.map((ai: number, i: number) => ai + (b as T)[i]) as T);
 export const vsub = <T extends number[]>(a: T, b: T): T =>
   (a.map((ai: number, i: number) => ai - (b as T)[i]) as T);
-export const vmult = <T extends number[]>(a: T, b: T): T =>
-  (a.map((ai: number, i: number) => ai * (b as T)[i]) as T);
 export const vscale = <T extends number[]>(v: T, k: number): T =>
   (v.map((vi: number) => vi * k) as T);
 export const mvmul = (A: Matrix, x: VecN): VecM =>
@@ -66,4 +64,37 @@ export function vstack(matrices: (AbstractMatrix | number[])[]): Matrix {
 
 export const vslice = (v: Matrix, start: number, end: number) => {
   return v.subMatrix(start, end-1, 0, 0);
+}
+
+export function projectNonNegative(matrix: Matrix): Matrix {
+  const result = matrix.clone();
+  for (let i = 0; i < result.rows; i++) {
+    for (let j = 0; j < result.columns; j++) {
+      result.set(i, j, Math.max(0, result.get(i, j)));
+    }
+  }
+  return result;
+}
+
+export function hstack(...mats: Matrix[]) {
+  if (mats.length === 0) return new Matrix([]);
+  const rows = mats[0].rows;
+  if (!mats.every(M => M.rows === rows)) {
+    throw new Error('hstack: all blocks must have identical row-count');
+  }
+  const cols = mats.reduce((s, M) => s + M.columns, 0);
+  const out = Matrix.zeros(rows, cols);
+
+  let current_col_offset = 0;
+  for (const M of mats) {
+    if (M.columns > 0) {
+      for (let r = 0; r < M.rows; ++r) {
+        for (let c = 0; c < M.columns; ++c) {
+          out.set(r, current_col_offset + c, M.get(r, c));
+        }
+      }
+    }
+    current_col_offset += M.columns;
+  }
+  return out;
 }

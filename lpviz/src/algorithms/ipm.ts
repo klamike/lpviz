@@ -1,8 +1,16 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { linesToAb, diag, vstack, vslice } from '../utils/blas';
-import { IPMOptions } from '../types/solverOptions';
 import { Lines, VecM, VecN, VectorM, VectorN } from '../types/arrays';
+
+export interface IPMOptions {
+  eps_p: number;
+  eps_d: number;
+  eps_opt: number;
+  maxit: number;
+  alphaMax: number;
+  verbose: boolean;
+}
 
 // High-level interface for the IPM solver.
 // Converts to the proper form for the core solver.

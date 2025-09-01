@@ -2,7 +2,7 @@ import { state } from "../state/state";
 import { fetchPolytope } from "../services/apiClient";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
-import { isPolygonConvex } from "../utils/math2d";
+import { isPolygonConvex } from "../utils/math2D";
 import { setupHoverHighlight, adjustFontSize, getElement, showElement } from "../utils/uiHelpers";
 
 import { createDragHandlers, setupDragEventListeners, getLogicalCoords } from "./dragHandlers";
