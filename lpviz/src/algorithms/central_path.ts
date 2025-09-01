@@ -1,52 +1,52 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { vdot, vnormInf, vadd, vsub, vscale, vzeros, vones, vcopy, linesToAb } from '../utils/blas';
+import { vcopy, linesToAb } from '../utils/blas';
 import { CentralPathOptions, CentralPathXkOptions } from '../types/solverOptions';
-import { Lines, Vertices, VecM, VecN, VecNs } from '../types/arrays';
+import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from '../types/arrays';
 
 // Use Newton's method to solve for one point on the central path.
 // An initial feasible point is required, initially set to the centroid of the vertices.
-function centralPathXk(Amatrix: Matrix, bVec: VecM, cVec: VecN, mu: number, x0Vec: VecN, opts: CentralPathXkOptions) {
+function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number, x0Vec: VectorN, opts: CentralPathXkOptions) {
   const { maxit, epsilon, verbose } = opts;
-  
-  let x = vcopy(x0Vec);
+
+  let x = x0Vec.clone();
 
   // Calculate the objective function value (original + barrier term).
-  function calculateObjective(currentX: number[]) {
-    const Ax = Amatrix.mmul(Matrix.columnVector(currentX)).to1DArray();
-    const r = vsub(bVec, Ax);
-    if (r.some((ri: number) => ri <= 0)) {
+  function calculateObjective(currentX: VectorN) {
+    const Ax = Amatrix.mmul(currentX);
+    const r = Matrix.sub(bVec, Ax);
+    if (r.min() <= 0) {
       return -Infinity;
     }
-    return vdot(cVec, currentX) + mu * r.reduce((sum: number, ri: number) => sum + Math.log(ri), 0);
+    return cVec.dot(currentX) + mu * r.log().sum();
   }
 
   for (let k = 1; k <= maxit; k++) {
     // Residual: b - Ax
-    const Ax_val = Amatrix.mmul(Matrix.columnVector(x)).to1DArray();
-    const r = vsub(bVec, Ax_val);
+    const Ax_val = Amatrix.mmul(x);
+    const r = Matrix.sub(bVec, Ax_val);
 
-    if (r.some((ri: number) => ri <= 0)) {
+    if (r.min() <= 0) {
       console.error("Infeasible point encountered at iteration " + k);
       return null;
     }
 
-    const invR = r.map((ri: number) => 1.0 / ri);
-    const invR2 = r.map((ri: number) => (1.0 / ri) ** 2);
+    const invR = Matrix.pow(r, -1);
+    const invR2 = Matrix.pow(invR, 2);
 
-    // Gradient: c - μ * Aᵀ * invR
-    const AT_invR = Amatrix.transpose().mmul(Matrix.columnVector(invR)).to1DArray();
-    const grad = vsub(cVec, vscale(AT_invR, mu));
+    // Gradient: c - μ * Aᵀ * (1 / r)
+    const AT_invR = Amatrix.transpose().mmul(invR);
+    const grad = Matrix.sub(cVec, AT_invR.mul(mu));
 
-    // Hessian: μ * Aᵀ * diag(invR2) * A
-    const invR2_diag = Matrix.diag(invR2);
+    // Hessian: μ * Aᵀ * diag(1 / r^2) * A
+    const invR2_diag = Matrix.diag(invR2.to1DArray());
     const AT_diag_invR2 = Amatrix.transpose().mmul(invR2_diag);
     const hess = AT_diag_invR2.mmul(Amatrix).mul(mu); // hessian is n x n
 
-    let dx: VecN;
+    let dx: VectorN;
     try {
         // Newton step: dx = hess \ grad  => solve(hess, grad)
-        dx = solve(hess, Matrix.columnVector(grad)).to1DArray();
+        dx = solve(hess, grad);
     } catch (e) {
         console.error("Error solving Newton system at iteration " + k + ": " + e);
         return null;
@@ -57,9 +57,9 @@ function centralPathXk(Amatrix: Matrix, bVec: VecM, cVec: VecN, mu: number, x0Ve
     let alpha = 1.0;
     let safetyBreaks = 0;
     while (true) {
-      const xNew = vadd(x, vscale(dx, alpha));
-      const rNew = vsub(bVec, Amatrix.mmul(Matrix.columnVector(xNew)).to1DArray());
-      if (rNew.every((ri: number) => ri > 1e-12)) { // Add small tolerance, strictly > 0
+      const xNew = Matrix.add(x, Matrix.mul(dx, alpha));
+      const rNew = Matrix.sub(bVec, Amatrix.mmul(xNew));
+      if (rNew.min() > 1e-12) { // Add small tolerance, strictly > 0
           break;
       }
       alpha *= 0.5;
@@ -77,7 +77,7 @@ function centralPathXk(Amatrix: Matrix, bVec: VecM, cVec: VecN, mu: number, x0Ve
     // Backtracking line search for sufficient increase (Armijo)
     const t = 0.5;  // Shrink factor for alpha
     const beta = 0.01; // Sufficient decrease parameter (typically small)
-    const gradDotDx = vdot(grad, dx);
+    const gradDotDx = grad.dot(dx);
     const fx = calculateObjective(x);
     if (fx === -Infinity) { // Should not happen if x is feasible
         console.error("Current point x is out of domain before backtracking at iteration " + k);
@@ -86,7 +86,7 @@ function centralPathXk(Amatrix: Matrix, bVec: VecM, cVec: VecN, mu: number, x0Ve
 
     safetyBreaks = 0;
     while (true) {
-        const xNew = vadd(x, vscale(dx, alpha));
+        const xNew = Matrix.add(x, Matrix.mul(dx, alpha));
         const fxNew = calculateObjective(xNew);
 
         if (fxNew === -Infinity) { // Still possible if alpha makes it jump out
@@ -111,16 +111,16 @@ function centralPathXk(Amatrix: Matrix, bVec: VecM, cVec: VecN, mu: number, x0Ve
         }
     }
 
-    x = vadd(x, vscale(dx, alpha));
+    x = Matrix.add(x, Matrix.mul(dx, alpha));
 
-    if (vnormInf(grad) < epsilon) {
+    if (grad.max() < epsilon) {
       if (verbose) console.log("Converged in " + k + " iterations with mu = " + mu);
       return x;
     }
 
     if (verbose) {
         const currentFx = calculateObjective(x);
-        console.log(sprintf("Iter %d: f(x) = %.6f, ||grad||_inf = %.2e, alpha = %.2f", k, currentFx, vnormInf(grad), alpha));
+        console.log(sprintf("Iter %d: f(x) = %.6f, ||grad||_inf = %.2e, alpha = %.2f", k, currentFx, grad.max(), alpha));
     }
   }
 
@@ -138,16 +138,17 @@ export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, o
   }
   const tStart = Date.now();
 
-  const { filteredLines, filteredWeights } = centralPathFilter(lines, weights);
+  // const { filteredLines, filteredWeights } = centralPathFilter(lines, weights ? Matrix.columnVector(weights) : null);
   // TODO: implement the weighted central path and enable it in the UI
   
-  if (filteredLines.length === 0) {
-      console.warn("No lines remaining after filtering. Returning empty path.");
-      return { iterations: [] as VecNs, logs: ["No lines to process after filtering."], tsolve: 0 };
-  }
+  // if (filteredLines.length === 0) {
+  //     console.warn("No lines remaining after filtering. Returning empty path.");
+  //     return { iterations: [] as VecNs, logs: ["No lines to process after filtering."], tsolve: 0 };
+  // }
 
-  const { A: Araw, b: bVec } = linesToAb(filteredLines);
-  const Amatrix = new Matrix(Araw);
+  const { A: A, b: bVec } = linesToAb(lines);
+  const b = Matrix.columnVector(bVec);
+  const c = Matrix.columnVector(objective);
   const muValues = centralPathMu(niter);
 
   const centralPathArray: VecNs = [];
@@ -160,19 +161,19 @@ export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, o
   let x0 = centroid(vertices);
 
   for (const muK of muValues) {
-    const xk = centralPathXk(Amatrix, bVec, objective, muK, x0, { verbose, epsilon: 1e-4, maxit: 2000 }); // Pass relevant opts
-    if (xk !== null && xk.length > 0) {
-      const Ax = Amatrix.mmul(Matrix.columnVector(xk)).to1DArray();
-      const r = vsub(bVec, Ax);
-      const objectiveValue = vdot(objective, xk);
-      const barrierTerm = muK * r.reduce((sum: number, ri: number) => sum + Math.log(ri), 0);
+    const xk = centralPathXk(A, b, c, muK, x0, { verbose, epsilon: 1e-4, maxit: 2000 }); // Pass relevant opts
+    if (xk !== null && xk.rows > 0) {
+      const Ax = A.mmul(xk);
+      const r = Matrix.sub(b, Ax);
+      const objectiveValue = c.dot(xk);
+      const barrierTerm = muK * r.log().sum();
       const totalObjective = objectiveValue + barrierTerm;
       
-      const extendedPoint = [...xk, totalObjective];
+      const extendedPoint = [...xk.to1DArray(), totalObjective];
       centralPathArray.push(extendedPoint);
       
-      const x_val = xk[0] !== undefined ? xk[0] : 0;
-      const y_val = xk[1] !== undefined ? xk[1] : 0;
+      const x_val = xk.get(0, 0) !== undefined ? xk.get(0, 0) : 0;
+      const y_val = xk.get(1, 0) !== undefined ? xk.get(1, 0) : 0;
       logMsg = sprintf("  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n", 
                        centralPathArray.length, 
                        x_val, 
@@ -192,34 +193,34 @@ export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, o
 
 // Compute the centroid of the vertices. Used to initialize the centralPath solver.
 function centroid(vertices: Vertices) {
-  if (!vertices || vertices.length === 0) return [0, 0];
+  // if (!vertices || vertices.length === 0) return [0, 0];
   const n = vertices[0].length;
-  const summed = vzeros(n);
+  const summed = Matrix.zeros(n, 1);
   for (const v of vertices) {
     for (let i = 0; i < n; i++) {
-      summed[i] += v[i];
+      summed.set(i, 0, summed.get(i, 0) + v[i]);
     }
   }
-  return vscale(summed, 1.0 / vertices.length);
+  return summed.div(vertices.length);
 }
 
 // Filter the lines to only include those with non-zero weights.
 // Used to implement the weighted central path.
 // NOTE: weighted central path is not fully implemented.
-function centralPathFilter(lines: Lines, weights: VecM | null) {
-  if (weights && lines.length !== weights.length) {
+function centralPathFilter(lines: Lines, weights: VectorM | null) {
+  if (weights && lines.length !== weights.rows) {
     throw new Error("Length of lines and weights must match");
   }
   if (!weights) {
-    return { filteredLines: vcopy(lines), filteredWeights: vones(lines.length) };
+    return { filteredLines: vcopy(lines), filteredWeights: Matrix.ones(lines.length, 1) };
   }
   
   const filteredLines = [];
-  const filteredWeights = [];
+  const filteredWeights = Matrix.zeros(lines.length, 1);
   for (let i = 0; i < lines.length; i++) {
-    if (weights[i] !== 0) {
+    if (weights.get(i, 0) !== 0) {
       filteredLines.push(vcopy(lines[i]));
-      filteredWeights.push(weights[i]);
+      filteredWeights.set(i, 0, weights.get(i, 0));
     }
   }
   return { filteredLines, filteredWeights };
@@ -231,7 +232,7 @@ function centralPathMu(niter: number) {
   if (niter <= 0) return [];
   if (niter === 1) return [1000.0];
 
-  const mus: VecM = [];
+  const mus = [];
   const startVal = 3.0;
   const stopVal = -5.0;
   const step = (stopVal - startVal) / (niter - 1);
