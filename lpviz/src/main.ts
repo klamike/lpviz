@@ -2,6 +2,7 @@ import { CanvasManager } from "./ui/canvasManager";
 import { UIManager } from "./ui/uiManager";
 import { setupEventHandlers } from "./ui/eventHandlers";
 import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./utils/uiHelpers";
+import { GuidedTour, HelpPopup } from "./ui/guidedTour";
 import JSONCrush from "jsoncrush";
 
 const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
@@ -35,7 +36,22 @@ function throttledResize() {
 window.addEventListener("resize", throttledResize);
 resizeCanvas();
 
-const handlers = setupEventHandlers(canvasManager, uiManager);
+const guidedTour = new GuidedTour(
+  canvasManager, 
+  uiManager,
+  () => {}, 
+  () => {}
+);
+const helpPopup = new HelpPopup(guidedTour);
+
+const handlers = setupEventHandlers(canvasManager, uiManager, helpPopup);
+
+guidedTour.setSendPolytope(handlers.sendPolytope);
+guidedTour.setSaveToHistory(handlers.saveToHistory);
+
+canvasManager.setTourComponents(guidedTour);
+
+helpPopup.startTimer();
 
 const params = new URLSearchParams(window.location.search);
 if (params.has("s")) {
@@ -45,6 +61,7 @@ if (params.has("s")) {
     const data = JSON.parse(jsonString);
     handlers.loadStateFromObject(data);
     history.replaceState(null, "", window.location.pathname);
+    helpPopup.resetTimer();
   } catch (err) {
     console.error("Failed to load shared state", err);
   }

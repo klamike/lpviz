@@ -27,7 +27,8 @@ export function createDragHandlers(
   canvasManager: CanvasManager, 
   uiManager: UIManager,
   saveToHistory: () => void,
-  sendPolytope: () => void
+  sendPolytope: () => void,
+  helpPopup?: any
 ): DragHandlers {
   const canvas = canvasManager.canvas;
 
@@ -121,6 +122,10 @@ export function createDragHandlers(
     }
 
     // Default mouse move behavior (not dragging or panning)
+    if (helpPopup?.isTouring) {
+      return;
+    }
+    
     if (!state.polygonComplete) {
       state.currentMouse = logicalCoords;
       canvasManager.draw();
