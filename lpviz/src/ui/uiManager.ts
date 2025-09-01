@@ -18,7 +18,7 @@ export class UIManager {
   simplexButton: HTMLButtonElement;
   pdhgButton: HTMLButtonElement;
   animateButton: HTMLButtonElement;
-  addedLandscapeWarning: boolean;
+  smallScreenOverlay: HTMLElement;
 
   constructor() {
     this.uiContainer = document.getElementById("uiContainer") as HTMLElement;
@@ -37,20 +37,28 @@ export class UIManager {
     this.simplexButton = document.getElementById("simplexButton") as HTMLButtonElement;
     this.pdhgButton = document.getElementById("pdhgButton") as HTMLButtonElement;
     this.animateButton = document.getElementById("animateButton") as HTMLButtonElement;
-    this.addedLandscapeWarning = false;
+    const existingOverlay = document.getElementById("smallScreenOverlay") as HTMLElement | null;
+    if (existingOverlay) {
+      this.smallScreenOverlay = existingOverlay;
+    } else {
+      const overlay = document.createElement("div");
+      overlay.id = "smallScreenOverlay";
+      overlay.className = "small-screen-overlay";
+      overlay.textContent = "The window is not wide enough (" + window.innerWidth + "px < 750px) for lpviz."
+      overlay.style.display = "none";
+      document.body.appendChild(overlay);
+      this.smallScreenOverlay = overlay;
+    }
   }
 
   checkMobileOrientation() {
-    if (!this.addedLandscapeWarning && window.innerWidth < 750 && window.innerHeight > window.innerWidth) {
-      this.topTerminal!.innerHTML = "<div class=\"landscape-warning\" style=\"display: block;\">Switch to landscape mode or a larger screen.</div>" + this.topTerminal!.innerHTML;
-      this.addedLandscapeWarning = true;
-      this.objectiveDisplay = document.getElementById("objectiveDisplay") as HTMLElement;
-      this.inequalitiesDiv = document.getElementById("inequalities") as HTMLElement;
-    } else if (this.addedLandscapeWarning && window.innerWidth >= 750) {
-      this.topTerminal!.removeChild(document.querySelector(".landscape-warning") as Node);
-      this.addedLandscapeWarning = false;
-      this.objectiveDisplay = document.getElementById("objectiveDisplay") as HTMLElement;
-      this.inequalitiesDiv = document.getElementById("inequalities") as HTMLElement;
+    const tooSmall = window.innerWidth < 750;
+    this.smallScreenOverlay!.textContent =
+      "The window is not wide enough (" + window.innerWidth + "px < 750px) for lpviz.";
+    if (tooSmall) {
+      this.smallScreenOverlay!.style.display = "flex";
+    } else {
+      this.smallScreenOverlay!.style.display = "none";
     }
   }
 
