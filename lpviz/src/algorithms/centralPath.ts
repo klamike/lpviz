@@ -1,8 +1,19 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { linesToAb, diag } from '../utils/blas';
-import { CentralPathOptions, CentralPathXkOptions } from '../types/solverOptions';
 import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from '../types/arrays';
+
+export interface CentralPathOptions {
+  niter: number;
+  weights: number[] | null;
+  verbose: boolean;
+}
+
+export interface CentralPathXkOptions {
+  maxit: number;
+  epsilon: number;
+  verbose: boolean;
+}
 
 // Use Newton's method to solve for one point on the central path.
 // An initial feasible point is required, initially set to the centroid of the vertices.
