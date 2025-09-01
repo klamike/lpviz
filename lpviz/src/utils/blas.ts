@@ -1,5 +1,8 @@
-import { Matrix } from 'ml-matrix';
+import { Matrix, AbstractMatrix } from 'ml-matrix';
 import { VecM, VecN, ArrayMatrix } from '../types/arrays';
+
+
+export const diag = (v: Matrix) => Matrix.diag(v.to1DArray());
 
 export const vzeros = (k: number) => Array(k).fill(0);
 export const vones = (k: number) => Array(k).fill(1);
@@ -39,4 +42,28 @@ export function linesToAb(lines: ArrayMatrix | Matrix) {
   const A_rows: ArrayMatrix = lines.map((line) => line.slice(0, -1));
   const b_vector: VecM = lines.map((line) => line[line.length - 1]);
   return { A: new Matrix(A_rows), b: b_vector };
+}
+
+export function vstack(matrices: (AbstractMatrix | number[])[]): Matrix {
+  if (!matrices || matrices.length === 0) {
+    return Matrix.columnVector([]);
+  }
+
+  const allValues: number[] = [];
+  
+  for (const matrix of matrices) {
+    if (matrix instanceof Matrix) {
+      allValues.push(...matrix.to1DArray());
+    } else if (Array.isArray(matrix)) {
+      allValues.push(...matrix);
+    } else {
+      throw new TypeError('Each element must be a Matrix or number array');
+    }
+  }
+  
+  return Matrix.columnVector(allValues);
+}
+
+export const vslice = (v: Matrix, start: number, end: number) => {
+  return v.subMatrix(start, end-1, 0, 0);
 }

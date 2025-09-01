@@ -1,6 +1,6 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { vcopy, linesToAb } from '../utils/blas';
+import { linesToAb, diag } from '../utils/blas';
 import { CentralPathOptions, CentralPathXkOptions } from '../types/solverOptions';
 import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from '../types/arrays';
 
@@ -39,7 +39,7 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
     const grad = Matrix.sub(cVec, AT_invR.mul(mu));
 
     // Hessian: μ * Aᵀ * diag(1 / r^2) * A
-    const invR2_diag = Matrix.diag(invR2.to1DArray());
+    const invR2_diag = diag(invR2);
     const AT_diag_invR2 = Amatrix.transpose().mmul(invR2_diag);
     const hess = AT_diag_invR2.mmul(Amatrix).mul(mu); // hessian is n x n
 
@@ -202,28 +202,6 @@ function centroid(vertices: Vertices) {
     }
   }
   return summed.div(vertices.length);
-}
-
-// Filter the lines to only include those with non-zero weights.
-// Used to implement the weighted central path.
-// NOTE: weighted central path is not fully implemented.
-function centralPathFilter(lines: Lines, weights: VectorM | null) {
-  if (weights && lines.length !== weights.rows) {
-    throw new Error("Length of lines and weights must match");
-  }
-  if (!weights) {
-    return { filteredLines: vcopy(lines), filteredWeights: Matrix.ones(lines.length, 1) };
-  }
-  
-  const filteredLines = [];
-  const filteredWeights = Matrix.zeros(lines.length, 1);
-  for (let i = 0; i < lines.length; i++) {
-    if (weights.get(i, 0) !== 0) {
-      filteredLines.push(vcopy(lines[i]));
-      filteredWeights.set(i, 0, weights.get(i, 0));
-    }
-  }
-  return { filteredLines, filteredWeights };
 }
 
 // Compute the barrier parameter values for the central path.

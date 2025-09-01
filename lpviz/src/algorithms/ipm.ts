@@ -1,6 +1,6 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { linesToAb } from '../utils/blas';
+import { linesToAb, diag, vstack, vslice } from '../utils/blas';
 import { IPMOptions } from '../types/solverOptions';
 import { Lines, VecM, VecN, VectorM, VectorN } from '../types/arrays';
 
@@ -47,9 +47,9 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
 
   const res = {
     iterates: {
-      solution:  { x: [] as VecN, s: [] as VecM, y: [] as VecM, mu: [] as VecM, log: [] as string[] },
-      predictor: { x: [] as VecN, s: [] as VecM, y: [] as VecM, mu: [] as VecM },
-      corrector: { x: [] as VecN, s: [] as VecM, y: [] as VecM, mu: [] as VecM },
+      solution:  { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as VecM, log: [] as string[] },
+      predictor: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as VecM },
+      corrector: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as VecM },
     },
   };
 
@@ -109,8 +109,8 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
     // Compute Newton step -------------------------------------------
 
     // Assemble Newton KKT matrix K ----------------------------------
-    const Y = Matrix.diag(y.to1DArray());
-    const S = Matrix.diag(s.to1DArray());
+    const Y = diag(y);
+    const S = diag(s);
     const K = Matrix.zeros(m + n + m, n + m + m);
 
     // Block [A  -I  0]
@@ -140,19 +140,17 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
     //   c - Aᵀy
     //   -s * y
     // ]
-    const rhsAff = Matrix.columnVector([
-      ...r_p.to1DArray(),
-      ...r_d.to1DArray(),
-      ...Matrix.mul(Matrix.mul(s, -1), y).to1DArray()
+    const rhsAff = vstack([
+      r_p,
+      r_d,
+      Matrix.mul(Matrix.mul(s, -1), y)
     ]);
     
     // Solve K * deltaAff = rhsAff
     deltaAff = solve(K, rhsAff);
-    // FIXME
-    const deltaAffArray = deltaAff.to1DArray();
-    const dxAff = Matrix.columnVector(deltaAffArray.slice(0, n));
-    const dsAff = Matrix.columnVector(deltaAffArray.slice(n, n + m));
-    const dyAff = Matrix.columnVector(deltaAffArray.slice(n + m));
+    const dxAff = vslice(deltaAff, 0, n);
+    const dsAff = vslice(deltaAff, n, n + m);
+    const dyAff = vslice(deltaAff, n + m, n + m + m);
 
     // Compute step sizes --------------------------------------------
     const alphaP = alphaStep(s, dsAff);
@@ -176,23 +174,20 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
       //   0
       //   sigma * mu - ds * dy
       // ]
-      const dsdy = Matrix.mul(dsAff, dyAff);
-      const sigmamu = Matrix.mul(Matrix.ones(m, 1), sigma * mu);
-      const rhsCor = Matrix.columnVector([
-        ...Matrix.zeros(m, 1).to1DArray(),
-        ...Matrix.zeros(n, 1).to1DArray(),
-        ...Matrix.sub(sigmamu, dsdy).to1DArray()
+      const rhsCor = vstack([
+        Matrix.zeros(m, 1),
+        Matrix.zeros(n, 1),
+        // -1 * (ds * dy - sigma * mu)
+        Matrix.mul(Matrix.sub(Matrix.mul(dsAff, dyAff), sigma * mu), -1)
       ]);
       
       // Solve K * deltaCor = rhsCor
       deltaCor = solve(K, rhsCor);
       
       // Apply corrector step
-      // FIXME
-      const deltaCorArray = deltaCor.to1DArray();
-      dx = Matrix.add(dxAff, Matrix.columnVector(deltaCorArray.slice(0, n)));
-      ds = Matrix.add(dsAff, Matrix.columnVector(deltaCorArray.slice(n, n + m)));
-      dy = Matrix.add(dyAff, Matrix.columnVector(deltaCorArray.slice(n + m)));
+      dx = Matrix.add(dxAff, vslice(deltaCor, 0, n));
+      ds = Matrix.add(dsAff, vslice(deltaCor, n, n + m));
+      dy = Matrix.add(dyAff, vslice(deltaCor, n + m, n + m + m));
 
       pushIter(res.iterates.corrector, dx, ds, dy, mu);
     } else {
@@ -220,6 +215,7 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
 
 
 // Compute maximum step length α so that x + α*dx ≥ 0
+// FIXME: avoid to1DArray?
 function alphaScalar(xi: number, dxi: number) {
   return dxi >= 0 ? 1.0 : -xi / dxi;
 }
