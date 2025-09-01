@@ -44,6 +44,26 @@ canvas {
 }
 
 /* ================================
+    Small Screen Overlay
+    ================================ */
+.small-screen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  font-size: 1.2rem;
+}
+
+/* ================================
     Sidebar
     ================================ */
 #sidebar {
@@ -612,63 +632,3 @@ input[type="range"]:active::-ms-thumb {
   70% { opacity: 0.8; }
 }
 
-/* ================================
-    Mobile
-    ================================ */
-@media (max-width: 768px) {
-  html {
-    font-size: 14px;
-  }
-
-  #sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    border-right: none;
-    overflow-y: auto;
-  }
-
-  #sidebarHandle {
-    display: none;
-  }
-
-  #zoomControls {
-    display: none;
-  }
-
-  #sidebar button,
-  .controlPanel button {
-    padding: 15px 20px;
-  }
-
-  .controlPanel .button-group button {
-    padding: 12px 10px;
-    font-size: 0.9rem;
-  }
-
-  .controlPanel .button-group {
-    gap: 15px;
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    width: 20px;
-    height: 30px;
-    margin-top: -12px;
-  }
-
-  input[type="range"]::-moz-range-thumb {
-    width: 20px;
-    height: 30px;
-  }
-
-  input[type="range"]::-ms-thumb {
-    width: 20px;
-    height: 30px;
-  }
-}
-
-@media (max-width: 372px) and (max-height: 901px) {
-  #nullStateMessage {
-    display: none;
-  }
-}
