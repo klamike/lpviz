@@ -3,7 +3,7 @@ import { fetchPolytope } from "../services/apiClient";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 import { isPolygonConvex } from "../utils/math2D";
-import { setupHoverHighlight, adjustFontSize, getElement, showElement } from "../utils/uiHelpers";
+import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize, getElement, showElement } from "../utils/uiHelpers";
 
 import { createDragHandlers, setupDragEventListeners, getLogicalCoords } from "./dragHandlers";
 import { 
@@ -110,6 +110,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     
     canvasManager.draw();
     adjustFontSize();
+    adjustLogoFontSize();
   }
 
   // Create and setup all handler modules

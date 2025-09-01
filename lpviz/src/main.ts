@@ -1,6 +1,7 @@
 import { CanvasManager } from "./ui/canvasManager";
 import { UIManager } from "./ui/uiManager";
 import { setupEventHandlers } from "./ui/eventHandlers";
+import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./utils/uiHelpers";
 import JSONCrush from "jsoncrush";
 
 const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
@@ -12,9 +13,26 @@ function resizeCanvas() {
   canvasManager.updateDimensions();
   canvasManager.draw();
   uiManager.updateZoomButtonsState(canvasManager);
+  adjustLogoFontSize();
+  adjustTerminalHeight();
 }
 
-window.addEventListener("resize", resizeCanvas);
+let resizeTimeout: number | null = null;
+function throttledResize() {
+  adjustFontSize();
+  adjustLogoFontSize();
+  adjustTerminalHeight();
+  
+  if (resizeTimeout) {
+    clearTimeout(resizeTimeout);
+  }
+  resizeTimeout = window.setTimeout(() => {
+    resizeCanvas();
+    resizeTimeout = null;
+  }, 16);
+}
+
+window.addEventListener("resize", throttledResize);
 resizeCanvas();
 
 const handlers = setupEventHandlers(canvasManager, uiManager);
