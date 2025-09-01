@@ -1,6 +1,6 @@
 import { state } from "../state/state";
 import { PointXY } from "../types/arrays";
-import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3D";
+import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
 
 export class CanvasManager {
   canvas: HTMLCanvasElement;
