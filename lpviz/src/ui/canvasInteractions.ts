@@ -11,7 +11,8 @@ export function setupCanvasInteractions(
   uiManager: UIManager,
   saveToHistory: () => void,
   sendPolytope: () => void,
-  getLogicalCoords: (canvasManager: CanvasManager, e: PointerEvent) => PointXY
+  getLogicalCoords: (canvasManager: CanvasManager, e: PointerEvent) => PointXY,
+  helpPopup?: any
 ): void {
   const canvas = canvasManager.canvas;
 
@@ -70,6 +71,10 @@ export function setupCanvasInteractions(
   // ===== CANVAS INTERACTION HANDLERS =====
   
   canvas.addEventListener("dblclick", (e) => {
+    if (helpPopup?.isTouring) {
+      return;
+    }
+
     const logicalMouse = getLogicalCoords(canvasManager, e);
     
     for (let i = 0; i < state.vertices.length; i++) {
@@ -95,6 +100,10 @@ export function setupCanvasInteractions(
   });
 
   canvas.addEventListener("click", (e) => {
+    if (helpPopup?.isTouring) {
+      return;
+    }
+
     // Ignore clicks that were part of drag operations
     if (state.wasPanning || state.wasDraggingPoint || state.wasDraggingObjective) {
       state.wasPanning = false;

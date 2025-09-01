@@ -14,7 +14,7 @@ import {
 import { setupUIControls } from "./uiControls";
 import { createSharingHandlers } from "./sharing";
 
-export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager) {
+export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager, helpPopup?: any) {
   const canvas = canvasManager.canvas;
 
   function saveToHistory() {
@@ -114,15 +114,15 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   }
 
   // Create and setup all handler modules
-  const dragHandlers = createDragHandlers(canvasManager, uiManager, saveToHistory, sendPolytope);
+  const dragHandlers = createDragHandlers(canvasManager, uiManager, saveToHistory, sendPolytope, helpPopup);
   const handleUndoRedo = createUndoRedoHandler(canvasManager, saveToHistory, sendPolytope);
   const settingsElements = setupUIControls(canvasManager, uiManager, updateResult);
   const { loadStateFromObject, generateShareLink } = createSharingHandlers(canvasManager, uiManager, settingsElements, sendPolytope);
 
   // Setup all event listeners
   setupDragEventListeners(canvas, dragHandlers, canvasManager);
-  setupCanvasInteractions(canvasManager, uiManager, saveToHistory, sendPolytope, getLogicalCoords);
+  setupCanvasInteractions(canvasManager, uiManager, saveToHistory, sendPolytope, getLogicalCoords, helpPopup);
   setupKeyboardHandlers(canvasManager, saveToHistory, sendPolytope, handleUndoRedo);
 
-  return { loadStateFromObject, generateShareLink };
+  return { loadStateFromObject, generateShareLink, sendPolytope, saveToHistory };
 }
