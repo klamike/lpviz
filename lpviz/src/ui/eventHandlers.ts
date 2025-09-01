@@ -637,7 +637,10 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     state.highlightIteratePathIndex = null;
     canvasManager.draw();
     let currentIndex = 0;
-    const intervalId = setInterval(() => {
+    const intervalId = window.setInterval(() => {
+      if (state.animationIntervalId !== intervalId) {
+        return;
+      }
       if (currentIndex >= iteratesToAnimate.length) {
         clearInterval(intervalId);
         state.animationIntervalId = null;
@@ -648,6 +651,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       currentIndex++;
       canvasManager.draw();
     }, intervalTime);
+    state.animationIntervalId = intervalId;
   });
 
   shareButton.addEventListener("click", () => {
