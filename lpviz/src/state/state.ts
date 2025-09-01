@@ -6,6 +6,33 @@ export interface TraceEntry {
   angle: number;
 }
 
+export interface Settings {
+  alphaMax?: number;
+  maxitIPM?: number;
+  pdhgEta?: number;
+  pdhgTau?: number;
+  maxitPDHG?: number;
+  pdhgIneqMode?: boolean;
+  centralPathIter?: number;
+  objectiveAngleStep?: number;
+}
+
+export interface ShareState {
+  vertices: { x: number; y: number }[];
+  objective: { x: number; y: number } | null;
+  solverMode: string;
+  settings: Settings;
+}
+
+export interface HistoryEntry {
+  vertices: PointXY[];
+  objectiveVector: PointXY | null;
+}
+
+export type SolverMode = 'central' | 'ipm' | 'simplex' | 'pdhg';
+export type InputMode = 'visual' | 'manual';
+export type ObjectiveDirection = 'max' | 'min';
+
 export interface State {
   vertices: PointXY[];
   currentMouse: PointXY | null;
@@ -20,8 +47,8 @@ export interface State {
   analyticCenter: PointXY | null;
   iteratePath: VecNs;
   iteratePathComputed: boolean;
-  historyStack: any[];
-  redoStack: any[];
+  historyStack: HistoryEntry[];
+  redoStack: HistoryEntry[];
   highlightIteratePathIndex: number | null;
   isIteratePathComputing: boolean;
   rotateObjectiveMode: boolean;
@@ -31,7 +58,7 @@ export interface State {
   dragStartPos: { x: number; y: number } | null;
   draggingObjective: boolean;
   barrierWeights: VecM;
-  solverMode: string;
+  solverMode: SolverMode;
   animationIntervalId: number | null;
   originalIteratePath: VecNs;
   isPanning: boolean;
@@ -57,73 +84,20 @@ export interface State {
   transitionDuration: number;
   transition3DStartAngles: PointXYZ;
   transition3DEndAngles: PointXYZ;
-  inputMode: 'visual' | 'manual';
+  inputMode: InputMode;
   manualConstraints: string[];
   manualObjective: string | null;
-  objectiveDirection: 'max' | 'min';
+  objectiveDirection: ObjectiveDirection;
   parsedConstraints: Lines;
 }
 
-export const state: State = {
-  vertices: [],
-  currentMouse: null,
-  polygonComplete: false,
-  interiorPoint: null,
-  objectiveVector: null,
-  currentObjective: null,
-  computedVertices: [],
-  computedLines: [],
-  snapToGrid: false,
-  highlightIndex: null,
-  analyticCenter: null,
-  iteratePath: [],
-  iteratePathComputed: false,
-  historyStack: [],
-  redoStack: [],
-  highlightIteratePathIndex: null,
-  isIteratePathComputing: false,
-  rotateObjectiveMode: false,
-  barrierWeightsVisible: false,
-  draggingPointIndex: null,
-  potentialDragPointIndex: null,
-  dragStartPos: null,
-  draggingObjective: false,
-  barrierWeights: [],
-  solverMode: "central",
-  animationIntervalId: null,
-  originalIteratePath: [],
-  isPanning: false,
-  lastPan: { x: 0, y: 0 },
-  wasPanning: false,
-  wasDraggingPoint: false,
-  wasDraggingObjective: false,
-  is3DMode: false,
-  viewAngle: { x: -1.15, y: 0.4, z: 0 },
-  focalDistance: 1000,
-  isRotatingCamera: false,
-  lastRotationMouse: { x: 0, y: 0 },
-  zScale: 0.1,
-  traceEnabled: false,
-  currentTracePath: [],
-  totalRotationAngle: 0,
-  rotationCount: 0,
-  traceBuffer: [],
-  maxTraceCount: 0,
-  lastDrawnTraceIndex: -1,
-  isTransitioning3D: false,
-  transitionStartTime: 0,
-  transitionDuration: 500,
-  transition3DStartAngles: { x: 0, y: 0, z: 0 },
-  transition3DEndAngles: { x: -1.15, y: 0.4, z: 0 },
-  inputMode: 'visual',
-  manualConstraints: [],
-  manualObjective: null,
-  objectiveDirection: 'max',
-  parsedConstraints: []
-};
+const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
+const DEFAULT_TRANSITION_DURATION = 500;
+const DEFAULT_FOCAL_DISTANCE = 1000;
+const DEFAULT_Z_SCALE = 0.1;
 
-export function resetState(): void {
-  Object.assign(state, {
+function createInitialState(): State {
+  return {
     vertices: [],
     currentMouse: null,
     polygonComplete: false,
@@ -148,7 +122,7 @@ export function resetState(): void {
     dragStartPos: null,
     draggingObjective: false,
     barrierWeights: [],
-    solverMode: "central",
+    solverMode: "central" as SolverMode,
     animationIntervalId: null,
     originalIteratePath: [],
     isPanning: false,
@@ -157,11 +131,11 @@ export function resetState(): void {
     wasDraggingPoint: false,
     wasDraggingObjective: false,
     is3DMode: false,
-    viewAngle: { x: -1.15, y: 0.4, z: 0 },
-    focalDistance: 1000,
+    viewAngle: { ...DEFAULT_VIEW_ANGLE },
+    focalDistance: DEFAULT_FOCAL_DISTANCE,
     isRotatingCamera: false,
     lastRotationMouse: { x: 0, y: 0 },
-    zScale: 0.1,
+    zScale: DEFAULT_Z_SCALE,
     traceEnabled: false,
     currentTracePath: [],
     totalRotationAngle: 0,
@@ -171,13 +145,61 @@ export function resetState(): void {
     lastDrawnTraceIndex: -1,
     isTransitioning3D: false,
     transitionStartTime: 0,
-    transitionDuration: 500,
+    transitionDuration: DEFAULT_TRANSITION_DURATION,
     transition3DStartAngles: { x: 0, y: 0, z: 0 },
-    transition3DEndAngles: { x: -1.15, y: 0.4, z: 0 },
-    inputMode: 'visual',
+    transition3DEndAngles: { ...DEFAULT_VIEW_ANGLE },
+    inputMode: 'visual' as InputMode,
     manualConstraints: [],
     manualObjective: null,
-    objectiveDirection: 'max',
+    objectiveDirection: 'max' as ObjectiveDirection,
     parsedConstraints: []
+  };
+}
+
+export const state: State = createInitialState();
+
+export function resetState(): void {
+  Object.assign(state, createInitialState());
+}
+
+export function prepareAnimationInterval(): void {
+  if (state.animationIntervalId !== null) {
+    clearInterval(state.animationIntervalId);
+    state.animationIntervalId = null;
+  }
+}
+
+export function updateIteratePaths(iteratesArray: number[][]): void {
+  state.originalIteratePath = [...iteratesArray];
+  state.iteratePath = iteratesArray;
+}
+
+export function addTraceToBuffer(iteratesArray: number[][]): void {
+  if (!state.traceEnabled || iteratesArray.length === 0) return;
+  
+  const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
+  const angleStep = parseFloat(objectiveAngleStepSlider?.value || "0.1");
+
+  const maxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
+  state.maxTraceCount = maxTracesPerRotation;
+  
+  state.traceBuffer.push({
+    path: [...iteratesArray],
+    angle: state.totalRotationAngle
   });
+  
+  while (state.traceBuffer.length > state.maxTraceCount) {
+    state.traceBuffer.shift();
+  }
+  
+  if (state.totalRotationAngle >= 2 * Math.PI) {
+    state.rotationCount = Math.floor(state.totalRotationAngle / (2 * Math.PI));
+  }
+}
+
+export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {
+  updateIteratePaths(iteratesArray);
+  if (state.traceEnabled && iteratesArray.length > 0) {
+    addTraceToBuffer(iteratesArray);
+  }
 }

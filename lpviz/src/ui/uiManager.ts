@@ -2,68 +2,99 @@ import { state } from "../state/state";
 import { CanvasManager } from "./canvasManager";
 
 export class UIManager {
-  uiContainer: HTMLElement;
-  topTerminal: HTMLElement;
-  objectiveDisplay: HTMLElement;
-  inequalitiesDiv: HTMLElement;
-  resultDiv: HTMLElement;
-  zoomButton: HTMLButtonElement;
-  unzoomButton: HTMLButtonElement;
-  toggle3DButton: HTMLButtonElement;
-  zScaleSliderContainer: HTMLElement;
-  zScaleSlider: HTMLInputElement;
-  zScaleValue: HTMLElement;
-  iteratePathButton: HTMLButtonElement;
-  ipmButton: HTMLButtonElement;
-  simplexButton: HTMLButtonElement;
-  pdhgButton: HTMLButtonElement;
-  animateButton: HTMLButtonElement;
-  smallScreenOverlay: HTMLElement;
+  uiContainer!: HTMLElement;
+  topTerminal!: HTMLElement;
+  objectiveDisplay!: HTMLElement;
+  inequalitiesDiv!: HTMLElement;
+  resultDiv!: HTMLElement;
+  zoomButton!: HTMLButtonElement;
+  unzoomButton!: HTMLButtonElement;
+  toggle3DButton!: HTMLButtonElement;
+  zScaleSliderContainer!: HTMLElement;
+  zScaleSlider!: HTMLInputElement;
+  zScaleValue!: HTMLElement;
+  iteratePathButton!: HTMLButtonElement;
+  ipmButton!: HTMLButtonElement;
+  simplexButton!: HTMLButtonElement;
+  pdhgButton!: HTMLButtonElement;
+  animateButton!: HTMLButtonElement;
+  startRotateObjectiveButton!: HTMLButtonElement;
+  stopRotateObjectiveButton!: HTMLButtonElement;
+  smallScreenOverlay!: HTMLElement;
+
+  private static readonly MIN_SCREEN_WIDTH = 750;
+  private static readonly OBJECTIVE_PRECISION = 3;
 
   constructor() {
-    this.uiContainer = document.getElementById("uiContainer") as HTMLElement;
-    this.topTerminal = document.getElementById("terminal-container2") as HTMLElement;
-    this.objectiveDisplay = document.getElementById("objectiveDisplay") as HTMLElement;
-    this.inequalitiesDiv = document.getElementById("inequalities") as HTMLElement;
-    this.resultDiv = document.getElementById("result") as HTMLElement;
-    this.zoomButton = document.getElementById("zoomButton") as HTMLButtonElement;
-    this.unzoomButton = document.getElementById("unzoomButton") as HTMLButtonElement;
-    this.toggle3DButton = document.getElementById("toggle3DButton") as HTMLButtonElement;
-    this.zScaleSliderContainer = document.getElementById("zScaleSliderContainer") as HTMLElement;
-    this.zScaleSlider = document.getElementById("zScaleSlider") as HTMLInputElement;
-    this.zScaleValue = document.getElementById("zScaleValue") as HTMLElement;
-    this.iteratePathButton = document.getElementById("iteratePathButton") as HTMLButtonElement;
-    this.ipmButton = document.getElementById("ipmButton") as HTMLButtonElement;
-    this.simplexButton = document.getElementById("simplexButton") as HTMLButtonElement;
-    this.pdhgButton = document.getElementById("pdhgButton") as HTMLButtonElement;
-    this.animateButton = document.getElementById("animateButton") as HTMLButtonElement;
+    this.initializeElements();
+    this.initializeSmallScreenOverlay();
+  }
+
+  private initializeElements(): void {
+    const elementMappings = {
+      uiContainer: "uiContainer",
+      topTerminal: "terminal-container2", 
+      objectiveDisplay: "objectiveDisplay",
+      inequalitiesDiv: "inequalities",
+      resultDiv: "result",
+      zoomButton: "zoomButton",
+      unzoomButton: "unzoomButton", 
+      toggle3DButton: "toggle3DButton",
+      zScaleSliderContainer: "zScaleSliderContainer",
+      zScaleSlider: "zScaleSlider",
+      zScaleValue: "zScaleValue",
+      iteratePathButton: "iteratePathButton",
+      ipmButton: "ipmButton",
+      simplexButton: "simplexButton", 
+      pdhgButton: "pdhgButton",
+      animateButton: "animateButton",
+      startRotateObjectiveButton: "startRotateObjectiveButton",
+      stopRotateObjectiveButton: "stopRotateObjectiveButton"
+    };
+
+    Object.entries(elementMappings).forEach(([property, id]) => {
+      const element = document.getElementById(id);
+      if (!element) {
+        console.warn(`Element with id "${id}" not found`);
+      }
+      (this as any)[property] = element;
+    });
+  }
+
+  private initializeSmallScreenOverlay(): void {
     const existingOverlay = document.getElementById("smallScreenOverlay") as HTMLElement | null;
     if (existingOverlay) {
       this.smallScreenOverlay = existingOverlay;
     } else {
-      const overlay = document.createElement("div");
-      overlay.id = "smallScreenOverlay";
-      overlay.className = "small-screen-overlay";
-      overlay.textContent = "The window is not wide enough (" + window.innerWidth + "px < 750px) for lpviz."
-      overlay.style.display = "none";
-      document.body.appendChild(overlay);
-      this.smallScreenOverlay = overlay;
+      this.smallScreenOverlay = this.createSmallScreenOverlay();
     }
+  }
+
+  private createSmallScreenOverlay(): HTMLElement {
+    const overlay = document.createElement("div");
+    overlay.id = "smallScreenOverlay";
+    overlay.className = "small-screen-overlay";
+    overlay.style.display = "none";
+    document.body.appendChild(overlay);
+    return overlay;
   }
 
   checkMobileOrientation() {
-    const tooSmall = window.innerWidth < 750;
-    this.smallScreenOverlay!.textContent =
-      "The window is not wide enough (" + window.innerWidth + "px < 750px) for lpviz.";
-    if (tooSmall) {
-      this.smallScreenOverlay!.style.display = "flex";
-    } else {
-      this.smallScreenOverlay!.style.display = "none";
-    }
+    const tooSmall = window.innerWidth < UIManager.MIN_SCREEN_WIDTH;
+    this.smallScreenOverlay.textContent =
+      `The window is not wide enough (${window.innerWidth}px < ${UIManager.MIN_SCREEN_WIDTH}px) for lpviz.`;
+    this.smallScreenOverlay.style.display = tooSmall ? "flex" : "none";
   }
 
   hideNullStateMessage() {
-    (document.getElementById("nullStateMessage") as HTMLElement).style.display = "none";
+    this.setElementDisplay("nullStateMessage", "none");
+  }
+
+  private setElementDisplay(id: string, display: string): void {
+    const element = document.getElementById(id);
+    if (element) {
+      element.style.display = display;
+    }
   }
 
   updateZoomButtonsState(canvasManager: CanvasManager) {
@@ -80,32 +111,74 @@ export class UIManager {
 
   updateObjectiveDisplay() {
     if (state.objectiveVector) {
-      const a = Math.round(state.objectiveVector.x * 1000) / 1000;
-      const b = Math.round(state.objectiveVector.y * 1000) / 1000;
-      this.objectiveDisplay!.classList.add("objective-item");
-      this.objectiveDisplay!.innerHTML = `${a}x ${
-        b >= 0 ? "+ " + b + "y" : "- " + (-b) + "y"
-      }`;
-      this.objectiveDisplay!.style.color = "#eee";
+      const a = this.roundToPrecision(state.objectiveVector.x, UIManager.OBJECTIVE_PRECISION);
+      const b = this.roundToPrecision(state.objectiveVector.y, UIManager.OBJECTIVE_PRECISION);
+      const formattedObjective = this.formatObjectiveString(a, b);
+      
+      this.objectiveDisplay.classList.add("objective-item");
+      this.objectiveDisplay.innerHTML = formattedObjective;
+      this.objectiveDisplay.style.color = "#eee";
     } else {
-      this.objectiveDisplay!.classList.remove("objective-item");
-      this.objectiveDisplay!.innerHTML = "";
+      this.objectiveDisplay.classList.remove("objective-item");
+      this.objectiveDisplay.innerHTML = "";
     }
   }
 
+  private roundToPrecision(value: number, precision: number): number {
+    const factor = Math.pow(10, precision);
+    return Math.round(value * factor) / factor;
+  }
+
+  private formatObjectiveString(a: number, b: number): string {
+    const bTerm = b >= 0 ? `+ ${b}y` : `- ${-b}y`;
+    return `${a}x ${bTerm}`;
+  }
+
   updateSolverModeButtons() {
-    if (!state.computedLines || state.computedLines.length === 0) {
-      this.iteratePathButton!.disabled = true;
-      this.ipmButton!.disabled = true;
-      this.simplexButton!.disabled = true;
-      this.pdhgButton!.disabled = true;
-      this.animateButton!.disabled = true;
+    const hasComputedLines = state.computedLines && state.computedLines.length > 0;
+    const hasSolution = state.originalIteratePath && state.originalIteratePath.length > 0;
+    const hasObjective = state.objectiveVector !== null;
+    
+    if (!hasComputedLines) {
+      // Disable all buttons when no computed lines
+      this.setButtonsDisabled([
+        this.iteratePathButton, 
+        this.ipmButton, 
+        this.simplexButton, 
+        this.pdhgButton, 
+        this.animateButton,
+        this.startRotateObjectiveButton
+      ], true);
     } else {
-      if (state.solverMode !== "central") this.iteratePathButton!.disabled = false;
-      if (state.solverMode !== "ipm") this.ipmButton!.disabled = false;
-      if (state.solverMode !== "simplex") this.simplexButton!.disabled = false;
-      if (state.solverMode !== "pdhg") this.pdhgButton!.disabled = false;
+      // Enable buttons based on current solver mode
+      const buttonModeMap = [
+        { button: this.iteratePathButton, mode: "central" },
+        { button: this.ipmButton, mode: "ipm" },
+        { button: this.simplexButton, mode: "simplex" },
+        { button: this.pdhgButton, mode: "pdhg" }
+      ];
+      
+      buttonModeMap.forEach(({ button, mode }) => {
+        button.disabled = state.solverMode === mode;
+      });
+      
+      // Animate button should only be enabled when there's a solution to animate
+      this.animateButton.disabled = !hasSolution;
+      
+      // Rotate objective button should only be enabled when there's an objective vector
+      this.startRotateObjectiveButton.disabled = !hasObjective;
     }
+    
+    // Stop rotate button should be enabled when rotation is active
+    this.stopRotateObjectiveButton.disabled = !state.rotateObjectiveMode;
+  }
+
+  private setButtonsDisabled(buttons: HTMLButtonElement[], disabled: boolean): void {
+    buttons.forEach(button => {
+      if (button) {
+        button.disabled = disabled;
+      }
+    });
   }
 
   updateResult(html: string) {
@@ -113,21 +186,32 @@ export class UIManager {
   }
 
   update3DButtonState() {
+    const button = this.toggle3DButton;
+    const container = this.zScaleSliderContainer;
+    
     if (state.is3DMode) {
-      this.toggle3DButton!.textContent = "2D";
-      this.toggle3DButton!.style.backgroundColor = "#4CAF50";
-      this.toggle3DButton!.style.color = "white";
-      this.zScaleSliderContainer!.style.display = "flex";
+      this.set3DButtonActive(button, true);
+      container.style.display = "flex";
     } else {
-      this.toggle3DButton!.textContent = "3D";
-      this.toggle3DButton!.style.backgroundColor = "";
-      this.toggle3DButton!.style.color = "";
-      this.zScaleSliderContainer!.style.display = "none";
+      this.set3DButtonActive(button, false);
+      container.style.display = "none";
+    }
+  }
+
+  private set3DButtonActive(button: HTMLButtonElement, active: boolean): void {
+    if (active) {
+      button.textContent = "2D";
+      button.style.backgroundColor = "#4CAF50";
+      button.style.color = "white";
+    } else {
+      button.textContent = "3D";
+      button.style.backgroundColor = "";
+      button.style.color = "";
     }
   }
 
   updateZScaleValue() {
-    this.zScaleValue!.textContent = state.zScale.toFixed(2);
-    this.zScaleSlider!.value = String(state.zScale);
+    this.zScaleValue.textContent = state.zScale.toFixed(2);
+    this.zScaleSlider.value = String(state.zScale);
   }
 }

@@ -2,7 +2,7 @@ import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { vzeros, vones, vcopy, vdot, vsub, mtmul, linesToAb } from '../utils/blas';
 import { SimplexOptions } from '../types/solverOptions';
-import { ArrayMatrix, Lines, Vec2N, VecM, VecN, Vec2Ns } from '../types/arrays';
+import { Lines, Vec2N, VecM, VecN, Vec2Ns } from '../types/arrays';
 
 
 function hstack(...mats: Matrix[]) {
