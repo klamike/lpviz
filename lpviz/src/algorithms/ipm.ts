@@ -55,9 +55,9 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
 
   const res = {
     iterates: {
-      solution:  { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as VecM, log: [] as string[] },
-      predictor: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as VecM },
-      corrector: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as VecM },
+      solution:  { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as number[], log: [] as string[] },
+      predictor: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as number[] },
+      corrector: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as number[] },
     },
   };
 

@@ -173,7 +173,7 @@
     <div class="equation-block">
         $$\begin{align}
         \text{Phase 1:} \quad & \min \enspace \sum_{i=1}^m t_i \quad \text{s.t.} \quad Ax + t = b, \quad x \geq 0, \quad t \geq 0 \\
-        \text{Phase 2:} \quad & \max \enspace c^T x \quad\enspace \text{s.t.} \quad Ax = b, \quad x \geq 0
+        \text{Phase 2:} \quad & \max \enspace c^\top x \quad\enspace \text{s.t.} \quad Ax = b, \quad x \geq 0
         \end{align}$$
     </div>
 
@@ -185,7 +185,7 @@
     <div class="equation-block">
         $$\begin{bmatrix}
         A & -I & 0 \\
-        0 & 0 & A^T \\
+        0 & 0 & A^\top \\
         0 & Y & S
         \end{bmatrix}
         \begin{bmatrix}
@@ -195,7 +195,7 @@
         \end{bmatrix} = \begin{cases}\text{predictor:}&
         \begin{bmatrix}
         b - Ax + s \\
-        c - A^T y \\
+        c - A^\top y \\
         -s \odot y
         \end{bmatrix}
         \\[1em]
@@ -207,12 +207,14 @@
         \end{bmatrix}\end{cases}$$
     </div>
 
+    <p>In 3D mode, the z-axis is of each iterate of IPM is set to $c^\top x + \frac{s^\top y}{m}$.</p>
+
     <h3>Primal-Dual Hybrid Gradient (PDHG)</h3>
     <p>PDHG is a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
     
     <div class="equation-block">
         $$\begin{align}
-        x^{k+1} &= \Pi_{\geq 0}(x^k - \eta(c + A^T y^k)) \\
+        x^{k+1} &= \Pi_{\geq 0}(x^k - \eta(c + A^\top y^k)) \\
         y^{k+1} &= y^k + \tau(A \tilde{x}^{k+1} - b)
         \end{align}$$
     </div>
@@ -225,7 +227,7 @@
     <div class="equation-block">
         $$\begin{align}
         y^{k+1} &= \Pi_{\geq 0}(y^k + \tau(A x^k - b)) \\
-        x^{k+1} &= x^k - \eta(c + A^T \tilde{y}^{k+1})
+        x^{k+1} &= x^k - \eta(c + A^\top \tilde{y}^{k+1})
         \end{align}$$
     </div>
     
@@ -235,10 +237,12 @@
     <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$:</p>
     
     <div class="equation-block">
-        $$x(\mu) = \arg\min_x \left( c^T x - \mu \sum_{i=1}^m \log(b_i - a_i^T x) \right)$$
+        $$x(\mu) = \arg\min_x \left( c^\top x - \mu \sum_{i=1}^m \log(b_i - a_i^\top x) \right)$$
     </div>
     
     <p>Each point on the path is found using Newton's method with line search to maintain feasibility.</p>
+
+    <p></p>In 3D mode, the z-axis is of each iterate of Central Path is set to $c^\top x(\mu) - \mu \sum_{i=1}^m \log(b_i - a_i^\top x(\mu))$.</p>
 
     <div class="navigation">
         <a href="../">← Back to lpviz</a>
