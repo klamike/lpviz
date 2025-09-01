@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lpviz Documentation</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .definition-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .example-box {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #28a745;
+        }
+        .equation-block {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #3498db;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .navigation {
+            background-color: #34495e;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .navigation a {
+            color: #ecf0f1;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .navigation a:hover {
+            text-decoration: underline;
+        }
+        .theorem-box {
+            background-color: #fff5f5;
+            border: 1px solid #fed7d7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #e53e3e;
+        }
+        .geometric-insight {
+            background-color: #f0fff4;
+            border: 1px solid #9ae6b4;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #38a169;
+        }
+    </style>
+</head>
+<body>
+    <div class="navigation">
+        <strong>lpviz Documentation</strong> | 
+        <a href="../">← Back to lpviz</a>
+    </div>
+
+    <div class="warning">
+        <strong>Note:</strong> The documentation is still under construction. Contributions are welcome!
+    </div>
+
+    <h2>Standard Form</h2>
+    <p>Each solver in lpviz has its own internal standard form. The form that is displayed in the frontend is:</p>
+    
+    <div class="equation-block">
+        $$\begin{align}
+        \max_x \quad & c^\top x \\
+        \text{s.t.} \quad & Ax \leq b
+        \end{align}$$
+    </div>
+
+    <p>where:</p>
+    <ul>
+        <li>$x \in \mathbb{R}^2$ is the vector of <strong>decision variables</strong></li>
+        <li>$c \in \mathbb{R}^2$ is the vector of <strong>objective coefficients</strong></li>
+        <li>$A \in \mathbb{R}^{m \times 2}$ is the <strong>constraint matrix</strong></li>
+        <li>$b \in \mathbb{R}^m$ is the vector of <strong>right-hand side values</strong></li>
+    </ul>
+
+    <div class="info">
+        When using the interactive problem builder, the primal feasible region (the set $\{x \in \mathbb{R}^2 : Ax \leq b\}$) is non-empty and closed.
+    </div>
+
+    <h2>Solvers</h2>
+
+    lpviz implements four solvers: IPM, PDHG, Simplex, and Central Path.
+
+    <h3>Simplex</h3>
+    <p>The simplex method solves linear programs by moving along the edges of the feasible polytope. It uses a two-phase approach. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution. The core simplex routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax = b, \enspace x \geq 0$.</p>
+    
+    <div class="equation-block">
+        $$\begin{align}
+        \text{Phase 1:} \quad & \min \enspace \sum_{i=1}^m t_i \quad \text{s.t.} \quad Ax + t = b, \quad x \geq 0, \quad t \geq 0 \\
+        \text{Phase 2:} \quad & \max \enspace c^T x \quad\enspace \text{s.t.} \quad Ax = b, \quad x \geq 0
+        \end{align}$$
+    </div>
+
+    <h3>Interior Point Method (IPM)</h3>
+    <p>IPM implements an infeasible primal-dual interior point method.
+        The core IPM routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax \geq b$.
+        Each iteration involves solving two linear systems differing only in their right-hand sides.</p>
+    
+    <div class="equation-block">
+        $$\begin{bmatrix}
+        A & -I & 0 \\
+        0 & 0 & A^T \\
+        0 & Y & S
+        \end{bmatrix}
+        \begin{bmatrix}
+        \Delta x \\
+        \Delta s \\
+        \Delta y
+        \end{bmatrix} = \begin{cases}\text{predictor:}&
+        \begin{bmatrix}
+        b - Ax + s \\
+        c - A^T y \\
+        -s \odot y
+        \end{bmatrix}
+        \\[1em]
+        \text{corrector:}&
+        \begin{bmatrix}
+        0 \\
+        0 \\
+        \sigma \mu \mathbf{1} - \Delta s_{\text{aff}} \odot \Delta y_{\text{aff}}
+        \end{bmatrix}\end{cases}$$
+    </div>
+
+    <h3>Primal-Dual Hybrid Gradient (PDHG)</h3>
+    <p>PDHG is a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
+    
+    <div class="equation-block">
+        $$\begin{align}
+        x^{k+1} &= \Pi_{\geq 0}(x^k - \eta(c + A^T y^k)) \\
+        y^{k+1} &= y^k + \tau(A \tilde{x}^{k+1} - b)
+        \end{align}$$
+    </div>
+    
+    <p>where $\tilde{x}^{k+1} = 2x^{k+1} - x^k$ is the extrapolated primal variable, $\Pi_{\geq 0}$ projects onto the non-negative orthant, and $\eta, \tau$ are step sizes.</p>
+
+    <h4>PDHG Inequality Mode</h4>
+    <p>The inequality mode avoids transforming the problem, treating the inequalities directly:</p>
+    
+    <div class="equation-block">
+        $$\begin{align}
+        y^{k+1} &= \Pi_{\geq 0}(y^k + \tau(A x^k - b)) \\
+        x^{k+1} &= x^k - \eta(c + A^T \tilde{y}^{k+1})
+        \end{align}$$
+    </div>
+    
+    <p>where $\tilde{y}^{k+1} = 2y^{k+1} - y^k$ is the extrapolated dual variable. Due to the inequality constraints in the primal, the dual variables $y$ are now constrained to be non-negative.</p>
+
+    <h3>Central Path</h3>
+    <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$:</p>
+    
+    <div class="equation-block">
+        $$x(\mu) = \arg\min_x \left( c^T x - \mu \sum_{i=1}^m \log(b_i - a_i^T x) \right)$$
+    </div>
+    
+    <p>Each point on the path is found using Newton's method with line search to maintain feasibility.</p>
+
+    <div class="navigation">
+        <a href="../">← Back to lpviz</a>
+    </div>
+</body>
+</html>

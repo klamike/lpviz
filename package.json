@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite lpviz --port 3000",
-    "build": "vite build lpviz --outDir ../dist --emptyOutDir",
+    "build:lpviz": "vite build lpviz --outDir ../dist --emptyOutDir",
+    "build:docs": "vite build lpviz/docs --outDir ../../dist/docs",
+    "build": "vite build lpviz --outDir ../dist --emptyOutDir && vite build lpviz/docs --outDir ../../dist/docs",
     "preview": "vite preview lpviz --port 3000 --outDir ../dist"
   },
   "devDependencies": {
