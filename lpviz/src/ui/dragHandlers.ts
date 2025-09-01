@@ -1,6 +1,6 @@
 import { state } from "../state/state";
 import { PointXY } from "../types/arrays";
-import { distance } from "../utils/math2D";
+import { distance } from "../utils/math2d";
 import { setButtonState } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
