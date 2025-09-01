@@ -756,7 +756,13 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       );
       const sol = result.iterates.solution;
       const logArray = sol.log;
-      const iteratesArray: number[][] = sol.x as unknown as number[][];
+      const iteratesArray2D: number[][] = sol.x as unknown as number[][];
+      const muArray: number[] = sol.mu as unknown as number[];
+      const iteratesArray: number[][] = iteratesArray2D.map((xy, i) => {
+        const obj = (state.objectiveVector ? state.objectiveVector.x * xy[0] + state.objectiveVector.y * xy[1] : 0);
+        const mu = (muArray?.[i] ?? 0);
+        return [xy[0], xy[1], obj + mu];
+      });
       // @ts-ignore
       state.originalIteratePath = [...iteratesArray];  
       // @ts-ignore
