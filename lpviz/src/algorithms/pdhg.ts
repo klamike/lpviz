@@ -1,7 +1,7 @@
 import { Matrix } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { linesToAb, projectNonNegative, vstack } from '../utils/blas';
-import { Lines, VecM, VecN, Vec2N, Vec2Ns, VectorM, VectorN } from '../types/arrays';
+import { hstack, linesToAb, projectNonNegative, vstack } from '../utils/blas';
+import { Lines, VecN, Vec2N, Vec2Ns, VectorM, VectorN } from '../types/arrays';
 
 export interface PDHGCoreOptions {
   maxit: number;
@@ -213,21 +213,8 @@ export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
   } else {
     // Equality-constrained LP in standard form:
     // Minimize c^T x subject to A x = b, x >= 0
-    // Convert to PDHG standard form by splitting x into (x+, x-)
-    const A_rows = A.to2DArray();
-    // TODO: refactor to use hstack
-    const A_hat_rows = [];
-    for (let i = 0; i < m; i++) {
-      // Build each row of A_hat: [A_i | -A_i | I_m_row_i]
-      const row = new Array(2 * n_orig + m).fill(0);
-      for (let j = 0; j < n_orig; j++) {
-        row[j] = A_rows[i][j];
-        row[j + n_orig] = -A_rows[i][j];
-      }
-      row[i + 2 * n_orig] = 1;
-      A_hat_rows.push(row);
-    }
-    const A_hat = new Matrix(A_hat_rows);
+    // Convert to PDHG standard form by splitting x into (x+, x-) and adding slack variables
+    const A_hat = hstack(A, Matrix.mul(A, -1), Matrix.eye(m));
 
     // c_hat = [-c; c; 0_m]
     const c_hat = vstack([Matrix.mul(c, -1), c, Matrix.zeros(m, 1)]);
