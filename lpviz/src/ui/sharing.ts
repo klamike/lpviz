@@ -12,6 +12,55 @@ import {
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 
+const COMPACT_KEYS = {
+  vertices: 'v',
+  objective: 'o',
+  solverMode: 's',
+  settings: 'g',
+
+  x: 'x',
+  y: 'y',
+  
+  alphaMax: 'a',
+  maxitIPM: 'i',
+  pdhgEta: 'e',
+  pdhgTau: 't',
+  maxitPDHG: 'p',
+  pdhgIneqMode: 'm',
+  centralPathIter: 'c',
+  objectiveAngleStep: 'r'
+} as const;
+
+const FULL_KEYS = Object.fromEntries(
+  Object.entries(COMPACT_KEYS).map(([full, compact]) => [compact, full])
+) as Record<string, string>;
+
+function compactObject(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(compactObject);
+  
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const compactKey = COMPACT_KEYS[key as keyof typeof COMPACT_KEYS] || key;
+    result[compactKey] = compactObject(value);
+  }
+  return result;
+}
+
+function expandObject(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(expandObject);
+  
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = FULL_KEYS[key] || key;
+    result[fullKey] = expandObject(value);
+  }
+  return result;
+}
+
 interface SettingsElements {
   [key: string]: HTMLInputElement;
 }
@@ -48,7 +97,9 @@ export function createSharingHandlers(
       settings
     };
     
-    const json = JSON.stringify(data);
+    // Compact the data before serializing
+    const compactData = compactObject(data);
+    const json = JSON.stringify(compactData);
     const crushed = JSONCrush.crush(json);
     const encoded = encodeURIComponent(crushed);
     return `${window.location.origin}${window.location.pathname}?s=${encoded}`;
@@ -57,20 +108,22 @@ export function createSharingHandlers(
   function loadStateFromObject(obj: ShareState): void {
     if (!obj) return;
     
-    if (Array.isArray(obj.vertices)) {
-      state.vertices = obj.vertices.map((v: PointXY) => ({ x: v.x, y: v.y }));
+    const expandedObj = expandObject(obj) as ShareState;
+    
+    if (Array.isArray(expandedObj.vertices)) {
+      state.vertices = expandedObj.vertices.map((v: PointXY) => ({ x: v.x, y: v.y }));
       state.polygonComplete = state.vertices.length > 2;
     }
     
-    if (obj.objective) {
-      state.objectiveVector = { x: obj.objective.x, y: obj.objective.y };
+    if (expandedObj.objective) {
+      state.objectiveVector = { x: expandedObj.objective.x, y: expandedObj.objective.y };
     }
     
-    if (obj.solverMode) {
-      state.solverMode = obj.solverMode as SolverMode;
+    if (expandedObj.solverMode) {
+      state.solverMode = expandedObj.solverMode as SolverMode;
     }
     
-    const settings = obj.settings || {};
+    const settings = expandedObj.settings || {};
 
     const settingsConfig = [
       { key: 'alphaMax', type: 'slider', id: 'alphaMaxSlider', displayId: 'alphaMaxValue', decimals: 3 },
