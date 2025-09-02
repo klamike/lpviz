@@ -124,10 +124,6 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
         xB = solve(B, bVec);
     } catch (e) {
         console.error("Error solving BxB = b. B might be singular.", e);
-        console.error("B:", B.to2DArray());
-        console.error("bVec:", bVec.to1DArray());
-        console.error("Basis Indices:", basisIndices);
-        console.error("Basis bool array:", basis.map(bVal => bVal?1:0).join(''));
         throw e;
     }
 

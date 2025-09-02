@@ -1,7 +1,7 @@
 import { Matrix } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { linesToAb, projectNonNegative } from '../utils/blas';
-import { ArrayMatrix, VecM, VecN, Vec2N, Vec2Ns, VectorM, VectorN } from '../types/arrays';
+import { linesToAb, projectNonNegative, vstack } from '../utils/blas';
+import { Lines, VecM, VecN, Vec2N, Vec2Ns, VectorM, VectorN } from '../types/arrays';
 
 export interface PDHGCoreOptions {
   maxit: number;
@@ -13,8 +13,6 @@ export interface PDHGCoreOptions {
 
 export interface PDHGOptions extends PDHGCoreOptions {
   ineq: boolean;
-  isStandardProblem: boolean;
-  cStandard: number[];
 }
 
 
@@ -187,7 +185,7 @@ function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCore
   };
 }
 
-export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: VecM | VecN, options: PDHGOptions) {
+export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
   const {
     ineq = false,
     maxit = 1000,
@@ -195,8 +193,6 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
     tau = 0.25,
     verbose = false,
     tol = 1e-4,
-    isStandardProblem = false,
-    cStandard = [],
   } = options;
 
   if (maxit > Math.pow(2, 16)) {
@@ -205,27 +201,21 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
 
   const solverOptions = { maxit, eta, tau, verbose, tol };
 
-  // Standard form directly provided
-  if (isStandardProblem) {
-    const A_direct = linesOrMatrixA instanceof Matrix ? linesOrMatrixA : new Matrix(linesOrMatrixA);
-    return pdhgStandardForm(A_direct, Matrix.columnVector(objectiveOrVectorB as VecM), Matrix.columnVector(cStandard), solverOptions);
-  }
-
-  // Otherwise, interpret linesOrMatrixA as rows with last column = b
-  const { A, b } = linesToAb(linesOrMatrixA);
-  const c_objective: VecN = objectiveOrVectorB as VecN;
+  const { A, b } = linesToAb(lines);
+  const c = Matrix.columnVector(objective);
   const m = A.rows;
   const n_orig = A.columns;
 
   if (ineq) {
     // For inequalities, we minimize c^T x subject to A x <= b
     // Convert to maximizing -c^T x subject to A x <= b, so dual flip sign of c
-    return pdhgInequalityForm(A, b, Matrix.columnVector(c_objective.map(x => -x)), solverOptions);
+    return pdhgInequalityForm(A, b, Matrix.mul(c, -1), solverOptions);
   } else {
     // Equality-constrained LP in standard form:
     // Minimize c^T x subject to A x = b, x >= 0
     // Convert to PDHG standard form by splitting x into (x+, x-)
     const A_rows = A.to2DArray();
+    // TODO: refactor to use hstack
     const A_hat_rows = [];
     for (let i = 0; i < m; i++) {
       // Build each row of A_hat: [A_i | -A_i | I_m_row_i]
@@ -240,13 +230,13 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
     const A_hat = new Matrix(A_hat_rows);
 
     // c_hat = [-c; c; 0_m]
-    const c_hat_array = [...c_objective.map(x => -x), ...c_objective, ...new Array(m).fill(0)];
-    const { iterations: chi_iterates, logs } = pdhgStandardForm(A_hat, b, Matrix.columnVector(c_hat_array), solverOptions);
+    const c_hat = vstack([Matrix.mul(c, -1), c, Matrix.zeros(m, 1)]);
+    const { iterations: chi_iterates, logs } = pdhgStandardForm(A_hat, b, c_hat, solverOptions);
     // Reconstruct x = x+ - x-
     const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
-      const x_plus: VecN = chi_k.slice(0, n_orig);
-      const x_minus: VecN = chi_k.slice(n_orig, 2 * n_orig);
-      return x_plus.map((val, i) => val - x_minus[i]);
+      const x_plus = Matrix.columnVector(chi_k.slice(0, n_orig));
+      const x_minus = Matrix.columnVector(chi_k.slice(n_orig, 2 * n_orig));
+      return x_plus.sub(x_minus).to1DArray();
     });
 
     return {
