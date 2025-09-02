@@ -2,14 +2,11 @@ import { pdhg } from "../algorithms/pdhg";
 import { ipm } from "../algorithms/ipm";
 import { centralPath } from "../algorithms/centralPath";
 import { simplex } from "../algorithms/simplex";
-import Matrix from "ml-matrix";
-import { VecM, VecN, Vertices, Lines, ArrayMatrix } from "../types/arrays";
+import { VecN, Vertices, Lines } from "../types/arrays";
 
 interface BaseSolverOptions {
   tol: number;
   verbose: boolean;
-  isStandardProblem: boolean;
-  cStandard: any[];
 }
 
 async function wrapSolverCall<T>(
@@ -29,8 +26,6 @@ const DEFAULT_TOLERANCE = 1e-6;
 const DEFAULT_BASE_OPTIONS: BaseSolverOptions = {
   tol: DEFAULT_TOLERANCE,
   verbose: false,
-  isStandardProblem: false,
-  cStandard: []
 };
 
 export async function fetchCentralPath(
@@ -78,8 +73,8 @@ export async function fetchIPM(
 }
 
 export async function fetchPDHG(
-  lines: Matrix | ArrayMatrix, 
-  objective: VecM | VecN, 
+  lines: Lines, 
+  objective: VecN, 
   ineq: boolean, 
   maxit: number, 
   eta: number, 

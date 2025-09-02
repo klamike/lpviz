@@ -1,22 +1,15 @@
 import { Matrix, AbstractMatrix } from 'ml-matrix';
-import { VecM, ArrayMatrix } from '../types/arrays';
+import { VecM, Lines } from '../types/arrays';
 
 
 export const diag = (v: Matrix) => Matrix.diag(v.to1DArray());
 
-export function linesToAb(lines: ArrayMatrix | Matrix) {
-  if (!lines || (Array.isArray(lines) && lines.length === 0)) {
+export function linesToAb(lines: Lines) {
+  if (lines.length === 0) {
     return { A: new Matrix([]), b: Matrix.columnVector([]) };
   }
-  
-  if (lines instanceof Matrix) {
-    const rows = lines.to2DArray();
-    const A_rows = rows.map(row => row.slice(0, -1));
-    const b_vector = rows.map(row => row[row.length - 1]);
-    return { A: new Matrix(A_rows), b: Matrix.columnVector(b_vector) };
-  }
 
-  const A_rows: ArrayMatrix = lines.map((line) => line.slice(0, -1));
+  const A_rows: Lines = lines.map((line) => line.slice(0, -1));
   const b_vector: VecM = lines.map((line) => line[line.length - 1]);
   return { A: new Matrix(A_rows), b: Matrix.columnVector(b_vector) };
 }
