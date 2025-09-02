@@ -168,7 +168,7 @@
     lpviz implements four solvers: IPM, PDHG, Simplex, and Central Path.
 
     <h3>Simplex</h3>
-    <p>The simplex method solves linear programs by moving along the edges of the feasible polytope. It uses a two-phase approach. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution. The core simplex routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax = b, \enspace x \geq 0$, with $b\geq0$.</p>
+    <p>The simplex method implements a two-phase revised simplex algorithm. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution. The core simplex routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax = b, \enspace x \geq 0$, with $b\geq0$.</p>
     
     <div class="equation-block">
         $$\begin{align}
@@ -177,8 +177,10 @@
         \end{align}$$
     </div>
 
+    <p>In 3D mode, the z-axis of each iterate of Simplex is set to $c^\top x$.</p>
+
     <h3>Interior Point Method (IPM)</h3>
-    <p>IPM implements an infeasible primal-dual interior point method.
+    <p>IPM implements an infeasible primal-dual interior point algorithm.
         The core IPM routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax \geq b$.
         Each iteration involves solving two linear systems differing only in their right-hand sides.</p>
     
@@ -210,7 +212,7 @@
     <p>In 3D mode, the z-axis is of each iterate of IPM is set to $c^\top x + \frac{s^\top y}{m}$.</p>
 
     <h3>Primal-Dual Hybrid Gradient (PDHG)</h3>
-    <p>PDHG is a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
+    <p>PDHG implements a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
     
     <div class="equation-block">
         $$\begin{align}
@@ -221,8 +223,10 @@
     
     <p>where $\tilde{x}^{k+1} = 2x^{k+1} - x^k$ is the extrapolated primal variable, $\Pi_{\geq 0}$ projects onto the non-negative orthant, and $\eta, \tau$ are step sizes.</p>
 
+    <p>In 3D mode, the z-axis of each iterate of PDHG is set to $c^\top x$.</p>
+
     <h4>PDHG Inequality Mode</h4>
-    <p>The inequality mode avoids transforming the problem, treating the inequalities directly:</p>
+    <p>The inequality mode avoids transforming the problem, treating the inequalities directly. It is similar to applying PDHG to the dual problem:</p>
     
     <div class="equation-block">
         $$\begin{align}
@@ -234,14 +238,12 @@
     <p>where $\tilde{y}^{k+1} = 2y^{k+1} - y^k$ is the extrapolated dual variable. Due to the inequality constraints in the primal, the dual variables $y$ are now constrained to be non-negative.</p>
 
     <h3>Central Path</h3>
-    <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$:</p>
+    <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$. Each point on the path is found using Newton's method with Armijo line search.</p>
     
     <div class="equation-block">
         $$x(\mu) = \arg\min_x \left( c^\top x - \mu \sum_{i=1}^m \log(b_i - a_i^\top x) \right)$$
     </div>
     
-    <p>Each point on the path is found using Newton's method with line search to maintain feasibility.</p>
-
     <p></p>In 3D mode, the z-axis is of each iterate of Central Path is set to $c^\top x(\mu) - \mu \sum_{i=1}^m \log(b_i - a_i^\top x(\mu))$.</p>
 
     <div class="navigation">
