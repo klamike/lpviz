@@ -1,4 +1,4 @@
-import { state, Settings, ShareState, SolverMode } from "../state/state";
+import { state, SolverMode } from "../state/state";
 import { PointXY } from "../types/arrays";
 import JSONCrush from "jsoncrush";
 import { 
@@ -11,6 +11,24 @@ import {
 } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
+
+export interface ShareSettings {
+  alphaMax?: number;
+  maxitIPM?: number;
+  pdhgEta?: number;
+  pdhgTau?: number;
+  maxitPDHG?: number;
+  pdhgIneqMode?: boolean;
+  centralPathIter?: number;
+  objectiveAngleStep?: number;
+}
+
+export interface ShareState {
+  vertices: { x: number; y: number }[];
+  objective: { x: number; y: number } | null;
+  solverMode: string;
+  settings: ShareSettings;
+}
 
 const COMPACT_KEYS = {
   vertices: 'v',
@@ -72,7 +90,7 @@ export function createSharingHandlers(
   sendPolytope: () => void
 ) {
   function generateShareLink(): string {
-    const settings: Settings = {};
+    const settings: ShareSettings = {};
     
     switch (state.solverMode) {
       case "ipm":
@@ -137,7 +155,7 @@ export function createSharingHandlers(
     ];
     
     settingsConfig.forEach(config => {
-      const value = settings[config.key as keyof Settings];
+      const value = settings[config.key as keyof ShareSettings];
       if (value !== undefined) {
         if (config.type === 'slider') {
           updateSliderAndDisplay(config.id, config.displayId!, value as number, config.decimals!);
