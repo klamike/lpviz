@@ -6,24 +6,6 @@ export interface TraceEntry {
   angle: number;
 }
 
-export interface Settings {
-  alphaMax?: number;
-  maxitIPM?: number;
-  pdhgEta?: number;
-  pdhgTau?: number;
-  maxitPDHG?: number;
-  pdhgIneqMode?: boolean;
-  centralPathIter?: number;
-  objectiveAngleStep?: number;
-}
-
-export interface ShareState {
-  vertices: { x: number; y: number }[];
-  objective: { x: number; y: number } | null;
-  solverMode: string;
-  settings: Settings;
-}
-
 export interface HistoryEntry {
   vertices: PointXY[];
   objectiveVector: PointXY | null;
