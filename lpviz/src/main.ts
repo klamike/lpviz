@@ -5,67 +5,74 @@ import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./util
 import { GuidedTour, HelpPopup } from "./ui/guidedTour";
 import JSONCrush from "jsoncrush";
 
-const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
-const canvasManager = new CanvasManager(canvas);
-const uiManager = new UIManager();
+function initializeApplication() {
+  const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
+  const canvasManager = new CanvasManager(canvas);
+  const uiManager = new UIManager();
 
-function resizeCanvas() {
-  uiManager.checkMobileOrientation();
-  canvasManager.updateDimensions();
-  canvasManager.draw();
-  uiManager.updateZoomButtonsState(canvasManager);
-  adjustLogoFontSize();
-  adjustTerminalHeight();
-}
+  function resizeCanvas() {
+    uiManager.checkMobileOrientation();
+    canvasManager.updateDimensions();
+    canvasManager.draw();
+    uiManager.updateZoomButtonsState(canvasManager);
+    adjustLogoFontSize();
+    adjustTerminalHeight();
+  }
 
-let resizeTimeout: number | null = null;
-function throttledResize() {
-  adjustFontSize();
-  adjustLogoFontSize();
-  adjustTerminalHeight();
+  let resizeTimeout: number | null = null;
+  function throttledResize() {
+    adjustFontSize();
+    adjustLogoFontSize();
+    adjustTerminalHeight();
+    
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout);
+    }
+    resizeTimeout = window.setTimeout(() => {
+      resizeCanvas();
+      resizeTimeout = null;
+    }, 16);
+  }
+
+  window.addEventListener("resize", throttledResize);
   
-  if (resizeTimeout) {
-    clearTimeout(resizeTimeout);
+  const guidedTour = new GuidedTour(
+    canvasManager, 
+    uiManager,
+    () => {}, 
+    () => {}
+  );
+  const helpPopup = new HelpPopup(guidedTour);
+
+  const handlers = setupEventHandlers(canvasManager, uiManager, helpPopup);
+
+  guidedTour.setSendPolytope(handlers.sendPolytope);
+  guidedTour.setSaveToHistory(handlers.saveToHistory);
+  canvasManager.setTourComponents(guidedTour);
+  uiManager.synchronizeUIWithState();
+  resizeCanvas();
+
+  helpPopup.startTimer();
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("s")) {
+    try {
+      const crushed = decodeURIComponent(params.get("s") || "");
+      const jsonString = JSONCrush.uncrush(crushed);
+      const data = JSON.parse(jsonString);
+      handlers.loadStateFromObject(data);
+      history.replaceState(null, "", window.location.pathname);
+      helpPopup.resetTimer();
+      uiManager.synchronizeUIWithState();
+    } catch (err) {
+      console.error("Failed to load shared state", err);
+    }
   }
-  resizeTimeout = window.setTimeout(() => {
-    resizeCanvas();
-    resizeTimeout = null;
-  }, 16);
+  uiManager.synchronizeUIWithState();
+  canvas.focus();
 }
 
-window.addEventListener("resize", throttledResize);
-resizeCanvas();
-
-const guidedTour = new GuidedTour(
-  canvasManager, 
-  uiManager,
-  () => {}, 
-  () => {}
-);
-const helpPopup = new HelpPopup(guidedTour);
-
-const handlers = setupEventHandlers(canvasManager, uiManager, helpPopup);
-
-guidedTour.setSendPolytope(handlers.sendPolytope);
-guidedTour.setSaveToHistory(handlers.saveToHistory);
-
-canvasManager.setTourComponents(guidedTour);
-
-helpPopup.startTimer();
-
-const params = new URLSearchParams(window.location.search);
-if (params.has("s")) {
-  try {
-    const crushed = decodeURIComponent(params.get("s") || "");
-    const jsonString = JSONCrush.uncrush(crushed);
-    const data = JSON.parse(jsonString);
-    handlers.loadStateFromObject(data);
-    history.replaceState(null, "", window.location.pathname);
-    helpPopup.resetTimer();
-  } catch (err) {
-    console.error("Failed to load shared state", err);
-  }
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApplication);
+} else {
+  initializeApplication();
 }
-
-uiManager.update3DButtonState();
-uiManager.updateZScaleValue();
