@@ -1,4 +1,4 @@
-import { state, SolverMode } from "../state/state";
+import { state, SolverMode } from "./state";
 import { PointXY } from "../types/arrays";
 import JSONCrush from "jsoncrush";
 import { 
@@ -9,8 +9,8 @@ import {
   showElement,
   getElement
 } from "../utils/uiHelpers";
-import { CanvasManager } from "./canvasManager";
-import { UIManager } from "./uiManager";
+import { CanvasManager } from "../ui/canvasManager";
+import { UIManager } from "../ui/uiManager";
 
 export interface ShareSettings {
   alphaMax?: number;

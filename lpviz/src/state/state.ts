@@ -1,14 +1,10 @@
 import { PointXY, PointXYZ } from '../types/arrays';
 import { Vertices, Lines, VecNs } from '../types/arrays';
+import { HistoryEntry } from './history';
 
 export interface TraceEntry {
   path: number[][];
   angle: number;
-}
-
-export interface HistoryEntry {
-  vertices: PointXY[];
-  objectiveVector: PointXY | null;
 }
 
 export type SolverMode = 'central' | 'ipm' | 'simplex' | 'pdhg';
