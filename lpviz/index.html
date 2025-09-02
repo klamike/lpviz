@@ -113,16 +113,20 @@
             <div class="button-group">
               <button id="startRotateObjectiveButton" disabled>Rotate Objective</button>
               <button id="stopRotateObjectiveButton" disabled>Stop Rotation</button>
-              <div id="objectiveRotationSettings" style="display:none; margin-top: 1em;">
-                <label for="objectiveAngleStepSlider">
-                  Angle Step: <span id="objectiveAngleStepValue">0.10</span> rad
-                </label>
-                <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1"
-                  autocomplete="off">
-                  <div id="traceCheckboxContainer" style="margin-top: 1em;">
-                    <label for="traceCheckbox">Trace</label>
-                    <input type="checkbox" id="traceCheckbox">
-                  </div>
+            </div>
+            <div id="objectiveRotationSettings" style="display:none; margin-top: 1em;">
+              <div style="display: flex; gap: 1em;">
+                <div style="flex: 1;">
+                  <label for="objectiveAngleStepSlider" style="display: block; text-align: center; margin-bottom: 0.5em;">
+                    Angle Step: <span id="objectiveAngleStepValue">0.10</span> rad
+                  </label>
+                  <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1"
+                    autocomplete="off" style="width: 100%;">
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                  <label for="traceCheckbox" style="display: block; text-align: center; margin-bottom: 0.5em;">Trace</label>
+                  <input type="checkbox" id="traceCheckbox">
+                </div>
               </div>
             </div>
           </div>
