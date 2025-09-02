@@ -83,10 +83,11 @@ export function inverseTransform2DProjection(projectedPoint2d: PointXY, viewAngl
     [rotationMatrix[0][2], rotationMatrix[1][2], rotationMatrix[2][2]]
   ];
   
-  const transformedOrigin = transformPoint(rotationMatrix, { x: 0, y: 0, z: 0 });
-  const estimatedZ = transformedOrigin.z;
+  // For inverse projection, we assume the point lies on the z=0 plane in the original space
+  // This is a reasonable assumption for most use cases in this 2D->3D visualization
+  const estimatedZ = 0;
   
-  const factor = (focalDistance - estimatedZ) / focalDistance;
+  const factor = focalDistance / (focalDistance - estimatedZ);
   const unprojected = {
     x: projectedPoint2d.x / factor,
     y: projectedPoint2d.y / factor,
