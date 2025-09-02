@@ -5,23 +5,17 @@ import { isPolygonConvex, polytope } from "../utils/math2d";
 import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize, getElement, showElement } from "../utils/uiHelpers";
 
 import { createDragHandlers, setupDragEventListeners, getLogicalCoords } from "./dragHandlers";
+import { setupCanvasInteractions } from "./canvasInteractions";
 import { 
-  setupCanvasInteractions, 
+  saveToHistory,
   setupKeyboardHandlers, 
   createUndoRedoHandler 
-} from "./canvasInteractions";
+} from "../state/history";
 import { setupUIControls } from "./uiControls";
-import { createSharingHandlers } from "./sharing";
+import { createSharingHandlers } from "../state/sharing";
 
 export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager, helpPopup?: any) {
   const canvas = canvasManager.canvas;
-
-  function saveToHistory() {
-    state.historyStack.push({
-      vertices: JSON.parse(JSON.stringify(state.vertices)),
-      objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
-    });
-  }
 
   function sendPolytope() {
     const points = state.vertices.map((pt) => [pt.x, pt.y]);
