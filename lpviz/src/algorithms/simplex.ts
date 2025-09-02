@@ -1,6 +1,6 @@
 import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
-import { vzeros, vones, vcopy, vdot, vsub, mtmul, linesToAb, hstack } from '../utils/blas';
+import { linesToAb, hstack, vstack } from '../utils/blas';
 import { Lines, Vec2N, VecM, VecN, Vec2Ns } from '../types/arrays';
 
 export interface SimplexOptions {
@@ -15,25 +15,21 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   const { A: A_orig, b } = linesToAb(lines);
   const m = A_orig.rows;
   const n = A_orig.columns;
-  const c_objective = objective.slice();
+  const c_objective = Matrix.columnVector(objective);
 
-  const gamma = b.map(bi => (bi < 0 ? -1 : 1));
+  const gamma = b.to1DArray().map(bi => (bi < 0 ? -1 : 1));
   const Gamma = Matrix.diag(gamma);
-  const b1 = b.map((bi, i) => gamma[i] * bi);      // Γ b
+  const b1 = Gamma.mmul(b);      // Γ b
 
-  const Apos_data = Gamma.to2DArray().map((gamma_row, r) =>
-    A_orig.to2DArray()[0].map((_, c_idx) =>
-      gamma_row.reduce((sum, val, k) => sum + val * A_orig.get(k, c_idx), 0)
-    )
-  );
   const Apos = Gamma.mmul(A_orig);
 
-  const Aneg_data = Apos.to2DArray().map(row => row.map(v => -v));
-  const Aneg = new Matrix(Aneg_data);
+  const Aneg = Matrix.mul(Apos, -1);
 
   const Im = Matrix.eye(m);
   const A1 = hstack(Apos, Aneg, Gamma.mmul(Im), Im);
-  const c1 = [...vzeros(2 * n + m), ...vones(m).map(_ => -1)]; // –Σ t
+  const c1_zeros = Matrix.zeros(2 * n + m, 1);
+  const c1_ones = Matrix.ones(m, 1).mul(-1);
+  const c1 = vstack([c1_zeros, c1_ones]); // –Σ t
 
   const basis1_init = Array(2 * n + 2 * m).fill(false);    // start: t basic
   for (let i = 0; i < m; ++i) basis1_init[2 * n + m + i] = true;
@@ -45,9 +41,10 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   );
 
   /* ----------  Phase-2  -------------------------------------------------- */
-  const c2 = [...c_objective, ...c_objective.map(v => -v), ...vzeros(m)];  //  c x₁ – c x₂
-  const A_orig_neg_data = A_orig.to2DArray().map(row => row.map(v => -v));
-  const A_orig_neg = new Matrix(A_orig_neg_data);
+  const c_neg = Matrix.mul(c_objective, -1);
+  const c2_zeros = Matrix.zeros(m, 1);
+  const c2 = vstack([c_objective, c_neg, c2_zeros]);  //  c x₁ – c x₂
+  const A_orig_neg = Matrix.mul(A_orig, -1);
   const A2 = hstack(A_orig, A_orig_neg, Im);
 
   if (verbose) console.log("Phase Two");
@@ -57,9 +54,10 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   );
   const all_tableau_iters = iters2; // for plotting, we only look at phase 2
   const xIters = all_tableau_iters.map((tableau_x: Vec2N) => {
-    const x1: VecN = tableau_x.slice(0, n);
-    const x2: VecN = tableau_x.slice(n, 2 * n);
-    return vsub(x1, x2);
+    const tableau_matrix = Matrix.columnVector(tableau_x);
+    const x1 = tableau_matrix.subMatrix(0, n-1, 0, 0);
+    const x2 = tableau_matrix.subMatrix(n, 2*n-1, 0, 0);
+    return Matrix.sub(x1, x2).to1DArray();
   });
 
   return {
@@ -71,16 +69,16 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
 /* ======================================================================== */
 /*  Core simplex:  max cᵀx  s.t.  A x = b , x ≥ 0  (basis given)            */
 /* ======================================================================== */
-function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], cfg: { tol: number, verbose: boolean, phase1: boolean, nOrig: number, m: number }) {
+function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[], cfg: { tol: number, verbose: boolean, phase1: boolean, nOrig: number, m: number }) {
   const { tol, verbose, phase1, nOrig, m } = cfg;
   const mRows = A.rows;
   const nCols = A.columns;
 
-  if (mRows !== m || bVec.length !== m) {
-      throw new Error(`Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.length=${bVec.length} vs m=${m}`);
+  if (mRows !== m || bVec.rows !== m) {
+      throw new Error(`Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.rows=${bVec.rows} vs m=${m}`);
   }
 
-  let basis = vcopy(basisInit);           // mutable copy
+  let basis = basisInit.slice();           // mutable copy
   const iterations: Vec2Ns = [];
   const logs       = [];
 
@@ -97,8 +95,10 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
   const iterMax = 1 << 16;
 
   let basisIndices: number[] = [];
-  let x_tableau: Vec2N = [];
+  let x_tableau = Matrix.zeros(nCols, 1);
   let objVal = 0;
+  
+  const cVecArray = cVec.to1DArray(); // Convert once for array access
 
   while (true) {
     if (++iter > iterMax) throw new Error(`Simplex stalled after ${iterMax} iterations`);
@@ -121,32 +121,34 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
     /* --- x_B = B⁻¹ b ---------------------------------------------------- */
     let xB;
     try {
-        xB = solve(B, Matrix.columnVector(bVec)).to1DArray();
+        xB = solve(B, bVec);
     } catch (e) {
         console.error("Error solving BxB = b. B might be singular.", e);
         console.error("B:", B.to2DArray());
-        console.error("bVec:", bVec);
+        console.error("bVec:", bVec.to1DArray());
         console.error("Basis Indices:", basisIndices);
         console.error("Basis bool array:", basis.map(bVal => bVal?1:0).join(''));
         throw e;
     }
 
-    x_tableau = vzeros(nCols);
-    basisIndices.forEach((col_idx, k) => { x_tableau[col_idx] = xB[k]; });
-    iterations.push(vcopy(x_tableau));
+    x_tableau = Matrix.zeros(nCols, 1);
+    const xBArray = xB.to1DArray();
+    basisIndices.forEach((col_idx, k) => { x_tableau.set(col_idx, 0, xBArray[k]); });
+    iterations.push(x_tableau.to1DArray());
 
     /* --- Dual:  Bᵀ y = c_B --------------------------------------------- */
-    const cB = basisIndices.map(j => cVec[j]);
-    const y = solve(B.transpose(), Matrix.columnVector(cB)).to1DArray();
+    const cB = Matrix.columnVector(basisIndices.map(j => cVecArray[j]));
+    const y = solve(B.transpose(), cB);
 
     /* --- Reduced costs: z = c - Aᵀy ------------------------------------- */
-    const ATy = mtmul(A, y);
-    const z = cVec.map((ci, j) => ci - ATy[j]);
+    const ATy = A.transpose().mmul(y);
+    const z = Matrix.sub(cVec, ATy);
+    const zArray = z.to1DArray();
 
     /* Logging ------------------------------------------------------------ */
-    objVal = vdot(cVec, x_tableau);
-    const x0_log = x_tableau[0] !== undefined ? x_tableau[0] : 0.0;
-    const y0_log = y[0] !== undefined ? y[0] : 0.0;
+    objVal = cVec.dot(x_tableau);
+    const x0_log = x_tableau.get(0, 0);
+    const y0_log = y.get(0, 0);
 
     const line = sprintf('%5d %+8.2f %+8.2f %+10.1e %s\n',
                          iter,
@@ -160,7 +162,7 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
     /* Optimality test - Bland's Rule for entering variable */
     let enter_idx = -1;
     for (let j = 0; j < nCols; ++j) {
-      if (!basis[j] && z[j] > tol) {
+      if (!basis[j] && zArray[j] > tol) {
         enter_idx = j;
         break;
       }
@@ -168,8 +170,9 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
     if (enter_idx === -1) break;
 
     /* Direction d = B⁻¹ a_enter ----------------------------------------- */
-    const A_enter_col_array = Array.from({ length: mRows }, (_, i) => A.get(i, enter_idx));
-    const d_direction = solve(B, Matrix.columnVector(A_enter_col_array)).to1DArray();
+    const A_enter_col = Matrix.columnVector(Array.from({ length: mRows }, (_, i) => A.get(i, enter_idx)));
+    const d_direction = solve(B, A_enter_col);
+    const dArray = d_direction.to1DArray();
 
     /* Ratio test - Bland's Rule for leaving variable */
     let leave_idx_in_basis_indices = -1;
@@ -177,8 +180,8 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
     let smallest_leaving_var_original_idx = Infinity; 
 
     for (let i = 0; i < mRows; ++i) {
-      if (d_direction[i] > tol) {
-        const ratio = xB[i] / d_direction[i];
+      if (dArray[i] > tol) {
+        const ratio = xBArray[i] / dArray[i];
         const current_var_original_idx = basisIndices[i];
 
         if (ratio < minRatio - tol) {
@@ -210,7 +213,7 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
   }
 
   /* ---------------- Phase-1 clean-up ----------------------------------- */
-  let finalBasis = vcopy(basis);
+  let finalBasis = basis.slice();
   if (phase1) {
     const artificial_vars_start_index = 2 * nOrig + m;
 
@@ -219,10 +222,11 @@ function simplexCore(cVec: Vec2N, A: Matrix, bVec: VecM, basisInit: boolean[], c
       const art_var_idx = artificial_vars_start_index + i;
       if (finalBasis[art_var_idx]) {
         const xB_idx = basisIndices.indexOf(art_var_idx);
-        if (xB_idx !== -1 && x_tableau[art_var_idx] > tol) {
+        const x_val = x_tableau.get(art_var_idx, 0);
+        if (xB_idx !== -1 && x_val > tol) {
              problemInfeasible = true;
              break;
-        } else if (xB_idx === -1 && x_tableau[art_var_idx] > tol) { // Should not happen if basis is consistent
+        } else if (xB_idx === -1 && x_val > tol) { // Should not happen if basis is consistent
             problemInfeasible = true;
             break;
         }

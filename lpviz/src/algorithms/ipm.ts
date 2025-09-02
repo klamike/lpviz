@@ -21,8 +21,7 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
     throw new Error('maxit > 2^16 not allowed');
   }
 
-  const { A, b: bArray } = linesToAb(lines);
-  const b = Matrix.columnVector(bArray);
+  const { A, b } = linesToAb(lines);
   const c = Matrix.columnVector(objective);
 
   // Convert   A x ≤ b,  max c^T x   →   −A x ≥ −b,  min −c^T x

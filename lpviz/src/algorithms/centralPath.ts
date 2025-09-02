@@ -148,8 +148,7 @@ export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, o
   }
   const tStart = Date.now();
 
-  const { A: A, b: bVec } = linesToAb(lines);
-  const b = Matrix.columnVector(bVec);
+  const { A, b } = linesToAb(lines);
   const c = Matrix.columnVector(objective);
   const muValues = centralPathMu(niter);
 

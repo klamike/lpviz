@@ -220,7 +220,7 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
   if (ineq) {
     // For inequalities, we minimize c^T x subject to A x <= b
     // Convert to maximizing -c^T x subject to A x <= b, so dual flip sign of c
-    return pdhgInequalityForm(A, Matrix.columnVector(b), Matrix.columnVector(c_objective.map(x => -x)), solverOptions);
+    return pdhgInequalityForm(A, b, Matrix.columnVector(c_objective.map(x => -x)), solverOptions);
   } else {
     // Equality-constrained LP in standard form:
     // Minimize c^T x subject to A x = b, x >= 0
@@ -241,7 +241,7 @@ export function pdhg(linesOrMatrixA: Matrix | ArrayMatrix, objectiveOrVectorB: V
 
     // c_hat = [-c; c; 0_m]
     const c_hat_array = [...c_objective.map(x => -x), ...c_objective, ...new Array(m).fill(0)];
-    const { iterations: chi_iterates, logs } = pdhgStandardForm(A_hat, Matrix.columnVector(b), Matrix.columnVector(c_hat_array), solverOptions);
+    const { iterations: chi_iterates, logs } = pdhgStandardForm(A_hat, b, Matrix.columnVector(c_hat_array), solverOptions);
     // Reconstruct x = x+ - x-
     const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
       const x_plus: VecN = chi_k.slice(0, n_orig);
