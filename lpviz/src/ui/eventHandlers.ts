@@ -37,15 +37,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
           .map(
             (ineq, index) => `
             <div class="inequality-item" data-index="${index}">
-              ${ineq}<br>
-              <span class="barrier-weight-container" style="display: ${
-                state.barrierWeightsVisible ? "inline" : "none"
-              };">
-                <span style="font-family: sans-serif;">Barrier weight:</span>
-                <input type="number" id="weight-${index}" value="${
-              state.barrierWeights[index] !== undefined ? state.barrierWeights[index] : 1
-            }" step="any" autocomplete="off" style="width:60px" />
-              </span>
+              ${ineq}
             </div>
           `
           )
@@ -62,16 +54,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
             canvasManager.draw();
           }
         );
-        
-        inequalityElements.forEach((item) => {
-          item.querySelectorAll('input[type="number"]').forEach((el) => {
-            const inputEl = el as HTMLInputElement;
-            inputEl.addEventListener("change", () => {
-              const index = parseInt(inputEl.id.split("-")[1]);
-              state.barrierWeights[index] = parseFloat(inputEl.value);
-            });
-          });
-        });
+
         if (result.lines.length > 0) {
           showElement("subjectTo");
         }

@@ -5,7 +5,6 @@ import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from '../types/arrays'
 
 export interface CentralPathOptions {
   niter: number;
-  weights: number[] | null;
   verbose: boolean;
 }
 
@@ -142,20 +141,12 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
 
 // Compute the central path, using Newton's method to solve for each point.
 export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, opts: CentralPathOptions) {
-  const { niter, weights, verbose } = opts;
+  const { niter, verbose } = opts;
 
   if (niter > 2**10) {
     throw new Error("niter > 2^10 not allowed");
   }
   const tStart = Date.now();
-
-  // const { filteredLines, filteredWeights } = centralPathFilter(lines, weights ? Matrix.columnVector(weights) : null);
-  // TODO: implement the weighted central path and enable it in the UI
-  
-  // if (filteredLines.length === 0) {
-  //     console.warn("No lines remaining after filtering. Returning empty path.");
-  //     return { iterations: [] as VecNs, logs: ["No lines to process after filtering."], tsolve: 0 };
-  // }
 
   const { A: A, b: bVec } = linesToAb(lines);
   const b = Matrix.columnVector(bVec);

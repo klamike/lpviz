@@ -13,7 +13,6 @@ export async function computeIPMSolution(
   const result = await fetchIPM(
     state.computedLines,
     getObjectiveVector(),
-    getBarrierWeights(),
     alphaMax,
     maxit
   );
@@ -84,14 +83,12 @@ export async function computeCentralPathSolution(
   objectiveAngleStepSlider: HTMLInputElement,
   updateResult: (html: string) => void
 ): Promise<void> {
-  const weights = getBarrierWeights();
   const maxitCentral = parseInt(centralPathIterSlider.value, 10);
   
   const result = await fetchCentralPath(
     state.computedVertices,
     state.computedLines,
     getObjectiveVector(),
-    weights,
     maxitCentral
   );
   
@@ -158,14 +155,4 @@ export function getObjectiveVector(): [number, number] {
     throw new Error("Objective vector is not set");
   }
   return [state.objectiveVector.x, state.objectiveVector.y];
-}
-
-export function getBarrierWeights(): number[] {
-  const items = document.querySelectorAll(".inequality-item");
-  const weights: number[] = [];
-  items.forEach((item) => {
-    const input = item.querySelector("input");
-    weights.push(input ? parseFloat(input.value) : 1);
-  });
-  return weights;
 }
