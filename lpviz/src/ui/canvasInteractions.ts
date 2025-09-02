@@ -136,10 +136,18 @@ export function setupCanvasInteractions(
       e.deltaY < 0 ? oldScale * zoomFactor : oldScale / zoomFactor
     ));
     
-    const logical = canvasManager.toLogicalCoords(mouseX, mouseY);
-    canvasManager.scaleFactor = newScale;
-    canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - logical.x;
-    canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - logical.y;
+    if (state.is3DMode || state.isTransitioning3D) {
+      const worldX = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * oldScale) - canvasManager.offset.x;
+      const worldY = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * oldScale) - canvasManager.offset.y;
+      canvasManager.scaleFactor = newScale;
+      canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - worldX;
+      canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - worldY;
+    } else {
+      const logical = canvasManager.toLogicalCoords(mouseX, mouseY);
+      canvasManager.scaleFactor = newScale;
+      canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - logical.x;
+      canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - logical.y;
+    }
     canvasManager.draw();
   });
 }
