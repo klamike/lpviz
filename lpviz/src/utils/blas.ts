@@ -14,21 +14,18 @@ export function linesToAb(lines: Lines) {
   return { A: new Matrix(A_rows), b: Matrix.columnVector(b_vector) };
 }
 
-export function vstack(matrices: (AbstractMatrix | number[])[]): Matrix {
-  if (!matrices || matrices.length === 0) {
+export function vstack(matrices: AbstractMatrix[]): Matrix {
+  if (matrices.length === 0) {
     return Matrix.columnVector([]);
   }
 
   const allValues: number[] = [];
   
   for (const matrix of matrices) {
-    if (matrix instanceof Matrix) {
-      allValues.push(...matrix.to1DArray());
-    } else if (Array.isArray(matrix)) {
-      allValues.push(...matrix);
-    } else {
-      throw new TypeError('Each element must be a Matrix or number array');
+    if (matrix.columns !== 1) {
+      throw new Error("vstack: all matrices must be column vectors");
     }
+    allValues.push(...matrix.to1DArray());
   }
   
   return Matrix.columnVector(allValues);
