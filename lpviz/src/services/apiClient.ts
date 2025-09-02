@@ -1,7 +1,7 @@
-import { pdhg as localPdhgSolver } from "../algorithms/pdhg";
-import { ipm as localIpmSolver } from "../algorithms/ipm";
-import { centralPath as localCentralPathSolver } from "../algorithms/centralPath";
-import { simplex as localSimplexSolver } from "../algorithms/simplex";
+import { pdhg } from "../algorithms/pdhg";
+import { ipm } from "../algorithms/ipm";
+import { centralPath } from "../algorithms/centralPath";
+import { simplex } from "../algorithms/simplex";
 import Matrix from "ml-matrix";
 import { VecM, VecN, Vertices, Lines, ArrayMatrix } from "../types/arrays";
 
@@ -44,7 +44,7 @@ export async function fetchCentralPath(
       ...DEFAULT_BASE_OPTIONS, 
       niter
     };
-    return localCentralPathSolver(vertices, lines, objective, options);
+    return centralPath(vertices, lines, objective, options);
   });
 }
 
@@ -54,7 +54,7 @@ export async function fetchSimplex(lines: Lines, objective: VecN) {
       tol: DEFAULT_TOLERANCE, 
       verbose: false 
     };
-    return localSimplexSolver(lines, objective, options);
+    return simplex(lines, objective, options);
   });
 }
 
@@ -73,7 +73,7 @@ export async function fetchIPM(
       alphaMax: alphamax, 
       maxit 
     };
-    return localIpmSolver(lines, objective, options);
+    return ipm(lines, objective, options);
   });
 }
 
@@ -93,6 +93,6 @@ export async function fetchPDHG(
       eta, 
       tau 
     };
-    return localPdhgSolver(lines, objective, options);
+    return pdhg(lines, objective, options);
   });
 }
