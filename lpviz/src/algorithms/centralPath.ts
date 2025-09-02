@@ -102,7 +102,7 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
 
         if (fxNew === -Infinity) { // Still possible if alpha makes it jump out
              alpha *= t;
-        } else if (fxNew >= fx + beta * alpha * gradDotDx) { // Note: Julia uses `<` for min problem, `>` for max. Here, we maximize.
+        } else if (fxNew >= fx + beta * alpha * gradDotDx) {
             break;
         } else {
             alpha *= t;

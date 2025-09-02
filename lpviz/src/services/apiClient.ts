@@ -1,5 +1,4 @@
 import { pdhg as localPdhgSolver } from "../algorithms/pdhg";
-import { polytope as localPolytopeSolver } from "../algorithms/polytope";
 import { ipm as localIpmSolver } from "../algorithms/ipm";
 import { centralPath as localCentralPathSolver } from "../algorithms/centralPath";
 import { simplex as localSimplexSolver } from "../algorithms/simplex";
@@ -33,10 +32,6 @@ const DEFAULT_BASE_OPTIONS: BaseSolverOptions = {
   isStandardProblem: false,
   cStandard: []
 };
-
-export async function fetchPolytope(points: Vertices) {
-  return wrapSolverCall("Polytope", () => localPolytopeSolver(points));
-}
 
 export async function fetchCentralPath(
   vertices: Vertices, 

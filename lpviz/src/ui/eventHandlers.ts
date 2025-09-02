@@ -1,8 +1,7 @@
 import { state } from "../state/state";
-import { fetchPolytope } from "../services/apiClient";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
-import { isPolygonConvex } from "../utils/math2d";
+import { isPolygonConvex, polytope } from "../utils/math2d";
 import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize, getElement, showElement } from "../utils/uiHelpers";
 
 import { createDragHandlers, setupDragEventListeners, getLogicalCoords } from "./dragHandlers";
@@ -24,10 +23,10 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     });
   }
 
-  async function sendPolytope() {
+  function sendPolytope() {
     const points = state.vertices.map((pt) => [pt.x, pt.y]);
     try {
-      const result = await fetchPolytope(points);
+      const result = polytope(points);
       if (result.inequalities) {
         if (!isPolygonConvex(state.vertices)) {
           uiManager.inequalitiesDiv.textContent = "Nonconvex";
