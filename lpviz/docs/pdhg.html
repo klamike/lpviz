@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Primal-Dual Hybrid Gradient (PDHG) - lpviz Documentation</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+    <div class="navigation">
+        <strong>lpviz Documentation</strong> | 
+        <a href="./">← Back to Documentation</a> |
+        <a href="../">← Back to lpviz</a>
+    </div>
+
+    <h1>Primal-Dual Hybrid Gradient (PDHG)</h1>
+
+    <div class="info">
+        <strong>Overview:</strong> PDHG is a first-order method that alternates between primal and dual updates. It's particularly effective for large-scale problems and offers both equality-constrained (standard form) and inequality-constrained modes.
+    </div>
+
+    <h2>Problem Setup</h2>
+
+    <p>PDHG in lpviz handles the user's problem from the frontend form:</p>
+    
+    <div class="equation-block">
+        $$\begin{align}
+        \max_x \quad & c^\top x \\
+        \text{s.t.} \quad & Ax \leq b
+        \end{align}$$
+    </div>
+
+    <p>The algorithm provides two modes depending on how constraints are handled:</p>
+
+    <div class="mode-section">
+        <h3>Mode Selection</h3>
+        
+        <div class="code-math-container">
+            <div class="code-section">
+                <h4>Code: Mode Selection <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L209-L233" target="_blank">lines 209-233</a></span></h4>
+                <div class="code-line"><span class="code-keyword">if</span> (ineq) {</div>
+                <div class="code-line code-indent-1"><span class="code-comment">// Inequality mode: minimize c^T x s.t. A x &lt;= b</span></div>
+                <div class="code-line code-indent-1"><span class="code-keyword">return</span> <span class="code-function">pdhgInequalityForm</span>(A, b, </div>
+                <div class="code-line code-indent-2">Matrix.mul(c, -1), solverOptions);</div>
+                <div class="code-line">} <span class="code-keyword">else</span> {</div>
+                <div class="code-line code-indent-1"><span class="code-comment">// Standard form: split variables x = x+ - x-</span></div>
+                <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">A_hat</span> = <span class="code-function">hstack</span>(A, Matrix.mul(A, -1), </div>
+                <div class="code-line code-indent-2">Matrix.eye(m));</div>
+                <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">c_hat</span> = <span class="code-function">vstack</span>([Matrix.mul(c, -1), c, </div>
+                <div class="code-line code-indent-2">Matrix.zeros(m, 1)]);</div>
+                <div class="code-line">}</div>
+            </div>
+            <div class="math-section">
+                <h4>Mathematical Interpretation</h4>
+                <p><strong>Inequality Mode:</strong> Works directly with $Ax \leq b$</p>
+                <p><strong>Standard Form Mode:</strong> Converts to equality constraints:</p>
+                $$Ax \leq b \quad \Rightarrow \quad Ax + s = b, \quad s \geq 0$$
+                <p>Variables split as $x = x^+ - x^-$ with $x^+, x^- \geq 0$</p>
+            </div>
+        </div>
+    </div>
+
+    <h2>Standard Form PDHG</h2>
+
+    <div class="algorithm-box">
+        <h3>Equality-Constrained Formulation</h3>
+        <p>Standard PDHG solves problems of the form: $\min_x c^\top x$ subject to $Ax = b$, $x \geq 0$.</p>
+    </div>
+
+    <h3>Algorithm Updates</h3>
+    
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Standard PDHG Updates <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L87-L95" target="_blank">lines 87-95</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">xk_plus_1</span> = <span class="code-function">projectNonNegative</span>(</div>
+            <div class="code-line code-indent-1">Matrix.sub(xk, Matrix.add(c, </div>
+            <div class="code-line code-indent-2">A.transpose().mmul(yk)).mul(eta))</div>
+            <div class="code-line">);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">x_extrapolated</span> = Matrix.add(xk_plus_1, </div>
+            <div class="code-line code-indent-1">Matrix.sub(xk_plus_1, xk));</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">yk_plus_1</span> = Matrix.add(yk, </div>
+            <div class="code-line code-indent-1">Matrix.sub(A.mmul(x_extrapolated), b).mul(tau));</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The PDHG updates are:</p>
+            $$x^{k+1} = \Pi_{\geq 0}(x^k - \eta(c + A^\top y^k))$$
+            $$\tilde{x}^{k+1} = 2x^{k+1} - x^k$$
+            $$y^{k+1} = y^k + \tau(A\tilde{x}^{k+1} - b)$$
+            <p>where $\Pi_{\geq 0}$ is projection onto non-negative orthant and $\tilde{x}^{k+1}$ is the extrapolated primal variable.</p>
+        </div>
+    </div>
+
+    <h3>Convergence Criterion</h3>
+    
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Standard Form Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L19-L32" target="_blank">lines 19-32</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Ax</span> = A.mmul(xk);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">primalFeasibility</span> = </div>
+            <div class="code-line">  Matrix.sub(Ax, b).norm() / (1 + b.norm());</div>
+            <div class="code-line"></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">ATy</span> = A.transpose().mmul(yk);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">negATy_minus_c</span> = Matrix.sub(ATy.mul(-1), c);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">dualFeasibility</span> = </div>
+            <div class="code-line">  <span class="code-function">projectNonNegative</span>(negATy_minus_c).norm() / </div>
+            <div class="code-line">  (1 + c.norm());</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>Three components measure convergence:</p>
+            <p><strong>Primal feasibility:</strong> $\frac{\|Ax - b\|}{1 + \|b\|}$</p>
+            <p><strong>Dual feasibility:</strong> $\frac{\|\Pi_{\geq 0}(-A^\top y - c)\|}{1 + \|c\|}$</p>
+            <p><strong>Duality gap:</strong> $\frac{|c^\top x + b^\top y|}{1 + |c^\top x| + |b^\top y|}$</p>
+        </div>
+    </div>
+
+    <h2>Inequality Form PDHG</h2>
+
+    <div class="algorithm-box">
+        <h3>Direct Inequality Handling</h3>
+        <p>Inequality mode avoids transforming constraints, working directly with the original problem structure.</p>
+    </div>
+
+    <h3>Algorithm Updates</h3>
+    
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Inequality PDHG Updates <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L157-L161" target="_blank">lines 157-161</a></span></h4>
+            <div class="code-line"><span class="code-comment">// y update (dual first)</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">yk_plus_1</span> = <span class="code-function">projectNonNegative</span>(</div>
+            <div class="code-line code-indent-1">Matrix.add(yk, Matrix.sub(A.mmul(xk), b).mul(tau))</div>
+            <div class="code-line">);</div>
+            <div class="code-line"><span class="code-comment">// x update with extrapolated dual</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">y_extrapolated</span> = Matrix.add(yk_plus_1, </div>
+            <div class="code-line code-indent-1">Matrix.sub(yk_plus_1, yk));</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">xk_plus_1</span> = Matrix.sub(xk, </div>
+            <div class="code-line code-indent-1">Matrix.add(c, A.transpose().mmul(y_extrapolated)).mul(eta));</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The inequality-mode updates are:</p>
+            $$y^{k+1} = \Pi_{\geq 0}(y^k + \tau(Ax^k - b))$$
+            $$\tilde{y}^{k+1} = 2y^{k+1} - y^k$$
+            $$x^{k+1} = x^k - \eta(c + A^\top \tilde{y}^{k+1})$$
+            <p>Note: Dual variables $y \geq 0$ due to inequality constraints, and extrapolation is applied to dual variables instead of primal.</p>
+        </div>
+    </div>
+
+    <h3>Convergence Criterion</h3>
+    
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Inequality Form Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L34-L43" target="_blank">lines 34-43</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Ax</span> = A.mmul(xk);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">primalFeasibility</span> = </div>
+            <div class="code-line">  <span class="code-function">projectNonNegative</span>(Matrix.sub(Ax, b)).norm() / </div>
+            <div class="code-line">  (1 + b.norm());</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">dualFeasibility</span> = </div>
+            <div class="code-line">  <span class="code-function">projectNonNegative</span>(yk.mul(-1)).norm() / </div>
+            <div class="code-line">  (1 + c.norm());</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>For inequality constraints:</p>
+            <p><strong>Primal feasibility:</strong> $\frac{\|\Pi_{\geq 0}(Ax - b)\|}{1 + \|b\|}$</p>
+            <p><strong>Dual feasibility:</strong> $\frac{\|\Pi_{\geq 0}(-y)\|}{1 + \|c\|}$</p>
+            <p>The projection $\Pi_{\geq 0}(Ax - b)$ measures constraint violation.</p>
+        </div>
+    </div>
+
+    <h2>Step Size Selection</h2>
+
+    <div class="definition-box">
+        <h3>Convergence Theory</h3>
+        <p>PDHG converges when the step sizes satisfy:</p>
+        <div class="equation-block">
+            $$\eta \tau \|A\|^2 &lt; 1$$
+        </div>
+        <p>where $\|A\|$ is the spectral norm of matrix $A$. In practice, $\eta = \tau = 0.25$ often works well.</p>
+    </div>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Default Parameters <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L189-L196" target="_blank">lines 189-196</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> {</div>
+            <div class="code-line">  ineq = false,</div>
+            <div class="code-line">  maxit = 1000,</div>
+            <div class="code-line">  <span class="code-variable">eta</span> = 0.25,</div>
+            <div class="code-line">  <span class="code-variable">tau</span> = 0.25,</div>
+            <div class="code-line">  verbose = false,</div>
+            <div class="code-line">  tol = 1e-4,</div>
+            <div class="code-line">} = options;</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>Default step sizes $\eta = \tau = 0.25$ ensure:</p>
+            $$\eta \tau = 0.0625 &lt; \frac{1}{\|A\|^2}$$
+            <p>for most well-conditioned problems. For ill-conditioned problems, smaller step sizes may be needed.</p>
+        </div>
+    </div>
+
+    <h2>Variable Recovery</h2>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Solution Reconstruction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L222-L227" target="_blank">lines 222-227</a></span></h4>
+            <div class="code-line"><span class="code-comment">// Reconstruct x = x+ - x-</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">x_iterates</span> = chi_iterates.map((chi_k: Vec2N) => {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">x_plus</span> = Matrix.columnVector(</div>
+            <div class="code-line code-indent-2">chi_k.slice(0, n_orig));</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">x_minus</span> = Matrix.columnVector(</div>
+            <div class="code-line code-indent-2">chi_k.slice(n_orig, 2 * n_orig));</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">return</span> x_plus.sub(x_minus).to1DArray();</div>
+            <div class="code-line">});</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>In standard form mode, variables are split:</p>
+            $$x = x^+ - x^-, \quad x^+, x^- \geq 0$$
+            <p>The final solution reconstructs the original variables from their positive and negative parts.</p>
+        </div>
+    </div>
+
+    <h2>Key Features</h2>
+
+    <div class="algorithm-box">
+        <h3>Saddle Point Interpretation</h3>
+        <p>PDHG solves the saddle point problem:</p>
+        <div class="equation-block">
+            $$\min_x \max_y \quad c^\top x + y^\top(Ax - b) - \delta_{\geq 0}(x) - \delta_{\geq 0}(y)$$
+        </div>
+        <p>where $\delta_{\geq 0}$ is the indicator function of the non-negative orthant. The alternating updates correspond to approximate gradient ascent in $y$ and gradient descent in $x$.</p>
+    </div>
+
+    <div class="navigation">
+        <a href="./">← Back to Documentation</a> |
+        <a href="../">← Back to lpviz</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central Path Method - lpviz Documentation</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+    <div class="navigation">
+        <strong>lpviz Documentation</strong> | 
+        <a href="./">← Back to Documentation</a> |
+        <a href="../">← Back to lpviz</a>
+    </div>
+
+    <h1>Central Path Method</h1>
+
+    <div class="info">
+        <strong>Overview:</strong> The Central Path method computes a sequence of points that approach the optimal solution by following the central path of the barrier problem. Each point is found using Newton's method with line search.
+    </div>
+
+    <h2>Barrier Problem Formulation</h2>
+
+    <p>The central path method transforms the linear program:</p>
+    
+    <div class="equation-block">
+        $$\begin{align}
+        \max_x \quad & c^\top x \\
+        \text{s.t.} \quad & Ax \leq b
+        \end{align}$$
+    </div>
+
+    <p>Into a sequence of barrier problems:</p>
+    
+    <div class="equation-block">
+        $$x(\mu) = \arg\min_x \left\{ c^\top x - \mu \sum_{i=1}^m \log(b_i - a_i^\top x) \right\}$$
+    </div>
+
+    <div class="definition-box">
+        <h3>Central Path</h3>
+        <p>The central path $\{x(\mu) : \mu > 0\}$ is a smooth curve of minimizers of the barrier problem. As $\mu \to 0^+$, the path converges to the optimal solution of the original linear program.</p>
+    </div>
+
+    <h2>Barrier Parameter Sequence</h2>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Barrier Parameters <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L210-L221" target="_blank">lines 210-221</a></span></h4>
+            <div class="code-line"><span class="code-keyword">function</span> <span class="code-function">centralPathMu</span>(niter: number) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">startVal</span> = 3.0;</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">stopVal</span> = -5.0;</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">step</span> = (stopVal - startVal) / (niter - 1);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">for</span> (let i = 0; i &lt; niter; i++) {</div>
+            <div class="code-line code-indent-2">mus.push(10.0 ** (startVal + i * step));</div>
+            <div class="code-line code-indent-1">}</div>
+            <div class="code-line">}</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The barrier parameter sequence is logarithmically spaced:</p>
+            $$\mu_k = 10^{3 - 8k/(n-1)}, \quad k = 0, 1, \ldots, n-1$$
+            <p>This gives:</p>
+            $$\mu_0 = 10^3 = 1000, \quad \mu_{n-1} = 10^{-5} = 0.00001$$
+            <p>The sequence decreases geometrically toward zero.</p>
+        </div>
+    </div>
+
+    <h2>Newton's Method for Each Barrier Problem</h2>
+
+    <div class="barrier-section">
+        <h3>Single Point Computation</h3>
+        <p>For each $\mu_k$, Newton's method solves the barrier problem to find $x(\mu_k)$.</p>
+    </div>
+
+    <h3>Objective Function</h3>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Barrier Function <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L25-L32" target="_blank">lines 25-32</a></span></h4>
+            <div class="code-line"><span class="code-keyword">function</span> <span class="code-function">calculateObjective</span>(currentX: VectorN) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">Ax</span> = Amatrix.mmul(currentX);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">r</span> = Matrix.sub(bVec, Ax);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (r.min() &lt;= 0) <span class="code-keyword">return</span> -Infinity;</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">return</span> cVec.dot(currentX) + mu * r.log().sum();</div>
+            <div class="code-line">}</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The barrier objective function is:</p>
+            $$f_\mu(x) = c^\top x - \mu \sum_{i=1}^m \log(b_i - a_i^\top x)$$
+            <p>The residual vector $r = b - Ax$ represents constraint slack. The logarithmic barrier ensures $x$ stays strictly feasible: $Ax &lt; b$.</p>
+        </div>
+    </div>
+
+    <h3>Gradient Computation</h3>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Gradient <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L47-L49" target="_blank">lines 47-49</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">invR</span> = Matrix.pow(r, -1);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">AT_invR</span> = Amatrix.transpose().mmul(invR);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">grad</span> = Matrix.sub(cVec, AT_invR.mul(mu));</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The gradient of the barrier function is:</p>
+            $$\nabla f_\mu(x) = c - \mu A^\top \frac{1}{b - Ax}$$
+            <p>where $\frac{1}{b - Ax}$ denotes element-wise reciprocal. As constraints become active ($a_i^\top x \to b_i$), the corresponding gradient components grow large, repelling $x$ from the boundary.</p>
+        </div>
+    </div>
+
+    <h3>Hessian Computation</h3>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Hessian <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L51-L54" target="_blank">lines 51-54</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">invR2</span> = Matrix.pow(invR, 2);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">invR2_diag</span> = <span class="code-function">diag</span>(invR2);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">AT_diag_invR2</span> = Amatrix.transpose().mmul(invR2_diag);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">hess</span> = AT_diag_invR2.mmul(Amatrix).mul(mu);</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The Hessian of the barrier function is:</p>
+            $$\nabla^2 f_\mu(x) = \mu A^\top \text{diag}\left(\frac{1}{(b - Ax)^2}\right) A$$
+            <p>The Hessian is positive definite for strictly feasible $x$, ensuring the barrier function is strictly convex.</p>
+        </div>
+    </div>
+
+    <h3>Newton Step</h3>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Newton Direction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L58-L59" target="_blank">lines 58-59</a></span></h4>
+            <div class="code-line"><span class="code-comment">// Newton step: dx = hess \ grad</span></div>
+            <div class="code-line"><span class="code-variable">dx</span> = <span class="code-function">solve</span>(hess, grad);</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The Newton direction solves:</p>
+            $$\nabla^2 f_\mu(x^k) \Delta x = -\nabla f_\mu(x^k)$$
+            <p>This gives the direction of steepest descent in the Newton metric defined by the Hessian.</p>
+        </div>
+    </div>
+
+    <h2>Line Search</h2>
+
+    <div class="algorithm-box">
+        <h3>Two-Stage Line Search</h3>
+        <p>The algorithm uses a two-stage approach: first ensure feasibility, then apply Armijo rule for sufficient decrease.</p>
+    </div>
+
+    <h3>Stage 1: Feasibility Line Search</h3>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Domain Line Search <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L68-L84" target="_blank">lines 68-84</a></span></h4>
+            <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">alpha</span> = 1.0;</div>
+            <div class="code-line"><span class="code-keyword">while</span> (true) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">xNew</span> = Matrix.add(x, Matrix.mul(dx, alpha));</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">rNew</span> = Matrix.sub(bVec, Amatrix.mmul(xNew));</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (rNew.min() > 1e-12) <span class="code-keyword">break</span>;</div>
+            <div class="code-line code-indent-1">alpha *= 0.5;</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (alpha &lt; 1e-10) {</div>
+            <div class="code-line code-indent-2"><span class="code-keyword">return</span> null; <span class="code-comment">// Step too small</span></div>
+            <div class="code-line code-indent-1">}</div>
+            <div class="code-line">}</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>Find largest $\alpha$ such that $x + \alpha \Delta x$ remains strictly feasible:</p>
+            $$A(x + \alpha \Delta x) &lt; b$$
+            <p>This ensures the logarithmic barrier remains well-defined. The step size is repeatedly halved until feasibility is achieved.</p>
+        </div>
+    </div>
+
+    <h3>Stage 2: Armijo Line Search</h3>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Armijo Condition <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L88-L122" target="_blank">lines 88-122</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">t</span> = 0.5;  <span class="code-comment">// Shrink factor</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">beta</span> = 0.01; <span class="code-comment">// Sufficient decrease</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">gradDotDx</span> = grad.dot(dx);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">fx</span> = <span class="code-function">calculateObjective</span>(x);</div>
+            <div class="code-line"></div>
+            <div class="code-line"><span class="code-keyword">while</span> (true) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">fxNew</span> = <span class="code-function">calculateObjective</span>(xNew);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (fxNew >= fx + beta * alpha * gradDotDx) <span class="code-keyword">break</span>;</div>
+            <div class="code-line code-indent-1">alpha *= t;</div>
+            <div class="code-line">}</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The Armijo condition requires sufficient decrease:</p>
+            $$f_\mu(x + \alpha \Delta x) \leq f_\mu(x) + \beta \alpha \nabla f_\mu(x)^\top \Delta x$$
+            <p>where $\beta = 0.01$ is small. This ensures the step makes meaningful progress toward the minimum.</p>
+        </div>
+    </div>
+
+    <h2>Convergence and Path Following</h2>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Newton Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L126-L128" target="_blank">lines 126-128</a></span></h4>
+            <div class="code-line"><span class="code-keyword">if</span> (grad.max() &lt; epsilon) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (verbose) console.log("Converged in " + k + </div>
+            <div class="code-line code-indent-2">" iterations with mu = " + mu);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">return</span> x;</div>
+            <div class="code-line">}</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>Newton's method converges when:</p>
+            $$\|\nabla f_\mu(x)\|_\infty &lt; \epsilon$$
+            <p>This indicates $x \approx x(\mu)$, the minimizer of the barrier problem for parameter $\mu$.</p>
+        </div>
+    </div>
+
+    <h3>Warm Starting</h3>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Path Continuation <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L162-L186" target="_blank">lines 162-186</a></span></h4>
+            <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">x0</span> = <span class="code-function">centroid</span>(vertices);</div>
+            <div class="code-line"></div>
+            <div class="code-line"><span class="code-keyword">for</span> (const muK of muValues) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">xk</span> = <span class="code-function">centralPathXk</span>(A, b, c, muK, x0, opts);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (xk !== null) {</div>
+            <div class="code-line code-indent-2">centralPathArray.push(extendedPoint);</div>
+            <div class="code-line code-indent-2">x0 = xk; <span class="code-comment">// Warm start next iteration</span></div>
+            <div class="code-line code-indent-1">}</div>
+            <div class="code-line">}</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>The algorithm uses <strong>warm starting</strong>:</p>
+            <ul>
+                <li>Initialize with centroid of feasible region vertices</li>
+                <li>Use $x(\mu_k)$ as starting point for computing $x(\mu_{k+1})$</li>
+                <li>Exploits smoothness of central path for faster convergence</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Solution Trajectory</h2>
+
+    <div class="code-math-container">
+        <div class="code-section">
+            <h4>Code: Extended Points <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L169-L173" target="_blank">lines 169-173</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">objectiveValue</span> = c.dot(xk);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">barrierTerm</span> = muK * r.log().sum();</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">totalObjective</span> = objectiveValue + barrierTerm;</div>
+            <div class="code-line"></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">extendedPoint</span> = [...xk.to1DArray(), totalObjective];</div>
+            <div class="code-line">centralPathArray.push(extendedPoint);</div>
+        </div>
+        <div class="math-section">
+            <h4>Mathematical Interpretation</h4>
+            <p>Each point on the central path includes:</p>
+            <ul>
+                <li><strong>Primal variables:</strong> $x(\mu)$</li>
+                <li><strong>Barrier objective:</strong> $c^\top x(\mu) - \mu \sum_i \log(b_i - a_i^\top x(\mu))$</li>
+            </ul>
+            <p>In 3D visualization, the z-coordinate shows the barrier objective evolution.</p>
+        </div>
+    </div>
+
+    <h2>Key Features</h2>
+
+    <div class="success">
+        <h3>Smooth Convergence</h3>
+        <p>The central path provides <strong>smooth convergence</strong> to optimality:</p>
+        <ul>
+            <li><strong>Geometric interpretation:</strong> Follows a smooth curve through feasible region interior</li>
+            <li><strong>No combinatorial decisions:</strong> Unlike simplex, no discrete choices of basic variables</li>
+            <li><strong>Predictable trajectory:</strong> Path shape determined by problem geometry</li>
+        </ul>
+    </div>
+
+    <div class="info">
+        <h3>Theoretical Foundation</h3>
+        <p>The central path has <strong>strong theoretical properties</strong>:</p>
+        <ul>
+            <li><strong>Existence:</strong> Path exists and is unique for strictly feasible problems</li>
+            <li><strong>Convergence:</strong> As $\mu \to 0$, path converges to optimal solution</li>
+            <li><strong>Analyticity:</strong> Path is real analytic in $\mu$</li>
+        </ul>
+    </div>
+
+    <div class="warning">
+        <h3>Computational Challenges</h3>
+        <p>Central path computation faces several challenges:</p>
+        <ul>
+            <li><strong>Initialization:</strong> Requires strictly feasible starting point</li>
+            <li><strong>Ill-conditioning:</strong> Hessian becomes ill-conditioned as $\mu \to 0$</li>
+            <li><strong>Line search complexity:</strong> Multiple function evaluations per Newton step</li>
+        </ul>
+    </div>
+
+    <div class="algorithm-box">
+        <h3>Relationship to Interior Point Methods</h3>
+        <p>The central path is the theoretical foundation for interior point methods:</p>
+        <div class="equation-block">
+            $$\text{IPM} = \text{Approximate path following} + \text{Predictor-corrector}$$
+        </div>
+        <p>While IPM uses linear algebra to approximate path following, the central path method computes exact path points using nonlinear optimization.</p>
+    </div>
+
+    <div class="navigation">
+        <a href="./">← Back to Documentation</a> |
+        <a href="../">← Back to lpviz</a>
+    </div>
+</body>
+</html>
