@@ -6,7 +6,7 @@ export interface PointXYZ { x: number; y: number; z: number; }
 // solver types
 export type Vec2 = number[]; // [x, y]
 export type Vec3 = number[]; // [x, y, z] or [A, B, C]
-export type VecM = number[]; // M refers to number of constraints, e.g. for the barrier weights vector
+export type VecM = number[]; // M refers to number of constraints
 export type VecN = number[]; // N refers to number of variables, e.g. for the objective vector
 export type ArrayMatrix = number[][];
 

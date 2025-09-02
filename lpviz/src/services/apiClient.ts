@@ -37,14 +37,12 @@ export async function fetchCentralPath(
   vertices: Vertices, 
   lines: Lines, 
   objective: VecN, 
-  weights: VecM | null, 
   niter: number
 ) {
   return wrapSolverCall("Central Path", () => {
     const options = { 
       ...DEFAULT_BASE_OPTIONS, 
-      niter, 
-      weights 
+      niter
     };
     return localCentralPathSolver(vertices, lines, objective, options);
   });
@@ -63,7 +61,6 @@ export async function fetchSimplex(lines: Lines, objective: VecN) {
 export async function fetchIPM(
   lines: Lines, 
   objective: VecN, 
-  weights: VecM | null, 
   alphamax: number, 
   maxit: number
 ) {

@@ -1,4 +1,4 @@
-import { PointXY, PointXYZ, VecM } from '../types/arrays';
+import { PointXY, PointXYZ } from '../types/arrays';
 import { Vertices, Lines, VecNs } from '../types/arrays';
 
 export interface TraceEntry {
@@ -52,12 +52,10 @@ export interface State {
   highlightIteratePathIndex: number | null;
   isIteratePathComputing: boolean;
   rotateObjectiveMode: boolean;
-  barrierWeightsVisible: boolean;
   draggingPointIndex: number | null;
   potentialDragPointIndex: number | null;
   dragStartPos: { x: number; y: number } | null;
   draggingObjective: boolean;
-  barrierWeights: VecM;
   solverMode: SolverMode;
   animationIntervalId: number | null;
   originalIteratePath: VecNs;
@@ -116,12 +114,10 @@ function createInitialState(): State {
     highlightIteratePathIndex: null,
     isIteratePathComputing: false,
     rotateObjectiveMode: false,
-    barrierWeightsVisible: false,
     draggingPointIndex: null,
     potentialDragPointIndex: null,
     dragStartPos: null,
     draggingObjective: false,
-    barrierWeights: [],
     solverMode: "central" as SolverMode,
     animationIntervalId: null,
     originalIteratePath: [],
