@@ -340,8 +340,9 @@ export class CanvasManager {
       state.objectiveVector ||
       (state.polygonComplete && state.currentObjective && !this.shouldSkipPreviewDrawing() ? state.currentObjective : null);
     if (target) {
-      const origin = this.toCanvasCoords(0, 0);
-      const end = this.toCanvasCoords(target.x, target.y);
+      // In 3D mode, the objective vector should be drawn in the XY plane (z=0)
+      const origin = this.toCanvasCoords(0, 0, 0);
+      const end = this.toCanvasCoords(target.x, target.y, 0);
       this.ctx.strokeStyle = "green";
       this.ctx.lineWidth = 3;
       this.ctx.lineCap = "round";
