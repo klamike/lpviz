@@ -25,7 +25,6 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
   const c = Matrix.columnVector(objective);
 
   // Convert   A x ≤ b,  max c^T x   →   −A x ≥ −b,  min −c^T x
-  // const Aneg = A.to2DArray().map(row => row.map(v => -v)); // TODO: just keep it a matrix
   const Aneg = A.mul(-1);
   const bneg = b.mul(-1);
   const cneg = c.mul(-1);

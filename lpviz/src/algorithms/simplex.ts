@@ -98,8 +98,6 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
   let x_tableau = Matrix.zeros(nCols, 1);
   let objVal = 0;
   
-  const cVecArray = cVec.to1DArray(); // Convert once for array access
-
   while (true) {
     if (++iter > iterMax) throw new Error(`Simplex stalled after ${iterMax} iterations`);
 
@@ -133,13 +131,12 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     iterations.push(x_tableau.to1DArray());
 
     /* --- Dual:  Bᵀ y = c_B --------------------------------------------- */
-    const cB = Matrix.columnVector(basisIndices.map(j => cVecArray[j]));
+    const cB = Matrix.columnVector(basisIndices.map(j => cVec.get(j, 0)));
     const y = solve(B.transpose(), cB);
 
     /* --- Reduced costs: z = c - Aᵀy ------------------------------------- */
     const ATy = A.transpose().mmul(y);
     const z = Matrix.sub(cVec, ATy);
-    const zArray = z.to1DArray();
 
     /* Logging ------------------------------------------------------------ */
     objVal = cVec.dot(x_tableau);
@@ -158,7 +155,7 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     /* Optimality test - Bland's Rule for entering variable */
     let enter_idx = -1;
     for (let j = 0; j < nCols; ++j) {
-      if (!basis[j] && zArray[j] > tol) {
+      if (!basis[j] && z.get(j, 0) > tol) {
         enter_idx = j;
         break;
       }
@@ -167,8 +164,7 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
 
     /* Direction d = B⁻¹ a_enter ----------------------------------------- */
     const A_enter_col = Matrix.columnVector(Array.from({ length: mRows }, (_, i) => A.get(i, enter_idx)));
-    const d_direction = solve(B, A_enter_col);
-    const dArray = d_direction.to1DArray();
+    const d = solve(B, A_enter_col);
 
     /* Ratio test - Bland's Rule for leaving variable */
     let leave_idx_in_basis_indices = -1;
@@ -176,8 +172,8 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     let smallest_leaving_var_original_idx = Infinity; 
 
     for (let i = 0; i < mRows; ++i) {
-      if (dArray[i] > tol) {
-        const ratio = xBArray[i] / dArray[i];
+      if (d.get(i, 0) > tol) {
+        const ratio = xB.get(i, 0) / d.get(i, 0);
         const current_var_original_idx = basisIndices[i];
 
         if (ratio < minRatio - tol) {
