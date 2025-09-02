@@ -61,11 +61,6 @@ export function setupKeyboardHandlers(
       state.snapToGrid = !state.snapToGrid;
     }
   });
-
-  window.addEventListener("load", () => {
-    const canvas = document.getElementById("gridCanvas");
-    canvas?.focus();
-  });
 }
 
 export function clearHistory(): void {

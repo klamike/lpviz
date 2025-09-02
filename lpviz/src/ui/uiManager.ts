@@ -214,4 +214,15 @@ export class UIManager {
     this.zScaleValue.textContent = state.zScale.toFixed(2);
     this.zScaleSlider.value = String(state.zScale);
   }
+
+  synchronizeUIWithState() {
+    this.update3DButtonState();
+    this.updateZScaleValue();
+    this.updateObjectiveDisplay();
+    this.updateSolverModeButtons();
+    if (state.vertices.length > 0 || state.objectiveVector) {
+      this.hideNullStateMessage();
+    }
+    this.checkMobileOrientation();
+  }
 }
