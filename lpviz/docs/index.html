@@ -17,124 +17,22 @@
             }
         };
     </script>
+    <link rel="stylesheet" href="docs.css">
     <style>
+        /* Index page specific overrides */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #333;
             max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #fff;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-            border-bottom: 2px solid #ecf0f1;
-            padding-bottom: 10px;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .definition-box {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #007bff;
-        }
-        .example-box {
-            background-color: #f9f9f9;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-            border-left: 4px solid #28a745;
-        }
-        .equation-block {
-            text-align: center;
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-left: 4px solid #3498db;
-        }
-        .warning {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 15px 0;
-        }
-        .info {
-            background-color: #d1ecf1;
-            border: 1px solid #bee5eb;
-            color: #0c5460;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 15px 0;
-        }
-        .success {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 15px 0;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-        }
-        .navigation {
-            background-color: #34495e;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .navigation a {
-            color: #ecf0f1;
-            text-decoration: none;
-            margin: 0 10px;
-        }
-        .navigation a:hover {
-            text-decoration: underline;
-        }
-        .theorem-box {
-            background-color: #fff5f5;
-            border: 1px solid #fed7d7;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-            border-left: 4px solid #e53e3e;
-        }
-        .geometric-insight {
-            background-color: #f0fff4;
-            border: 1px solid #9ae6b4;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-            border-left: 4px solid #38a169;
         }
     </style>
 </head>
 <body>
     <div class="navigation">
         <strong>lpviz Documentation</strong> | 
-        <a href="../">← Back to lpviz</a>
+        <a href="../">← Back to lpviz</a> |
+        <a href="simplex.html">Simplex Algorithm</a> |
+        <a href="ipm.html">Interior Point Method</a> |
+        <a href="pdhg.html">PDHG</a> |
+        <a href="central-path.html">Central Path</a>
     </div>
 
     <div class="warning">
@@ -165,10 +63,10 @@
 
     <h2>Solvers</h2>
 
-    lpviz implements four solvers: IPM, PDHG, Simplex, and Central Path.
+    lpviz implements four solvers: IPM, PDHG, Simplex, and Central Path. Click on each solver below for detailed explanations with code references.
 
-    <h3>Simplex</h3>
-    <p>The simplex method implements a two-phase revised simplex algorithm. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution. The core simplex routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax = b, \enspace x \geq 0$, with $b\geq0$.</p>
+    <h3><a href="simplex.html" style="color: #2c3e50; text-decoration: none;">Simplex Algorithm</a></h3>
+    <p>The simplex method implements a two-phase revised simplex algorithm with Bland's anti-cycling rule. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution. <a href="simplex.html"><strong>→ Detailed explanation</strong></a></p>
     
     <div class="equation-block">
         $$\begin{align}
@@ -247,7 +145,11 @@
     <p></p>In 3D mode, the z-axis is of each iterate of Central Path is set to $c^\top x(\mu) - \mu \sum_{i=1}^m \log(b_i - a_i^\top x(\mu))$.</p>
 
     <div class="navigation">
-        <a href="../">← Back to lpviz</a>
+        <a href="../">← Back to lpviz</a> |
+        <a href="simplex.html">Simplex Algorithm</a> |
+        <a href="ipm.html">Interior Point Method</a> |
+        <a href="pdhg.html">PDHG</a> |
+        <a href="central-path.html">Central Path</a>
     </div>
 </body>
 </html>

@@ -1,0 +1,266 @@
+/* lpviz Documentation Styles */
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+}
+
+h1, h2, h3 {
+    color: #2c3e50;
+    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 10px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.definition-box {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 20px;
+    margin: 20px 0;
+    border-left: 4px solid #007bff;
+}
+
+.example-box {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 15px 0;
+    border-left: 4px solid #28a745;
+}
+
+.equation-block {
+    text-align: center;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-left: 4px solid #3498db;
+}
+
+.warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 15px 0;
+}
+
+.info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 15px 0;
+}
+
+.success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 15px 0;
+}
+
+.navigation {
+    background-color: #34495e;
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.navigation a {
+    color: #ecf0f1;
+    text-decoration: none;
+    margin: 0 10px;
+}
+
+.navigation a:hover {
+    text-decoration: underline;
+}
+
+.algorithm-box {
+    background-color: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 15px 0;
+    border-left: 4px solid #e53e3e;
+}
+
+.code-math-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+    align-items: start;
+}
+
+.code-section {
+    background-color: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 16px;
+    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    line-height: 1.45;
+    overflow-x: auto;
+}
+
+.math-section {
+    background-color: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-radius: 6px;
+    padding: 16px;
+    border-left: 4px solid #38a169;
+}
+
+.code-section h4 {
+    margin-top: 0;
+    color: #24292f;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.math-section h4 {
+    margin-top: 0;
+    color: #22543d;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.code-line {
+    color: #24292f;
+    margin: 2px 0;
+}
+
+.code-indent-1 {
+    padding-left: 20px;
+}
+
+.code-indent-2 {
+    padding-left: 40px;
+}
+
+.code-indent-3 {
+    padding-left: 60px;
+}
+
+.code-comment {
+    color: #6a737d;
+    font-style: italic;
+}
+
+.code-keyword {
+    color: #d73a49;
+    font-weight: bold;
+}
+
+.code-function {
+    color: #6f42c1;
+}
+
+.code-variable {
+    color: #005cc5;
+}
+
+.line-ref {
+    color: #6a737d;
+    font-size: 12px;
+    float: right;
+    margin-left: 10px;
+}
+
+@media (max-width: 768px) {
+    .code-math-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Algorithm-specific sections */
+.phase-section {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 25px 0;
+    border-left: 5px solid #6c757d;
+}
+
+.predictor-corrector-box {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 25px 0;
+    border-left: 5px solid #6c757d;
+}
+
+.mode-section {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 25px 0;
+    border-left: 5px solid #6c757d;
+}
+
+.barrier-section {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 25px 0;
+    border-left: 5px solid #6c757d;
+}
+
+.theorem-box {
+    background-color: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 15px 0;
+    border-left: 4px solid #e53e3e;
+}
+
+.geometric-insight {
+    background-color: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 15px 0;
+    border-left: 4px solid #38a169;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
