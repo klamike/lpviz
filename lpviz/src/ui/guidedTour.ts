@@ -574,7 +574,7 @@ export class HelpPopup {
         this.hasShownPopup = true;
         this.createPopup();
       }
-    }, 30000); // 30 seconds
+    }, 15000); // 15 seconds
     
     // Also start checking periodically if objective was set to auto-hide popup
     this.checkInterval = window.setInterval(() => {
