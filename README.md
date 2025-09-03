@@ -7,7 +7,8 @@
   <img width="350" alt="Screenshot 2025-06-05 at 1 44 15 AM" src="https://github.com/user-attachments/assets/ac4bb972-5cf5-4248-8bad-1edbcb267b96" />
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
  <!-- <img width="290" alt="Screenshot 2025-02-14 at 10 50 38 PM" src="https://github.com/user-attachments/assets/9b545634-9cc6-488e-82b4-6ce46b8294ff" /> -->
-<img width="350" alt="Screenshot 2025-09-02 at 2 14 38 PM" src="https://github.com/user-attachments/assets/003deacf-4f22-4a14-a7e3-cd3b88a23d1b" />
+<!-- <img width="350" alt="Screenshot 2025-09-02 at 2 14 38 PM" src="https://github.com/user-attachments/assets/003deacf-4f22-4a14-a7e3-cd3b88a23d1b" /> -->
+<a href="https://lpviz.net/?s=('v!%5BB3.3A-3.3*2.2C-24.3*31.0C-23.0*28.7C23.9*14.0C21.225)%5D~o!B0.739752302879179A1.9074568226790765)~s!'ipm'~g!('a!0.1~i!1000))*25)%2CBA~y!B('x!C5A%01CBA*_"> <img width="290" height="965" alt="Screenshot 2025-09-03 at 2 24 44 PM" src="https://github.com/user-attachments/assets/a35556e9-127d-4cf5-9dd6-5fede73fe9ac" /> </a>
 
 
   <br>
