@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite lpviz --port 3000",
     "build:lpviz": "vite build lpviz --outDir ../dist --emptyOutDir",
-    "build:docs": "vite build lpviz/docs --outDir ../../dist/docs",
-    "build": "vite build lpviz --outDir ../dist --emptyOutDir && vite build lpviz/docs --outDir ../../dist/docs",
+    "build:docs": "vite build lpviz/docs --outDir ../dist/docs",
+    "build": "vite build lpviz --outDir ../dist --emptyOutDir && vite build lpviz/docs --outDir ../dist/docs",
     "preview": "vite preview lpviz --port 3000 --outDir ../dist",
     "deploy": "npx wrangler deploy --assets=./dist --name lpviz --compatibility-date 2025-09-01"
   },
