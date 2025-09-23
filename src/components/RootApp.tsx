@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import CentralApp from "./CentralApp";
 import ZoomControls from "./ZoomControls";

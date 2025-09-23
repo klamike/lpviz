@@ -9,7 +9,6 @@ import {
 } from "../utils/math2d";
 import { setButtonsEnabled, showElement } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
-import { PointerEvent } from "./dragHandlers";
 import { UIManager } from "./uiManager";
 
 export function setupCanvasInteractions(
@@ -17,10 +16,16 @@ export function setupCanvasInteractions(
   uiManager: UIManager,
   saveToHistory: () => void,
   sendPolytope: () => void,
-  getLogicalCoords: (canvasManager: CanvasManager, e: PointerEvent) => PointXY,
   helpPopup?: any,
 ): void {
   const canvas = canvasManager.canvas;
+
+  const getLogicalCoords = (event: MouseEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+    return canvasManager.toLogicalCoords(localX, localY);
+  };
 
   function handlePolygonConstruction(pt: PointXY) {
     if (state.vertices.length >= 3) {
