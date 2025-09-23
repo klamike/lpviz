@@ -5,12 +5,12 @@ import TopResult from "./TopResult";
 
 export function CentralApp() {
   return (
-    <>
+    <div id="uiContainer">
       <TopResult />
       <SolverControls />
       <ActionControls />
       <TerminalPanel />
-    </>
+    </div>
   );
 }
 

@@ -34,8 +34,8 @@ export function setButtonsEnabled(buttonStates: Record<string, boolean>): void {
   });
 }
 
-export function getElement<T extends HTMLElement>(id: string): T {
-  return document.getElementById(id) as T;
+export function getElement<T extends HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
 }
 
 export function setButtonState(id: string, enabled: boolean): void {
@@ -168,8 +168,10 @@ export function adjustLogoFontSize(): void {
 }
 
 export function adjustTerminalHeight(): void {
-  const terminalContainer = getElement("terminal-container2");
-  const sidebar = getElement("sidebar");
+  const terminalContainer =
+    getElement<HTMLDivElement>("terminal-container2") ||
+    getElement<HTMLDivElement>("terminal-container");
+  const sidebar = getElement<HTMLDivElement>("sidebar");
 
   if (!terminalContainer || !sidebar) return;
 
