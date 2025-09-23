@@ -23,8 +23,6 @@ export class UIManager {
   smallScreenOverlay!: HTMLElement;
 
   private static readonly MIN_SCREEN_WIDTH = 750;
-  private static readonly OBJECTIVE_PRECISION = 3;
-
   constructor() {
     this.initializeElements();
     this.initializeSmallScreenOverlay();
@@ -111,34 +109,7 @@ export class UIManager {
   }
 
   updateObjectiveDisplay() {
-    if (state.objectiveVector) {
-      const a = this.roundToPrecision(
-        state.objectiveVector.x,
-        UIManager.OBJECTIVE_PRECISION,
-      );
-      const b = this.roundToPrecision(
-        state.objectiveVector.y,
-        UIManager.OBJECTIVE_PRECISION,
-      );
-      const formattedObjective = this.formatObjectiveString(a, b);
-
-      this.objectiveDisplay.classList.add("objective-item");
-      this.objectiveDisplay.innerHTML = formattedObjective;
-      this.objectiveDisplay.style.color = "#eee";
-    } else {
-      this.objectiveDisplay.classList.remove("objective-item");
-      this.objectiveDisplay.innerHTML = "";
-    }
-  }
-
-  private roundToPrecision(value: number, precision: number): number {
-    const factor = Math.pow(10, precision);
-    return Math.round(value * factor) / factor;
-  }
-
-  private formatObjectiveString(a: number, b: number): string {
-    const bTerm = b >= 0 ? `+ ${b}y` : `- ${-b}y`;
-    return `${a}x ${bTerm}`;
+    // Display now managed by Solid ObjectiveDisplayController to keep DOM updates reactive.
   }
 
   updateSolverModeButtons() {

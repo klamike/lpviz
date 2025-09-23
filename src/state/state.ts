@@ -1,3 +1,5 @@
+import { createRoot } from "solid-js";
+import { createMutable } from "solid-js/store";
 import { Lines, PointXY, PointXYZ, VecNs, Vertices } from "../types/arrays";
 import { HistoryEntry } from "./history";
 
@@ -129,7 +131,7 @@ function createInitialState(): State {
   };
 }
 
-export const state: State = createInitialState();
+export const state = createRoot(() => createMutable<State>(createInitialState()));
 
 export function resetState(): void {
   Object.assign(state, createInitialState());
