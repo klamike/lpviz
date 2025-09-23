@@ -459,46 +459,10 @@ export function setupUIControls(
       canvasManager.draw();
     };
 
-    document.addEventListener("sidebar-width-change", onWidthChange as EventListener);
-  }
-
-  function setupResultHover() {
-    let mouseX = 0;
-    let mouseY = 0;
-    let currentHovered: HTMLElement | null = null;
-    const resultDiv = getElement<HTMLElement>("result");
-
-    function updateHoverState() {
-      const el = document.elementFromPoint(mouseX, mouseY);
-
-      if (el && el.classList.contains("iterate-item")) {
-        if (currentHovered !== el) {
-          if (currentHovered) {
-            currentHovered.classList.remove("hover");
-            currentHovered.dispatchEvent(
-              new Event("mouseleave", { bubbles: true }),
-            );
-          }
-          el.classList.add("hover");
-          el.dispatchEvent(new Event("mouseenter", { bubbles: true }));
-          currentHovered = el as HTMLElement;
-        }
-      } else if (currentHovered) {
-        currentHovered.classList.remove("hover");
-        currentHovered.dispatchEvent(
-          new Event("mouseleave", { bubbles: true }),
-        );
-        currentHovered = null;
-      }
-    }
-
-    document.addEventListener("mousemove", (e) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      updateHoverState();
-    });
-
-    resultDiv.addEventListener("scroll", updateHoverState);
+    document.addEventListener(
+      "sidebar-width-change",
+      onWidthChange as EventListener,
+    );
   }
 
   // Setup all handlers
@@ -509,7 +473,6 @@ export function setupUIControls(
   setupActionButtons();
   setupTraceAndAnimation();
   setupSidebarResize();
-  setupResultHover();
 
   return settingsElements;
 }

@@ -19,8 +19,7 @@ export function RootApp() {
   const [sidebarWidth, setSidebarWidth] = createSignal<number>(
     document.getElementById("sidebar")?.offsetWidth ?? 450,
   );
-
-  let isResizing = false;
+  const [isResizing, setIsResizing] = createSignal(false);
 
   onMount(() => {
     initializeLegacyApplication();
@@ -35,19 +34,17 @@ export function RootApp() {
     setSidebarWidth(sidebar.offsetWidth || minSidebarWidth);
 
     const onMouseMove = (event: MouseEvent) => {
-      if (!isResizing) return;
+      if (!isResizing()) return;
       const newWidth = Math.max(minSidebarWidth, Math.min(event.clientX, 1000));
       setSidebarWidth(newWidth);
     };
 
     const onMouseUp = () => {
-      if (isResizing) {
-        isResizing = false;
-      }
+      setIsResizing(false);
     };
 
     const onMouseDown = (event: MouseEvent) => {
-      isResizing = true;
+      setIsResizing(true);
       event.preventDefault();
     };
 

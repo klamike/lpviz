@@ -1,7 +1,59 @@
+import { onCleanup, onMount } from "solid-js";
+
 export function TerminalPanel() {
+  let resultRef: HTMLDivElement | undefined;
+
+  onMount(() => {
+    const resultDiv = resultRef;
+    if (!resultDiv) return;
+
+    let mouseX = 0;
+    let mouseY = 0;
+    let currentHovered: HTMLElement | null = null;
+
+    const updateHoverState = () => {
+      const el = document.elementFromPoint(mouseX, mouseY);
+      if (el && el.classList.contains("iterate-item")) {
+        if (currentHovered !== el) {
+          if (currentHovered) {
+            currentHovered.classList.remove("hover");
+            currentHovered.dispatchEvent(
+              new Event("mouseleave", { bubbles: true }),
+            );
+          }
+          el.classList.add("hover");
+          el.dispatchEvent(new Event("mouseenter", { bubbles: true }));
+          currentHovered = el as HTMLElement;
+        }
+      } else if (currentHovered) {
+        currentHovered.classList.remove("hover");
+        currentHovered.dispatchEvent(
+          new Event("mouseleave", { bubbles: true }),
+        );
+        currentHovered = null;
+      }
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      mouseX = event.clientX;
+      mouseY = event.clientY;
+      updateHoverState();
+    };
+
+    const handleScroll = () => updateHoverState();
+
+    document.addEventListener("mousemove", handleMouseMove);
+    resultDiv.addEventListener("scroll", handleScroll);
+
+    onCleanup(() => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      resultDiv.removeEventListener("scroll", handleScroll);
+    });
+  });
+
   return (
     <div id="terminal-container">
-      <div id="result">
+      <div id="result" ref={(el) => (resultRef = el)}>
         <div id="usageTips">
           <br />
           <br />
