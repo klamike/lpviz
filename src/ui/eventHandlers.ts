@@ -18,7 +18,6 @@ import { setupCanvasInteractions } from "./canvasInteractions";
 
 export function setupEventHandlers(
   canvasManager: CanvasManager,
-  helpPopup?: any,
 ) {
   const canvas = canvasManager.canvas;
 
@@ -119,9 +118,6 @@ export function setupEventHandlers(
       return;
     }
 
-    if (helpPopup?.isTouring) {
-      return;
-    }
 
     if (!state.polygonComplete) {
       state.currentMouse = logicalCoords;
@@ -300,7 +296,7 @@ export function setupEventHandlers(
   canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
   canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
   canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
-  setupCanvasInteractions(canvasManager, saveToHistory, sendPolytope, helpPopup);
+  setupCanvasInteractions(canvasManager, saveToHistory, sendPolytope);
   setupKeyboardHandlers(
     canvasManager,
     saveToHistory,

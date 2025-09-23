@@ -18,7 +18,6 @@ export function setupCanvasInteractions(
   canvasManager: CanvasManager,
   saveToHistory: () => void,
   sendPolytope: () => void,
-  helpPopup?: any,
 ): void {
   const canvas = canvasManager.canvas;
 
@@ -82,9 +81,6 @@ export function setupCanvasInteractions(
   // ===== CANVAS INTERACTION HANDLERS =====
 
   canvas.addEventListener("dblclick", (e) => {
-    if (helpPopup?.isTouring) {
-      return;
-    }
 
     const logicalMouse = getLogicalCoords(e);
 
@@ -112,9 +108,6 @@ export function setupCanvasInteractions(
   });
 
   canvas.addEventListener("click", (e) => {
-    if (helpPopup?.isTouring) {
-      return;
-    }
 
     // Ignore clicks that were part of drag operations
     if (

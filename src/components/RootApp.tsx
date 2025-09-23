@@ -2,6 +2,7 @@ import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import CentralApp from "./CentralApp";
 import ZoomControls from "./ZoomControls";
+import HelpPopup from "./HelpPopup";
 import { initializeLegacyApplication, MIN_SCREEN_WIDTH } from "../legacy/legacyMain";
 import {
   adjustFontSize,
@@ -10,6 +11,7 @@ import {
   calculateMinSidebarWidth,
 } from "../utils/uiHelpers";
 import { LegacyProvider } from "../context/LegacyContext";
+import { GuidedTourProvider } from "../context/GuidedTourContext";
 import { state } from "../state/state";
 
 import type { LegacyHandles } from "../legacy/legacyMain";
@@ -116,7 +118,14 @@ export function RootApp() {
           <Show when={legacyHandles()} fallback={<div id="uiContainer"></div>}>
             {(handles) => (
               <LegacyProvider value={handles()}>
-                <CentralApp />
+                <GuidedTourProvider
+                  canvasManager={handles().canvasManager}
+                  sendPolytope={handles().sendPolytope}
+                  saveToHistory={handles().saveToHistory}
+                >
+                  <CentralApp />
+                  <HelpPopup />
+                </GuidedTourProvider>
               </LegacyProvider>
             )}
           </Show>

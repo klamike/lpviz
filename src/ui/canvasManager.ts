@@ -13,8 +13,6 @@ export class CanvasManager {
   offset: { x: number; y: number };
   centerX: number;
   centerY: number;
-  private guidedTour: any = null;
-
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
@@ -23,14 +21,6 @@ export class CanvasManager {
     this.offset = { x: 0, y: 0 };
     this.centerX = window.innerWidth / 2;
     this.centerY = window.innerHeight / 2;
-  }
-
-  setTourComponents(guidedTour: any) {
-    this.guidedTour = guidedTour;
-  }
-
-  private shouldSkipPreviewDrawing(): boolean {
-    return this.guidedTour?.isTouring();
   }
 
   updateDimensions() {
@@ -321,7 +311,7 @@ export class CanvasManager {
         );
         this.ctx.lineTo(cp.x, cp.y);
       }
-      if (state.currentMouse && !this.shouldSkipPreviewDrawing()) {
+      if (state.currentMouse) {
         const rbEnd = this.toCanvasCoords(
           state.currentMouse.x,
           state.currentMouse.y,
@@ -400,9 +390,7 @@ export class CanvasManager {
   drawObjective() {
     const target =
       state.objectiveVector ||
-      (state.polygonComplete &&
-      state.currentObjective &&
-      !this.shouldSkipPreviewDrawing()
+      (state.polygonComplete && state.currentObjective
         ? state.currentObjective
         : null);
     if (target) {

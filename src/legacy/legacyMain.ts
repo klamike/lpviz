@@ -1,7 +1,6 @@
 import JSONCrush from "jsoncrush";
 import { CanvasManager } from "../ui/canvasManager";
 import { setupEventHandlers } from "../ui/eventHandlers";
-import { GuidedTour, HelpPopup } from "../ui/guidedTour";
 import {
   setScreenTooSmall,
   synchronizeUIState,
@@ -17,8 +16,6 @@ export const MIN_SCREEN_WIDTH = 750;
 
 export interface LegacyHandles {
   canvasManager: CanvasManager;
-  guidedTour: GuidedTour;
-  helpPopup: HelpPopup;
   loadStateFromObject: (data: any) => void;
   generateShareLink: () => string;
   sendPolytope: () => void;
@@ -70,18 +67,10 @@ export function initializeLegacyApplication(): LegacyHandles {
 
   window.addEventListener("resize", throttledResize);
 
-  const guidedTour = new GuidedTour(canvasManager, () => {}, () => {});
-  const helpPopup = new HelpPopup(guidedTour);
+  const handlers = setupEventHandlers(canvasManager);
 
-  const handlers = setupEventHandlers(canvasManager, helpPopup);
-
-  guidedTour.setSendPolytope(handlers.sendPolytope);
-  guidedTour.setSaveToHistory(handlers.saveToHistory);
-  canvasManager.setTourComponents(guidedTour);
   synchronizeUIState(canvasManager);
   resizeCanvas();
-
-  helpPopup.startTimer();
   const params = new URLSearchParams(window.location.search);
   if (params.has("s")) {
     try {
@@ -90,7 +79,6 @@ export function initializeLegacyApplication(): LegacyHandles {
       const data = JSON.parse(jsonString);
       handlers.loadStateFromObject(data);
       history.replaceState(null, "", window.location.pathname);
-      helpPopup.resetTimer();
       synchronizeUIState(canvasManager);
     } catch (err) {
       console.error("Failed to load shared state", err);
@@ -101,8 +89,6 @@ export function initializeLegacyApplication(): LegacyHandles {
 
   cachedHandles = {
     canvasManager,
-    guidedTour,
-    helpPopup,
     loadStateFromObject: handlers.loadStateFromObject,
     generateShareLink: handlers.generateShareLink,
     sendPolytope: handlers.sendPolytope,
