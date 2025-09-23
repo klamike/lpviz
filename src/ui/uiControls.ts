@@ -13,7 +13,7 @@ import {
 } from "../state/state";
 import { isPolygonConvex } from "../utils/math2d";
 import { start3DTransition } from "../utils/transitions";
-import { getElement, hideElement, showElement } from "../utils/uiHelpers";
+import { getElement } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 
@@ -105,42 +105,35 @@ export function setupUIControls(
       },
       { id: "ipmButton", mode: "ipm" as SolverMode, settings: "ipmSettings" },
       { id: "simplexButton", mode: "simplex" as SolverMode },
-      {
-        id: "pdhgButton",
-        mode: "pdhg" as SolverMode,
-        settings: "pdhgSettings",
-      },
+      { id: "pdhgButton", mode: "pdhg" as SolverMode, settings: "pdhgSettings" },
     ];
 
-    const buttonElements = solverButtons.map((config) => ({
+    const buttons = solverButtons.map((config) => ({
       ...config,
       element: getElement<HTMLButtonElement>(config.id),
     }));
 
-    buttonElements.forEach(({ element, mode, settings }) => {
-      element.addEventListener("click", () => {
-        state.solverMode = mode;
+    const applySolverMode = (mode: SolverMode, settings?: string) => {
+      state.solverMode = mode;
 
-        if (state.rotateObjectiveMode) {
-          resetTraceState();
-          if (state.traceEnabled) {
-            canvasManager.draw();
-          }
+      if (state.rotateObjectiveMode) {
+        resetTraceState();
+        if (state.traceEnabled) {
+          canvasManager.draw();
         }
+      }
 
-        // Update button states
-        buttonElements.forEach((btn) => {
-          btn.element.disabled = btn.element === element;
-        });
+      ["ipmSettings", "pdhgSettings", "centralPathSettings"].forEach(
+        hideElement,
+      );
+      if (settings) {
+        showElement(settings);
+      }
+    };
 
-        // Manage settings panels
-        ["ipmSettings", "pdhgSettings", "centralPathSettings"].forEach(
-          hideElement,
-        );
-        if (settings) {
-          showElement(settings);
-        }
-      });
+    buttons.forEach(({ element, mode, settings }) => {
+      if (!element) return;
+      element.onclick = () => applySolverMode(mode, settings);
     });
   }
 

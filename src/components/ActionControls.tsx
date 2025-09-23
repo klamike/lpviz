@@ -1,20 +1,31 @@
+import { createEffect } from "solid-js";
+import { state } from "../state/state";
+
 export function ActionControls() {
+  createEffect(() => {
+    const settings = document.getElementById("objectiveRotationSettings");
+    if (settings) {
+      settings.style.display = state.rotateObjectiveMode ? "block" : "none";
+    }
+  });
+
+
   return (
     <>
       <div class="controlPanel" style="margin-top: 5px; margin-bottom: 20px">
         <div class="button-group">
-          <button id="traceButton" disabled>
+          <button id="traceButton" disabled={!state.uiButtons["traceButton"]}>
             Solve
           </button>
-          <button id="animateButton" disabled>
+          <button id="animateButton" disabled={!state.uiButtons["animateButton"]}>
             Animate
           </button>
         </div>
         <div class="button-group">
-          <button id="startRotateObjectiveButton" disabled>
+          <button id="startRotateObjectiveButton" disabled={!state.uiButtons["startRotateObjectiveButton"]}>
             Rotate Objective
           </button>
-          <button id="stopRotateObjectiveButton" disabled>
+          <button id="stopRotateObjectiveButton" disabled={!state.uiButtons["stopRotateObjectiveButton"]}>
             Stop Rotation
           </button>
         </div>

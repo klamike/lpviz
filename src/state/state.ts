@@ -66,6 +66,8 @@ export interface State {
   manualObjective: string | null;
   objectiveDirection: ObjectiveDirection;
   parsedConstraints: Lines;
+  uiButtons: Record<string, boolean>;
+  solverSettingsVisible: Record<"ipm" | "pdhg" | "central", boolean>;
 }
 
 const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
@@ -128,6 +130,23 @@ function createInitialState(): State {
     manualObjective: null,
     objectiveDirection: "max" as ObjectiveDirection,
     parsedConstraints: [],
+    uiButtons: {
+      iteratePathButton: false,
+      ipmButton: false,
+      simplexButton: false,
+      pdhgButton: false,
+      traceButton: false,
+      animateButton: false,
+      startRotateObjectiveButton: false,
+      stopRotateObjectiveButton: false,
+      zoomButton: true,
+      unzoomButton: false,
+    },
+    solverSettingsVisible: {
+      ipm: false,
+      pdhg: false,
+      central: true,
+    },
   };
 }
 

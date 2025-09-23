@@ -1,12 +1,18 @@
+import { state } from "../state/state";
+
 export function ZoomControls() {
   return (
     <>
-      <button id="unzoomButton" title="Reset Zoom (Home)">
+      <button
+        id="unzoomButton"
+        title="Reset Zoom (Home)"
+        disabled={!state.uiButtons["unzoomButton"]}
+      >
         <svg width="25" height="25" viewBox="0 0 24 24">
           <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
         </svg>
       </button>
-      <button id="zoomButton" title="Zoom">
+      <button id="zoomButton" title="Zoom" disabled={!state.uiButtons["zoomButton"]}>
         <svg width="25" height="25" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <mask id="hole-mask">

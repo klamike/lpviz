@@ -1,19 +1,34 @@
+import { For } from "solid-js";
+import { state } from "../state/state";
+
+interface SolverButtonConfig {
+  id: string;
+  label: string;
+  mode: string;
+}
+
+const BUTTONS: SolverButtonConfig[] = [
+  { id: "ipmButton", label: "IPM", mode: "ipm" },
+  { id: "pdhgButton", label: "PDHG", mode: "pdhg" },
+  { id: "simplexButton", label: "Simplex", mode: "simplex" },
+  { id: "iteratePathButton", label: "Central Path", mode: "central" },
+];
+
 export function SolverControls() {
   return (
     <div class="controlPanel">
       <div class="button-group">
-        <button id="ipmButton" disabled>
-          IPM
-        </button>
-        <button id="pdhgButton" disabled>
-          PDHG
-        </button>
-        <button id="simplexButton" disabled>
-          Simplex
-        </button>
-        <button id="iteratePathButton" disabled>
-          Central Path
-        </button>
+        <For each={BUTTONS}>
+          {(btn) => (
+            <button
+              id={btn.id}
+              disabled={!state.uiButtons[btn.id] || state.solverMode === btn.mode}
+              classList={{ active: state.solverMode === btn.mode }}
+            >
+              {btn.label}
+            </button>
+          )}
+        </For>
       </div>
 
       <div id="ipmSettings" class="settings-section" style="display: none">

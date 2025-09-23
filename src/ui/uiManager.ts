@@ -97,14 +97,19 @@ export class UIManager {
   }
 
   updateZoomButtonsState(canvasManager: CanvasManager) {
-    if (
+    const atDefault =
       canvasManager.scaleFactor === 1 &&
       canvasManager.offset.x === 0 &&
-      canvasManager.offset.y === 0
-    ) {
-      this.zoomButton!.disabled = false;
-    } else {
-      this.unzoomButton!.disabled = false;
+      canvasManager.offset.y === 0;
+
+    if (this.zoomButton) {
+      this.zoomButton.disabled = false;
+      state.uiButtons["zoomButton"] = true;
+    }
+
+    if (this.unzoomButton) {
+      this.unzoomButton.disabled = atDefault;
+      state.uiButtons["unzoomButton"] = !atDefault;
     }
   }
 
@@ -139,17 +144,21 @@ export class UIManager {
 
       buttonModeMap.forEach(({ button, mode }) => {
         button.disabled = state.solverMode === mode;
+        state.uiButtons[button.id] = !button.disabled;
       });
 
       // Animate button should only be enabled when there's a solution to animate
       this.animateButton.disabled = !hasSolution;
+      state.uiButtons["animateButton"] = hasSolution;
 
       // Rotate objective button should only be enabled when there's an objective vector
       this.startRotateObjectiveButton.disabled = !hasObjective;
+      state.uiButtons["startRotateObjectiveButton"] = hasObjective;
     }
 
     // Stop rotate button should be enabled when rotation is active
     this.stopRotateObjectiveButton.disabled = !state.rotateObjectiveMode;
+    state.uiButtons["stopRotateObjectiveButton"] = state.rotateObjectiveMode;
   }
 
   private setButtonsDisabled(
@@ -159,6 +168,9 @@ export class UIManager {
     buttons.forEach((button) => {
       if (button) {
         button.disabled = disabled;
+        if (button.id) {
+          state.uiButtons[button.id] = !disabled;
+        }
       }
     });
   }

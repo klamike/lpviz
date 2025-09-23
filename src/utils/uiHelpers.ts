@@ -1,3 +1,5 @@
+import { state } from "../state/state";
+
 export function updateSliderAndDisplay(
   sliderId: string,
   displayId: string,
@@ -28,10 +30,7 @@ export function updateInputValue(
 
 export function setButtonsEnabled(buttonStates: Record<string, boolean>): void {
   Object.entries(buttonStates).forEach(([buttonId, enabled]) => {
-    const button = document.getElementById(buttonId) as HTMLButtonElement;
-    if (button) {
-      button.disabled = !enabled;
-    }
+    state.uiButtons[buttonId] = enabled;
   });
 }
 
@@ -40,8 +39,7 @@ export function getElement<T extends HTMLElement>(id: string): T {
 }
 
 export function setButtonState(id: string, enabled: boolean): void {
-  const button = getElement<HTMLButtonElement>(id);
-  if (button) button.disabled = !enabled;
+  state.uiButtons[id] = enabled;
 }
 
 export function getElementChecked(elementId: string): boolean {
