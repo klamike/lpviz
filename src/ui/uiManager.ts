@@ -108,10 +108,6 @@ export class UIManager {
     }
   }
 
-  updateObjectiveDisplay() {
-    // Display now managed by Solid ObjectiveDisplayController to keep DOM updates reactive.
-  }
-
   updateSolverModeButtons() {
     const hasComputedLines =
       state.computedLines && state.computedLines.length > 0;
@@ -204,7 +200,6 @@ export class UIManager {
   synchronizeUIWithState() {
     this.update3DButtonState();
     this.updateZScaleValue();
-    this.updateObjectiveDisplay();
     this.updateSolverModeButtons();
     if (state.vertices.length > 0 || state.objectiveVector) {
       this.hideNullStateMessage();

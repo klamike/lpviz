@@ -118,7 +118,6 @@ export function createDragHandlers(
 
     if (state.draggingObjective) {
       state.objectiveVector = logicalCoords;
-      uiManager.updateObjectiveDisplay();
       canvasManager.draw();
       return;
     }

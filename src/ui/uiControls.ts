@@ -13,15 +13,7 @@ import {
 } from "../state/state";
 import { isPolygonConvex } from "../utils/math2d";
 import { start3DTransition } from "../utils/transitions";
-import {
-  adjustFontSize,
-  adjustLogoFontSize,
-  adjustTerminalHeight,
-  calculateMinSidebarWidth,
-  getElement,
-  hideElement,
-  showElement,
-} from "../utils/uiHelpers";
+import { getElement, hideElement, showElement } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 
@@ -307,7 +299,6 @@ export function setupUIControls(
 
       if (!state.objectiveVector) {
         state.objectiveVector = { x: 1, y: 0 };
-        uiManager.updateObjectiveDisplay();
       }
 
       if (state.animationIntervalId !== null) {
@@ -444,7 +435,6 @@ export function setupUIControls(
       state.totalRotationAngle += angleStep;
     }
 
-    uiManager.updateObjectiveDisplay();
     canvasManager.draw();
 
     if (state.polygonComplete && state.computedLines?.length > 0) {
@@ -461,39 +451,15 @@ export function setupUIControls(
   }
 
   function setupSidebarResize() {
-    const sidebar = getElement<HTMLElement>("sidebar");
-    const handle = getElement<HTMLElement>("sidebarHandle");
-    let isResizing = false;
-
-    // Calculate intelligent minimum width based on content
-    const minSidebarWidth = calculateMinSidebarWidth();
-
-    handle.addEventListener("mousedown", (e) => {
-      isResizing = true;
-      e.preventDefault();
-    });
-
-    document.addEventListener("mousemove", (e) => {
-      if (!isResizing) return;
-
-      const newWidth = Math.max(minSidebarWidth, Math.min(e.clientX, 1000));
-      sidebar.style.width = `${newWidth}px`;
-      handle.style.left = `${newWidth}px`;
+    const onWidthChange = (evt: Event) => {
+      const detail = (evt as CustomEvent<number>).detail;
+      if (typeof detail !== "number") return;
+      const newWidth = detail;
       canvasManager.centerX = newWidth + (window.innerWidth - newWidth) / 2;
       canvasManager.draw();
-      adjustFontSize();
-      adjustLogoFontSize();
-      adjustTerminalHeight();
-    });
+    };
 
-    document.addEventListener("mouseup", () => {
-      if (isResizing) {
-        isResizing = false;
-        adjustFontSize();
-        adjustLogoFontSize();
-        adjustTerminalHeight();
-      }
-    });
+    document.addEventListener("sidebar-width-change", onWidthChange as EventListener);
   }
 
   function setupResultHover() {

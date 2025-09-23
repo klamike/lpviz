@@ -72,7 +72,6 @@ export function setupCanvasInteractions(
       zoomButton: true,
     });
     uiManager.updateSolverModeButtons();
-    uiManager.updateObjectiveDisplay();
     canvasManager.draw();
   }
 

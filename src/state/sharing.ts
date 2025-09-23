@@ -246,7 +246,6 @@ export function createSharingHandlers(
       state.solverMode === "central" ? "block" : "none",
     );
 
-    uiManager.updateObjectiveDisplay();
     uiManager.updateSolverModeButtons();
     canvasManager.draw();
 

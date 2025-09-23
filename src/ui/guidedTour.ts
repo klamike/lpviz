@@ -266,7 +266,6 @@ export class GuidedTour {
               zoomButton: true,
             });
             this.uiManager.updateSolverModeButtons();
-            this.uiManager.updateObjectiveDisplay();
             this.canvasManager.draw();
           }
 
@@ -376,7 +375,6 @@ export class GuidedTour {
 
     // Update UI displays and redraw canvas
     this.uiManager.updateSolverModeButtons();
-    this.uiManager.updateObjectiveDisplay();
     this.canvasManager.draw();
 
     // Generate the tour steps
