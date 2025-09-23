@@ -87,7 +87,7 @@ export function setupCanvasInteractions(
       return;
     }
 
-    const logicalMouse = getLogicalCoords(canvasManager, e);
+    const logicalMouse = getLogicalCoords(e);
 
     for (let i = 0; i < state.vertices.length; i++) {
       const v1 = state.vertices[i];
@@ -128,7 +128,7 @@ export function setupCanvasInteractions(
       return;
     }
 
-    const pt = getLogicalCoords(canvasManager, e);
+    const pt = getLogicalCoords(e);
 
     if (!state.polygonComplete) {
       handlePolygonConstruction(pt);
