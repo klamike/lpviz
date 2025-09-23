@@ -62,6 +62,7 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOp
   logs.push(logHeader);
 
   const iterates: Vec2Ns = [];
+  const eps: number[] = [];
   const startTime = performance.now();
 
   while (k < maxit && epsilonK > tol) {
@@ -88,6 +89,8 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOp
     const x_extrapolated = Matrix.add(xk_plus_1, Matrix.sub(xk_plus_1, xk));
     const yk_plus_1 = Matrix.add(yk, Matrix.sub(A.mmul(x_extrapolated), b).mul(tau));
 
+    eps.push(epsilonK);
+
     xk = xk_plus_1;
     yk = yk_plus_1;
     k++;
@@ -109,7 +112,8 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOp
 
   return {
     iterations: iterates,
-    logs: logs
+    logs: logs,
+    eps
   };
 }
 
@@ -132,6 +136,7 @@ function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCore
   logs.push(logHeader);
 
   const iterates: Vec2Ns = [];
+  const eps: number[] = [];
   const startTime = performance.now();
 
   while (k <= maxit && epsilonK > tol) {
@@ -160,6 +165,8 @@ function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCore
     const y_extrapolated = Matrix.add(yk_plus_1, Matrix.sub(yk_plus_1, yk));
     const xk_plus_1 = Matrix.sub(xk, Matrix.add(c, A.transpose().mmul(y_extrapolated)).mul(eta));
 
+    eps.push(epsilonK);
+
     xk = xk_plus_1;
     yk = yk_plus_1;
     k++;
@@ -181,7 +188,8 @@ function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCore
 
   return {
     iterations: iterates,
-    logs: logs
+    logs: logs,
+    eps
   };
 }
 
@@ -218,7 +226,7 @@ export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
 
     // c_hat = [-c; c; 0_m]
     const c_hat = vstack([Matrix.mul(c, -1), c, Matrix.zeros(m, 1)]);
-    const { iterations: chi_iterates, logs } = pdhgStandardForm(A_hat, b, c_hat, solverOptions);
+    const { iterations: chi_iterates, logs, eps } = pdhgStandardForm(A_hat, b, c_hat, solverOptions);
     // Reconstruct x = x+ - x-
     const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
       const x_plus = Matrix.columnVector(chi_k.slice(0, n_orig));
@@ -228,7 +236,8 @@ export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
 
     return {
       iterations: x_iterates,
-      logs
+      logs,
+      eps
     };
   }
 }

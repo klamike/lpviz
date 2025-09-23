@@ -318,7 +318,12 @@ export function setupUIControls(
         await computeSimplexSolution(updateResult);
         break;
       case "pdhg":
-        await computePDHGSolution(settingsElements.maxitInputPDHG, settingsElements.pdhgEtaSlider, settingsElements.pdhgTauSlider, updateResult);
+        await computePDHGSolution(
+          settingsElements.maxitInputPDHG,
+          settingsElements.pdhgEtaSlider,
+          settingsElements.pdhgTauSlider,
+          updateResult
+        );
         break;
       default: // central
         await computeCentralPathSolution(settingsElements.centralPathIterSlider, settingsElements.objectiveAngleStepSlider, updateResult);
