@@ -33,23 +33,23 @@ export class UIManager {
   private initializeElements(): void {
     const elementMappings = {
       uiContainer: "uiContainer",
-      topTerminal: "terminal-container2", 
+      topTerminal: "terminal-container2",
       objectiveDisplay: "objectiveDisplay",
       inequalitiesDiv: "inequalities",
       resultDiv: "result",
       zoomButton: "zoomButton",
-      unzoomButton: "unzoomButton", 
+      unzoomButton: "unzoomButton",
       toggle3DButton: "toggle3DButton",
       zScaleSliderContainer: "zScaleSliderContainer",
       zScaleSlider: "zScaleSlider",
       zScaleValue: "zScaleValue",
       iteratePathButton: "iteratePathButton",
       ipmButton: "ipmButton",
-      simplexButton: "simplexButton", 
+      simplexButton: "simplexButton",
       pdhgButton: "pdhgButton",
       animateButton: "animateButton",
       startRotateObjectiveButton: "startRotateObjectiveButton",
-      stopRotateObjectiveButton: "stopRotateObjectiveButton"
+      stopRotateObjectiveButton: "stopRotateObjectiveButton",
     };
 
     Object.entries(elementMappings).forEach(([property, id]) => {
@@ -62,7 +62,9 @@ export class UIManager {
   }
 
   private initializeSmallScreenOverlay(): void {
-    const existingOverlay = document.getElementById("smallScreenOverlay") as HTMLElement | null;
+    const existingOverlay = document.getElementById(
+      "smallScreenOverlay",
+    ) as HTMLElement | null;
     if (existingOverlay) {
       this.smallScreenOverlay = existingOverlay;
     } else {
@@ -81,8 +83,7 @@ export class UIManager {
 
   checkMobileOrientation() {
     const tooSmall = window.innerWidth < UIManager.MIN_SCREEN_WIDTH;
-    this.smallScreenOverlay.textContent =
-      `The window is not wide enough (${window.innerWidth}px < ${UIManager.MIN_SCREEN_WIDTH}px) for lpviz.`;
+    this.smallScreenOverlay.textContent = `The window is not wide enough (${window.innerWidth}px < ${UIManager.MIN_SCREEN_WIDTH}px) for lpviz.`;
     this.smallScreenOverlay.style.display = tooSmall ? "flex" : "none";
   }
 
@@ -111,10 +112,16 @@ export class UIManager {
 
   updateObjectiveDisplay() {
     if (state.objectiveVector) {
-      const a = this.roundToPrecision(state.objectiveVector.x, UIManager.OBJECTIVE_PRECISION);
-      const b = this.roundToPrecision(state.objectiveVector.y, UIManager.OBJECTIVE_PRECISION);
+      const a = this.roundToPrecision(
+        state.objectiveVector.x,
+        UIManager.OBJECTIVE_PRECISION,
+      );
+      const b = this.roundToPrecision(
+        state.objectiveVector.y,
+        UIManager.OBJECTIVE_PRECISION,
+      );
       const formattedObjective = this.formatObjectiveString(a, b);
-      
+
       this.objectiveDisplay.classList.add("objective-item");
       this.objectiveDisplay.innerHTML = formattedObjective;
       this.objectiveDisplay.style.color = "#eee";
@@ -135,46 +142,54 @@ export class UIManager {
   }
 
   updateSolverModeButtons() {
-    const hasComputedLines = state.computedLines && state.computedLines.length > 0;
-    const hasSolution = state.originalIteratePath && state.originalIteratePath.length > 0;
+    const hasComputedLines =
+      state.computedLines && state.computedLines.length > 0;
+    const hasSolution =
+      state.originalIteratePath && state.originalIteratePath.length > 0;
     const hasObjective = state.objectiveVector !== null;
-    
+
     if (!hasComputedLines) {
       // Disable all buttons when no computed lines
-      this.setButtonsDisabled([
-        this.iteratePathButton, 
-        this.ipmButton, 
-        this.simplexButton, 
-        this.pdhgButton, 
-        this.animateButton,
-        this.startRotateObjectiveButton
-      ], true);
+      this.setButtonsDisabled(
+        [
+          this.iteratePathButton,
+          this.ipmButton,
+          this.simplexButton,
+          this.pdhgButton,
+          this.animateButton,
+          this.startRotateObjectiveButton,
+        ],
+        true,
+      );
     } else {
       // Enable buttons based on current solver mode
       const buttonModeMap = [
         { button: this.iteratePathButton, mode: "central" },
         { button: this.ipmButton, mode: "ipm" },
         { button: this.simplexButton, mode: "simplex" },
-        { button: this.pdhgButton, mode: "pdhg" }
+        { button: this.pdhgButton, mode: "pdhg" },
       ];
-      
+
       buttonModeMap.forEach(({ button, mode }) => {
         button.disabled = state.solverMode === mode;
       });
-      
+
       // Animate button should only be enabled when there's a solution to animate
       this.animateButton.disabled = !hasSolution;
-      
+
       // Rotate objective button should only be enabled when there's an objective vector
       this.startRotateObjectiveButton.disabled = !hasObjective;
     }
-    
+
     // Stop rotate button should be enabled when rotation is active
     this.stopRotateObjectiveButton.disabled = !state.rotateObjectiveMode;
   }
 
-  private setButtonsDisabled(buttons: HTMLButtonElement[], disabled: boolean): void {
-    buttons.forEach(button => {
+  private setButtonsDisabled(
+    buttons: HTMLButtonElement[],
+    disabled: boolean,
+  ): void {
+    buttons.forEach((button) => {
       if (button) {
         button.disabled = disabled;
       }
@@ -188,7 +203,7 @@ export class UIManager {
   update3DButtonState() {
     const button = this.toggle3DButton;
     const container = this.zScaleSliderContainer;
-    
+
     if (state.is3DMode) {
       this.set3DButtonActive(button, true);
       container.style.display = "flex";

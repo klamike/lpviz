@@ -1,10 +1,16 @@
 import { state } from "../state/state";
 import { PointXY } from "../types/arrays";
-import { distance, pointCentroid, isPolygonConvex, isPointInsidePolygon, isPointNearSegment } from "../utils/math2d";
-import { showElement, setButtonsEnabled } from "../utils/uiHelpers";
+import {
+  distance,
+  isPointInsidePolygon,
+  isPointNearSegment,
+  isPolygonConvex,
+  pointCentroid,
+} from "../utils/math2d";
+import { setButtonsEnabled, showElement } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
-import { UIManager } from "./uiManager";
 import { PointerEvent } from "./dragHandlers";
+import { UIManager } from "./uiManager";
 
 export function setupCanvasInteractions(
   canvasManager: CanvasManager,
@@ -12,7 +18,7 @@ export function setupCanvasInteractions(
   saveToHistory: () => void,
   sendPolytope: () => void,
   getLogicalCoords: (canvasManager: CanvasManager, e: PointerEvent) => PointXY,
-  helpPopup?: any
+  helpPopup?: any,
 ): void {
   const canvas = canvasManager.canvas;
 
@@ -26,7 +32,7 @@ export function setupCanvasInteractions(
         sendPolytope();
         return;
       }
-      
+
       // Check if clicking inside polygon to close it
       if (isPointInsidePolygon(pt, state.vertices)) {
         state.polygonComplete = true;
@@ -36,14 +42,16 @@ export function setupCanvasInteractions(
         return;
       }
     }
-    
+
     // Validate convexity before adding vertex
     const tentative = [...state.vertices, pt];
     if (tentative.length >= 3 && !isPolygonConvex(tentative)) {
-      alert("Adding this vertex would make the polygon nonconvex. Please choose another point.");
+      alert(
+        "Adding this vertex would make the polygon nonconvex. Please choose another point.",
+      );
       return;
     }
-    
+
     saveToHistory();
     state.vertices.push(pt);
     uiManager.hideNullStateMessage();
@@ -56,12 +64,12 @@ export function setupCanvasInteractions(
     state.objectiveVector = state.currentObjective || pt;
     showElement("maximize");
     setButtonsEnabled({
-      "ipmButton": true,
-      "simplexButton": true,
-      "pdhgButton": true,
-      "iteratePathButton": false,
-      "traceButton": true,
-      "zoomButton": true
+      ipmButton: true,
+      simplexButton: true,
+      pdhgButton: true,
+      iteratePathButton: false,
+      traceButton: true,
+      zoomButton: true,
     });
     uiManager.updateSolverModeButtons();
     uiManager.updateObjectiveDisplay();
@@ -69,18 +77,18 @@ export function setupCanvasInteractions(
   }
 
   // ===== CANVAS INTERACTION HANDLERS =====
-  
+
   canvas.addEventListener("dblclick", (e) => {
     if (helpPopup?.isTouring) {
       return;
     }
 
     const logicalMouse = getLogicalCoords(canvasManager, e);
-    
+
     for (let i = 0; i < state.vertices.length; i++) {
       const v1 = state.vertices[i];
       const v2 = state.vertices[(i + 1) % state.vertices.length];
-      
+
       if (isPointNearSegment(logicalMouse, v1, v2)) {
         const dx = v2.x - v1.x;
         const dy = v2.y - v1.y;
@@ -105,7 +113,11 @@ export function setupCanvasInteractions(
     }
 
     // Ignore clicks that were part of drag operations
-    if (state.wasPanning || state.wasDraggingPoint || state.wasDraggingObjective) {
+    if (
+      state.wasPanning ||
+      state.wasDraggingPoint ||
+      state.wasDraggingObjective
+    ) {
       state.wasPanning = false;
       state.wasDraggingPoint = false;
       state.wasDraggingObjective = false;
@@ -113,7 +125,7 @@ export function setupCanvasInteractions(
     }
 
     const pt = getLogicalCoords(canvasManager, e);
-    
+
     if (!state.polygonComplete) {
       handlePolygonConstruction(pt);
     } else if (state.objectiveVector === null) {
@@ -122,31 +134,53 @@ export function setupCanvasInteractions(
   });
 
   // ===== WHEEL EVENT HANDLER =====
-  
+
   canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
-    
+
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     const oldScale = canvasManager.scaleFactor;
     const zoomFactor = 1.05;
-    
-    const newScale = Math.min(100, Math.max(0.1, 
-      e.deltaY < 0 ? oldScale * zoomFactor : oldScale / zoomFactor
-    ));
-    
+
+    const newScale = Math.min(
+      100,
+      Math.max(
+        0.1,
+        e.deltaY < 0 ? oldScale * zoomFactor : oldScale / zoomFactor,
+      ),
+    );
+
     if (state.is3DMode || state.isTransitioning3D) {
-      const worldX = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * oldScale) - canvasManager.offset.x;
-      const worldY = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * oldScale) - canvasManager.offset.y;
+      const worldX =
+        (mouseX - canvasManager.centerX) /
+          (canvasManager.gridSpacing * oldScale) -
+        canvasManager.offset.x;
+      const worldY =
+        (canvasManager.centerY - mouseY) /
+          (canvasManager.gridSpacing * oldScale) -
+        canvasManager.offset.y;
       canvasManager.scaleFactor = newScale;
-      canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - worldX;
-      canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - worldY;
+      canvasManager.offset.x =
+        (mouseX - canvasManager.centerX) /
+          (canvasManager.gridSpacing * newScale) -
+        worldX;
+      canvasManager.offset.y =
+        (canvasManager.centerY - mouseY) /
+          (canvasManager.gridSpacing * newScale) -
+        worldY;
     } else {
       const logical = canvasManager.toLogicalCoords(mouseX, mouseY);
       canvasManager.scaleFactor = newScale;
-      canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - logical.x;
-      canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - logical.y;
+      canvasManager.offset.x =
+        (mouseX - canvasManager.centerX) /
+          (canvasManager.gridSpacing * newScale) -
+        logical.x;
+      canvasManager.offset.y =
+        (canvasManager.centerY - mouseY) /
+          (canvasManager.gridSpacing * newScale) -
+        logical.y;
     }
     canvasManager.draw();
   });

@@ -1,312 +1,610 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simplex Algorithm - lpviz Documentation</title>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+    ></script>
     <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
     </script>
-    <link rel="stylesheet" href="docs.css">
-</head>
-<body>
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body>
     <div class="navigation">
-        <strong>lpviz Documentation</strong> | 
-        <a href="./">← Back to Documentation</a> |
-        <a href="../">← Back to lpviz</a>
+      <strong>lpviz Documentation</strong> |
+      <a href="./">← Back to Documentation</a> |
+      <a href="../">← Back to lpviz</a>
     </div>
 
     <h1>The Simplex Algorithm</h1>
 
     <div class="info">
-        <strong>Overview:</strong> The simplex method is a pivotal algorithm for solving linear programming problems. lpviz implements a two-phase revised simplex algorithm with Bland's anti-cycling rule.
+      <strong>Overview:</strong> The simplex method is a pivotal algorithm for
+      solving linear programming problems. lpviz implements a two-phase revised
+      simplex algorithm with Bland's anti-cycling rule.
     </div>
 
     <h2>Problem Transformation</h2>
 
-    <p>The simplex algorithm in lpviz converts the user's problem from the frontend form:</p>
-    
+    <p>
+      The simplex algorithm in lpviz converts the user's problem from the
+      frontend form:
+    </p>
+
     <div class="equation-block">
-        $$\begin{align}
-        \max_x \quad & c^\top x \\
-        \text{s.t.} \quad & Ax \leq b
-        \end{align}$$
+      $$\begin{align} \max_x \quad & c^\top x \\ \text{s.t.} \quad & Ax \leq b
+      \end{align}$$
     </div>
 
     <p>Into the standard form required by the simplex method:</p>
-    
+
     <div class="equation-block">
-        $$\begin{align}
-        \min_x \quad & c^\top x \\
-        \text{s.t.} \quad & Ax = b, \quad x \geq 0, \quad b \geq 0
-        \end{align}$$
+      $$\begin{align} \min_x \quad & c^\top x \\ \text{s.t.} \quad & Ax = b,
+      \quad x \geq 0, \quad b \geq 0 \end{align}$$
     </div>
 
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Problem Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L15-L29" target="_blank">lines 15-29</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> { A: A_orig, b } = <span class="code-function">linesToAb</span>(lines);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">gamma</span> = b.to1DArray().map(bi => (bi &lt; 0 ? -1 : 1));</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Gamma</span> = Matrix.diag(gamma);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">b1</span> = Gamma.mmul(b); <span class="code-comment">// Γb</span></div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Apos</span> = Gamma.mmul(A_orig);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Aneg</span> = Matrix.mul(Apos, -1);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">A1</span> = <span class="code-function">hstack</span>(Apos, Aneg, Gamma.mmul(Im), Im);</div>
+      <div class="code-section">
+        <h4>
+          Code: Problem Setup
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L15-L29"
+              target="_blank"
+              >lines 15-29</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span> { A: A_orig, b } =
+          <span class="code-function">linesToAb</span>(lines);
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>The code transforms the problem using sign-correction matrix $\Gamma$:</p>
-            $$\Gamma = \text{diag}(\text{sign}(b_i))$$
-            <p>This ensures $\Gamma b \geq 0$. The constraint matrix becomes:</p>
-            $$A_1 = [\Gamma A \mid -\Gamma A \mid \Gamma I \mid I]$$
-            <p>where variables are split as $x = x^+ - x^-$ with $x^+, x^- \geq 0$, plus slack and artificial variables.</p>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">gamma</span> = b.to1DArray().map(bi => (bi
+          &lt; 0 ? -1 : 1));
         </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">Gamma</span> = Matrix.diag(gamma);
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">b1</span> = Gamma.mmul(b);
+          <span class="code-comment">// Γb</span>
+        </div>
+        <div class="code-line"></div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">Apos</span> = Gamma.mmul(A_orig);
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">Aneg</span> = Matrix.mul(Apos, -1);
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">A1</span> =
+          <span class="code-function">hstack</span>(Apos, Aneg, Gamma.mmul(Im),
+          Im);
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>
+          The code transforms the problem using sign-correction matrix $\Gamma$:
+        </p>
+        $$\Gamma = \text{diag}(\text{sign}(b_i))$$
+        <p>This ensures $\Gamma b \geq 0$. The constraint matrix becomes:</p>
+        $$A_1 = [\Gamma A \mid -\Gamma A \mid \Gamma I \mid I]$$
+        <p>
+          where variables are split as $x = x^+ - x^-$ with $x^+, x^- \geq 0$,
+          plus slack and artificial variables.
+        </p>
+      </div>
     </div>
 
     <h2>Two-Phase Simplex Method</h2>
 
     <div class="phase-section">
-        <h3>Phase 1: Finding Initial Feasible Solution</h3>
-        
-        <p>Phase 1 solves an auxiliary problem to find an initial basic feasible solution:</p>
-        
-        <div class="equation-block">
-            $$\begin{align}
-            \min \quad & \sum_{i=1}^m t_i \\
-            \text{s.t.} \quad & \Gamma A x^+ - \Gamma A x^- + \Gamma s + t = \Gamma b \\
-            & x^+, x^-, s, t \geq 0
-            \end{align}$$
-        </div>
+      <h3>Phase 1: Finding Initial Feasible Solution</h3>
 
-        <div class="code-math-container">
-            <div class="code-section">
-                <h4>Code: Phase 1 Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L30-L35" target="_blank">lines 30-35</a></span></h4>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c1_zeros</span> = Matrix.zeros(2 * n + m, 1);</div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c1_ones</span> = Matrix.ones(m, 1).mul(-1);</div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c1</span> = <span class="code-function">vstack</span>([c1_zeros, c1_ones]);</div>
-                <div class="code-line"></div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">basis1_init</span> = Array(2 * n + 2 * m).fill(false);</div>
-                <div class="code-line"><span class="code-keyword">for</span> (let i = 0; i &lt; m; ++i)</div>
-                <div class="code-line code-indent-1">basis1_init[2 * n + m + i] = true;</div>
-            </div>
-            <div class="math-section">
-                <h4>Mathematical Interpretation</h4>
-                <p>The objective vector for Phase 1:</p>
-                $$c_1 = \begin{bmatrix} 0_{2n+m} \\ -\mathbf{1}_m \end{bmatrix}$$
-                <p>Initial basis contains only artificial variables $t_i$. If Phase 1 optimal value is 0, the original problem is feasible.</p>
-            </div>
+      <p>
+        Phase 1 solves an auxiliary problem to find an initial basic feasible
+        solution:
+      </p>
+
+      <div class="equation-block">
+        $$\begin{align} \min \quad & \sum_{i=1}^m t_i \\ \text{s.t.} \quad &
+        \Gamma A x^+ - \Gamma A x^- + \Gamma s + t = \Gamma b \\ & x^+, x^-, s,
+        t \geq 0 \end{align}$$
+      </div>
+
+      <div class="code-math-container">
+        <div class="code-section">
+          <h4>
+            Code: Phase 1 Setup
+            <span class="line-ref"
+              ><a
+                href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L30-L35"
+                target="_blank"
+                >lines 30-35</a
+              ></span
+            >
+          </h4>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">c1_zeros</span> = Matrix.zeros(2 * n +
+            m, 1);
+          </div>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">c1_ones</span> = Matrix.ones(m,
+            1).mul(-1);
+          </div>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">c1</span> =
+            <span class="code-function">vstack</span>([c1_zeros, c1_ones]);
+          </div>
+          <div class="code-line"></div>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">basis1_init</span> = Array(2 * n + 2 *
+            m).fill(false);
+          </div>
+          <div class="code-line">
+            <span class="code-keyword">for</span> (let i = 0; i &lt; m; ++i)
+          </div>
+          <div class="code-line code-indent-1">
+            basis1_init[2 * n + m + i] = true;
+          </div>
         </div>
+        <div class="math-section">
+          <h4>Mathematical Interpretation</h4>
+          <p>The objective vector for Phase 1:</p>
+          $$c_1 = \begin{bmatrix} 0_{2n+m} \\ -\mathbf{1}_m \end{bmatrix}$$
+          <p>
+            Initial basis contains only artificial variables $t_i$. If Phase 1
+            optimal value is 0, the original problem is feasible.
+          </p>
+        </div>
+      </div>
     </div>
 
     <div class="phase-section">
-        <h3>Phase 2: Optimizing Original Objective</h3>
-        
-        <p>Phase 2 uses the feasible basis from Phase 1 to solve the original problem:</p>
-        
-        <div class="equation-block">
-            $$\begin{align}
-            \min \quad & c^\top x^+ - c^\top x^- \\
-            \text{s.t.} \quad & A x^+ - A x^- + s = b \\
-            & x^+, x^-, s \geq 0
-            \end{align}$$
-        </div>
+      <h3>Phase 2: Optimizing Original Objective</h3>
 
-        <div class="code-math-container">
-            <div class="code-section">
-                <h4>Code: Phase 2 Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L44-L48" target="_blank">lines 44-48</a></span></h4>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c_neg</span> = Matrix.mul(c_objective, -1);</div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c2_zeros</span> = Matrix.zeros(m, 1);</div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c2</span> = <span class="code-function">vstack</span>([c_objective, c_neg, c2_zeros]);</div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">A2</span> = <span class="code-function">hstack</span>(A_orig, A_orig_neg, Im);</div>
-            </div>
-            <div class="math-section">
-                <h4>Mathematical Interpretation</h4>
-                <p>The objective vector for Phase 2:</p>
-                $$c_2 = \begin{bmatrix} c \\ -c \\ 0_m \end{bmatrix}$$
-                <p>Artificial variables are removed. The final solution is recovered as $x = x^+ - x^-$.</p>
-            </div>
+      <p>
+        Phase 2 uses the feasible basis from Phase 1 to solve the original
+        problem:
+      </p>
+
+      <div class="equation-block">
+        $$\begin{align} \min \quad & c^\top x^+ - c^\top x^- \\ \text{s.t.}
+        \quad & A x^+ - A x^- + s = b \\ & x^+, x^-, s \geq 0 \end{align}$$
+      </div>
+
+      <div class="code-math-container">
+        <div class="code-section">
+          <h4>
+            Code: Phase 2 Setup
+            <span class="line-ref"
+              ><a
+                href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L44-L48"
+                target="_blank"
+                >lines 44-48</a
+              ></span
+            >
+          </h4>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">c_neg</span> = Matrix.mul(c_objective,
+            -1);
+          </div>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">c2_zeros</span> = Matrix.zeros(m, 1);
+          </div>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">c2</span> =
+            <span class="code-function">vstack</span>([c_objective, c_neg,
+            c2_zeros]);
+          </div>
+          <div class="code-line">
+            <span class="code-keyword">const</span>
+            <span class="code-variable">A2</span> =
+            <span class="code-function">hstack</span>(A_orig, A_orig_neg, Im);
+          </div>
         </div>
+        <div class="math-section">
+          <h4>Mathematical Interpretation</h4>
+          <p>The objective vector for Phase 2:</p>
+          $$c_2 = \begin{bmatrix} c \\ -c \\ 0_m \end{bmatrix}$$
+          <p>
+            Artificial variables are removed. The final solution is recovered as
+            $x = x^+ - x^-$.
+          </p>
+        </div>
+      </div>
     </div>
 
     <h2>Core Simplex Algorithm</h2>
 
     <div class="algorithm-box">
-        <h3>Revised Simplex with Bland's Rule</h3>
-        <p>The core algorithm maintains a basis $B$ and iteratively improves the solution by pivoting.</p>
+      <h3>Revised Simplex with Bland's Rule</h3>
+      <p>
+        The core algorithm maintains a basis $B$ and iteratively improves the
+        solution by pivoting.
+      </p>
     </div>
 
     <h3>Step 1: Compute Basic Solution</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Basic Solution <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L112-L130" target="_blank">lines 112-130</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">B</span> = Matrix.zeros(mRows, mRows);</div>
-            <div class="code-line"><span class="code-keyword">for</span> (let j = 0; j &lt; mRows; ++j) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">original_col_idx</span> = basisIndices[j];</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">for</span> (let i = 0; i &lt; mRows; ++i) {</div>
-            <div class="code-line code-indent-2">B.set(i, j, A.get(i, original_col_idx));</div>
-            <div class="code-line code-indent-1">}</div>
-            <div class="code-line">}</div>
-            <div class="code-line"><span class="code-variable">xB</span> = <span class="code-function">solve</span>(B, bVec);</div>
+      <div class="code-section">
+        <h4>
+          Code: Basic Solution
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L112-L130"
+              target="_blank"
+              >lines 112-130</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">B</span> = Matrix.zeros(mRows, mRows);
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Extract basis matrix $B$ from constraint matrix $A$ using current basic variables:</p>
-            $$B = A_{\mathcal{B}}$$
-            <p>Solve for basic variables:</p>
-            $$x_B = B^{-1}b$$
-            <p>Non-basic variables are set to zero: $x_N = 0$</p>
+        <div class="code-line">
+          <span class="code-keyword">for</span> (let j = 0; j &lt; mRows; ++j) {
         </div>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">original_col_idx</span> = basisIndices[j];
+        </div>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">for</span> (let i = 0; i &lt; mRows; ++i) {
+        </div>
+        <div class="code-line code-indent-2">
+          B.set(i, j, A.get(i, original_col_idx));
+        </div>
+        <div class="code-line code-indent-1">}</div>
+        <div class="code-line">}</div>
+        <div class="code-line">
+          <span class="code-variable">xB</span> =
+          <span class="code-function">solve</span>(B, bVec);
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>
+          Extract basis matrix $B$ from constraint matrix $A$ using current
+          basic variables:
+        </p>
+        $$B = A_{\mathcal{B}}$$
+        <p>Solve for basic variables:</p>
+        $$x_B = B^{-1}b$$
+        <p>Non-basic variables are set to zero: $x_N = 0$</p>
+      </div>
     </div>
 
     <h3>Step 2: Compute Dual Solution</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Dual Variables <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L133-L139" target="_blank">lines 133-139</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">cB</span> = Matrix.columnVector(</div>
-            <div class="code-line code-indent-1">  basisIndices.map(j => cVec.get(j, 0))</div>
-            <div class="code-line">);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">y</span> = <span class="code-function">solve</span>(B.transpose(), cB);</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">ATy</span> = A.transpose().mmul(y);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">z</span> = Matrix.sub(cVec, ATy);</div>
+      <div class="code-section">
+        <h4>
+          Code: Dual Variables
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L133-L139"
+              target="_blank"
+              >lines 133-139</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">cB</span> = Matrix.columnVector(
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Solve dual system for shadow prices:</p>
-            $$B^\top y = c_B$$
-            <p>Compute reduced costs:</p>
-            $$z_j = c_j - a_j^\top y$$
-            <p>where $a_j$ is the $j$-th column of $A$.</p>
+        <div class="code-line code-indent-1">
+          basisIndices.map(j => cVec.get(j, 0))
         </div>
+        <div class="code-line">);</div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">y</span> =
+          <span class="code-function">solve</span>(B.transpose(), cB);
+        </div>
+        <div class="code-line"></div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">ATy</span> = A.transpose().mmul(y);
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">z</span> = Matrix.sub(cVec, ATy);
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>Solve dual system for shadow prices:</p>
+        $$B^\top y = c_B$$
+        <p>Compute reduced costs:</p>
+        $$z_j = c_j - a_j^\top y$$
+        <p>where $a_j$ is the $j$-th column of $A$.</p>
+      </div>
     </div>
 
     <h3>Step 3: Optimality Test & Entering Variable</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Bland's Rule (Entering) <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L155-L162" target="_blank">lines 155-162</a></span></h4>
-            <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">enter_idx</span> = -1;</div>
-            <div class="code-line"><span class="code-keyword">for</span> (let j = 0; j &lt; nCols; ++j) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (!basis[j] && z.get(j, 0) > tol) {</div>
-            <div class="code-line code-indent-2">enter_idx = j;</div>
-            <div class="code-line code-indent-2"><span class="code-keyword">break</span>;</div>
-            <div class="code-line code-indent-1">}</div>
-            <div class="code-line">}</div>
-            <div class="code-line"><span class="code-keyword">if</span> (enter_idx === -1) <span class="code-keyword">break</span>;</div>
+      <div class="code-section">
+        <h4>
+          Code: Bland's Rule (Entering)
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L155-L162"
+              target="_blank"
+              >lines 155-162</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">let</span>
+          <span class="code-variable">enter_idx</span> = -1;
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p><strong>Optimality Test:</strong> If $z_j \leq 0$ for all non-basic $j$, current solution is optimal.</p>
-            <p><strong>Bland's Rule:</strong> Choose entering variable as smallest index $j$ with $z_j > 0$:</p>
-            $$j^* = \min\{j : j \notin \mathcal{B}, z_j > 0\}$$
-            <p>This prevents cycling in degenerate problems.</p>
+        <div class="code-line">
+          <span class="code-keyword">for</span> (let j = 0; j &lt; nCols; ++j) {
         </div>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">if</span> (!basis[j] && z.get(j, 0) > tol)
+          {
+        </div>
+        <div class="code-line code-indent-2">enter_idx = j;</div>
+        <div class="code-line code-indent-2">
+          <span class="code-keyword">break</span>;
+        </div>
+        <div class="code-line code-indent-1">}</div>
+        <div class="code-line">}</div>
+        <div class="code-line">
+          <span class="code-keyword">if</span> (enter_idx === -1)
+          <span class="code-keyword">break</span>;
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>
+          <strong>Optimality Test:</strong> If $z_j \leq 0$ for all non-basic
+          $j$, current solution is optimal.
+        </p>
+        <p>
+          <strong>Bland's Rule:</strong> Choose entering variable as smallest
+          index $j$ with $z_j > 0$:
+        </p>
+        $$j^* = \min\{j : j \notin \mathcal{B}, z_j > 0\}$$
+        <p>This prevents cycling in degenerate problems.</p>
+      </div>
     </div>
 
     <h3>Step 4: Compute Search Direction</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Pivot Direction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L165-L167" target="_blank">lines 165-167</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">A_enter_col</span> = Matrix.columnVector(</div>
-            <div class="code-line code-indent-1">  Array.from({ length: mRows }, (_, i) => </div>
-            <div class="code-line code-indent-2">    A.get(i, enter_idx))</div>
-            <div class="code-line">);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">d</span> = <span class="code-function">solve</span>(B, A_enter_col);</div>
+      <div class="code-section">
+        <h4>
+          Code: Pivot Direction
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L165-L167"
+              target="_blank"
+              >lines 165-167</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">A_enter_col</span> = Matrix.columnVector(
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Compute pivot direction by solving:</p>
-            $$B d = a_{j^*}$$
-            <p>This gives the direction in which basic variables change when $x_{j^*}$ increases.</p>
+        <div class="code-line code-indent-1">
+          Array.from({ length: mRows }, (_, i) =>
         </div>
+        <div class="code-line code-indent-2">A.get(i, enter_idx))</div>
+        <div class="code-line">);</div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">d</span> =
+          <span class="code-function">solve</span>(B, A_enter_col);
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>Compute pivot direction by solving:</p>
+        $$B d = a_{j^*}$$
+        <p>
+          This gives the direction in which basic variables change when
+          $x_{j^*}$ increases.
+        </p>
+      </div>
     </div>
 
     <h3>Step 5: Ratio Test & Leaving Variable</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Bland's Rule (Leaving) <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L169-L190" target="_blank">lines 169-190</a></span></h4>
-            <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">leave_idx_in_basis_indices</span> = -1;</div>
-            <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">minRatio</span> = Infinity;</div>
-            <div class="code-line"><span class="code-keyword">for</span> (let i = 0; i &lt; mRows; ++i) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (d.get(i, 0) > tol) {</div>
-            <div class="code-line code-indent-2"><span class="code-keyword">const</span> <span class="code-variable">ratio</span> = xB.get(i, 0) / d.get(i, 0);</div>
-            <div class="code-line code-indent-2"><span class="code-keyword">if</span> (ratio &lt; minRatio - tol) {</div>
-            <div class="code-line code-indent-3">minRatio = ratio;</div>
-            <div class="code-line code-indent-3">leave_idx_in_basis_indices = i;</div>
-            <div class="code-line code-indent-2">} <span class="code-keyword">else if</span> (Math.abs(ratio - minRatio) &lt; tol) {</div>
-            <div class="code-line code-indent-3"><span class="code-comment">// Bland's rule: choose smallest index</span></div>
-            <div class="code-line code-indent-3"><span class="code-keyword">if</span> (basisIndices[i] &lt; smallest_leaving_var_original_idx) {</div>
-            <div class="code-line code-indent-4">leave_idx_in_basis_indices = i;</div>
-            <div class="code-line code-indent-3">}</div>
-            <div class="code-line code-indent-2">}</div>
-            <div class="code-line code-indent-1">}</div>
-            <div class="code-line">}</div>
+      <div class="code-section">
+        <h4>
+          Code: Bland's Rule (Leaving)
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L169-L190"
+              target="_blank"
+              >lines 169-190</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">let</span>
+          <span class="code-variable">leave_idx_in_basis_indices</span> = -1;
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p><strong>Ratio Test:</strong> Find maximum step size $\theta$ such that $x_B + \theta d \geq 0$:</p>
-            $$\theta^* = \min_{i: d_i > 0} \frac{(x_B)_i}{d_i}$$
-            <p><strong>Bland's Rule:</strong> Among ties, choose leaving variable with smallest original index to prevent cycling.</p>
-            <p>If no $d_i > 0$, the problem is unbounded.</p>
+        <div class="code-line">
+          <span class="code-keyword">let</span>
+          <span class="code-variable">minRatio</span> = Infinity;
         </div>
+        <div class="code-line">
+          <span class="code-keyword">for</span> (let i = 0; i &lt; mRows; ++i) {
+        </div>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">if</span> (d.get(i, 0) > tol) {
+        </div>
+        <div class="code-line code-indent-2">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">ratio</span> = xB.get(i, 0) / d.get(i, 0);
+        </div>
+        <div class="code-line code-indent-2">
+          <span class="code-keyword">if</span> (ratio &lt; minRatio - tol) {
+        </div>
+        <div class="code-line code-indent-3">minRatio = ratio;</div>
+        <div class="code-line code-indent-3">
+          leave_idx_in_basis_indices = i;
+        </div>
+        <div class="code-line code-indent-2">
+          } <span class="code-keyword">else if</span> (Math.abs(ratio -
+          minRatio) &lt; tol) {
+        </div>
+        <div class="code-line code-indent-3">
+          <span class="code-comment"
+            >// Bland's rule: choose smallest index</span
+          >
+        </div>
+        <div class="code-line code-indent-3">
+          <span class="code-keyword">if</span> (basisIndices[i] &lt;
+          smallest_leaving_var_original_idx) {
+        </div>
+        <div class="code-line code-indent-4">
+          leave_idx_in_basis_indices = i;
+        </div>
+        <div class="code-line code-indent-3">}</div>
+        <div class="code-line code-indent-2">}</div>
+        <div class="code-line code-indent-1">}</div>
+        <div class="code-line">}</div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>
+          <strong>Ratio Test:</strong> Find maximum step size $\theta$ such that
+          $x_B + \theta d \geq 0$:
+        </p>
+        $$\theta^* = \min_{i: d_i > 0} \frac{(x_B)_i}{d_i}$$
+        <p>
+          <strong>Bland's Rule:</strong> Among ties, choose leaving variable
+          with smallest original index to prevent cycling.
+        </p>
+        <p>If no $d_i > 0$, the problem is unbounded.</p>
+      </div>
     </div>
 
     <h3>Step 6: Update Basis</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Pivot Operation <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L203-L204" target="_blank">lines 203-204</a></span></h4>
-            <div class="code-line">basis[enter_idx] = true;</div>
-            <div class="code-line">basis[leave_original_idx] = false;</div>
-        </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Update the basis:</p>
-            $$\mathcal{B}^{new} = (\mathcal{B} \setminus \{i^*\}) \cup \{j^*\}$$
-            <p>The new basic solution will be:</p>
-            $$x^{new} = x + \theta^* e_{j^*}$$
-            <p>where $e_{j^*}$ is the $j^*$-th unit vector.</p>
-        </div>
+      <div class="code-section">
+        <h4>
+          Code: Pivot Operation
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L203-L204"
+              target="_blank"
+              >lines 203-204</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">basis[enter_idx] = true;</div>
+        <div class="code-line">basis[leave_original_idx] = false;</div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>Update the basis:</p>
+        $$\mathcal{B}^{new} = (\mathcal{B} \setminus \{i^*\}) \cup \{j^*\}$$
+        <p>The new basic solution will be:</p>
+        $$x^{new} = x + \theta^* e_{j^*}$$
+        <p>where $e_{j^*}$ is the $j^*$-th unit vector.</p>
+      </div>
     </div>
 
     <h2>Solution Recovery</h2>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Final Solution <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L56-L60" target="_blank">lines 56-60</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">xIters</span> = all_tableau_iters.map((tableau_x: Vec2N) => {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">tableau_matrix</span> = Matrix.columnVector(tableau_x);</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">x1</span> = tableau_matrix.subMatrix(0, n-1, 0, 0);</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">x2</span> = tableau_matrix.subMatrix(n, 2*n-1, 0, 0);</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">return</span> Matrix.sub(x1, x2).to1DArray();</div>
-            <div class="code-line">});</div>
+      <div class="code-section">
+        <h4>
+          Code: Final Solution
+          <span class="line-ref"
+            ><a
+              href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L56-L60"
+              target="_blank"
+              >lines 56-60</a
+            ></span
+          >
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">xIters</span> =
+          all_tableau_iters.map((tableau_x: Vec2N) => {
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Recover original variables from split form:</p>
-            $$x = x^+ - x^-$$
-            <p>Each iteration provides a vertex of the feasible region, and the simplex method traces a path along the boundary toward optimality.</p>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">tableau_matrix</span> =
+          Matrix.columnVector(tableau_x);
         </div>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">x1</span> = tableau_matrix.subMatrix(0,
+          n-1, 0, 0);
+        </div>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">x2</span> = tableau_matrix.subMatrix(n,
+          2*n-1, 0, 0);
+        </div>
+        <div class="code-line code-indent-1">
+          <span class="code-keyword">return</span> Matrix.sub(x1,
+          x2).to1DArray();
+        </div>
+        <div class="code-line">});</div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>Recover original variables from split form:</p>
+        $$x = x^+ - x^-$$
+        <p>
+          Each iteration provides a vertex of the feasible region, and the
+          simplex method traces a path along the boundary toward optimality.
+        </p>
+      </div>
     </div>
 
     <div class="navigation">
-        <a href="./">← Back to Documentation</a> |
-        <a href="../">← Back to lpviz</a>
+      <a href="./">← Back to Documentation</a> |
+      <a href="../">← Back to lpviz</a>
     </div>
-</body>
+  </body>
 </html>

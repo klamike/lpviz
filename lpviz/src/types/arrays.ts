@@ -1,7 +1,14 @@
-import {Matrix} from 'ml-matrix';
+import { Matrix } from "ml-matrix";
 // for 3D visuals
-export interface PointXY { x: number; y: number; }
-export interface PointXYZ { x: number; y: number; z: number; }
+export interface PointXY {
+  x: number;
+  y: number;
+}
+export interface PointXYZ {
+  x: number;
+  y: number;
+  z: number;
+}
 
 // solver types
 export type Vec2 = number[]; // [x, y]
@@ -22,5 +29,5 @@ export type VecNs = VecN[];
 
 // polytope representation
 export type Vertices = Vec2[];
-export type Line = Vec3;  // A, B, C in Ax + By = C
+export type Line = Vec3; // A, B, C in Ax + By = C
 export type Lines = Line[];

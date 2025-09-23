@@ -1,6 +1,5 @@
-import { Matrix, AbstractMatrix } from 'ml-matrix';
-import { VecM, Lines } from '../types/arrays';
-
+import { AbstractMatrix, Matrix } from "ml-matrix";
+import { Lines, VecM } from "../types/arrays";
 
 export const diag = (v: Matrix) => Matrix.diag(v.to1DArray());
 
@@ -20,20 +19,20 @@ export function vstack(matrices: AbstractMatrix[]): Matrix {
   }
 
   const allValues: number[] = [];
-  
+
   for (const matrix of matrices) {
     if (matrix.columns !== 1) {
       throw new Error("vstack: all matrices must be column vectors");
     }
     allValues.push(...matrix.to1DArray());
   }
-  
+
   return Matrix.columnVector(allValues);
 }
 
 export const vslice = (v: Matrix, start: number, end: number) => {
-  return v.subMatrix(start, end-1, 0, 0);
-}
+  return v.subMatrix(start, end - 1, 0, 0);
+};
 
 export function projectNonNegative(matrix: Matrix): Matrix {
   const result = matrix.clone();
@@ -48,8 +47,8 @@ export function projectNonNegative(matrix: Matrix): Matrix {
 export function hstack(...mats: Matrix[]) {
   if (mats.length === 0) return new Matrix([]);
   const rows = mats[0].rows;
-  if (!mats.every(M => M.rows === rows)) {
-    throw new Error('hstack: all blocks must have identical row-count');
+  if (!mats.every((M) => M.rows === rows)) {
+    throw new Error("hstack: all blocks must have identical row-count");
   }
   const cols = mats.reduce((s, M) => s + M.columns, 0);
   const out = Matrix.zeros(rows, cols);

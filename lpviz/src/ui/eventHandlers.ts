@@ -1,20 +1,34 @@
 import { state } from "../state/state";
+import { isPolygonConvex, polytope } from "../utils/math2d";
+import {
+  adjustFontSize,
+  adjustLogoFontSize,
+  getElement,
+  setupHoverHighlight,
+  showElement,
+} from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
-import { isPolygonConvex, polytope } from "../utils/math2d";
-import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize, getElement, showElement } from "../utils/uiHelpers";
 
-import { createDragHandlers, setupDragEventListeners, getLogicalCoords } from "./dragHandlers";
-import { setupCanvasInteractions } from "./canvasInteractions";
-import { 
+import {
+  createUndoRedoHandler,
   saveToHistory,
-  setupKeyboardHandlers, 
-  createUndoRedoHandler 
+  setupKeyboardHandlers,
 } from "../state/history";
-import { setupUIControls } from "./uiControls";
 import { createSharingHandlers } from "../state/sharing";
+import { setupCanvasInteractions } from "./canvasInteractions";
+import {
+  createDragHandlers,
+  getLogicalCoords,
+  setupDragEventListeners,
+} from "./dragHandlers";
+import { setupUIControls } from "./uiControls";
 
-export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager, helpPopup?: any) {
+export function setupEventHandlers(
+  canvasManager: CanvasManager,
+  uiManager: UIManager,
+  helpPopup?: any,
+) {
   const canvas = canvasManager.canvas;
 
   function sendPolytope() {
@@ -27,16 +41,22 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
           return;
         }
         uiManager.inequalitiesDiv.innerHTML = result.inequalities
-          .slice(0, state.polygonComplete ? result.inequalities.length : result.inequalities.length - 1)
+          .slice(
+            0,
+            state.polygonComplete
+              ? result.inequalities.length
+              : result.inequalities.length - 1,
+          )
           .map(
             (ineq, index) => `
             <div class="inequality-item" data-index="${index}">
               ${ineq}
             </div>
-          `
+          `,
           )
           .join("");
-        const inequalityElements = document.querySelectorAll(".inequality-item");
+        const inequalityElements =
+          document.querySelectorAll(".inequality-item");
         setupHoverHighlight(
           inequalityElements,
           (index) => {
@@ -46,7 +66,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
           () => {
             state.highlightIndex = null;
             canvasManager.draw();
-          }
+          },
         );
 
         if (result.lines.length > 0) {
@@ -55,7 +75,11 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
         state.computedVertices = result.vertices;
         state.computedLines = result.lines;
         uiManager.updateSolverModeButtons();
-        if (state.iteratePathComputed && state.objectiveVector && state.computedLines.length > 0) {
+        if (
+          state.iteratePathComputed &&
+          state.objectiveVector &&
+          state.computedLines.length > 0
+        ) {
           // Note: computePath will be available after UI controls setup
         }
       } else {
@@ -70,8 +94,10 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   function updateResult(html: string) {
     const resultDiv = getElement("result");
     resultDiv.innerHTML = html;
-    
-    const iterateElements = document.querySelectorAll(".iterate-header, .iterate-item, .iterate-footer");
+
+    const iterateElements = document.querySelectorAll(
+      ".iterate-header, .iterate-item, .iterate-footer",
+    );
     setupHoverHighlight(
       iterateElements,
       (index) => {
@@ -81,24 +107,60 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
       () => {
         state.highlightIteratePathIndex = null;
         canvasManager.draw();
-      }
+      },
     );
-    
+
     canvasManager.draw();
     adjustFontSize();
     adjustLogoFontSize();
   }
 
   // Create and setup all handler modules
-  const dragHandlers = createDragHandlers(canvasManager, uiManager, saveToHistory, sendPolytope, helpPopup);
-  const handleUndoRedo = createUndoRedoHandler(canvasManager, saveToHistory, sendPolytope);
-  const settingsElements = setupUIControls(canvasManager, uiManager, updateResult);
-  const { loadStateFromObject, generateShareLink } = createSharingHandlers(canvasManager, uiManager, settingsElements, sendPolytope);
+  const dragHandlers = createDragHandlers(
+    canvasManager,
+    uiManager,
+    saveToHistory,
+    sendPolytope,
+    helpPopup,
+  );
+  const handleUndoRedo = createUndoRedoHandler(
+    canvasManager,
+    saveToHistory,
+    sendPolytope,
+  );
+  const settingsElements = setupUIControls(
+    canvasManager,
+    uiManager,
+    updateResult,
+  );
+  const { loadStateFromObject, generateShareLink } = createSharingHandlers(
+    canvasManager,
+    uiManager,
+    settingsElements,
+    sendPolytope,
+  );
 
   // Setup all event listeners
   setupDragEventListeners(canvas, dragHandlers, canvasManager);
-  setupCanvasInteractions(canvasManager, uiManager, saveToHistory, sendPolytope, getLogicalCoords, helpPopup);
-  setupKeyboardHandlers(canvasManager, saveToHistory, sendPolytope, handleUndoRedo);
+  setupCanvasInteractions(
+    canvasManager,
+    uiManager,
+    saveToHistory,
+    sendPolytope,
+    getLogicalCoords,
+    helpPopup,
+  );
+  setupKeyboardHandlers(
+    canvasManager,
+    saveToHistory,
+    sendPolytope,
+    handleUndoRedo,
+  );
 
-  return { loadStateFromObject, generateShareLink, sendPolytope, saveToHistory };
+  return {
+    loadStateFromObject,
+    generateShareLink,
+    sendPolytope,
+    saveToHistory,
+  };
 }

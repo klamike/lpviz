@@ -1,8 +1,8 @@
 export function updateSliderAndDisplay(
-  sliderId: string, 
-  displayId: string, 
-  value: number, 
-  decimalPlaces: number
+  sliderId: string,
+  displayId: string,
+  value: number,
+  decimalPlaces: number,
 ): void {
   const slider = document.getElementById(sliderId) as HTMLInputElement;
   const display = document.getElementById(displayId) as HTMLElement;
@@ -12,10 +12,13 @@ export function updateSliderAndDisplay(
   }
 }
 
-export function updateInputValue(inputId: string, value: number | boolean): void {
+export function updateInputValue(
+  inputId: string,
+  value: number | boolean,
+): void {
   const input = document.getElementById(inputId) as HTMLInputElement;
   if (input) {
-    if (typeof value === 'boolean') {
+    if (typeof value === "boolean") {
       input.checked = value;
     } else {
       input.value = value.toString();
@@ -41,7 +44,6 @@ export function setButtonState(id: string, enabled: boolean): void {
   if (button) button.disabled = !enabled;
 }
 
-
 export function getElementChecked(elementId: string): boolean {
   const element = document.getElementById(elementId) as HTMLInputElement;
   return element?.checked || false;
@@ -63,9 +65,9 @@ export function hideElement(elementId: string): void {
 }
 
 export function setupHoverHighlight(
-  elements: NodeListOf<Element>, 
+  elements: NodeListOf<Element>,
   onMouseEnter: (index: number) => void,
-  onMouseLeave: () => void
+  onMouseLeave: () => void,
 ): void {
   elements.forEach((item) => {
     item.addEventListener("mouseenter", () => {
@@ -82,114 +84,17 @@ export function setupHoverHighlight(
 export function adjustFontSize(containerId: string = "result"): void {
   const container = getElement(containerId);
   if (!container || container.querySelector("#usageTips")) return;
-  
+
   const containerStyle = window.getComputedStyle(container);
   const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
   const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
-  const effectiveContainerWidth = container.clientWidth - paddingLeft - paddingRight;
-  
+  const effectiveContainerWidth =
+    container.clientWidth - paddingLeft - paddingRight;
+
   const texts = container.querySelectorAll("div");
   if (texts.length === 0) return;
-  
-  const measurementDiv = document.createElement("div");
-  Object.assign(measurementDiv.style, {
-    position: "absolute",
-    visibility: "hidden",
-    fontFamily: containerStyle.fontFamily,
-    fontWeight: containerStyle.fontWeight,
-    fontStyle: containerStyle.fontStyle,
-    whiteSpace: "pre-wrap"
-  });
-  document.body.appendChild(measurementDiv);
-  
-  const baselineFontSize = 18;
-  let minScaleFactor = Infinity;
-  
-  texts.forEach(text => {
-    measurementDiv.style.fontSize = `${baselineFontSize}px`;
-    measurementDiv.textContent = text.textContent;
-    const measuredWidth = measurementDiv.getBoundingClientRect().width;
-    const scaleFactor = (effectiveContainerWidth - 10) / measuredWidth;
-    
-    if (scaleFactor < minScaleFactor && scaleFactor < 4) {
-      minScaleFactor = scaleFactor;
-    }
-  });
-  
-  const newFontSize = Math.min(24, baselineFontSize * minScaleFactor * 0.875);
-  texts.forEach(text => {
-    (text as HTMLElement).style.fontSize = `${newFontSize}px`;
-  });
-  
-  document.body.removeChild(measurementDiv);
-}
 
-export function adjustLogoFontSize(): void {
-  const logoElement = getElement("nullStateMessage");
-  if (!logoElement || logoElement.style.display === "none") return;
-  
-  const topResultContainer = getElement("topResult");
-  if (!topResultContainer) return;
-  
-  const containerStyle = window.getComputedStyle(topResultContainer);
-  const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
-  const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
-  const effectiveContainerWidth = topResultContainer.clientWidth - paddingLeft - paddingRight;
-  
   const measurementDiv = document.createElement("div");
-  Object.assign(measurementDiv.style, {
-    position: "absolute",
-    visibility: "hidden",
-    fontFamily: containerStyle.fontFamily,
-    fontWeight: containerStyle.fontWeight,
-    fontStyle: containerStyle.fontStyle,
-    whiteSpace: "pre-wrap"
-  });
-  document.body.appendChild(measurementDiv);
-  
-  const logoText = logoElement.textContent || "";
-  const baselineFontSize = 16;
-  
-  measurementDiv.style.fontSize = `${baselineFontSize}px`;
-  measurementDiv.textContent = logoText;
-  const measuredWidth = measurementDiv.getBoundingClientRect().width;
-  
-  const scaleFactor = (effectiveContainerWidth - 20) / measuredWidth;
-  
-  const newFontSize = Math.min(20, Math.max(8, baselineFontSize * scaleFactor * 0.9));
-  logoElement.style.fontSize = `${newFontSize}px`;
-  
-  document.body.removeChild(measurementDiv);
-}
-
-export function adjustTerminalHeight(): void {
-  const terminalContainer = getElement("terminal-container2");
-  const sidebar = getElement("sidebar");
-  
-  if (!terminalContainer || !sidebar) return;
-  
-  const sidebarWidth = sidebar.offsetWidth;
-  const heightPercentage = 0.4;
-  const minHeight = 120;
-  const maxHeight = 300;
-  
-  const calculatedHeight = sidebarWidth * heightPercentage;
-  const finalHeight = Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
-  
-  terminalContainer.style.minHeight = `${finalHeight}px`;
-}
-
-export function calculateMinSidebarWidth(): number {
-  const logoElement = getElement("nullStateMessage");
-  const topResultContainer = getElement("topResult");
-  
-  if (!logoElement || !topResultContainer) {
-    return 300;
-  }
-  
-  const measurementDiv = document.createElement("div");
-  const containerStyle = window.getComputedStyle(topResultContainer);
-  
   Object.assign(measurementDiv.style, {
     position: "absolute",
     visibility: "hidden",
@@ -197,13 +102,118 @@ export function calculateMinSidebarWidth(): number {
     fontWeight: containerStyle.fontWeight,
     fontStyle: containerStyle.fontStyle,
     whiteSpace: "pre-wrap",
-    fontSize: "12px"
   });
   document.body.appendChild(measurementDiv);
-  
+
+  const baselineFontSize = 18;
+  let minScaleFactor = Infinity;
+
+  texts.forEach((text) => {
+    measurementDiv.style.fontSize = `${baselineFontSize}px`;
+    measurementDiv.textContent = text.textContent;
+    const measuredWidth = measurementDiv.getBoundingClientRect().width;
+    const scaleFactor = (effectiveContainerWidth - 10) / measuredWidth;
+
+    if (scaleFactor < minScaleFactor && scaleFactor < 4) {
+      minScaleFactor = scaleFactor;
+    }
+  });
+
+  const newFontSize = Math.min(24, baselineFontSize * minScaleFactor * 0.875);
+  texts.forEach((text) => {
+    (text as HTMLElement).style.fontSize = `${newFontSize}px`;
+  });
+
+  document.body.removeChild(measurementDiv);
+}
+
+export function adjustLogoFontSize(): void {
+  const logoElement = getElement("nullStateMessage");
+  if (!logoElement || logoElement.style.display === "none") return;
+
+  const topResultContainer = getElement("topResult");
+  if (!topResultContainer) return;
+
+  const containerStyle = window.getComputedStyle(topResultContainer);
+  const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
+  const effectiveContainerWidth =
+    topResultContainer.clientWidth - paddingLeft - paddingRight;
+
+  const measurementDiv = document.createElement("div");
+  Object.assign(measurementDiv.style, {
+    position: "absolute",
+    visibility: "hidden",
+    fontFamily: containerStyle.fontFamily,
+    fontWeight: containerStyle.fontWeight,
+    fontStyle: containerStyle.fontStyle,
+    whiteSpace: "pre-wrap",
+  });
+  document.body.appendChild(measurementDiv);
+
+  const logoText = logoElement.textContent || "";
+  const baselineFontSize = 16;
+
+  measurementDiv.style.fontSize = `${baselineFontSize}px`;
+  measurementDiv.textContent = logoText;
+  const measuredWidth = measurementDiv.getBoundingClientRect().width;
+
+  const scaleFactor = (effectiveContainerWidth - 20) / measuredWidth;
+
+  const newFontSize = Math.min(
+    20,
+    Math.max(8, baselineFontSize * scaleFactor * 0.9),
+  );
+  logoElement.style.fontSize = `${newFontSize}px`;
+
+  document.body.removeChild(measurementDiv);
+}
+
+export function adjustTerminalHeight(): void {
+  const terminalContainer = getElement("terminal-container2");
+  const sidebar = getElement("sidebar");
+
+  if (!terminalContainer || !sidebar) return;
+
+  const sidebarWidth = sidebar.offsetWidth;
+  const heightPercentage = 0.4;
+  const minHeight = 120;
+  const maxHeight = 300;
+
+  const calculatedHeight = sidebarWidth * heightPercentage;
+  const finalHeight = Math.max(
+    minHeight,
+    Math.min(maxHeight, calculatedHeight),
+  );
+
+  terminalContainer.style.minHeight = `${finalHeight}px`;
+}
+
+export function calculateMinSidebarWidth(): number {
+  const logoElement = getElement("nullStateMessage");
+  const topResultContainer = getElement("topResult");
+
+  if (!logoElement || !topResultContainer) {
+    return 300;
+  }
+
+  const measurementDiv = document.createElement("div");
+  const containerStyle = window.getComputedStyle(topResultContainer);
+
+  Object.assign(measurementDiv.style, {
+    position: "absolute",
+    visibility: "hidden",
+    fontFamily: containerStyle.fontFamily,
+    fontWeight: containerStyle.fontWeight,
+    fontStyle: containerStyle.fontStyle,
+    whiteSpace: "pre-wrap",
+    fontSize: "12px",
+  });
+  document.body.appendChild(measurementDiv);
+
   measurementDiv.textContent = logoElement.textContent || "";
   const logoWidth = measurementDiv.getBoundingClientRect().width;
-  
+
   document.body.removeChild(measurementDiv);
 
   const paddingAndMargin = 60;

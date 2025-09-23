@@ -1,15 +1,14 @@
-import { PointXY, PointXYZ } from '../types/arrays';
-import { Vertices, Lines, VecNs } from '../types/arrays';
-import { HistoryEntry } from './history';
+import { Lines, PointXY, PointXYZ, VecNs, Vertices } from "../types/arrays";
+import { HistoryEntry } from "./history";
 
 export interface TraceEntry {
   path: number[][];
   angle: number;
 }
 
-export type SolverMode = 'central' | 'ipm' | 'simplex' | 'pdhg';
-export type InputMode = 'visual' | 'manual';
-export type ObjectiveDirection = 'max' | 'min';
+export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
+export type InputMode = "visual" | "manual";
+export type ObjectiveDirection = "max" | "min";
 
 export interface State {
   vertices: PointXY[];
@@ -122,11 +121,11 @@ function createInitialState(): State {
     transitionDuration: DEFAULT_TRANSITION_DURATION,
     transition3DStartAngles: { x: 0, y: 0, z: 0 },
     transition3DEndAngles: { ...DEFAULT_VIEW_ANGLE },
-    inputMode: 'visual' as InputMode,
+    inputMode: "visual" as InputMode,
     manualConstraints: [],
     manualObjective: null,
-    objectiveDirection: 'max' as ObjectiveDirection,
-    parsedConstraints: []
+    objectiveDirection: "max" as ObjectiveDirection,
+    parsedConstraints: [],
   };
 }
 
@@ -150,17 +149,17 @@ export function updateIteratePaths(iteratesArray: number[][]): void {
 
 export function addTraceToBuffer(iteratesArray: number[][]): void {
   if (!state.traceEnabled || iteratesArray.length === 0) return;
-  
+
   state.traceBuffer.push({
     path: [...iteratesArray],
-    angle: state.totalRotationAngle
+    angle: state.totalRotationAngle,
   });
-  
+
   // Only trim traces if we exceed the buffer limit
   while (state.traceBuffer.length > state.maxTraceCount) {
     state.traceBuffer.shift();
   }
-  
+
   if (state.totalRotationAngle >= 2 * Math.PI) {
     state.rotationCount = Math.floor(state.totalRotationAngle / (2 * Math.PI));
   }
@@ -183,14 +182,16 @@ export function resetTraceState(): void {
 
 export function handleStepSizeChange(): void {
   if (!state.traceEnabled) return;
-  
-  const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
+
+  const objectiveAngleStepSlider = document.getElementById(
+    "objectiveAngleStepSlider",
+  ) as HTMLInputElement;
   const angleStep = parseFloat(objectiveAngleStepSlider?.value || "0.1");
   const newMaxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
-  
+
   // Update maxTraceCount to the new value
   state.maxTraceCount = newMaxTracesPerRotation;
-  
+
   // If the new limit is smaller than current buffer, trim from the beginning (oldest traces)
   while (state.traceBuffer.length > state.maxTraceCount) {
     state.traceBuffer.shift();

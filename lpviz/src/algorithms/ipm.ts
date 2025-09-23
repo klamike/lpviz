@@ -1,7 +1,7 @@
-import { Matrix, solve } from 'ml-matrix';
-import { sprintf } from 'sprintf-js';
-import { linesToAb, diag, vstack, vslice } from '../utils/blas';
-import { Lines, VecM, VecN, VectorM, VectorN } from '../types/arrays';
+import { Matrix, solve } from "ml-matrix";
+import { sprintf } from "sprintf-js";
+import { Lines, VecM, VecN, VectorM, VectorN } from "../types/arrays";
+import { diag, linesToAb, vslice, vstack } from "../utils/blas";
 
 export interface IPMOptions {
   eps_p: number;
@@ -18,7 +18,7 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
   const { eps_p, eps_d, eps_opt, maxit, alphaMax, verbose } = opts;
 
   if (maxit > 2 ** 16) {
-    throw new Error('maxit > 2^16 not allowed');
+    throw new Error("maxit > 2^16 not allowed");
   }
 
   const { A, b } = linesToAb(lines);
@@ -40,22 +40,31 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
 }
 
 function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
-  const {
-    eps_p,
-    eps_d,
-    eps_opt,
-    maxit,
-    alphaMax,
-    verbose,
-  } = opts;
+  const { eps_p, eps_d, eps_opt, maxit, alphaMax, verbose } = opts;
   const m = A.rows; // inequalities
   const n = A.columns; // variables
 
   const res = {
     iterates: {
-      solution:  { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as number[], log: [] as string[] },
-      predictor: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as number[] },
-      corrector: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as number[] },
+      solution: {
+        x: [] as VecN[],
+        s: [] as VecM[],
+        y: [] as VecM[],
+        mu: [] as number[],
+        log: [] as string[],
+      },
+      predictor: {
+        x: [] as VecN[],
+        s: [] as VecM[],
+        y: [] as VecM[],
+        mu: [] as number[],
+      },
+      corrector: {
+        x: [] as VecN[],
+        s: [] as VecM[],
+        y: [] as VecM[],
+        mu: [] as number[],
+      },
     },
   };
 
@@ -74,28 +83,33 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
   // -----------------------------------------------------------------
   const banner = sprintf(
     "%5s %8s %8s %10s %10s %10s\n",
-    'Iter', 'x', 'y', 'Obj', 'Infeas', ' µ',
+    "Iter",
+    "x",
+    "y",
+    "Obj",
+    "Infeas",
+    " µ",
   );
   if (verbose) console.log(banner);
   res.iterates.solution.log.push(banner);
 
   while (niter <= maxit) {
     // Residuals, duality gap ----------------------------------------
-    
+
     // Primal Residual: b - (Ax - s)
     const r_p = Matrix.sub(b, Matrix.sub(A.mmul(x), s));
-    
+
     // Dual Residual: c - Aᵀy
     const r_d = Matrix.sub(c, A.transpose().mmul(y));
-    
+
     // Barrier parameter: s'y / m
-    const mu   = s.dot(y) / m;
+    const mu = s.dot(y) / m;
 
     // Objective: c'x
     const pObj = c.dot(x);
 
     // Objective gap: |c'x - b'y| / (1 + |c'x|)
-    const gap  = Math.abs(pObj - b.dot(y)) / (1 + Math.abs(pObj));
+    const gap = Math.abs(pObj - b.dot(y)) / (1 + Math.abs(pObj));
 
     // Log current iterate -------------------------------------------
     logIter(res.iterates.solution, verbose, x, mu, pObj, r_p.max());
@@ -146,12 +160,8 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
     //   c - Aᵀy
     //   -s * y
     // ]
-    const rhsAff = vstack([
-      r_p,
-      r_d,
-      Matrix.mul(Matrix.mul(s, -1), y)
-    ]);
-    
+    const rhsAff = vstack([r_p, r_d, Matrix.mul(Matrix.mul(s, -1), y)]);
+
     // Solve K * deltaAff = rhsAff
     deltaAff = solve(K, rhsAff);
     const dxAff = vslice(deltaAff, 0, n);
@@ -174,7 +184,7 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
       // Compute corrector (if needed) -------------------------------
       // sigma = (muAff / mu)^3 clamped to [1e-8, 1 - 1e-8]
       const sigma = Math.max(1e-8, Math.min(1 - 1e-8, (muAff / mu) ** 3));
-      
+
       // rhsCor: [
       //   0
       //   0
@@ -184,12 +194,12 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
         Matrix.zeros(m, 1),
         Matrix.zeros(n, 1),
         // -1 * (ds * dy - sigma * mu)
-        Matrix.mul(Matrix.sub(Matrix.mul(dsAff, dyAff), sigma * mu), -1)
+        Matrix.mul(Matrix.sub(Matrix.mul(dsAff, dyAff), sigma * mu), -1),
       ]);
-      
+
       // Solve K * deltaCor = rhsCor
       deltaCor = solve(K, rhsCor);
-      
+
       // Apply corrector step
       dx = Matrix.add(dxAff, vslice(deltaCor, 0, n));
       ds = Matrix.add(dsAff, vslice(deltaCor, n, n + m));
@@ -201,9 +211,15 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
       dx = dxAff;
       ds = dsAff;
       dy = dyAff;
-      pushIter(res.iterates.corrector, Matrix.zeros(n, 1), Matrix.zeros(m, 1), Matrix.zeros(m, 1), mu);
+      pushIter(
+        res.iterates.corrector,
+        Matrix.zeros(n, 1),
+        Matrix.zeros(m, 1),
+        Matrix.zeros(m, 1),
+        mu,
+      );
     }
-    
+
     // Compute final step sizes
     stepP = alphaMax * alphaStep(s, ds);
     stepD = alphaMax * alphaStep(y, dy);
@@ -219,14 +235,20 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
   return res;
 }
 
-
 // Compute maximum step length α so that x + α*dx ≥ 0
 // FIXME: avoid to1DArray?
 function alphaScalar(xi: number, dxi: number) {
   return dxi >= 0 ? 1.0 : -xi / dxi;
 }
 function alphaStep(x: VectorN, dx: VectorN) {
-  return Math.min(1.0, Math.min(...x.to1DArray().map((xi: number, i: number) => alphaScalar(xi, dx.get(i, 0)))));
+  return Math.min(
+    1.0,
+    Math.min(
+      ...x
+        .to1DArray()
+        .map((xi: number, i: number) => alphaScalar(xi, dx.get(i, 0))),
+    ),
+  );
 }
 
 function pushIter(d: any, x: VectorN, s: VectorM, y: VectorM, mu: number) {
@@ -235,17 +257,34 @@ function pushIter(d: any, x: VectorN, s: VectorM, y: VectorM, mu: number) {
   d.y.push(y.to1DArray());
   d.mu.push(mu);
 }
-  
-function logIter(d: any, verbose: boolean, x: VectorN, mu: number, pObj: number, pRes: number) {
+
+function logIter(
+  d: any,
+  verbose: boolean,
+  x: VectorN,
+  mu: number,
+  pObj: number,
+  pRes: number,
+) {
   const msg = sprintf(
     "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n",
-    d.x.length, x.get(0, 0), x.get(1, 0), -pObj, pRes, mu,
+    d.x.length,
+    x.get(0, 0),
+    x.get(1, 0),
+    -pObj,
+    pRes,
+    mu,
   );
   if (verbose) console.log(msg);
   d.log.push(msg);
 }
 
-function logFinal(d: any, verbose: boolean, converged: boolean, tSolve: number) {
+function logFinal(
+  d: any,
+  verbose: boolean,
+  converged: boolean,
+  tSolve: number,
+) {
   const msg = converged
     ? `Converged to primal-dual optimal solution in ${tSolve} ms\n`
     : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;

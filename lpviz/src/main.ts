@@ -1,9 +1,13 @@
-import { CanvasManager } from "./ui/canvasManager";
-import { UIManager } from "./ui/uiManager";
-import { setupEventHandlers } from "./ui/eventHandlers";
-import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./utils/uiHelpers";
-import { GuidedTour, HelpPopup } from "./ui/guidedTour";
 import JSONCrush from "jsoncrush";
+import { CanvasManager } from "./ui/canvasManager";
+import { setupEventHandlers } from "./ui/eventHandlers";
+import { GuidedTour, HelpPopup } from "./ui/guidedTour";
+import { UIManager } from "./ui/uiManager";
+import {
+  adjustFontSize,
+  adjustLogoFontSize,
+  adjustTerminalHeight,
+} from "./utils/uiHelpers";
 
 function initializeApplication() {
   const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
@@ -24,7 +28,7 @@ function initializeApplication() {
     adjustFontSize();
     adjustLogoFontSize();
     adjustTerminalHeight();
-    
+
     if (resizeTimeout) {
       clearTimeout(resizeTimeout);
     }
@@ -35,12 +39,12 @@ function initializeApplication() {
   }
 
   window.addEventListener("resize", throttledResize);
-  
+
   const guidedTour = new GuidedTour(
-    canvasManager, 
+    canvasManager,
     uiManager,
-    () => {}, 
-    () => {}
+    () => {},
+    () => {},
   );
   const helpPopup = new HelpPopup(guidedTour);
 
@@ -71,8 +75,8 @@ function initializeApplication() {
   canvas.focus();
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeApplication);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeApplication);
 } else {
   initializeApplication();
 }

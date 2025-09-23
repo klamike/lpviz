@@ -1,7 +1,14 @@
-import { Matrix, solve } from 'ml-matrix';
-import { sprintf } from 'sprintf-js';
-import { linesToAb, diag } from '../utils/blas';
-import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from '../types/arrays';
+import { Matrix, solve } from "ml-matrix";
+import { sprintf } from "sprintf-js";
+import {
+  Lines,
+  VecN,
+  VecNs,
+  VectorM,
+  VectorN,
+  Vertices,
+} from "../types/arrays";
+import { diag, linesToAb } from "../utils/blas";
 
 export interface CentralPathOptions {
   niter: number;
@@ -16,7 +23,14 @@ export interface CentralPathXkOptions {
 
 // Use Newton's method to solve for one point on the central path.
 // An initial feasible point is required, initially set to the centroid of the vertices.
-function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number, x0Vec: VectorN, opts: CentralPathXkOptions) {
+function centralPathXk(
+  Amatrix: Matrix,
+  bVec: VectorM,
+  cVec: VectorN,
+  mu: number,
+  x0Vec: VectorN,
+  opts: CentralPathXkOptions,
+) {
   const { maxit, epsilon, verbose } = opts;
 
   let x = x0Vec.clone();
@@ -55,13 +69,12 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
 
     let dx: VectorN;
     try {
-        // Newton step: dx = hess \ grad  => solve(hess, grad)
-        dx = solve(hess, grad);
+      // Newton step: dx = hess \ grad  => solve(hess, grad)
+      dx = solve(hess, grad);
     } catch (e) {
-        console.error("Error solving Newton system at iteration " + k + ": " + e);
-        return null;
+      console.error("Error solving Newton system at iteration " + k + ": " + e);
+      return null;
     }
-
 
     // Line search to stay in domain
     let alpha = 1.0;
@@ -69,8 +82,9 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
     while (true) {
       const xNew = Matrix.add(x, Matrix.mul(dx, alpha));
       const rNew = Matrix.sub(bVec, Amatrix.mmul(xNew));
-      if (rNew.min() > 1e-12) { // Add small tolerance, strictly > 0
-          break;
+      if (rNew.min() > 1e-12) {
+        // Add small tolerance, strictly > 0
+        break;
       }
       alpha *= 0.5;
       if (alpha < 1e-10) {
@@ -79,71 +93,97 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
       }
       safetyBreaks++;
       if (safetyBreaks > 100) {
-          console.error("Line search (domain) stuck at iteration " + k);
-          return null;
+        console.error("Line search (domain) stuck at iteration " + k);
+        return null;
       }
     }
-    
+
     // Backtracking line search for sufficient increase (Armijo)
-    const t = 0.5;  // Shrink factor for alpha
+    const t = 0.5; // Shrink factor for alpha
     const beta = 0.01; // Sufficient decrease parameter (typically small)
     const gradDotDx = grad.dot(dx);
     const fx = calculateObjective(x);
-    if (fx === -Infinity) { // Should not happen if x is feasible
-        console.error("Current point x is out of domain before backtracking at iteration " + k);
-        return null;
+    if (fx === -Infinity) {
+      // Should not happen if x is feasible
+      console.error(
+        "Current point x is out of domain before backtracking at iteration " +
+          k,
+      );
+      return null;
     }
 
     safetyBreaks = 0;
     while (true) {
-        const xNew = Matrix.add(x, Matrix.mul(dx, alpha));
-        const fxNew = calculateObjective(xNew);
+      const xNew = Matrix.add(x, Matrix.mul(dx, alpha));
+      const fxNew = calculateObjective(xNew);
 
-        if (fxNew === -Infinity) { // Still possible if alpha makes it jump out
-             alpha *= t;
-        } else if (fxNew >= fx + beta * alpha * gradDotDx) {
-            break;
-        } else {
-            alpha *= t;
-        }
-        
-        if (alpha < 1e-10) {
-            // It might be okay to proceed if domain line search found a valid alpha,
-            // but if Armijo fails to make progress, then it's an issue.
-            if (verbose) console.warn("Step size too small (Armijo) at iteration " + k + ", using best alpha from domain search.");
-            break; 
-        }
-        safetyBreaks++;
-        if (safetyBreaks > 100) {
-          console.error("Line search (Armijo) stuck at iteration " + k);
-          // Use current alpha that keeps it in domain if possible
-          break;
-        }
+      if (fxNew === -Infinity) {
+        // Still possible if alpha makes it jump out
+        alpha *= t;
+      } else if (fxNew >= fx + beta * alpha * gradDotDx) {
+        break;
+      } else {
+        alpha *= t;
+      }
+
+      if (alpha < 1e-10) {
+        // It might be okay to proceed if domain line search found a valid alpha,
+        // but if Armijo fails to make progress, then it's an issue.
+        if (verbose)
+          console.warn(
+            "Step size too small (Armijo) at iteration " +
+              k +
+              ", using best alpha from domain search.",
+          );
+        break;
+      }
+      safetyBreaks++;
+      if (safetyBreaks > 100) {
+        console.error("Line search (Armijo) stuck at iteration " + k);
+        // Use current alpha that keeps it in domain if possible
+        break;
+      }
     }
 
     x = Matrix.add(x, Matrix.mul(dx, alpha));
 
     if (grad.max() < epsilon) {
-      if (verbose) console.log("Converged in " + k + " iterations with mu = " + mu);
+      if (verbose)
+        console.log("Converged in " + k + " iterations with mu = " + mu);
       return x;
     }
 
     if (verbose) {
-        const currentFx = calculateObjective(x);
-        console.log(sprintf("Iter %d: f(x) = %.6f, ||grad||_inf = %.2e, alpha = %.2f", k, currentFx, grad.max(), alpha));
+      const currentFx = calculateObjective(x);
+      console.log(
+        sprintf(
+          "Iter %d: f(x) = %.6f, ||grad||_inf = %.2e, alpha = %.2f",
+          k,
+          currentFx,
+          grad.max(),
+          alpha,
+        ),
+      );
     }
   }
 
-  if (verbose) console.warn("Did not converge after " + maxit + " iterations for mu = " + mu);
+  if (verbose)
+    console.warn(
+      "Did not converge after " + maxit + " iterations for mu = " + mu,
+    );
   return null; // Did not converge
 }
 
-
 // Compute the central path, using Newton's method to solve for each point.
-export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, opts: CentralPathOptions) {
+export function centralPath(
+  vertices: Vertices,
+  lines: Lines,
+  objective: VecN,
+  opts: CentralPathOptions,
+) {
   const { niter, verbose } = opts;
 
-  if (niter > 2**10) {
+  if (niter > 2 ** 10) {
     throw new Error("niter > 2^10 not allowed");
   }
   const tStart = Date.now();
@@ -154,43 +194,56 @@ export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, o
 
   const centralPathArray: VecNs = [];
   const logs: string[] = [];
-  
-  let logMsg = sprintf("  %-4s %8s %8s %10s %10s  \n", "Iter", "x", "y", "Obj", "µ");
+
+  let logMsg = sprintf(
+    "  %-4s %8s %8s %10s %10s  \n",
+    "Iter",
+    "x",
+    "y",
+    "Obj",
+    "µ",
+  );
   if (verbose) console.log(logMsg);
   logs.push(logMsg);
 
   let x0 = centroid(vertices);
 
   for (const muK of muValues) {
-    const xk = centralPathXk(A, b, c, muK, x0, { verbose, epsilon: 1e-4, maxit: 2000 }); // Pass relevant opts
+    const xk = centralPathXk(A, b, c, muK, x0, {
+      verbose,
+      epsilon: 1e-4,
+      maxit: 2000,
+    }); // Pass relevant opts
     if (xk !== null && xk.rows > 0) {
       const Ax = A.mmul(xk);
       const r = Matrix.sub(b, Ax);
       const objectiveValue = c.dot(xk);
       const barrierTerm = muK * r.log().sum();
       const totalObjective = objectiveValue + barrierTerm;
-      
+
       const extendedPoint = [...xk.to1DArray(), totalObjective];
       centralPathArray.push(extendedPoint);
-      
+
       const x_val = xk.get(0, 0) !== undefined ? xk.get(0, 0) : 0;
       const y_val = xk.get(1, 0) !== undefined ? xk.get(1, 0) : 0;
-      logMsg = sprintf("  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n", 
-                       centralPathArray.length, 
-                       x_val, 
-                       y_val, 
-                       objectiveValue, 
-                       muK);
+      logMsg = sprintf(
+        "  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n",
+        centralPathArray.length,
+        x_val,
+        y_val,
+        objectiveValue,
+        muK,
+      );
       if (verbose) console.log(logMsg);
       logs.push(logMsg);
       x0 = xk;
     } else {
-        if (verbose) console.log(`Failed to find x_k for mu = ${muK}. Skipping.`);
+      if (verbose) console.log(`Failed to find x_k for mu = ${muK}. Skipping.`);
     }
   }
   const tsolve = (Date.now() - tStart) / 1000.0; // seconds
   return { iterations: centralPathArray, logs: logs, tsolve: tsolve };
-} 
+}
 
 // Compute the centroid of the vertices. Used to initialize the centralPath solver.
 function centroid(vertices: Vertices) {

@@ -1,13 +1,12 @@
-import { Matrix, solve } from 'ml-matrix';
-import { sprintf } from 'sprintf-js';
-import { linesToAb, hstack, vstack } from '../utils/blas';
-import { Lines, Vec2N, VecM, VecN, Vec2Ns } from '../types/arrays';
+import { Matrix, solve } from "ml-matrix";
+import { sprintf } from "sprintf-js";
+import { Lines, Vec2N, Vec2Ns, VecN } from "../types/arrays";
+import { hstack, linesToAb, vstack } from "../utils/blas";
 
 export interface SimplexOptions {
   tol: number;
   verbose: boolean;
 }
-
 
 export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   const { tol, verbose } = opts;
@@ -17,9 +16,9 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   const n = A_orig.columns;
   const c_objective = Matrix.columnVector(objective);
 
-  const gamma = b.to1DArray().map(bi => (bi < 0 ? -1 : 1));
+  const gamma = b.to1DArray().map((bi) => (bi < 0 ? -1 : 1));
   const Gamma = Matrix.diag(gamma);
-  const b1 = Gamma.mmul(b);      // Γ b
+  const b1 = Gamma.mmul(b); // Γ b
 
   const Apos = Gamma.mmul(A_orig);
 
@@ -31,63 +30,97 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   const c1_ones = Matrix.ones(m, 1).mul(-1);
   const c1 = vstack([c1_zeros, c1_ones]); // –Σ t
 
-  const basis1_init = Array(2 * n + 2 * m).fill(false);    // start: t basic
+  const basis1_init = Array(2 * n + 2 * m).fill(false); // start: t basic
   for (let i = 0; i < m; ++i) basis1_init[2 * n + m + i] = true;
 
   if (verbose) console.log("Phase One");
-  const { iterations: iters1, finalBasis: rawBasis1, logs: log1 } = simplexCore(
-    c1, A1, b1, basis1_init,
-    { tol, verbose, phase1: true, nOrig: n, m }
-  );
+  const {
+    iterations: iters1,
+    finalBasis: rawBasis1,
+    logs: log1,
+  } = simplexCore(c1, A1, b1, basis1_init, {
+    tol,
+    verbose,
+    phase1: true,
+    nOrig: n,
+    m,
+  });
 
   /* ----------  Phase-2  -------------------------------------------------- */
   const c_neg = Matrix.mul(c_objective, -1);
   const c2_zeros = Matrix.zeros(m, 1);
-  const c2 = vstack([c_objective, c_neg, c2_zeros]);  //  c x₁ – c x₂
+  const c2 = vstack([c_objective, c_neg, c2_zeros]); //  c x₁ – c x₂
   const A_orig_neg = Matrix.mul(A_orig, -1);
   const A2 = hstack(A_orig, A_orig_neg, Im);
 
   if (verbose) console.log("Phase Two");
-  const { iterations: iters2, finalBasis: _basis2, logs: log2 } = simplexCore(
-    c2, A2, b, rawBasis1,
-    { tol, verbose, phase1: false, nOrig: n, m }
-  );
+  const {
+    iterations: iters2,
+    finalBasis: _basis2,
+    logs: log2,
+  } = simplexCore(c2, A2, b, rawBasis1, {
+    tol,
+    verbose,
+    phase1: false,
+    nOrig: n,
+    m,
+  });
   const all_tableau_iters = iters2; // for plotting, we only look at phase 2
   const xIters = all_tableau_iters.map((tableau_x: Vec2N) => {
     const tableau_matrix = Matrix.columnVector(tableau_x);
-    const x1 = tableau_matrix.subMatrix(0, n-1, 0, 0);
-    const x2 = tableau_matrix.subMatrix(n, 2*n-1, 0, 0);
+    const x1 = tableau_matrix.subMatrix(0, n - 1, 0, 0);
+    const x2 = tableau_matrix.subMatrix(n, 2 * n - 1, 0, 0);
     return Matrix.sub(x1, x2).to1DArray();
   });
 
   return {
     iterations: xIters,
-    logs: [log1, log2]
+    logs: [log1, log2],
   };
 }
 
 /* ======================================================================== */
 /*  Core simplex:  max cᵀx  s.t.  A x = b , x ≥ 0  (basis given)            */
 /* ======================================================================== */
-function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[], cfg: { tol: number, verbose: boolean, phase1: boolean, nOrig: number, m: number }) {
+function simplexCore(
+  cVec: Matrix,
+  A: Matrix,
+  bVec: Matrix,
+  basisInit: boolean[],
+  cfg: {
+    tol: number;
+    verbose: boolean;
+    phase1: boolean;
+    nOrig: number;
+    m: number;
+  },
+) {
   const { tol, verbose, phase1, nOrig, m } = cfg;
   const mRows = A.rows;
   const nCols = A.columns;
 
   if (mRows !== m || bVec.rows !== m) {
-      throw new Error(`Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.rows=${bVec.rows} vs m=${m}`);
+    throw new Error(
+      `Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.rows=${bVec.rows} vs m=${m}`,
+    );
   }
 
-  let basis = basisInit.slice();           // mutable copy
+  let basis = basisInit.slice(); // mutable copy
   const iterations: Vec2Ns = [];
-  const logs       = [];
+  const logs = [];
 
-  const basisHeaderName = 'basis';
-  const padding = ' '.repeat(Math.max(0, nCols - basisHeaderName.length));
+  const basisHeaderName = "basis";
+  const padding = " ".repeat(Math.max(0, nCols - basisHeaderName.length));
   const paddedBasisTitle = basisHeaderName + padding;
 
-  const hdr = sprintf('%5s %8s %8s %10s %s\n',
-                      'Iter', 'x', 'y', 'Obj', paddedBasisTitle);
+  const hdr = sprintf(
+    "%5s %8s %8s %10s %s\n",
+    "Iter",
+    "x",
+    "y",
+    "Obj",
+    paddedBasisTitle,
+  );
   if (verbose) console.log(hdr);
   logs.push(hdr);
 
@@ -97,16 +130,23 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
   let basisIndices: number[] = [];
   let x_tableau = Matrix.zeros(nCols, 1);
   let objVal = 0;
-  
+
   while (true) {
-    if (++iter > iterMax) throw new Error(`Simplex stalled after ${iterMax} iterations`);
+    if (++iter > iterMax)
+      throw new Error(`Simplex stalled after ${iterMax} iterations`);
 
     /* --- Construct B matrix from A based on basis --- */
     basisIndices = [];
-    for(let i=0; i<nCols; ++i) if(basis[i]) basisIndices.push(i);
+    for (let i = 0; i < nCols; ++i) if (basis[i]) basisIndices.push(i);
 
     if (basisIndices.length !== mRows) {
-        throw new Error(`Basis size ${basisIndices.length} does not match number of constraints ${mRows}. Basis: ${basis.map(bVal => bVal?1:0).join('')}`);
+      throw new Error(
+        `Basis size ${
+          basisIndices.length
+        } does not match number of constraints ${mRows}. Basis: ${basis
+          .map((bVal) => (bVal ? 1 : 0))
+          .join("")}`,
+      );
     }
 
     const B = Matrix.zeros(mRows, mRows);
@@ -119,19 +159,21 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     /* --- x_B = B⁻¹ b ---------------------------------------------------- */
     let xB;
     try {
-        xB = solve(B, bVec);
+      xB = solve(B, bVec);
     } catch (e) {
-        console.error("Error solving BxB = b. B might be singular.", e);
-        throw e;
+      console.error("Error solving BxB = b. B might be singular.", e);
+      throw e;
     }
 
     x_tableau = Matrix.zeros(nCols, 1);
     const xBArray = xB.to1DArray();
-    basisIndices.forEach((col_idx, k) => { x_tableau.set(col_idx, 0, xBArray[k]); });
+    basisIndices.forEach((col_idx, k) => {
+      x_tableau.set(col_idx, 0, xBArray[k]);
+    });
     iterations.push(x_tableau.to1DArray());
 
     /* --- Dual:  Bᵀ y = c_B --------------------------------------------- */
-    const cB = Matrix.columnVector(basisIndices.map(j => cVec.get(j, 0)));
+    const cB = Matrix.columnVector(basisIndices.map((j) => cVec.get(j, 0)));
     const y = solve(B.transpose(), cB);
 
     /* --- Reduced costs: z = c - Aᵀy ------------------------------------- */
@@ -143,12 +185,14 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     const x0_log = x_tableau.get(0, 0);
     const y0_log = y.get(0, 0);
 
-    const line = sprintf('%5d %+8.2f %+8.2f %+10.1e %s\n',
-                         iter,
-                         x0_log,
-                         y0_log,
-                         objVal,
-                         (basis).map(bVal => (bVal ? 1 : 0)).join(''));
+    const line = sprintf(
+      "%5d %+8.2f %+8.2f %+10.1e %s\n",
+      iter,
+      x0_log,
+      y0_log,
+      objVal,
+      basis.map((bVal) => (bVal ? 1 : 0)).join(""),
+    );
     if (verbose) console.log(line);
     logs.push(line);
 
@@ -163,13 +207,15 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     if (enter_idx === -1) break;
 
     /* Direction d = B⁻¹ a_enter ----------------------------------------- */
-    const A_enter_col = Matrix.columnVector(Array.from({ length: mRows }, (_, i) => A.get(i, enter_idx)));
+    const A_enter_col = Matrix.columnVector(
+      Array.from({ length: mRows }, (_, i) => A.get(i, enter_idx)),
+    );
     const d = solve(B, A_enter_col);
 
     /* Ratio test - Bland's Rule for leaving variable */
     let leave_idx_in_basis_indices = -1;
     let minRatio = Infinity;
-    let smallest_leaving_var_original_idx = Infinity; 
+    let smallest_leaving_var_original_idx = Infinity;
 
     for (let i = 0; i < mRows; ++i) {
       if (d.get(i, 0) > tol) {
@@ -180,7 +226,7 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
           minRatio = ratio;
           leave_idx_in_basis_indices = i;
           smallest_leaving_var_original_idx = current_var_original_idx;
-        } else if (Math.abs(ratio - minRatio) < tol) { 
+        } else if (Math.abs(ratio - minRatio) < tol) {
           if (current_var_original_idx < smallest_leaving_var_original_idx) {
             minRatio = ratio;
             leave_idx_in_basis_indices = i;
@@ -191,10 +237,10 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     }
 
     if (leave_idx_in_basis_indices === -1) {
-        const unbounded_log = "LP is unbounded. No leaving variable found.";
-        if (verbose) console.log(unbounded_log);
-        logs.push(unbounded_log);
-        throw new Error(unbounded_log);
+      const unbounded_log = "LP is unbounded. No leaving variable found.";
+      if (verbose) console.log(unbounded_log);
+      logs.push(unbounded_log);
+      throw new Error(unbounded_log);
     }
 
     const leave_original_idx = basisIndices[leave_idx_in_basis_indices];
@@ -216,27 +262,29 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
         const xB_idx = basisIndices.indexOf(art_var_idx);
         const x_val = x_tableau.get(art_var_idx, 0);
         if (xB_idx !== -1 && x_val > tol) {
-             problemInfeasible = true;
-             break;
-        } else if (xB_idx === -1 && x_val > tol) { // Should not happen if basis is consistent
-            problemInfeasible = true;
-            break;
+          problemInfeasible = true;
+          break;
+        } else if (xB_idx === -1 && x_val > tol) {
+          // Should not happen if basis is consistent
+          problemInfeasible = true;
+          break;
         }
       }
     }
 
     if (problemInfeasible) {
-      const infeasibleMsg = 'Problem infeasible (Phase-1 optimum > 0, an artificial variable is basic with positive value)';
+      const infeasibleMsg =
+        "Problem infeasible (Phase-1 optimum > 0, an artificial variable is basic with positive value)";
       if (verbose) console.log(infeasibleMsg);
       logs.push(infeasibleMsg);
       if (Math.abs(objVal) > tol) {
-          throw new Error(infeasibleMsg);
+        throw new Error(infeasibleMsg);
       }
     }
-    
+
     finalBasis = finalBasis.slice(0, 2 * nOrig + m);
 
-    let currentBasicCount = finalBasis.filter(bVal => bVal).length;
+    let currentBasicCount = finalBasis.filter((bVal) => bVal).length;
     if (currentBasicCount < m) {
       for (let j = 2 * nOrig; j < 2 * nOrig + m && currentBasicCount < m; ++j) {
         if (!finalBasis[j]) {
@@ -245,16 +293,20 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
         }
       }
     }
-     if (finalBasis.filter(bVal => bVal).length !== m) {
-        const basisSizeError = `Phase 1 resulted in a basis for Phase 2 of size ${finalBasis.filter(bVal => bVal).length}, expected ${m}.`;
-        if(verbose) console.warn(basisSizeError);
-        logs.push(basisSizeError);
-     }
+    if (finalBasis.filter((bVal) => bVal).length !== m) {
+      const basisSizeError = `Phase 1 resulted in a basis for Phase 2 of size ${
+        finalBasis.filter((bVal) => bVal).length
+      }, expected ${m}.`;
+      if (verbose) console.warn(basisSizeError);
+      logs.push(basisSizeError);
+    }
   }
 
-  const tail = sprintf('Phase %d finished – basis %s\n',
-                       phase1 ? 1 : 2,
-                       finalBasis.map(bVal => (bVal ? 1 : 0)).join(''));
+  const tail = sprintf(
+    "Phase %d finished – basis %s\n",
+    phase1 ? 1 : 2,
+    finalBasis.map((bVal) => (bVal ? 1 : 0)).join(""),
+  );
   if (verbose) console.log(tail);
   logs.push(tail);
 
@@ -262,6 +314,6 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
   return {
     iterations,
     finalBasis,
-    logs
+    logs,
   };
 }

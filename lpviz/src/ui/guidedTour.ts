@@ -1,7 +1,7 @@
 import { state } from "../state/state";
+import { setButtonsEnabled, showElement } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
-import { showElement, setButtonsEnabled } from "../utils/uiHelpers";
 
 interface AnimatedCursor {
   x: number;
@@ -10,7 +10,7 @@ interface AnimatedCursor {
 }
 
 interface TourStep {
-  action: 'click' | 'wait' | 'select-solver' | 'click-button' | 'click-close';
+  action: "click" | "wait" | "select-solver" | "click-button" | "click-close";
   target?: string | { x: number; y: number };
   duration?: number;
   description?: string;
@@ -28,10 +28,10 @@ export class GuidedTour {
   private allowNextClick = false;
 
   constructor(
-    canvasManager: CanvasManager, 
+    canvasManager: CanvasManager,
     uiManager: UIManager,
     sendPolytope: () => void,
-    saveToHistory: () => void
+    saveToHistory: () => void,
   ) {
     this.canvasManager = canvasManager;
     this.uiManager = uiManager;
@@ -48,11 +48,11 @@ export class GuidedTour {
   }
 
   private createAnimatedCursor(): void {
-    const cursor = document.createElement('div');
-    cursor.id = 'guidedTourCursor';
+    const cursor = document.createElement("div");
+    cursor.id = "guidedTourCursor";
     cursor.innerHTML = `
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" 
+        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"
               fill="#4A90E2" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
       </svg>
     `;
@@ -67,11 +67,11 @@ export class GuidedTour {
       filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
     `;
     document.body.appendChild(cursor);
-    
+
     this.animatedCursor = {
       x: 0,
       y: 0,
-      element: cursor
+      element: cursor,
     };
   }
 
@@ -85,12 +85,12 @@ export class GuidedTour {
   private moveCursorTo(x: number, y: number): Promise<void> {
     return new Promise((resolve) => {
       if (!this.animatedCursor) return resolve();
-      
+
       this.animatedCursor.x = x;
       this.animatedCursor.y = y;
       this.animatedCursor.element.style.left = `${x}px`;
       this.animatedCursor.element.style.top = `${y}px`;
-      
+
       // Wait for transition to complete
       setTimeout(resolve, 800);
     });
@@ -102,31 +102,31 @@ export class GuidedTour {
     const centerY = 0;
     const baseRadius = 10;
     const vertices: { x: number; y: number }[] = [];
-    
+
     // Create a pentagon with slight perturbations for visual interest
     for (let i = 0; i < 5; i++) {
       const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2; // Start from top
       const radiusVariation = 0.8 + Math.random() * 0.4; // 20% variation
       const radius = baseRadius * radiusVariation;
       const angleVariation = (Math.random() - 0.5) * 0.3; // Small angle variation
-      
+
       vertices.push({
         x: centerX + radius * Math.cos(angle + angleVariation),
-        y: centerY + radius * Math.sin(angle + angleVariation)
+        y: centerY + radius * Math.sin(angle + angleVariation),
       });
     }
-    
+
     return vertices;
   }
 
   private generateRandomObjective(): { x: number; y: number } {
     // Generate a nice objective vector (not too steep, visually appealing)
-    const angle = Math.random() * Math.PI / 3 - Math.PI / 6; // -30° to +30° from horizontal
+    const angle = (Math.random() * Math.PI) / 3 - Math.PI / 6; // -30° to +30° from horizontal
     const magnitude = 6 + Math.random() * 8; // Length between 2 and 4
-    
+
     return {
       x: magnitude * Math.cos(angle),
-      y: magnitude * Math.sin(angle)
+      y: magnitude * Math.sin(angle),
     };
   }
 
@@ -135,41 +135,57 @@ export class GuidedTour {
     const rect = canvas.getBoundingClientRect();
     return {
       x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
+      y: rect.top + rect.height / 2,
     };
   }
 
-  private logicalToScreenCoords(logicalX: number, logicalY: number): { x: number; y: number } {
+  private logicalToScreenCoords(
+    logicalX: number,
+    logicalY: number,
+  ): { x: number; y: number } {
     const canvas = this.canvasManager.canvas;
     const rect = canvas.getBoundingClientRect();
-    
+
     // Convert logical coordinates to screen coordinates
-    const screenX = this.canvasManager.centerX + (logicalX + this.canvasManager.offset.x) * this.canvasManager.gridSpacing * this.canvasManager.scaleFactor;
-    const screenY = this.canvasManager.centerY - (logicalY + this.canvasManager.offset.y) * this.canvasManager.gridSpacing * this.canvasManager.scaleFactor;
-    
+    const screenX =
+      this.canvasManager.centerX +
+      (logicalX + this.canvasManager.offset.x) *
+        this.canvasManager.gridSpacing *
+        this.canvasManager.scaleFactor;
+    const screenY =
+      this.canvasManager.centerY -
+      (logicalY + this.canvasManager.offset.y) *
+        this.canvasManager.gridSpacing *
+        this.canvasManager.scaleFactor;
+
     return {
       x: rect.left + screenX,
-      y: rect.top + screenY
+      y: rect.top + screenY,
     };
   }
 
   private async performClickAnimation(): Promise<void> {
     if (!this.animatedCursor) return;
-    
+
     return new Promise((resolve) => {
       // Scale up with a bounce effect
-      this.animatedCursor!.element.style.transform = 'translate(-25%, -25%) scale(2.4)';
-      this.animatedCursor!.element.style.filter = 'drop-shadow(2px 2px 8px rgba(74, 144, 226, 0.6))';
-      
+      this.animatedCursor!.element.style.transform =
+        "translate(-25%, -25%) scale(2.4)";
+      this.animatedCursor!.element.style.filter =
+        "drop-shadow(2px 2px 8px rgba(74, 144, 226, 0.6))";
+
       setTimeout(() => {
         if (this.animatedCursor) {
           // Quick scale down then back to normal
-          this.animatedCursor.element.style.transform = 'translate(-25%, -25%) scale(0.9)';
-          
+          this.animatedCursor.element.style.transform =
+            "translate(-25%, -25%) scale(0.9)";
+
           setTimeout(() => {
             if (this.animatedCursor) {
-              this.animatedCursor.element.style.transform = 'translate(-25%, -25%) scale(1)';
-              this.animatedCursor.element.style.filter = 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))';
+              this.animatedCursor.element.style.transform =
+                "translate(-25%, -25%) scale(1)";
+              this.animatedCursor.element.style.filter =
+                "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))";
               resolve();
             }
           }, 80);
@@ -188,10 +204,10 @@ export class GuidedTour {
 
       // Allow clicks on the guided tour cursor and popup
       const target = e.target as HTMLElement;
-      if (target?.id === 'guidedTourCursor' || target?.closest('#helpPopup')) {
+      if (target?.id === "guidedTourCursor" || target?.closest("#helpPopup")) {
         return;
       }
-      
+
       // Block all other clicks during tour
       e.preventDefault();
       e.stopPropagation();
@@ -199,31 +215,38 @@ export class GuidedTour {
     };
 
     // Add the blocker to capture phase to intercept all clicks
-    document.addEventListener('click', this.globalClickBlocker, true);
-    document.addEventListener('mousedown', this.globalClickBlocker, true);
-    document.addEventListener('mouseup', this.globalClickBlocker, true);
+    document.addEventListener("click", this.globalClickBlocker, true);
+    document.addEventListener("mousedown", this.globalClickBlocker, true);
+    document.addEventListener("mouseup", this.globalClickBlocker, true);
   }
 
   private removeGlobalClickBlocker(): void {
     if (this.globalClickBlocker) {
-      document.removeEventListener('click', this.globalClickBlocker, true);
-      document.removeEventListener('mousedown', this.globalClickBlocker, true);
-      document.removeEventListener('mouseup', this.globalClickBlocker, true);
+      document.removeEventListener("click", this.globalClickBlocker, true);
+      document.removeEventListener("mousedown", this.globalClickBlocker, true);
+      document.removeEventListener("mouseup", this.globalClickBlocker, true);
       this.globalClickBlocker = null;
     }
   }
 
   private async executeStep(step: TourStep): Promise<void> {
     switch (step.action) {
-      case 'click':
-        if (typeof step.target === 'object' && 'x' in step.target && 'y' in step.target) {
+      case "click":
+        if (
+          typeof step.target === "object" &&
+          "x" in step.target &&
+          "y" in step.target
+        ) {
           // Canvas click at logical coordinates
-          const screenCoords = this.logicalToScreenCoords(step.target.x, step.target.y);
+          const screenCoords = this.logicalToScreenCoords(
+            step.target.x,
+            step.target.y,
+          );
           await this.moveCursorTo(screenCoords.x, screenCoords.y);
-          
+
           // Add click animation with ripple effect
           await this.performClickAnimation();
-          
+
           // Simulate the click
           this.saveToHistory();
           if (!state.polygonComplete) {
@@ -235,93 +258,104 @@ export class GuidedTour {
             state.objectiveVector = step.target;
             showElement("maximize");
             setButtonsEnabled({
-              "ipmButton": true,
-              "simplexButton": true,
-              "pdhgButton": true,
-              "iteratePathButton": false,
-              "traceButton": true,
-              "zoomButton": true
+              ipmButton: true,
+              simplexButton: true,
+              pdhgButton: true,
+              iteratePathButton: false,
+              traceButton: true,
+              zoomButton: true,
             });
             this.uiManager.updateSolverModeButtons();
             this.uiManager.updateObjectiveDisplay();
             this.canvasManager.draw();
           }
-          
+
           // Wait 100ms before moving on
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
         break;
-      case 'click-close':
-        if (typeof step.target === 'object' && 'x' in step.target && 'y' in step.target) {
-            // Canvas click at logical coordinates
-            const screenCoords = this.logicalToScreenCoords(step.target.x, step.target.y);
-            await this.moveCursorTo(screenCoords.x, screenCoords.y);
-            
-            // Add click animation with ripple effect
-            await this.performClickAnimation();
-            
-            // Simulate the click
-            this.saveToHistory();
-            state.polygonComplete = true;
-            state.interiorPoint = step.target;
-            this.canvasManager.draw();
-            this.sendPolytope();
-            setButtonsEnabled({
-              "ipmButton": true,
-              "simplexButton": true,
-              "pdhgButton": true,
-              "iteratePathButton": false,
-              "traceButton": true,
-              "zoomButton": true
-            });
-            
-            // Wait 100ms before moving on
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-          break;
-      case 'click-button':
-        if (typeof step.target === 'string') {
-          const button = document.getElementById(step.target) as HTMLButtonElement;
+      case "click-close":
+        if (
+          typeof step.target === "object" &&
+          "x" in step.target &&
+          "y" in step.target
+        ) {
+          // Canvas click at logical coordinates
+          const screenCoords = this.logicalToScreenCoords(
+            step.target.x,
+            step.target.y,
+          );
+          await this.moveCursorTo(screenCoords.x, screenCoords.y);
+
+          // Add click animation with ripple effect
+          await this.performClickAnimation();
+
+          // Simulate the click
+          this.saveToHistory();
+          state.polygonComplete = true;
+          state.interiorPoint = step.target;
+          this.canvasManager.draw();
+          this.sendPolytope();
+          setButtonsEnabled({
+            ipmButton: true,
+            simplexButton: true,
+            pdhgButton: true,
+            iteratePathButton: false,
+            traceButton: true,
+            zoomButton: true,
+          });
+
+          // Wait 100ms before moving on
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        break;
+      case "click-button":
+        if (typeof step.target === "string") {
+          const button = document.getElementById(
+            step.target,
+          ) as HTMLButtonElement;
           if (button) {
             const rect = button.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
-            
+
             await this.moveCursorTo(centerX, centerY);
-            
+
             // Add click animation with ripple effect
             await this.performClickAnimation();
-            
+
             // Allow the next click to pass through the blocker
             this.allowNextClick = true;
-            
+
             // Click the button
             button.click();
-            
+
             // Wait 100ms before moving on
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
           }
         }
         break;
-        
-      case 'select-solver':
+
+      case "select-solver":
         // This will be handled by clicking the solver button
         break;
-        
-      case 'wait':
-        await new Promise(resolve => setTimeout(resolve, step.duration || 1000));
+
+      case "wait":
+        await new Promise((resolve) =>
+          setTimeout(resolve, step.duration || 1000),
+        );
         break;
     }
   }
 
   public async startGuidedTour(): Promise<void> {
     if (this.isRunning) return;
-    
+
     this.isRunning = true;
-    
+
     // Add global click blocker during tour
     this.addGlobalClickBlocker();
-    
+
     // Clear any existing vertices and reset the polygon state
     state.vertices = [];
     state.polygonComplete = false;
@@ -329,60 +363,63 @@ export class GuidedTour {
     state.objectiveVector = null;
     state.currentMouse = null;
     state.currentObjective = null;
-    
+
     // Reset UI buttons to initial state
     setButtonsEnabled({
-      "ipmButton": false,
-      "simplexButton": false,
-      "pdhgButton": false,
-      "iteratePathButton": false,
-      "traceButton": false,
-      "zoomButton": true
+      ipmButton: false,
+      simplexButton: false,
+      pdhgButton: false,
+      iteratePathButton: false,
+      traceButton: false,
+      zoomButton: true,
     });
-    
+
     // Update UI displays and redraw canvas
     this.uiManager.updateSolverModeButtons();
     this.uiManager.updateObjectiveDisplay();
     this.canvasManager.draw();
-    
+
     // Generate the tour steps
     const nicePolytope = this.generateNicePolytope();
     const randomObjective = this.generateRandomObjective();
-    
+
     this.tourSteps = [
-      { action: 'wait', duration: 500 },
-      ...nicePolytope.map(vertex => ({ action: 'click' as const, target: vertex })),
-      { action: 'click-close', target: { x: 0, y: 0 } },
-      { action: 'wait', duration: 1000 },
-      { action: 'click', target: randomObjective },
-      { action: 'wait', duration: 1000 },
-      
-      { action: 'click-button', target: 'ipmButton' },
-      { action: 'wait', duration: 750 },
-      { action: 'click-button', target: 'traceButton' },
-      { action: 'wait', duration: 750 },
-      
-      { action: 'click-button', target: 'toggle3DButton' },
-      { action: 'wait', duration: 750 },
+      { action: "wait", duration: 500 },
+      ...nicePolytope.map((vertex) => ({
+        action: "click" as const,
+        target: vertex,
+      })),
+      { action: "click-close", target: { x: 0, y: 0 } },
+      { action: "wait", duration: 1000 },
+      { action: "click", target: randomObjective },
+      { action: "wait", duration: 1000 },
 
-      { action: 'click-button', target: 'startRotateObjectiveButton' },
-      { action: 'wait', duration: 2000 },
+      { action: "click-button", target: "ipmButton" },
+      { action: "wait", duration: 750 },
+      { action: "click-button", target: "traceButton" },
+      { action: "wait", duration: 750 },
 
-      { action: 'click-button', target: 'iteratePathButton' },
-      { action: 'wait', duration: 1500 },
-      { action: 'click-button', target: 'traceCheckbox' },
+      { action: "click-button", target: "toggle3DButton" },
+      { action: "wait", duration: 750 },
+
+      { action: "click-button", target: "startRotateObjectiveButton" },
+      { action: "wait", duration: 2000 },
+
+      { action: "click-button", target: "iteratePathButton" },
+      { action: "wait", duration: 1500 },
+      { action: "click-button", target: "traceCheckbox" },
     ];
-    
+
     this.createAnimatedCursor();
-    
+
     try {
       for (let i = 0; i < this.tourSteps.length && this.isRunning; i++) {
         await this.executeStep(this.tourSteps[i]);
-        
+
         if (!this.isRunning) break;
-        
+
         // Small delay between steps
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
     } finally {
       this.removeAnimatedCursor();
@@ -395,7 +432,7 @@ export class GuidedTour {
     this.isRunning = false;
     this.removeGlobalClickBlocker();
     this.removeAnimatedCursor();
-    
+
     // Clear mouse states when tour stops
     state.currentMouse = null;
     state.currentObjective = null;
@@ -423,8 +460,8 @@ export class HelpPopup {
   }
 
   private createPopup(): void {
-    const popup = document.createElement('div');
-    popup.id = 'helpPopup';
+    const popup = document.createElement("div");
+    popup.id = "helpPopup";
     popup.innerHTML = `
       <div class="help-popup-content">
         <div class="help-popup-text">
@@ -433,7 +470,7 @@ export class HelpPopup {
         <button class="help-popup-close" aria-label="Close">×</button>
       </div>
     `;
-    
+
     popup.style.cssText = `
       position: fixed;
       bottom: 20px;
@@ -451,9 +488,9 @@ export class HelpPopup {
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.1);
     `;
-    
+
     // Style the content
-    const content = popup.querySelector('.help-popup-content') as HTMLElement;
+    const content = popup.querySelector(".help-popup-content") as HTMLElement;
     content.style.cssText = `
       display: flex;
       align-items: center;
@@ -461,15 +498,15 @@ export class HelpPopup {
       padding: 16px 20px;
       gap: 12px;
     `;
-    
-    const text = popup.querySelector('.help-popup-text') as HTMLElement;
+
+    const text = popup.querySelector(".help-popup-text") as HTMLElement;
     text.style.cssText = `
       font-size: 14px;
       font-weight: 500;
       line-height: 1.4;
     `;
-    
-    const closeBtn = popup.querySelector('.help-popup-close') as HTMLElement;
+
+    const closeBtn = popup.querySelector(".help-popup-close") as HTMLElement;
     closeBtn.style.cssText = `
       background: rgba(255, 255, 255, 0.2);
       border: none;
@@ -486,66 +523,66 @@ export class HelpPopup {
       transition: background 0.2s ease;
       flex-shrink: 0;
     `;
-    
+
     // Add hover effects
-    closeBtn.addEventListener('mouseenter', () => {
-      closeBtn.style.background = 'rgba(255, 255, 255, 0.3)';
+    closeBtn.addEventListener("mouseenter", () => {
+      closeBtn.style.background = "rgba(255, 255, 255, 0.3)";
     });
-    closeBtn.addEventListener('mouseleave', () => {
-      closeBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+    closeBtn.addEventListener("mouseleave", () => {
+      closeBtn.style.background = "rgba(255, 255, 255, 0.2)";
     });
-    
-    popup.addEventListener('mouseenter', () => {
-      popup.style.transform = 'translateY(0) scale(1.02)';
+
+    popup.addEventListener("mouseenter", () => {
+      popup.style.transform = "translateY(0) scale(1.02)";
     });
-    popup.addEventListener('mouseleave', () => {
-      popup.style.transform = 'translateY(0) scale(1)';
+    popup.addEventListener("mouseleave", () => {
+      popup.style.transform = "translateY(0) scale(1)";
     });
-    
+
     document.body.appendChild(popup);
     this.popup = popup;
-    
+
     setTimeout(() => {
-      popup.style.transform = 'translateY(0)';
-      popup.style.opacity = '1';
+      popup.style.transform = "translateY(0)";
+      popup.style.opacity = "1";
     }, 50);
-    
+
     // Add event listeners
-    popup.addEventListener('click', (e) => {
+    popup.addEventListener("click", (e) => {
       e.stopPropagation();
       e.preventDefault();
       if (e.target !== closeBtn) {
         this.startTour();
       }
     });
-    
-    closeBtn.addEventListener('click', (e) => {
+
+    closeBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       e.preventDefault();
       this.hidePopup();
     });
-    
+
     // Prevent any mouse events from propagating through the popup
-    popup.addEventListener('mousedown', (e) => {
+    popup.addEventListener("mousedown", (e) => {
       e.stopPropagation();
       e.preventDefault();
     });
-    
-    popup.addEventListener('mouseup', (e) => {
+
+    popup.addEventListener("mouseup", (e) => {
       e.stopPropagation();
       e.preventDefault();
     });
-    
-    popup.addEventListener('mousemove', (e) => {
+
+    popup.addEventListener("mousemove", (e) => {
       e.stopPropagation();
     });
   }
 
   private hidePopup(): void {
     if (this.popup) {
-      this.popup.style.transform = 'translateY(100px)';
-      this.popup.style.opacity = '0';
-      
+      this.popup.style.transform = "translateY(100px)";
+      this.popup.style.opacity = "0";
+
       setTimeout(() => {
         if (this.popup) {
           this.popup.remove();
@@ -553,7 +590,7 @@ export class HelpPopup {
         }
       }, 300);
     }
-    
+
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -567,7 +604,7 @@ export class HelpPopup {
 
   public startTimer(): void {
     if (this.hasShownPopup || this.timer) return;
-    
+
     this.timer = window.setTimeout(() => {
       // Check if user still hasn't set an objective
       if (state.objectiveVector === null && !this.guidedTour.isTouring()) {
@@ -575,7 +612,7 @@ export class HelpPopup {
         this.createPopup();
       }
     }, 15000); // 15 seconds
-    
+
     // Also start checking periodically if objective was set to auto-hide popup
     this.checkInterval = window.setInterval(() => {
       if (state.objectiveVector !== null) {

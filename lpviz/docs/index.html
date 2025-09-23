@@ -27,7 +27,7 @@
 </head>
 <body>
     <div class="navigation">
-        <strong>lpviz Documentation</strong> | 
+        <strong>lpviz Documentation</strong> |
         <a href="../">← Back to lpviz</a> |
         <a href="simplex.html">Simplex Algorithm</a> |
         <a href="ipm.html">Interior Point Method</a> |
@@ -41,7 +41,7 @@
 
     <h2>Standard Form</h2>
     <p>Each solver in lpviz has its own internal standard form. The form that is displayed in the frontend is:</p>
-    
+
     <div class="equation-block">
         $$\begin{align}
         \max_x \quad & c^\top x \\
@@ -67,7 +67,7 @@
 
     <h3><a href="simplex.html" style="color: #2c3e50; text-decoration: none;">Simplex Algorithm</a></h3>
     <p>The simplex method implements a two-phase revised simplex algorithm with Bland's anti-cycling rule. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution. <a href="simplex.html"><strong>→ Detailed explanation</strong></a></p>
-    
+
     <div class="equation-block">
         $$\begin{align}
         \text{Phase 1:} \quad & \min \enspace \sum_{i=1}^m t_i \quad \text{s.t.} \quad Ax + t = b, \quad x \geq 0, \quad t \geq 0 \\
@@ -81,7 +81,7 @@
     <p>IPM implements an infeasible primal-dual interior point algorithm.
         The core IPM routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax \geq b$.
         Each iteration involves solving two linear systems differing only in their right-hand sides.</p>
-    
+
     <div class="equation-block">
         $$\begin{bmatrix}
         A & -I & 0 \\
@@ -111,37 +111,37 @@
 
     <h3>Primal-Dual Hybrid Gradient (PDHG)</h3>
     <p>PDHG implements a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
-    
+
     <div class="equation-block">
         $$\begin{align}
         x^{k+1} &= \Pi_{\geq 0}(x^k - \eta(c + A^\top y^k)) \\
         y^{k+1} &= y^k + \tau(A \tilde{x}^{k+1} - b)
         \end{align}$$
     </div>
-    
+
     <p>where $\tilde{x}^{k+1} = 2x^{k+1} - x^k$ is the extrapolated primal variable, $\Pi_{\geq 0}$ projects onto the non-negative orthant, and $\eta, \tau$ are step sizes.</p>
 
     <p>In 3D mode, the z-axis of each iterate of PDHG is set to $c^\top x$.</p>
 
     <h4>PDHG Inequality Mode</h4>
     <p>The inequality mode avoids transforming the problem, treating the inequalities directly. It is similar to applying PDHG to the dual problem:</p>
-    
+
     <div class="equation-block">
         $$\begin{align}
         y^{k+1} &= \Pi_{\geq 0}(y^k + \tau(A x^k - b)) \\
         x^{k+1} &= x^k - \eta(c + A^\top \tilde{y}^{k+1})
         \end{align}$$
     </div>
-    
+
     <p>where $\tilde{y}^{k+1} = 2y^{k+1} - y^k$ is the extrapolated dual variable. Due to the inequality constraints in the primal, the dual variables $y$ are now constrained to be non-negative.</p>
 
     <h3>Central Path</h3>
     <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$. Each point on the path is found using Newton's method with Armijo line search.</p>
-    
+
     <div class="equation-block">
         $$x(\mu) = \arg\min_x \left( c^\top x - \mu \sum_{i=1}^m \log(b_i - a_i^\top x) \right)$$
     </div>
-    
+
     <p></p>In 3D mode, the z-axis is of each iterate of Central Path is set to $c^\top x(\mu) - \mu \sum_{i=1}^m \log(b_i - a_i^\top x(\mu))$.</p>
 
     <div class="navigation">

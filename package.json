@@ -16,6 +16,7 @@
   "dependencies": {
     "jsoncrush": "^1.1.8",
     "ml-matrix": "^6.12.1",
+    "prettier": "^3.6.2",
     "sprintf-js": "^1.1.3"
   }
 }

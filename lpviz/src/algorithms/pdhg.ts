@@ -1,7 +1,7 @@
-import { Matrix } from 'ml-matrix';
-import { sprintf } from 'sprintf-js';
-import { hstack, linesToAb, projectNonNegative, vstack } from '../utils/blas';
-import { Lines, VecN, Vec2N, Vec2Ns, VectorM, VectorN } from '../types/arrays';
+import { Matrix } from "ml-matrix";
+import { sprintf } from "sprintf-js";
+import { Lines, Vec2N, Vec2Ns, VecN, VectorM, VectorN } from "../types/arrays";
+import { hstack, linesToAb, projectNonNegative, vstack } from "../utils/blas";
 
 export interface PDHGCoreOptions {
   maxit: number;
@@ -15,14 +15,20 @@ export interface PDHGOptions extends PDHGCoreOptions {
   ineq: boolean;
 }
 
-
-function pdhgEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM) {
+function pdhgEpsilon(
+  A: Matrix,
+  b: VectorM,
+  c: VectorN,
+  xk: VectorN,
+  yk: VectorM,
+) {
   const Ax = A.mmul(xk);
   const primalFeasibility = Matrix.sub(Ax, b).norm() / (1 + b.norm());
 
   const ATy = A.transpose().mmul(yk);
   const negATy_minus_c = Matrix.sub(ATy.mul(-1), c);
-  const dualFeasibility = projectNonNegative(negATy_minus_c).norm() / (1 + c.norm());
+  const dualFeasibility =
+    projectNonNegative(negATy_minus_c).norm() / (1 + c.norm());
 
   const cTx = c.dot(xk);
   const bTy = b.dot(yk);
@@ -31,10 +37,18 @@ function pdhgEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-function pdhgIneqEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM) {
+function pdhgIneqEpsilon(
+  A: Matrix,
+  b: VectorM,
+  c: VectorN,
+  xk: VectorN,
+  yk: VectorM,
+) {
   const Ax = A.mmul(xk);
-  const primalFeasibility = projectNonNegative(Matrix.sub(Ax, b)).norm() / (1 + b.norm());
-  const dualFeasibility = projectNonNegative(yk.mul(-1)).norm() / (1 + c.norm());
+  const primalFeasibility =
+    projectNonNegative(Matrix.sub(Ax, b)).norm() / (1 + b.norm());
+  const dualFeasibility =
+    projectNonNegative(yk.mul(-1)).norm() / (1 + c.norm());
 
   const cTx = c.dot(xk);
   const bTy = b.dot(yk);
@@ -43,7 +57,12 @@ function pdhgIneqEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: Vec
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOptions) {
+function pdhgStandardForm(
+  A: Matrix,
+  b: VectorM,
+  c: VectorN,
+  options: PDHGCoreOptions,
+) {
   const { maxit, eta, tau, tol, verbose } = options;
 
   const m = A.rows;
@@ -56,8 +75,15 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOp
   let epsilonK = pdhgEpsilon(A, b, c, xk, yk);
   const logs = [];
 
-  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s",
-    'Iter', 'x', 'y', ' Obj', 'Infeas', 'eps');
+  const logHeader = sprintf(
+    "%5s %8s %8s %10s %10s %10s",
+    "Iter",
+    "x",
+    "y",
+    " Obj",
+    "Infeas",
+    "eps",
+  );
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
@@ -69,24 +95,32 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOp
 
     const pObj = -c.dot(xk);
     const pFeas = Matrix.sub(A.mmul(xk), b).max();
-    const dFeas = projectNonNegative(Matrix.sub(A.transpose().mmul(yk).mul(-1), c)).max();
+    const dFeas = projectNonNegative(
+      Matrix.sub(A.transpose().mmul(yk).mul(-1), c),
+    ).max();
 
-    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
+    let logMsg = sprintf(
+      "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
       k,
       xk.get(0, 0),
       -yk.get(0, 0),
       pObj,
       pFeas,
-      epsilonK
+      epsilonK,
     );
 
     if (verbose) console.log(logMsg);
     logs.push(logMsg);
 
     // Gradient and updates
-    const xk_plus_1 = projectNonNegative(Matrix.sub(xk, Matrix.add(c, A.transpose().mmul(yk)).mul(eta)));
+    const xk_plus_1 = projectNonNegative(
+      Matrix.sub(xk, Matrix.add(c, A.transpose().mmul(yk)).mul(eta)),
+    );
     const x_extrapolated = Matrix.add(xk_plus_1, Matrix.sub(xk_plus_1, xk));
-    const yk_plus_1 = Matrix.add(yk, Matrix.sub(A.mmul(x_extrapolated), b).mul(tau));
+    const yk_plus_1 = Matrix.add(
+      yk,
+      Matrix.sub(A.mmul(x_extrapolated), b).mul(tau),
+    );
 
     xk = xk_plus_1;
     yk = yk_plus_1;
@@ -109,11 +143,16 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOp
 
   return {
     iterations: iterates,
-    logs: logs
+    logs: logs,
   };
 }
 
-function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCoreOptions) {
+function pdhgInequalityForm(
+  A: Matrix,
+  b: VectorM,
+  c: VectorN,
+  options: PDHGCoreOptions,
+) {
   const { maxit, eta, tau, tol, verbose } = options;
 
   const m = A.rows;
@@ -126,8 +165,15 @@ function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCore
   let epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk);
   const logs = [];
 
-  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s",
-    'Iter', 'x', 'y', ' Obj', 'Infeas', 'eps');
+  const logHeader = sprintf(
+    "%5s %8s %8s %10s %10s %10s",
+    "Iter",
+    "x",
+    "y",
+    " Obj",
+    "Infeas",
+    "eps",
+  );
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
@@ -141,24 +187,30 @@ function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCore
     const pFeasVal = projectNonNegative(Matrix.sub(A.mmul(xk), b)).max();
     const dFeasVal = projectNonNegative(yk.mul(-1)).max();
 
-    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
+    let logMsg = sprintf(
+      "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
       k,
       xk.get(0, 0),
       xk.rows > 1 ? xk.get(1, 0) : 0.0,
       pObj,
       pFeasVal,
-      epsilonK
+      epsilonK,
     );
 
     if (verbose) console.log(logMsg);
     logs.push(logMsg);
 
     // y update
-    const yk_plus_1 = projectNonNegative(Matrix.add(yk, Matrix.sub(A.mmul(xk), b).mul(tau)));
+    const yk_plus_1 = projectNonNegative(
+      Matrix.add(yk, Matrix.sub(A.mmul(xk), b).mul(tau)),
+    );
 
-    // x update  
+    // x update
     const y_extrapolated = Matrix.add(yk_plus_1, Matrix.sub(yk_plus_1, yk));
-    const xk_plus_1 = Matrix.sub(xk, Matrix.add(c, A.transpose().mmul(y_extrapolated)).mul(eta));
+    const xk_plus_1 = Matrix.sub(
+      xk,
+      Matrix.add(c, A.transpose().mmul(y_extrapolated)).mul(eta),
+    );
 
     xk = xk_plus_1;
     yk = yk_plus_1;
@@ -181,7 +233,7 @@ function pdhgInequalityForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGCore
 
   return {
     iterations: iterates,
-    logs: logs
+    logs: logs,
   };
 }
 
@@ -218,7 +270,12 @@ export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
 
     // c_hat = [-c; c; 0_m]
     const c_hat = vstack([Matrix.mul(c, -1), c, Matrix.zeros(m, 1)]);
-    const { iterations: chi_iterates, logs } = pdhgStandardForm(A_hat, b, c_hat, solverOptions);
+    const { iterations: chi_iterates, logs } = pdhgStandardForm(
+      A_hat,
+      b,
+      c_hat,
+      solverOptions,
+    );
     // Reconstruct x = x+ - x-
     const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
       const x_plus = Matrix.columnVector(chi_k.slice(0, n_orig));
@@ -228,7 +285,7 @@ export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
 
     return {
       iterations: x_iterates,
-      logs
+      logs,
     };
   }
 }
