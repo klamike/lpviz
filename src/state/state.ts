@@ -68,6 +68,22 @@ export interface State {
   parsedConstraints: Lines;
   uiButtons: Record<string, boolean>;
   solverSettingsVisible: Record<"ipm" | "pdhg" | "central", boolean>;
+  resultHtml: string;
+  inequalitiesHtml: string;
+  showNullStateMessage: boolean;
+  isScreenTooSmall: boolean;
+  viewportWidth: number;
+  solverSettings: {
+    ipmAlphaMax: number;
+    ipmMaxIterations: number;
+    pdhgEta: number;
+    pdhgTau: number;
+    pdhgMaxIterations: number;
+    pdhgIneqMode: boolean;
+    centralPathSteps: number;
+    objectiveAngleStep: number;
+    replaySpeedMs: number;
+  };
 }
 
 const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
@@ -147,6 +163,22 @@ function createInitialState(): State {
       pdhg: false,
       central: true,
     },
+    resultHtml: "",
+    inequalitiesHtml: "",
+    showNullStateMessage: true,
+    isScreenTooSmall: false,
+    viewportWidth: 0,
+    solverSettings: {
+      ipmAlphaMax: 0.1,
+      ipmMaxIterations: 1000,
+      pdhgEta: 0.25,
+      pdhgTau: 0.25,
+      pdhgMaxIterations: 1000,
+      pdhgIneqMode: true,
+      centralPathSteps: 75,
+      objectiveAngleStep: 0.1,
+      replaySpeedMs: 10,
+    },
   };
 }
 
@@ -204,10 +236,7 @@ export function resetTraceState(): void {
 export function handleStepSizeChange(): void {
   if (!state.traceEnabled) return;
 
-  const objectiveAngleStepSlider = document.getElementById(
-    "objectiveAngleStepSlider",
-  ) as HTMLInputElement;
-  const angleStep = parseFloat(objectiveAngleStepSlider?.value || "0.1");
+  const angleStep = state.solverSettings.objectiveAngleStep || 0.1;
   const newMaxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
 
   // Update maxTraceCount to the new value

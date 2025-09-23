@@ -1,6 +1,5 @@
 import { state } from "../state/state";
 import { CanvasManager } from "../ui/canvasManager";
-import { UIManager } from "../ui/uiManager";
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -12,7 +11,6 @@ function lerpAngle(start: number, end: number, t: number): number {
 
 export function start3DTransition(
   canvasManager: CanvasManager,
-  uiManager: UIManager,
   targetMode: boolean,
 ) {
   if (state.isTransitioning3D) {
@@ -37,14 +35,11 @@ export function start3DTransition(
   }
 
   state.is3DMode = targetMode;
-  uiManager.update3DButtonState();
-
-  animate3DTransition(canvasManager, uiManager, targetMode, transitionDuration);
+  animate3DTransition(canvasManager, targetMode, transitionDuration);
 }
 
 function animate3DTransition(
   canvasManager: CanvasManager,
-  uiManager: UIManager,
   targetMode: boolean,
   transitionDuration: number,
 ) {
@@ -73,12 +68,7 @@ function animate3DTransition(
   if (progress < 1) {
     canvasManager.draw();
     requestAnimationFrame(() =>
-      animate3DTransition(
-        canvasManager,
-        uiManager,
-        targetMode,
-        transitionDuration,
-      ),
+      animate3DTransition(canvasManager, targetMode, transitionDuration),
     );
   } else {
     state.isTransitioning3D = false;

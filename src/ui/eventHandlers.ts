@@ -1,28 +1,23 @@
 import { state } from "../state/state";
 import { distance, isPolygonConvex, polytope } from "../utils/math2d";
-import {
-  adjustFontSize,
-  adjustLogoFontSize,
-  setButtonState,
-  getElement,
-  setupHoverHighlight,
-  showElement,
-} from "../utils/uiHelpers";
+import { setButtonState } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
-import { UIManager } from "./uiManager";
-
 import {
   createUndoRedoHandler,
   saveToHistory,
   setupKeyboardHandlers,
 } from "../state/history";
-import { createSharingHandlers } from "../state/sharing";
+import {
+  ShareState,
+  generateShareLink as generateShareLinkFromState,
+  loadStateFromObject as loadSharedState,
+} from "../state/sharing";
+import { updateSolverButtonStates } from "../state/uiActions";
+import { setResultHtml, setInequalitiesHtml } from "../state/uiDisplay";
 import { setupCanvasInteractions } from "./canvasInteractions";
-import { setupUIControls } from "./uiControls";
 
 export function setupEventHandlers(
   canvasManager: CanvasManager,
-  uiManager: UIManager,
   helpPopup?: any,
 ) {
   const canvas = canvasManager.canvas;
@@ -165,103 +160,68 @@ export function setupEventHandlers(
     const points = state.vertices.map((pt) => [pt.x, pt.y]);
     try {
       const result = polytope(points);
-      if (result.inequalities) {
-        if (!isPolygonConvex(state.vertices)) {
-          uiManager.inequalitiesDiv.textContent = "Nonconvex";
-          return;
-        }
-        uiManager.inequalitiesDiv.innerHTML = result.inequalities
-          .slice(
-            0,
-            state.polygonComplete
-              ? result.inequalities.length
-              : result.inequalities.length - 1,
-          )
-          .map(
-            (ineq, index) => `
-            <div class="inequality-item" data-index="${index}">
-              ${ineq}
-            </div>
-          `,
-          )
-          .join("");
-        const inequalityElements =
-          document.querySelectorAll(".inequality-item");
-        setupHoverHighlight(
-          inequalityElements,
-          (index) => {
-            state.highlightIndex = index;
-            canvasManager.draw();
-          },
-          () => {
-            state.highlightIndex = null;
-            canvasManager.draw();
-          },
-        );
 
-        if (result.lines.length > 0) {
-          showElement("subjectTo");
-        }
-        state.computedVertices = result.vertices;
-        state.computedLines = result.lines;
-        uiManager.updateSolverModeButtons();
-        if (
-          state.iteratePathComputed &&
-          state.objectiveVector &&
-          state.computedLines.length > 0
-        ) {
-          // Note: computePath will be available after UI controls setup
-        }
-      } else {
-        uiManager.inequalitiesDiv.textContent = "No inequalities returned.";
+      if (!result.inequalities) {
+      setInequalitiesHtml("No inequalities returned.");
+      state.computedVertices = [];
+      state.computedLines = [];
+      state.highlightIndex = null;
+      updateSolverButtonStates();
+      return;
       }
+
+      if (!isPolygonConvex(state.vertices)) {
+        setInequalitiesHtml("Nonconvex");
+        state.computedVertices = [];
+        state.computedLines = [];
+        state.highlightIndex = null;
+        updateSolverButtonStates();
+        return;
+      }
+
+      const inequalitiesHtml = result.inequalities
+        .slice(
+          0,
+          state.polygonComplete
+            ? result.inequalities.length
+            : result.inequalities.length - 1,
+        )
+        .map(
+          (ineq, index) =>
+            `<div class="inequality-item" data-index="${index}">${ineq}</div>`,
+        )
+        .join("");
+
+      setInequalitiesHtml(inequalitiesHtml);
+      state.computedVertices = result.vertices;
+      state.computedLines = result.lines;
+      state.highlightIndex = null;
+      updateSolverButtonStates();
     } catch (err) {
       console.error("Error:", err);
-      uiManager.inequalitiesDiv.textContent = "Error computing inequalities.";
+      setInequalitiesHtml("Error computing inequalities.");
+      state.computedVertices = [];
+      state.computedLines = [];
+      state.highlightIndex = null;
+      updateSolverButtonStates();
     }
   }
 
   function updateResult(html: string) {
-    const resultDiv = getElement("result");
-    resultDiv.innerHTML = html;
-
-    const iterateElements = document.querySelectorAll(
-      ".iterate-header, .iterate-item, .iterate-footer",
-    );
-    setupHoverHighlight(
-      iterateElements,
-      (index) => {
-        state.highlightIteratePathIndex = index;
-        canvasManager.draw();
-      },
-      () => {
-        state.highlightIteratePathIndex = null;
-        canvasManager.draw();
-      },
-    );
-
-    canvasManager.draw();
-    adjustFontSize();
-    adjustLogoFontSize();
+    setResultHtml(html);
   }
 
-  // Create and setup all handler modules
+  // Create and setup supporting handlers
   const handleUndoRedo = createUndoRedoHandler(
     canvasManager,
     saveToHistory,
     sendPolytope,
   );
-  const settingsElements = setupUIControls(
-    canvasManager,
-    uiManager,
-    updateResult,
-  );
-  const { loadStateFromObject, generateShareLink } = createSharingHandlers(
-    canvasManager,
-    uiManager,
-    settingsElements,
-    sendPolytope,
-  );
+
+  const loadStateFromObject = (shareState: ShareState) =>
+    loadSharedState(shareState, { canvasManager, sendPolytope });
+
+  const generateShareLink = () => generateShareLinkFromState();
 
   // Setup all event listeners
   const handleMouseDown = (e: MouseEvent) => {
@@ -340,13 +300,7 @@ export function setupEventHandlers(
   canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
   canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
   canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
-  setupCanvasInteractions(
-    canvasManager,
-    uiManager,
-    saveToHistory,
-    sendPolytope,
-    helpPopup,
-  );
+  setupCanvasInteractions(canvasManager, saveToHistory, sendPolytope, helpPopup);
   setupKeyboardHandlers(
     canvasManager,
     saveToHistory,

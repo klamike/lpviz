@@ -1,7 +1,46 @@
-import { onCleanup, onMount } from "solid-js";
+import { createEffect, onCleanup, onMount } from "solid-js";
+import { useLegacy } from "../context/LegacyContext";
+import { state } from "../state/state";
+
+const USAGE_TIPS_HTML = `
+  <div id="usageTips">
+    <br />
+    <br />
+    <strong class="usage-title">Usage Tips:</strong>
+    <br />
+    <br />
+    <strong>Draw a polygon</strong>: click to add vertices
+    <br />
+    <strong>Select a solver</strong>: select a solver and click <strong>Solve</strong>
+    <br />
+    <strong>Change objective</strong>: drag it or click <strong>Rotate Objective</strong>
+    <br />
+    <strong>Add new vertices</strong>: double‐click an edge
+    <br />
+    <strong>Move vertices</strong>: drag vertices to reshape
+    <br />
+    <strong>Press S</strong>: toggle snapping to the grid
+    <br />
+    <strong>3D Mode</strong>: click 3D button, hold Shift+drag to rotate
+    <br />
+    <strong>Z Scale</strong>: adjust slider to scale z-axis
+    <br />
+    <strong>Reset</strong>: refresh the page
+    <br />
+    <strong>Undo/Redo</strong>: ⌘+z to undo, ⇧⌘+z to redo
+    <br />
+  </div>
+`;
 
 export function TerminalPanel() {
+  const legacy = useLegacy();
   let resultRef: HTMLDivElement | undefined;
+
+  createEffect(() => {
+    if (!resultRef) return;
+    const html = state.resultHtml || USAGE_TIPS_HTML;
+    resultRef.innerHTML = html;
+  });
 
   onMount(() => {
     const resultDiv = resultRef;
@@ -42,46 +81,39 @@ export function TerminalPanel() {
 
     const handleScroll = () => updateHoverState();
 
+    const handleIterateEnter = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || !target.classList.contains("iterate-item")) return;
+      const index = parseInt(target.getAttribute("data-index") || "", 10);
+      if (Number.isFinite(index)) {
+        state.highlightIteratePathIndex = index;
+        legacy.canvasManager.draw();
+      }
+    };
+
+    const handleIterateLeave = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || !target.classList.contains("iterate-item")) return;
+      state.highlightIteratePathIndex = null;
+      legacy.canvasManager.draw();
+    };
+
     document.addEventListener("mousemove", handleMouseMove);
     resultDiv.addEventListener("scroll", handleScroll);
+    resultDiv.addEventListener("mouseenter", handleIterateEnter, true);
+    resultDiv.addEventListener("mouseleave", handleIterateLeave, true);
 
     onCleanup(() => {
       document.removeEventListener("mousemove", handleMouseMove);
       resultDiv.removeEventListener("scroll", handleScroll);
+      resultDiv.removeEventListener("mouseenter", handleIterateEnter, true);
+      resultDiv.removeEventListener("mouseleave", handleIterateLeave, true);
     });
   });
 
   return (
     <div id="terminal-container">
-      <div id="result" ref={(el) => (resultRef = el)}>
-        <div id="usageTips">
-          <br />
-          <br />
-          <strong class="usage-title">Usage Tips:</strong>
-          <br />
-          <br />
-          <strong>Draw a polygon</strong>: click to add vertices
-          <br />
-          <strong>Select a solver</strong>: select a solver and click <strong>Solve</strong>
-          <br />
-          <strong>Change objective</strong>: drag it or click <strong>Rotate Objective</strong>
-          <br />
-          <strong>Add new vertices</strong>: double‐click an edge
-          <br />
-          <strong>Move vertices</strong>: drag vertices to reshape
-          <br />
-          <strong>Press S</strong>: toggle snapping to the grid
-          <br />
-          <strong>3D Mode</strong>: click 3D button, hold Shift+drag to rotate
-          <br />
-          <strong>Z Scale</strong>: adjust slider to scale z-axis
-          <br />
-          <strong>Reset</strong>: refresh the page
-          <br />
-          <strong>Undo/Redo</strong>: ⌘+z to undo, ⇧⌘+z to redo
-          <br />
-        </div>
-      </div>
+      <div id="result" ref={(el) => (resultRef = el)}></div>
       <div id="terminal-window"></div>
       <div class="scanlines"></div>
       <div class="scanlines" style="--delay: -12s"></div>

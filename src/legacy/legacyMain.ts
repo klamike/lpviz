@@ -2,17 +2,40 @@ import JSONCrush from "jsoncrush";
 import { CanvasManager } from "../ui/canvasManager";
 import { setupEventHandlers } from "../ui/eventHandlers";
 import { GuidedTour, HelpPopup } from "../ui/guidedTour";
-import { UIManager } from "../ui/uiManager";
+import {
+  setScreenTooSmall,
+  synchronizeUIState,
+  updateZoomButtonStates,
+} from "../state/uiActions";
 import {
   adjustFontSize,
   adjustLogoFontSize,
   adjustTerminalHeight,
 } from "../utils/uiHelpers";
 
-export function initializeLegacyApplication() {
+export const MIN_SCREEN_WIDTH = 750;
+
+export interface LegacyHandles {
+  canvasManager: CanvasManager;
+  guidedTour: GuidedTour;
+  helpPopup: HelpPopup;
+  loadStateFromObject: (data: any) => void;
+  generateShareLink: () => string;
+  sendPolytope: () => void;
+  saveToHistory: () => void;
+}
+
+let cachedHandles: LegacyHandles | null = null;
+
+export function initializeLegacyApplication(): LegacyHandles {
   const legacyMarker = "__lpvizLegacyInitialized";
   const globalAny = window as typeof window & Record<string, boolean>;
-  if (globalAny[legacyMarker]) return;
+  if (globalAny[legacyMarker]) {
+    if (!cachedHandles) {
+      throw new Error("Legacy application initialized without cached handles");
+    }
+    return cachedHandles;
+  }
   globalAny[legacyMarker] = true;
 
   const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
@@ -20,13 +43,12 @@ export function initializeLegacyApplication() {
     throw new Error("Missing #gridCanvas element needed for legacy UI bootstrap.");
   }
   const canvasManager = new CanvasManager(canvas);
-  const uiManager = new UIManager();
 
   function resizeCanvas() {
-    uiManager.checkMobileOrientation();
+    setScreenTooSmall(window.innerWidth < MIN_SCREEN_WIDTH, window.innerWidth);
     canvasManager.updateDimensions();
     canvasManager.draw();
-    uiManager.updateZoomButtonsState(canvasManager);
+    updateZoomButtonStates(canvasManager);
     adjustLogoFontSize();
     adjustTerminalHeight();
   }
@@ -48,20 +70,15 @@ export function initializeLegacyApplication() {
 
   window.addEventListener("resize", throttledResize);
 
-  const guidedTour = new GuidedTour(
-    canvasManager,
-    uiManager,
-    () => {},
-    () => {},
-  );
+  const guidedTour = new GuidedTour(canvasManager, () => {}, () => {});
   const helpPopup = new HelpPopup(guidedTour);
 
-  const handlers = setupEventHandlers(canvasManager, uiManager, helpPopup);
+  const handlers = setupEventHandlers(canvasManager, helpPopup);
 
   guidedTour.setSendPolytope(handlers.sendPolytope);
   guidedTour.setSaveToHistory(handlers.saveToHistory);
   canvasManager.setTourComponents(guidedTour);
-  uiManager.synchronizeUIWithState();
+  synchronizeUIState(canvasManager);
   resizeCanvas();
 
   helpPopup.startTimer();
@@ -74,11 +91,23 @@ export function initializeLegacyApplication() {
       handlers.loadStateFromObject(data);
       history.replaceState(null, "", window.location.pathname);
       helpPopup.resetTimer();
-      uiManager.synchronizeUIWithState();
+      synchronizeUIState(canvasManager);
     } catch (err) {
       console.error("Failed to load shared state", err);
     }
   }
-  uiManager.synchronizeUIWithState();
+  synchronizeUIState(canvasManager);
   canvas.focus();
+
+  cachedHandles = {
+    canvasManager,
+    guidedTour,
+    helpPopup,
+    loadStateFromObject: handlers.loadStateFromObject,
+    generateShareLink: handlers.generateShareLink,
+    sendPolytope: handlers.sendPolytope,
+    saveToHistory: handlers.saveToHistory,
+  };
+
+  return cachedHandles;
 }

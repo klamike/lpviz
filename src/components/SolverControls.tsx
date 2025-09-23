@@ -1,10 +1,12 @@
 import { For } from "solid-js";
+import { useAppActions } from "../controllers/useAppActions";
 import { state } from "../state/state";
+import type { SolverMode } from "../state/state";
 
 interface SolverButtonConfig {
   id: string;
   label: string;
-  mode: string;
+  mode: SolverMode;
 }
 
 const BUTTONS: SolverButtonConfig[] = [
@@ -15,6 +17,16 @@ const BUTTONS: SolverButtonConfig[] = [
 ];
 
 export function SolverControls() {
+  const {
+    updateSolverMode,
+    updateCentralPathSteps,
+    updateIPMAlphaMax,
+    updateIPMMaxIterations,
+    updatePDHGSettings,
+  } = useAppActions();
+
+  const handleSolverMode = (mode: SolverMode) => () => updateSolverMode(mode);
+
   return (
     <div class="controlPanel">
       <div class="button-group">
@@ -24,6 +36,7 @@ export function SolverControls() {
               id={btn.id}
               disabled={!state.uiButtons[btn.id] || state.solverMode === btn.mode}
               classList={{ active: state.solverMode === btn.mode }}
+              onClick={handleSolverMode(btn.mode)}
             >
               {btn.label}
             </button>
@@ -31,10 +44,16 @@ export function SolverControls() {
         </For>
       </div>
 
-      <div id="ipmSettings" class="settings-section" style="display: none">
+      <div
+        id="ipmSettings"
+        class="settings-section"
+        style={{ display: state.solverSettingsVisible.ipm ? "block" : "none" }}
+      >
         <label for="alphaMaxSlider">
           αmax (maximum step size ratio):
-          <span id="alphaMaxValue">0.1</span>
+          <span id="alphaMaxValue">
+            {state.solverSettings.ipmAlphaMax.toFixed(3)}
+          </span>
         </label>
         <input
           type="range"
@@ -42,25 +61,37 @@ export function SolverControls() {
           min="0.001"
           max="1"
           step="0.001"
-          value="0.1"
+          value={state.solverSettings.ipmAlphaMax}
           autocomplete="off"
+          onInput={(event) =>
+            updateIPMAlphaMax(parseFloat(event.currentTarget.value))
+          }
         />
         <br />
         <label for="maxitInput">Maximum iterations:</label>
         <input
           type="number"
           id="maxitInput"
-          value="1000"
+          value={state.solverSettings.ipmMaxIterations}
           min="1"
           step="1"
           autocomplete="off"
+          onInput={(event) =>
+            updateIPMMaxIterations(parseInt(event.currentTarget.value, 10))
+          }
         />
       </div>
 
-      <div id="pdhgSettings" class="settings-section" style="display: none">
+      <div
+        id="pdhgSettings"
+        class="settings-section"
+        style={{ display: state.solverSettingsVisible.pdhg ? "block" : "none" }}
+      >
         <label for="pdhgEtaSlider">
           η (primal step size factor):
-          <span id="pdhgEtaValue">0.250</span>
+          <span id="pdhgEtaValue">
+            {state.solverSettings.pdhgEta.toFixed(3)}
+          </span>
         </label>
         <input
           type="range"
@@ -68,13 +99,20 @@ export function SolverControls() {
           min="0.001"
           max="0.750"
           step="0.001"
-          value="0.250"
+          value={state.solverSettings.pdhgEta}
           autocomplete="off"
+          onInput={(event) =>
+            updatePDHGSettings({
+              pdhgEta: parseFloat(event.currentTarget.value),
+            })
+          }
         />
         <br />
         <label for="pdhgTauSlider">
           τ (dual step size factor):
-          <span id="pdhgTauValue">0.250</span>
+          <span id="pdhgTauValue">
+            {state.solverSettings.pdhgTau.toFixed(3)}
+          </span>
         </label>
         <input
           type="range"
@@ -82,26 +120,52 @@ export function SolverControls() {
           min="0.001"
           max="0.750"
           step="0.001"
-          value="0.250"
+          value={state.solverSettings.pdhgTau}
           autocomplete="off"
+          onInput={(event) =>
+            updatePDHGSettings({
+              pdhgTau: parseFloat(event.currentTarget.value),
+            })
+          }
         />
         <br />
         <label for="maxitInputPDHG">Maximum iterations:</label>
         <input
           type="number"
           id="maxitInputPDHG"
-          value="1000"
+          value={state.solverSettings.pdhgMaxIterations}
           min="1"
           step="1"
           autocomplete="off"
+          onInput={(event) =>
+            updatePDHGSettings({
+              pdhgMaxIterations: parseInt(event.currentTarget.value, 10),
+            })
+          }
         />
         <label for="pdhgIneqMode">Inequality mode</label>
-        <input type="checkbox" id="pdhgIneqMode" checked />
+        <input
+          type="checkbox"
+          id="pdhgIneqMode"
+          checked={state.solverSettings.pdhgIneqMode}
+          onChange={(event) =>
+            updatePDHGSettings({ pdhgIneqMode: event.currentTarget.checked })
+          }
+        />
       </div>
 
-      <div id="centralPathSettings" class="settings-section" style="display: block">
+      <div
+        id="centralPathSettings"
+        class="settings-section"
+        style={{
+          display: state.solverSettingsVisible.central ? "block" : "none",
+        }}
+      >
         <label for="centralPathIterSlider">
-          N (number of steps): <span id="centralPathIterValue">75</span>
+          N (number of steps): {" "}
+          <span id="centralPathIterValue">
+            {state.solverSettings.centralPathSteps}
+          </span>
         </label>
         <input
           type="range"
@@ -109,8 +173,11 @@ export function SolverControls() {
           min="2"
           max="100"
           step="1"
-          value="75"
+          value={state.solverSettings.centralPathSteps}
           autocomplete="off"
+          onInput={(event) =>
+            updateCentralPathSteps(parseInt(event.currentTarget.value, 10))
+          }
         />
       </div>
     </div>

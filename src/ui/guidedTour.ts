@@ -1,7 +1,10 @@
 import { state } from "../state/state";
-import { setButtonsEnabled, showElement } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
-import { UIManager } from "./uiManager";
+import {
+  hideNullStateMessage,
+  updateSolverButtonStates,
+  updateZoomButtonStates,
+} from "../state/uiActions";
 
 interface AnimatedCursor {
   x: number;
@@ -18,7 +21,6 @@ interface TourStep {
 
 export class GuidedTour {
   private canvasManager: CanvasManager;
-  private uiManager: UIManager;
   private sendPolytope: () => void;
   private saveToHistory: () => void;
   private animatedCursor: AnimatedCursor | null = null;
@@ -29,12 +31,10 @@ export class GuidedTour {
 
   constructor(
     canvasManager: CanvasManager,
-    uiManager: UIManager,
     sendPolytope: () => void,
     saveToHistory: () => void,
   ) {
     this.canvasManager = canvasManager;
-    this.uiManager = uiManager;
     this.sendPolytope = sendPolytope;
     this.saveToHistory = saveToHistory;
   }
@@ -251,21 +251,15 @@ export class GuidedTour {
           this.saveToHistory();
           if (!state.polygonComplete) {
             state.vertices.push(step.target);
-            this.uiManager.hideNullStateMessage();
+            hideNullStateMessage();
             this.canvasManager.draw();
+            updateZoomButtonStates(this.canvasManager);
             this.sendPolytope();
           } else if (state.objectiveVector === null) {
             state.objectiveVector = step.target;
-            showElement("maximize");
-            setButtonsEnabled({
-              ipmButton: true,
-              simplexButton: true,
-              pdhgButton: true,
-              iteratePathButton: false,
-              traceButton: true,
-              zoomButton: true,
-            });
-            this.uiManager.updateSolverModeButtons();
+            state.uiButtons["traceButton"] = true;
+            state.uiButtons["zoomButton"] = true;
+            updateSolverButtonStates();
             this.canvasManager.draw();
           }
 
@@ -295,14 +289,13 @@ export class GuidedTour {
           state.interiorPoint = step.target;
           this.canvasManager.draw();
           this.sendPolytope();
-          setButtonsEnabled({
-            ipmButton: true,
-            simplexButton: true,
-            pdhgButton: true,
-            iteratePathButton: false,
-            traceButton: true,
-            zoomButton: true,
-          });
+          state.uiButtons["ipmButton"] = true;
+          state.uiButtons["simplexButton"] = true;
+          state.uiButtons["pdhgButton"] = true;
+          state.uiButtons["iteratePathButton"] = false;
+          state.uiButtons["traceButton"] = true;
+          state.uiButtons["zoomButton"] = true;
+          updateSolverButtonStates();
 
           // Wait 100ms before moving on
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -364,17 +357,15 @@ export class GuidedTour {
     state.currentObjective = null;
 
     // Reset UI buttons to initial state
-    setButtonsEnabled({
-      ipmButton: false,
-      simplexButton: false,
-      pdhgButton: false,
-      iteratePathButton: false,
-      traceButton: false,
-      zoomButton: true,
-    });
+    state.uiButtons["ipmButton"] = false;
+    state.uiButtons["simplexButton"] = false;
+    state.uiButtons["pdhgButton"] = false;
+    state.uiButtons["iteratePathButton"] = false;
+    state.uiButtons["traceButton"] = false;
+    state.uiButtons["zoomButton"] = true;
 
     // Update UI displays and redraw canvas
-    this.uiManager.updateSolverModeButtons();
+    updateSolverButtonStates();
     this.canvasManager.draw();
 
     // Generate the tour steps

@@ -1,14 +1,18 @@
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import CentralApp from "./CentralApp";
 import ZoomControls from "./ZoomControls";
-import { initializeLegacyApplication } from "../legacy/legacyMain";
+import { initializeLegacyApplication, MIN_SCREEN_WIDTH } from "../legacy/legacyMain";
 import {
   adjustFontSize,
   adjustLogoFontSize,
   adjustTerminalHeight,
   calculateMinSidebarWidth,
 } from "../utils/uiHelpers";
+import { LegacyProvider } from "../context/LegacyContext";
+import { state } from "../state/state";
+
+import type { LegacyHandles } from "../legacy/legacyMain";
 
 const zoomMount = document.getElementById("zoomControls");
 if (!zoomMount) {
@@ -20,9 +24,13 @@ export function RootApp() {
     document.getElementById("sidebar")?.offsetWidth ?? 450,
   );
   const [isResizing, setIsResizing] = createSignal(false);
+  const [legacyHandles, setLegacyHandles] = createSignal<LegacyHandles | null>(
+    null,
+  );
 
   onMount(() => {
-    initializeLegacyApplication();
+    const handles = initializeLegacyApplication();
+    setLegacyHandles(handles);
     const sidebar = document.getElementById("sidebar");
     const handle = document.getElementById("sidebarHandle");
     if (!sidebar || !handle) {
@@ -76,10 +84,23 @@ export function RootApp() {
 
   return (
     <>
-      <CentralApp />
-      <Portal mount={zoomMount}>
-        <ZoomControls />
-      </Portal>
+      <Show when={legacyHandles()}>
+        {(handles) => (
+          <LegacyProvider value={handles()}>
+            <CentralApp />
+            <Portal mount={zoomMount}>
+              <ZoomControls />
+            </Portal>
+            <Portal>
+              <Show when={state.isScreenTooSmall}>
+                <div id="smallScreenOverlay" class="small-screen-overlay">
+                  The window is not wide enough ({state.viewportWidth}px &lt; {MIN_SCREEN_WIDTH}px) for lpviz.
+                </div>
+              </Show>
+            </Portal>
+          </LegacyProvider>
+        )}
+      </Show>
     </>
   );
 }

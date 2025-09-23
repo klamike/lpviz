@@ -7,13 +7,15 @@ import {
   isPolygonConvex,
   pointCentroid,
 } from "../utils/math2d";
-import { setButtonsEnabled, showElement } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
-import { UIManager } from "./uiManager";
+import {
+  hideNullStateMessage,
+  updateSolverButtonStates,
+  updateZoomButtonStates,
+} from "../state/uiActions";
 
 export function setupCanvasInteractions(
   canvasManager: CanvasManager,
-  uiManager: UIManager,
   saveToHistory: () => void,
   sendPolytope: () => void,
   helpPopup?: any,
@@ -33,19 +35,21 @@ export function setupCanvasInteractions(
       if (distance(pt, state.vertices[0]) < 0.5) {
         state.polygonComplete = true;
         state.interiorPoint = pointCentroid(state.vertices);
-        canvasManager.draw();
-        sendPolytope();
-        return;
-      }
+    canvasManager.draw();
+    updateZoomButtonStates(canvasManager);
+    sendPolytope();
+    return;
+  }
 
       // Check if clicking inside polygon to close it
       if (isPointInsidePolygon(pt, state.vertices)) {
         state.polygonComplete = true;
         state.interiorPoint = pt;
-        canvasManager.draw();
-        sendPolytope();
-        return;
-      }
+    canvasManager.draw();
+    updateZoomButtonStates(canvasManager);
+    sendPolytope();
+    return;
+  }
     }
 
     // Validate convexity before adding vertex
@@ -59,24 +63,19 @@ export function setupCanvasInteractions(
 
     saveToHistory();
     state.vertices.push(pt);
-    uiManager.hideNullStateMessage();
+    hideNullStateMessage();
+    state.uiButtons["zoomButton"] = true;
     canvasManager.draw();
+    updateZoomButtonStates(canvasManager);
     sendPolytope();
   }
 
   function handleObjectiveSelection(pt: PointXY) {
     saveToHistory();
     state.objectiveVector = state.currentObjective || pt;
-    showElement("maximize");
-    setButtonsEnabled({
-      ipmButton: true,
-      simplexButton: true,
-      pdhgButton: true,
-      iteratePathButton: false,
-      traceButton: true,
-      zoomButton: true,
-    });
-    uiManager.updateSolverModeButtons();
+    state.uiButtons["traceButton"] = true;
+    state.uiButtons["zoomButton"] = true;
+    updateSolverButtonStates();
     canvasManager.draw();
   }
 
@@ -105,6 +104,7 @@ export function setupCanvasInteractions(
         saveToHistory();
         state.vertices.splice(i + 1, 0, newPoint);
         canvasManager.draw();
+        updateZoomButtonStates(canvasManager);
         sendPolytope();
         break;
       }
@@ -187,5 +187,6 @@ export function setupCanvasInteractions(
         logical.y;
     }
     canvasManager.draw();
+    updateZoomButtonStates(canvasManager);
   });
 }

@@ -3,7 +3,6 @@ import {
   state,
   updateIteratePathsWithTrace,
 } from "../state/state";
-import { getElementChecked } from "../utils/uiHelpers";
 import {
   fetchCentralPath,
   fetchIPM,
@@ -11,13 +10,29 @@ import {
   fetchSimplex,
 } from "./apiClient";
 
+export interface IPMOptions {
+  alphaMax: number;
+  maxIterations: number;
+}
+
+export interface PDHGOptions {
+  maxIterations: number;
+  eta: number;
+  tau: number;
+  inequalityMode: boolean;
+}
+
+export interface CentralPathOptions {
+  steps: number;
+  objectiveAngleStep: number;
+}
+
 export async function computeIPMSolution(
-  alphaMaxSlider: HTMLInputElement,
-  maxitInput: HTMLInputElement,
+  options: IPMOptions,
   updateResult: (html: string) => void,
 ): Promise<void> {
-  const alphaMax = parseFloat(alphaMaxSlider.value);
-  const maxit = parseInt(maxitInput.value, 10);
+  const alphaMax = options.alphaMax;
+  const maxit = options.maxIterations;
 
   const result = await fetchIPM(
     state.computedLines,
@@ -59,15 +74,13 @@ export async function computeSimplexSolution(
 }
 
 export async function computePDHGSolution(
-  maxitInputPDHG: HTMLInputElement,
-  pdhgEtaSlider: HTMLInputElement,
-  pdhgTauSlider: HTMLInputElement,
+  options: PDHGOptions,
   updateResult: (html: string) => void,
 ): Promise<void> {
-  const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
-  const pdhgIneq = getElementChecked("pdhgIneqMode");
-  const eta = parseFloat(pdhgEtaSlider.value);
-  const tau = parseFloat(pdhgTauSlider.value);
+  const maxitPDHG = options.maxIterations;
+  const pdhgIneq = options.inequalityMode;
+  const eta = options.eta;
+  const tau = options.tau;
 
   const result = await fetchPDHG(
     state.computedLines,
@@ -87,11 +100,10 @@ export async function computePDHGSolution(
 }
 
 export async function computeCentralPathSolution(
-  centralPathIterSlider: HTMLInputElement,
-  objectiveAngleStepSlider: HTMLInputElement,
+  options: CentralPathOptions,
   updateResult: (html: string) => void,
 ): Promise<void> {
-  const maxitCentral = parseInt(centralPathIterSlider.value, 10);
+  const maxitCentral = options.steps;
 
   const result = await fetchCentralPath(
     state.computedVertices,
@@ -110,7 +122,7 @@ export async function computeCentralPathSolution(
     if (
       state.rotateObjectiveMode &&
       state.totalRotationAngle >=
-        2 * Math.PI + 0.9 * parseFloat(objectiveAngleStepSlider.value)
+        2 * Math.PI + 0.9 * options.objectiveAngleStep
     ) {
       // Skip trace when rotation is complete
     } else {
