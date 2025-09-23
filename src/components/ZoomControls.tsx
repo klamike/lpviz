@@ -90,7 +90,6 @@ export function ZoomControls() {
           max="10"
           step="0.01"
           value={state.zScale}
-          orient="vertical"
           title="Adjust Z-axis scale"
           onInput={handleZScaleChange}
         />

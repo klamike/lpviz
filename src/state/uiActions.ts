@@ -1,5 +1,5 @@
-import { SolverMode, state } from "./state";
 import { CanvasManager } from "../ui/canvasManager";
+import { SolverMode, state } from "./state";
 
 export function hideNullStateMessage(): void {
   state.showNullStateMessage = false;

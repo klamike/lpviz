@@ -1,7 +1,3 @@
-import { state } from "../state/state";
-import { distance, isPolygonConvex, polytope } from "../utils/math2d";
-import { setButtonState } from "../utils/uiHelpers";
-import { CanvasManager } from "./canvasManager";
 import {
   createUndoRedoHandler,
   saveToHistory,
@@ -12,9 +8,13 @@ import {
   generateShareLink as generateShareLinkFromState,
   loadStateFromObject as loadSharedState,
 } from "../state/sharing";
+import { state } from "../state/state";
 import { updateSolverButtonStates } from "../state/uiActions";
-import { setResultHtml, setInequalitiesHtml } from "../state/uiDisplay";
+import { setInequalitiesHtml, setResultHtml } from "../state/uiDisplay";
+import { distance, isPolygonConvex, polytope } from "../utils/math2d";
+import { setButtonState } from "../utils/uiHelpers";
 import { setupCanvasInteractions } from "./canvasInteractions";
+import { CanvasManager } from "./canvasManager";
 
 export function setupEventHandlers(canvasManager: CanvasManager) {
   const canvas = canvasManager.canvas;

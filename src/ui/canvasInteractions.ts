@@ -1,4 +1,9 @@
 import { state } from "../state/state";
+import {
+  hideNullStateMessage,
+  updateSolverButtonStates,
+  updateZoomButtonStates,
+} from "../state/uiActions";
 import { PointXY } from "../types/arrays";
 import {
   distance,
@@ -8,11 +13,6 @@ import {
   pointCentroid,
 } from "../utils/math2d";
 import { CanvasManager } from "./canvasManager";
-import {
-  hideNullStateMessage,
-  updateSolverButtonStates,
-  updateZoomButtonStates,
-} from "../state/uiActions";
 
 export function setupCanvasInteractions(
   canvasManager: CanvasManager,

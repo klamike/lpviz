@@ -1,11 +1,11 @@
 import JSONCrush from "jsoncrush";
-import { CanvasManager } from "../ui/canvasManager";
-import { setupEventHandlers } from "../ui/eventHandlers";
 import {
   setScreenTooSmall,
   synchronizeUIState,
   updateZoomButtonStates,
 } from "../state/uiActions";
+import { CanvasManager } from "../ui/canvasManager";
+import { setupEventHandlers } from "../ui/eventHandlers";
 import {
   adjustFontSize,
   adjustLogoFontSize,

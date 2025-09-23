@@ -1,7 +1,7 @@
-import { Show, createSignal, createEffect, onCleanup, onMount } from "solid-js";
+import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
-import { state } from "../state/state";
 import { useGuidedTour } from "../context/GuidedTourContext";
+import { state } from "../state/state";
 
 interface HelpPopupProps {
   autoShowDelay?: number;

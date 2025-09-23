@@ -1,17 +1,17 @@
 import {
   createContext,
-  useContext,
   createSignal,
   onCleanup,
   ParentComponent,
+  useContext,
 } from "solid-js";
 import { state } from "../state/state";
-import { CanvasManager } from "../ui/canvasManager";
 import {
   hideNullStateMessage,
   updateSolverButtonStates,
   updateZoomButtonStates,
 } from "../state/uiActions";
+import { CanvasManager } from "../ui/canvasManager";
 
 interface AnimatedCursor {
   x: number;

@@ -1,10 +1,7 @@
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { useLegacy } from "../context/LegacyContext";
 import { state } from "../state/state";
-import {
-  calculateOptimalFontSize,
-  calculateTerminalHeight,
-} from "../utils/solidHelpers";
+import { calculateOptimalFontSize } from "../utils/solidHelpers";
 
 const USAGE_TIPS_HTML = `
   <div id="usageTips">

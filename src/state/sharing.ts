@@ -1,7 +1,7 @@
 import JSONCrush from "jsoncrush";
 import { PointXY } from "../types/arrays";
-import { pointCentroid } from "../utils/math2d";
 import { CanvasManager } from "../ui/canvasManager";
+import { pointCentroid } from "../utils/math2d";
 import { SolverMode, state } from "./state";
 import {
   hideNullStateMessage,

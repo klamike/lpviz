@@ -1,4 +1,4 @@
-import { createContext, useContext, JSX, ParentComponent } from "solid-js";
+import { createContext, ParentComponent, useContext } from "solid-js";
 
 export interface AppRefs {
   sidebarRef?: HTMLDivElement;

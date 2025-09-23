@@ -1,25 +1,25 @@
 import { createSignal } from "solid-js";
 import { useLegacy } from "../context/LegacyContext";
 import {
-  handleStepSizeChange,
-  prepareAnimationInterval,
-  resetTraceState,
-  state,
-} from "../state/state";
-import { setResultHtml } from "../state/uiDisplay";
-import {
-  setSolverMode as setSolverModeState,
-  updateSolverButtonStates,
-  updateZoomButtonStates,
-} from "../state/uiActions";
-import {
   computeCentralPathSolution,
   computeIPMSolution,
   computePDHGSolution,
   computeSimplexSolution,
 } from "../services/solverService";
-import { start3DTransition } from "../utils/transitions";
 import type { SolverMode } from "../state/state";
+import {
+  handleStepSizeChange,
+  prepareAnimationInterval,
+  resetTraceState,
+  state,
+} from "../state/state";
+import {
+  setSolverMode as setSolverModeState,
+  updateSolverButtonStates,
+  updateZoomButtonStates,
+} from "../state/uiActions";
+import { setResultHtml } from "../state/uiDisplay";
+import { start3DTransition } from "../utils/transitions";
 
 const DEFAULT_VIEW_ANGLE = { x: -1.15, y: 0.4, z: 0 };
 const ROTATION_INTERVAL_MS = 30;

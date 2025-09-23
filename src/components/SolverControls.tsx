@@ -1,7 +1,7 @@
 import { For } from "solid-js";
 import { useAppActions } from "../controllers/useAppActions";
-import { state } from "../state/state";
 import type { SolverMode } from "../state/state";
+import { state } from "../state/state";
 
 interface SolverButtonConfig {
   id: string;

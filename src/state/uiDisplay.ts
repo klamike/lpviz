@@ -1,5 +1,5 @@
-import { state } from "./state";
 import { adjustFontSize, adjustLogoFontSize } from "../utils/uiHelpers";
+import { state } from "./state";
 
 export function setResultHtml(html: string): void {
   state.resultHtml = html;

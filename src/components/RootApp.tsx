@@ -1,24 +1,21 @@
-import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import CentralApp from "./CentralApp";
-import ZoomControls from "./ZoomControls";
-import HelpPopup from "./HelpPopup";
+import { GuidedTourProvider } from "../context/GuidedTourContext";
+import { LegacyProvider } from "../context/LegacyContext";
 import {
   initializeLegacyApplication,
   MIN_SCREEN_WIDTH,
 } from "../legacy/legacyMain";
+import { state } from "../state/state";
+import { calculateMinSidebarWidth } from "../utils/solidHelpers";
 import {
   adjustFontSize,
   adjustLogoFontSize,
   adjustTerminalHeight,
 } from "../utils/uiHelpers";
-import {
-  calculateMinSidebarWidth,
-  calculateTerminalHeight,
-} from "../utils/solidHelpers";
-import { LegacyProvider } from "../context/LegacyContext";
-import { GuidedTourProvider } from "../context/GuidedTourContext";
-import { state } from "../state/state";
+import CentralApp from "./CentralApp";
+import HelpPopup from "./HelpPopup";
+import ZoomControls from "./ZoomControls";
 
 import type { LegacyHandles } from "../legacy/legacyMain";
 
