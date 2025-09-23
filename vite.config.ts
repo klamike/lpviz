@@ -19,8 +19,8 @@ function findHtmlFiles(dir: string): string[] {
   return files;
 }
 
-const rootDir = resolve(__dirname, "lpviz");
-const docsDir = resolve(rootDir, "docs");
+const rootDir = resolve(__dirname);
+const docsDir = resolve(rootDir, "lpviz/docs");
 const docHtmlInputs = findHtmlFiles(docsDir);
 
 export default defineConfig({
