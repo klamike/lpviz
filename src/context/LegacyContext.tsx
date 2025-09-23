@@ -3,7 +3,9 @@ import type { LegacyHandles } from "../legacy/legacyMain";
 
 const LegacyContext = createContext<LegacyHandles | null>(null);
 
-export function LegacyProvider(props: ParentProps<{ value: LegacyHandles }>): JSX.Element {
+export function LegacyProvider(
+  props: ParentProps<{ value: LegacyHandles }>,
+): JSX.Element {
   return (
     <LegacyContext.Provider value={props.value}>
       {props.children}

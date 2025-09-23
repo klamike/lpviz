@@ -1,10 +1,4 @@
-import {
-  Show,
-  createSignal,
-  createEffect,
-  onCleanup,
-  onMount,
-} from "solid-js";
+import { Show, createSignal, createEffect, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import { state } from "../state/state";
 import { useGuidedTour } from "../context/GuidedTourContext";
@@ -17,7 +11,7 @@ export function HelpPopup(props: HelpPopupProps) {
   const [isVisible, setIsVisible] = createSignal(false);
   const [hasShownPopup, setHasShownPopup] = createSignal(false);
   const [isHovered, setIsHovered] = createSignal(false);
-  
+
   const guidedTour = useGuidedTour();
   let timer: number | null = null;
   let checkInterval: number | null = null;
@@ -105,7 +99,9 @@ export function HelpPopup(props: HelpPopupProps) {
             "z-index": "9999",
             "font-family": "'JuliaMono', monospace",
             cursor: "pointer",
-            transform: isHovered() ? "translateY(0) scale(1.02)" : "translateY(0) scale(1)",
+            transform: isHovered()
+              ? "translateY(0) scale(1.02)"
+              : "translateY(0) scale(1)",
             opacity: "1",
             transition: "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
             "backdrop-filter": "blur(10px)",
@@ -114,7 +110,10 @@ export function HelpPopup(props: HelpPopupProps) {
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            if ((e.target as HTMLElement)?.classList.contains("help-popup-close")) return;
+            if (
+              (e.target as HTMLElement)?.classList.contains("help-popup-close")
+            )
+              return;
             startTour();
           }}
           onMouseEnter={() => setIsHovered(true)}
@@ -176,10 +175,12 @@ export function HelpPopup(props: HelpPopupProps) {
                 hidePopup();
               }}
               onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.background = "rgba(255, 255, 255, 0.3)";
+                (e.target as HTMLElement).style.background =
+                  "rgba(255, 255, 255, 0.3)";
               }}
               onMouseLeave={(e) => {
-                (e.target as HTMLElement).style.background = "rgba(255, 255, 255, 0.2)";
+                (e.target as HTMLElement).style.background =
+                  "rgba(255, 255, 255, 0.2)";
               }}
             >
               ×

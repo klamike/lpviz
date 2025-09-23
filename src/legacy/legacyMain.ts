@@ -37,7 +37,9 @@ export function initializeLegacyApplication(): LegacyHandles {
 
   const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
   if (!canvas) {
-    throw new Error("Missing #gridCanvas element needed for legacy UI bootstrap.");
+    throw new Error(
+      "Missing #gridCanvas element needed for legacy UI bootstrap.",
+    );
   }
   const canvasManager = new CanvasManager(canvas);
 

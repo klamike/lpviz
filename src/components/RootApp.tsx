@@ -3,13 +3,19 @@ import { Portal } from "solid-js/web";
 import CentralApp from "./CentralApp";
 import ZoomControls from "./ZoomControls";
 import HelpPopup from "./HelpPopup";
-import { initializeLegacyApplication, MIN_SCREEN_WIDTH } from "../legacy/legacyMain";
+import {
+  initializeLegacyApplication,
+  MIN_SCREEN_WIDTH,
+} from "../legacy/legacyMain";
 import {
   adjustFontSize,
   adjustLogoFontSize,
   adjustTerminalHeight,
 } from "../utils/uiHelpers";
-import { calculateMinSidebarWidth, calculateTerminalHeight } from "../utils/solidHelpers";
+import {
+  calculateMinSidebarWidth,
+  calculateTerminalHeight,
+} from "../utils/solidHelpers";
 import { LegacyProvider } from "../context/LegacyContext";
 import { GuidedTourProvider } from "../context/GuidedTourContext";
 import { state } from "../state/state";
@@ -22,14 +28,14 @@ export function RootApp() {
   const [legacyHandles, setLegacyHandles] = createSignal<LegacyHandles | null>(
     null,
   );
-  
+
   let sidebarRef: HTMLDivElement | undefined;
   let handleRef: HTMLDivElement | undefined;
 
   onMount(() => {
     const handles = initializeLegacyApplication();
     setLegacyHandles(handles);
-    
+
     if (!sidebarRef || !handleRef) {
       console.warn("Sidebar or handle missing; resize disabled.");
       return;
@@ -144,7 +150,8 @@ export function RootApp() {
       <Portal>
         <Show when={state.isScreenTooSmall}>
           <div id="smallScreenOverlay" class="small-screen-overlay">
-            The window is not wide enough ({state.viewportWidth}px &lt; {MIN_SCREEN_WIDTH}px) for lpviz.
+            The window is not wide enough ({state.viewportWidth}px &lt;{" "}
+            {MIN_SCREEN_WIDTH}px) for lpviz.
           </div>
         </Show>
       </Portal>

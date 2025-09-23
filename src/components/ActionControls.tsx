@@ -12,15 +12,21 @@ export function ActionControls() {
     updateReplaySpeed,
   } = useAppActions();
 
-  const handleAngleStepInput = (event: InputEvent & { currentTarget: HTMLInputElement }) => {
+  const handleAngleStepInput = (
+    event: InputEvent & { currentTarget: HTMLInputElement },
+  ) => {
     updateObjectiveAngleStep(parseFloat(event.currentTarget.value));
   };
 
-  const handleTraceToggle = (event: Event & { currentTarget: HTMLInputElement }) => {
+  const handleTraceToggle = (
+    event: Event & { currentTarget: HTMLInputElement },
+  ) => {
     toggleTrace(event.currentTarget.checked);
   };
 
-  const handleReplaySpeed = (event: InputEvent & { currentTarget: HTMLInputElement }) => {
+  const handleReplaySpeed = (
+    event: InputEvent & { currentTarget: HTMLInputElement },
+  ) => {
     updateReplaySpeed(parseInt(event.currentTarget.value, 10));
   };
 
@@ -72,10 +78,11 @@ export function ActionControls() {
                 for="objectiveAngleStepSlider"
                 style="display: block; text-align: center; margin-bottom: 0.5em"
               >
-                Angle Step: {" "}
+                Angle Step:{" "}
                 <span id="objectiveAngleStepValue">
                   {state.solverSettings.objectiveAngleStep.toFixed(2)}
-                </span>{" "}rad
+                </span>{" "}
+                rad
               </label>
               <input
                 type="range"
@@ -89,9 +96,7 @@ export function ActionControls() {
                 onInput={handleAngleStepInput}
               />
             </div>
-            <div
-              style="display: flex; flex-direction: column; align-items: center"
-            >
+            <div style="display: flex; flex-direction: column; align-items: center">
               <label
                 for="traceCheckbox"
                 style="display: block; text-align: center; margin-bottom: 0.5em"

@@ -182,7 +182,9 @@ function createInitialState(): State {
   };
 }
 
-export const state = createRoot(() => createMutable<State>(createInitialState()));
+export const state = createRoot(() =>
+  createMutable<State>(createInitialState()),
+);
 
 export function resetState(): void {
   Object.assign(state, createInitialState());

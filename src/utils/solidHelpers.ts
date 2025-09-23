@@ -9,7 +9,7 @@ export interface SliderConfig {
 
 export function createSliderSignal(
   initialValue: number,
-  decimalPlaces: number = 2
+  decimalPlaces: number = 2,
 ): SliderConfig {
   const [value, setValue] = createSignal(initialValue);
   return {
@@ -39,7 +39,7 @@ export function calculateOptimalFontSize(
   containerWidth: number,
   baselineFontSize: number = 18,
   maxFontSize: number = 24,
-  scalingFactor: number = 0.875
+  scalingFactor: number = 0.875,
 ): FontSizeResult {
   if (texts.length === 0) {
     return { fontSize: `${baselineFontSize}px`, scaleFactor: 1 };
@@ -72,7 +72,10 @@ export function calculateOptimalFontSize(
   document.body.removeChild(measurementDiv);
 
   const finalScaleFactor = minScaleFactor === Infinity ? 1 : minScaleFactor;
-  const newFontSize = Math.min(maxFontSize, baselineFontSize * finalScaleFactor * scalingFactor);
+  const newFontSize = Math.min(
+    maxFontSize,
+    baselineFontSize * finalScaleFactor * scalingFactor,
+  );
 
   return {
     fontSize: `${newFontSize}px`,
@@ -86,7 +89,7 @@ export function calculateLogoFontSize(
   baselineFontSize: number = 16,
   maxFontSize: number = 20,
   minFontSize: number = 8,
-  scalingFactor: number = 0.9
+  scalingFactor: number = 0.9,
 ): string {
   if (!logoText) return `${baselineFontSize}px`;
 

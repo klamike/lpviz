@@ -33,8 +33,13 @@ export function TopResult() {
   };
 
   const updateLogoFontSize = () => {
-    if (!nullStateMessageRef || !topResultRef || nullStateMessageRef.style.display === "none") return;
-    
+    if (
+      !nullStateMessageRef ||
+      !topResultRef ||
+      nullStateMessageRef.style.display === "none"
+    )
+      return;
+
     const containerWidth = topResultRef.clientWidth;
     const logoText = nullStateMessageRef.textContent || "";
     const fontSize = calculateLogoFontSize(logoText, containerWidth);

@@ -121,8 +121,7 @@ export async function computeCentralPathSolution(
   if (state.traceEnabled && iteratesArray.length > 0) {
     if (
       state.rotateObjectiveMode &&
-      state.totalRotationAngle >=
-        2 * Math.PI + 0.9 * options.objectiveAngleStep
+      state.totalRotationAngle >= 2 * Math.PI + 0.9 * options.objectiveAngleStep
     ) {
       // Skip trace when rotation is complete
     } else {

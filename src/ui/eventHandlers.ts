@@ -16,9 +16,7 @@ import { updateSolverButtonStates } from "../state/uiActions";
 import { setResultHtml, setInequalitiesHtml } from "../state/uiDisplay";
 import { setupCanvasInteractions } from "./canvasInteractions";
 
-export function setupEventHandlers(
-  canvasManager: CanvasManager,
-) {
+export function setupEventHandlers(canvasManager: CanvasManager) {
   const canvas = canvasManager.canvas;
 
   const getLogicalCoords = (point: { clientX: number; clientY: number }) => {
@@ -33,7 +31,10 @@ export function setupEventHandlers(
     state.dragStartPos = null;
   };
 
-  const exceedsDragThreshold = (point: { clientX: number; clientY: number }) => {
+  const exceedsDragThreshold = (point: {
+    clientX: number;
+    clientY: number;
+  }) => {
     if (!state.dragStartPos) return false;
     const dragDistance = Math.hypot(
       point.clientX - state.dragStartPos.x,
@@ -49,7 +50,9 @@ export function setupEventHandlers(
     const localY = point.clientY - rect.top;
 
     if (!state.polygonComplete) {
-      const idx = state.vertices.findIndex((v) => distance(logicalCoords, v) < 0.5);
+      const idx = state.vertices.findIndex(
+        (v) => distance(logicalCoords, v) < 0.5,
+      );
       if (idx !== -1) {
         state.potentialDragPointIndex = idx;
         state.dragStartPos = { x: point.clientX, y: point.clientY };
@@ -68,7 +71,9 @@ export function setupEventHandlers(
       }
     }
 
-    const idx = state.vertices.findIndex((v) => distance(logicalCoords, v) < 0.5);
+    const idx = state.vertices.findIndex(
+      (v) => distance(logicalCoords, v) < 0.5,
+    );
     if (idx !== -1) {
       state.potentialDragPointIndex = idx;
       state.dragStartPos = { x: point.clientX, y: point.clientY };
@@ -118,7 +123,6 @@ export function setupEventHandlers(
       return;
     }
 
-
     if (!state.polygonComplete) {
       state.currentMouse = logicalCoords;
       canvasManager.draw();
@@ -158,12 +162,12 @@ export function setupEventHandlers(
       const result = polytope(points);
 
       if (!result.inequalities) {
-      setInequalitiesHtml("No inequalities returned.");
-      state.computedVertices = [];
-      state.computedLines = [];
-      state.highlightIndex = null;
-      updateSolverButtonStates();
-      return;
+        setInequalitiesHtml("No inequalities returned.");
+        state.computedVertices = [];
+        state.computedLines = [];
+        state.highlightIndex = null;
+        updateSolverButtonStates();
+        return;
       }
 
       if (!isPolygonConvex(state.vertices)) {

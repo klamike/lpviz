@@ -2,16 +2,12 @@ import { useAppActions } from "../controllers/useAppActions";
 import { state } from "../state/state";
 
 export function ZoomControls() {
-  const {
-    zoomToFit,
-    resetZoom,
-    toggle3D,
-    setZScale,
-    share,
-    isSharing,
-  } = useAppActions();
+  const { zoomToFit, resetZoom, toggle3D, setZScale, share, isSharing } =
+    useAppActions();
 
-  const handleZScaleChange = (event: InputEvent & { currentTarget: HTMLInputElement }) => {
+  const handleZScaleChange = (
+    event: InputEvent & { currentTarget: HTMLInputElement },
+  ) => {
     setZScale(parseFloat(event.currentTarget.value));
   };
 
@@ -33,7 +29,12 @@ export function ZoomControls() {
         disabled={!state.uiButtons["zoomButton"]}
         onClick={zoomToFit}
       >
-        <svg width="25" height="25" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          width="25"
+          height="25"
+          viewBox="0 0 100 100"
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <defs>
             <mask id="hole-mask">
               <rect width="100" height="100" fill="white" />
@@ -49,7 +50,12 @@ export function ZoomControls() {
       <button id="toggle3DButton" title="Toggle 3D Mode" onClick={toggle3D}>
         {state.is3DMode ? "2D" : "3D"}
       </button>
-      <button id="shareButton" title="Share this configuration" onClick={share} disabled={isSharing()}>
+      <button
+        id="shareButton"
+        title="Share this configuration"
+        onClick={share}
+        disabled={isSharing()}
+      >
         <svg
           fill="currentColor"
           width="25"
@@ -88,7 +94,10 @@ export function ZoomControls() {
           title="Adjust Z-axis scale"
           onInput={handleZScaleChange}
         />
-        <div id="zScaleValue" style="font-size: 9px; color: #666; margin-top: 5px">
+        <div
+          id="zScaleValue"
+          style="font-size: 9px; color: #666; margin-top: 5px"
+        >
           {state.zScale.toFixed(2)}
         </div>
       </div>

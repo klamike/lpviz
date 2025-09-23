@@ -9,7 +9,10 @@ export function showNullStateMessage(): void {
   state.showNullStateMessage = true;
 }
 
-export function setScreenTooSmall(isTooSmall: boolean, viewportWidth?: number): void {
+export function setScreenTooSmall(
+  isTooSmall: boolean,
+  viewportWidth?: number,
+): void {
   state.isScreenTooSmall = isTooSmall;
   if (typeof viewportWidth === "number") {
     state.viewportWidth = viewportWidth;
@@ -27,7 +30,8 @@ export function updateZoomButtonStates(canvasManager: CanvasManager): void {
 }
 
 export function updateSolverButtonStates(): void {
-  const hasComputedLines = state.computedLines && state.computedLines.length > 0;
+  const hasComputedLines =
+    state.computedLines && state.computedLines.length > 0;
   const hasSolution =
     state.originalIteratePath && state.originalIteratePath.length > 0;
   const hasObjective = state.objectiveVector !== null;

@@ -188,7 +188,12 @@ export function useAppActions() {
   };
 
   const updatePDHGSettings = async (
-    updates: Partial<Pick<typeof state.solverSettings, "pdhgEta" | "pdhgTau" | "pdhgMaxIterations" | "pdhgIneqMode">>,
+    updates: Partial<
+      Pick<
+        typeof state.solverSettings,
+        "pdhgEta" | "pdhgTau" | "pdhgMaxIterations" | "pdhgIneqMode"
+      >
+    >,
   ) => {
     Object.assign(state.solverSettings, updates);
     await maybeSolveForMode("pdhg");

@@ -48,9 +48,11 @@ interface GuidedTourProviderProps {
   saveToHistory: () => void;
 }
 
-export const GuidedTourProvider: ParentComponent<GuidedTourProviderProps> = (props) => {
+export const GuidedTourProvider: ParentComponent<GuidedTourProviderProps> = (
+  props,
+) => {
   const [isRunning, setIsRunning] = createSignal(false);
-  
+
   let animatedCursor: AnimatedCursor | null = null;
   let globalClickBlocker: ((e: Event) => void) | null = null;
   let allowNextClick = false;
@@ -162,17 +164,22 @@ export const GuidedTourProvider: ParentComponent<GuidedTourProviderProps> = (pro
     if (!animatedCursor) return;
 
     return new Promise((resolve) => {
-      animatedCursor!.element.style.transform = "translate(-25%, -25%) scale(2.4)";
-      animatedCursor!.element.style.filter = "drop-shadow(2px 2px 8px rgba(74, 144, 226, 0.6))";
+      animatedCursor!.element.style.transform =
+        "translate(-25%, -25%) scale(2.4)";
+      animatedCursor!.element.style.filter =
+        "drop-shadow(2px 2px 8px rgba(74, 144, 226, 0.6))";
 
       setTimeout(() => {
         if (animatedCursor) {
-          animatedCursor.element.style.transform = "translate(-25%, -25%) scale(0.9)";
+          animatedCursor.element.style.transform =
+            "translate(-25%, -25%) scale(0.9)";
 
           setTimeout(() => {
             if (animatedCursor) {
-              animatedCursor.element.style.transform = "translate(-25%, -25%) scale(1)";
-              animatedCursor.element.style.filter = "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))";
+              animatedCursor.element.style.transform =
+                "translate(-25%, -25%) scale(1)";
+              animatedCursor.element.style.filter =
+                "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))";
               resolve();
             }
           }, 80);
@@ -220,7 +227,10 @@ export const GuidedTourProvider: ParentComponent<GuidedTourProviderProps> = (pro
           "x" in step.target &&
           "y" in step.target
         ) {
-          const screenCoords = logicalToScreenCoords(step.target.x, step.target.y);
+          const screenCoords = logicalToScreenCoords(
+            step.target.x,
+            step.target.y,
+          );
           await moveCursorTo(screenCoords.x, screenCoords.y);
           await performClickAnimation();
 
@@ -248,7 +258,10 @@ export const GuidedTourProvider: ParentComponent<GuidedTourProviderProps> = (pro
           "x" in step.target &&
           "y" in step.target
         ) {
-          const screenCoords = logicalToScreenCoords(step.target.x, step.target.y);
+          const screenCoords = logicalToScreenCoords(
+            step.target.x,
+            step.target.y,
+          );
           await moveCursorTo(screenCoords.x, screenCoords.y);
           await performClickAnimation();
 
@@ -270,7 +283,9 @@ export const GuidedTourProvider: ParentComponent<GuidedTourProviderProps> = (pro
         break;
       case "click-button":
         if (typeof step.target === "string") {
-          const button = document.getElementById(step.target) as HTMLButtonElement;
+          const button = document.getElementById(
+            step.target,
+          ) as HTMLButtonElement;
           if (button) {
             const rect = button.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
@@ -289,7 +304,9 @@ export const GuidedTourProvider: ParentComponent<GuidedTourProviderProps> = (pro
       case "select-solver":
         break;
       case "wait":
-        await new Promise((resolve) => setTimeout(resolve, step.duration || 1000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, step.duration || 1000),
+        );
         break;
     }
   };

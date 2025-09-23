@@ -34,21 +34,21 @@ export function setupCanvasInteractions(
       if (distance(pt, state.vertices[0]) < 0.5) {
         state.polygonComplete = true;
         state.interiorPoint = pointCentroid(state.vertices);
-    canvasManager.draw();
-    updateZoomButtonStates(canvasManager);
-    sendPolytope();
-    return;
-  }
+        canvasManager.draw();
+        updateZoomButtonStates(canvasManager);
+        sendPolytope();
+        return;
+      }
 
       // Check if clicking inside polygon to close it
       if (isPointInsidePolygon(pt, state.vertices)) {
         state.polygonComplete = true;
         state.interiorPoint = pt;
-    canvasManager.draw();
-    updateZoomButtonStates(canvasManager);
-    sendPolytope();
-    return;
-  }
+        canvasManager.draw();
+        updateZoomButtonStates(canvasManager);
+        sendPolytope();
+        return;
+      }
     }
 
     // Validate convexity before adding vertex
@@ -81,7 +81,6 @@ export function setupCanvasInteractions(
   // ===== CANVAS INTERACTION HANDLERS =====
 
   canvas.addEventListener("dblclick", (e) => {
-
     const logicalMouse = getLogicalCoords(e);
 
     for (let i = 0; i < state.vertices.length; i++) {
@@ -108,7 +107,6 @@ export function setupCanvasInteractions(
   });
 
   canvas.addEventListener("click", (e) => {
-
     // Ignore clicks that were part of drag operations
     if (
       state.wasPanning ||

@@ -1,7 +1,10 @@
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { useLegacy } from "../context/LegacyContext";
 import { state } from "../state/state";
-import { calculateOptimalFontSize, calculateTerminalHeight } from "../utils/solidHelpers";
+import {
+  calculateOptimalFontSize,
+  calculateTerminalHeight,
+} from "../utils/solidHelpers";
 
 const USAGE_TIPS_HTML = `
   <div id="usageTips">
@@ -42,10 +45,12 @@ export function TerminalPanel() {
     if (!resultRef) return;
     const html = state.resultHtml || USAGE_TIPS_HTML;
     resultRef.innerHTML = html;
-    
+
     // Apply optimal font sizing
     if (!resultRef.querySelector("#usageTips")) {
-      const texts = Array.from(resultRef.querySelectorAll("div")).map(div => div.textContent || "");
+      const texts = Array.from(resultRef.querySelectorAll("div")).map(
+        (div) => div.textContent || "",
+      );
       if (texts.length > 0) {
         const containerWidth = resultRef.clientWidth;
         const { fontSize } = calculateOptimalFontSize(texts, containerWidth);

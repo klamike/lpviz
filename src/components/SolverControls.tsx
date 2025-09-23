@@ -34,7 +34,9 @@ export function SolverControls() {
           {(btn) => (
             <button
               id={btn.id}
-              disabled={!state.uiButtons[btn.id] || state.solverMode === btn.mode}
+              disabled={
+                !state.uiButtons[btn.id] || state.solverMode === btn.mode
+              }
               classList={{ active: state.solverMode === btn.mode }}
               onClick={handleSolverMode(btn.mode)}
             >
@@ -162,7 +164,7 @@ export function SolverControls() {
         }}
       >
         <label for="centralPathIterSlider">
-          N (number of steps): {" "}
+          N (number of steps):{" "}
           <span id="centralPathIterValue">
             {state.solverSettings.centralPathSteps}
           </span>
