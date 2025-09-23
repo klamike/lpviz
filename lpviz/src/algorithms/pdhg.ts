@@ -38,7 +38,7 @@ function pdhgIneqEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: Vec
 
   const cTx = c.dot(xk);
   const bTy = b.dot(yk);
-  const dualityGap = Math.abs(bTy + cTx) / (1 + Math.abs(cTx) + Math.abs(bTy));
+  const dualityGap = Math.abs(-bTy + cTx) / (1 + Math.abs(cTx) + Math.abs(bTy));
 
   return primalFeasibility + dualFeasibility + dualityGap;
 }
