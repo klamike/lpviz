@@ -1,4 +1,5 @@
 // @ts-nocheck
+import solidPlugin from "vite-plugin-solid";
 import { defineConfig } from "vite";
 import { resolve } from "path";
 import { readdirSync, statSync } from "fs";
@@ -24,6 +25,7 @@ const docsDir = resolve(rootDir, "lpviz/docs");
 const docHtmlInputs = findHtmlFiles(docsDir);
 
 export default defineConfig({
+  plugins: [solidPlugin()],
   root: rootDir,
   build: {
     outDir: resolve(__dirname, "dist"),

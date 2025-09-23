@@ -1,16 +1,24 @@
 import JSONCrush from "jsoncrush";
-import { CanvasManager } from "./ui/canvasManager";
-import { setupEventHandlers } from "./ui/eventHandlers";
-import { GuidedTour, HelpPopup } from "./ui/guidedTour";
-import { UIManager } from "./ui/uiManager";
+import { CanvasManager } from "../ui/canvasManager";
+import { setupEventHandlers } from "../ui/eventHandlers";
+import { GuidedTour, HelpPopup } from "../ui/guidedTour";
+import { UIManager } from "../ui/uiManager";
 import {
   adjustFontSize,
   adjustLogoFontSize,
   adjustTerminalHeight,
-} from "./utils/uiHelpers";
+} from "../utils/uiHelpers";
 
-function initializeApplication() {
+export function initializeLegacyApplication() {
+  const legacyMarker = "__lpvizLegacyInitialized";
+  const globalAny = window as typeof window & Record<string, boolean>;
+  if (globalAny[legacyMarker]) return;
+  globalAny[legacyMarker] = true;
+
   const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
+  if (!canvas) {
+    throw new Error("Missing #gridCanvas element needed for legacy UI bootstrap.");
+  }
   const canvasManager = new CanvasManager(canvas);
   const uiManager = new UIManager();
 
@@ -73,10 +81,4 @@ function initializeApplication() {
   }
   uiManager.synchronizeUIWithState();
   canvas.focus();
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializeApplication);
-} else {
-  initializeApplication();
 }

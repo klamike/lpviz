@@ -10,8 +10,10 @@
     "deploy": "npx wrangler deploy --assets=./dist --name lpviz --compatibility-date 2025-09-01"
   },
   "devDependencies": {
+    "solid-js": "^1.9.9",
     "typescript": "^5.8.3",
-    "vite": "^5.0.0"
+    "vite": "^5.0.0",
+    "vite-plugin-solid": "^2.11.8"
   },
   "dependencies": {
     "jsoncrush": "^1.1.8",

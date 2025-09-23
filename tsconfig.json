@@ -14,10 +14,22 @@
     "noEmit": true,
     "noImplicitThis": true,
     "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist-ts"
+    "outDir": "dist-ts",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "allowJs": false,
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ]
   },
-  "include": ["lpviz/src/**/*"],
-  "typeRoots": ["lpviz/src/types"]
+  "include": [
+    "src/**/*"
+  ]
 }
