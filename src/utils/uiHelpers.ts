@@ -1,5 +1,6 @@
 import { state } from "../state/state";
 
+/** @deprecated Use Solid signals instead of direct DOM manipulation */
 export function updateSliderAndDisplay(
   sliderId: string,
   displayId: string,
@@ -14,6 +15,7 @@ export function updateSliderAndDisplay(
   }
 }
 
+/** @deprecated Use Solid signals instead of direct DOM manipulation */
 export function updateInputValue(
   inputId: string,
   value: number | boolean,
@@ -34,6 +36,7 @@ export function setButtonsEnabled(buttonStates: Record<string, boolean>): void {
   });
 }
 
+/** @deprecated Use Solid refs instead of getElementById */
 export function getElement<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
@@ -42,11 +45,13 @@ export function setButtonState(id: string, enabled: boolean): void {
   state.uiButtons[id] = enabled;
 }
 
+/** @deprecated Use Solid signals instead of direct DOM manipulation */
 export function getElementChecked(elementId: string): boolean {
   const element = document.getElementById(elementId) as HTMLInputElement;
   return element?.checked || false;
 }
 
+/** @deprecated Use Solid signals and style props instead of direct DOM manipulation */
 export function setElementDisplay(elementId: string, display: string): void {
   const element = document.getElementById(elementId);
   if (element) {
@@ -54,10 +59,12 @@ export function setElementDisplay(elementId: string, display: string): void {
   }
 }
 
+/** @deprecated Use Solid signals and style props instead of direct DOM manipulation */
 export function showElement(elementId: string): void {
   setElementDisplay(elementId, "block");
 }
 
+/** @deprecated Use Solid signals and style props instead of direct DOM manipulation */
 export function hideElement(elementId: string): void {
   setElementDisplay(elementId, "none");
 }

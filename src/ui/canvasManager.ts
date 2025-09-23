@@ -30,7 +30,8 @@ export class CanvasManager {
     this.canvas.style.width = `${window.innerWidth}px`;
     this.canvas.style.height = `${window.innerHeight}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const sidebarWidth = document.getElementById("sidebar")?.offsetWidth || 0;
+    const sidebar = document.querySelector("#sidebar") as HTMLElement;
+    const sidebarWidth = sidebar?.offsetWidth || 0;
     this.centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
     this.centerY = window.innerHeight / 2;
   }

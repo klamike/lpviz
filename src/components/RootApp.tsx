@@ -8,8 +8,8 @@ import {
   adjustFontSize,
   adjustLogoFontSize,
   adjustTerminalHeight,
-  calculateMinSidebarWidth,
 } from "../utils/uiHelpers";
+import { calculateMinSidebarWidth, calculateTerminalHeight } from "../utils/solidHelpers";
 import { LegacyProvider } from "../context/LegacyContext";
 import { GuidedTourProvider } from "../context/GuidedTourContext";
 import { state } from "../state/state";
@@ -17,26 +17,27 @@ import { state } from "../state/state";
 import type { LegacyHandles } from "../legacy/legacyMain";
 
 export function RootApp() {
-  const [sidebarWidth, setSidebarWidth] = createSignal<number>(
-    document.getElementById("sidebar")?.offsetWidth ?? 450,
-  );
+  const [sidebarWidth, setSidebarWidth] = createSignal<number>(450);
   const [isResizing, setIsResizing] = createSignal(false);
   const [legacyHandles, setLegacyHandles] = createSignal<LegacyHandles | null>(
     null,
   );
+  
+  let sidebarRef: HTMLDivElement | undefined;
+  let handleRef: HTMLDivElement | undefined;
 
   onMount(() => {
     const handles = initializeLegacyApplication();
     setLegacyHandles(handles);
-    const sidebar = document.getElementById("sidebar");
-    const handle = document.getElementById("sidebarHandle");
-    if (!sidebar || !handle) {
+    
+    if (!sidebarRef || !handleRef) {
       console.warn("Sidebar or handle missing; resize disabled.");
       return;
     }
 
-    const minSidebarWidth = calculateMinSidebarWidth();
-    setSidebarWidth(sidebar.offsetWidth || minSidebarWidth);
+    // Use default values for logo text calculation since the component may not be mounted yet
+    const minSidebarWidth = calculateMinSidebarWidth("lpviz");
+    setSidebarWidth(sidebarRef.offsetWidth || minSidebarWidth);
 
     const onMouseMove = (event: MouseEvent) => {
       if (!isResizing()) return;
@@ -53,12 +54,12 @@ export function RootApp() {
       event.preventDefault();
     };
 
-    handle.addEventListener("mousedown", onMouseDown);
+    handleRef.addEventListener("mousedown", onMouseDown);
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
 
     onCleanup(() => {
-      handle.removeEventListener("mousedown", onMouseDown);
+      handleRef?.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     });
@@ -66,10 +67,8 @@ export function RootApp() {
 
   createEffect(() => {
     const width = sidebarWidth();
-    const sidebar = document.getElementById("sidebar");
-    const handle = document.getElementById("sidebarHandle");
-    if (sidebar) sidebar.style.width = `${width}px`;
-    if (handle) handle.style.left = `${width}px`;
+    if (sidebarRef) sidebarRef.style.width = `${width}px`;
+    if (handleRef) handleRef.style.left = `${width}px`;
 
     adjustFontSize();
     adjustLogoFontSize();
@@ -81,7 +80,7 @@ export function RootApp() {
 
   return (
     <>
-      <div id="sidebar">
+      <div id="sidebar" ref={(el) => (sidebarRef = el)}>
         <div id="sidebarContent" style={{ "overflow-y": "auto" }}>
           <div
             class="header controlPanel"
@@ -131,7 +130,7 @@ export function RootApp() {
           </Show>
         </div>
       </div>
-      <div id="sidebarHandle"></div>
+      <div id="sidebarHandle" ref={(el) => (handleRef = el)}></div>
       <canvas id="gridCanvas" tabindex={0}></canvas>
       <div id="zoomControls">
         <Show when={legacyHandles()}>

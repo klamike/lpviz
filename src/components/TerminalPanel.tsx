@@ -1,6 +1,7 @@
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { useLegacy } from "../context/LegacyContext";
 import { state } from "../state/state";
+import { calculateOptimalFontSize, calculateTerminalHeight } from "../utils/solidHelpers";
 
 const USAGE_TIPS_HTML = `
   <div id="usageTips">
@@ -35,12 +36,28 @@ const USAGE_TIPS_HTML = `
 export function TerminalPanel() {
   const legacy = useLegacy();
   let resultRef: HTMLDivElement | undefined;
+  let containerRef: HTMLDivElement | undefined;
 
-  createEffect(() => {
+  const updateContent = () => {
     if (!resultRef) return;
     const html = state.resultHtml || USAGE_TIPS_HTML;
     resultRef.innerHTML = html;
-  });
+    
+    // Apply optimal font sizing
+    if (!resultRef.querySelector("#usageTips")) {
+      const texts = Array.from(resultRef.querySelectorAll("div")).map(div => div.textContent || "");
+      if (texts.length > 0) {
+        const containerWidth = resultRef.clientWidth;
+        const { fontSize } = calculateOptimalFontSize(texts, containerWidth);
+        const divs = resultRef.querySelectorAll("div");
+        divs.forEach((div) => {
+          (div as HTMLElement).style.fontSize = fontSize;
+        });
+      }
+    }
+  };
+
+  createEffect(updateContent);
 
   onMount(() => {
     const resultDiv = resultRef;
@@ -112,7 +129,7 @@ export function TerminalPanel() {
   });
 
   return (
-    <div id="terminal-container">
+    <div id="terminal-container" ref={(el) => (containerRef = el)}>
       <div id="result" ref={(el) => (resultRef = el)}></div>
       <div id="terminal-window"></div>
       <div class="scanlines"></div>

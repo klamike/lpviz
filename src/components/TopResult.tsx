@@ -1,6 +1,7 @@
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { useLegacy } from "../context/LegacyContext";
 import { state } from "../state/state";
+import { calculateLogoFontSize } from "../utils/solidHelpers";
 
 const OBJECTIVE_PRECISION = 3;
 const NULL_STATE_ASCII = [
@@ -23,10 +24,21 @@ function formatObjective(a: number, b: number) {
 export function TopResult() {
   const legacy = useLegacy();
   let inequalitiesRef: HTMLDivElement | undefined;
+  let topResultRef: HTMLDivElement | undefined;
+  let nullStateMessageRef: HTMLDivElement | undefined;
 
   const updateInequalities = () => {
     if (!inequalitiesRef) return;
     inequalitiesRef.innerHTML = state.inequalitiesHtml;
+  };
+
+  const updateLogoFontSize = () => {
+    if (!nullStateMessageRef || !topResultRef || nullStateMessageRef.style.display === "none") return;
+    
+    const containerWidth = topResultRef.clientWidth;
+    const logoText = nullStateMessageRef.textContent || "";
+    const fontSize = calculateLogoFontSize(logoText, containerWidth);
+    nullStateMessageRef.style.fontSize = fontSize;
   };
 
   const handleMouseOver = (event: Event) => {
@@ -59,6 +71,7 @@ export function TopResult() {
   });
 
   createEffect(updateInequalities);
+  createEffect(updateLogoFontSize);
 
   const objectiveText = () => {
     const vector = state.objectiveVector;
@@ -72,9 +85,10 @@ export function TopResult() {
   const showSubjectTo = () => state.computedLines.length > 0;
 
   return (
-    <div id="topResult">
+    <div id="topResult" ref={(el) => (topResultRef = el)}>
       <div
         id="nullStateMessage"
+        ref={(el) => (nullStateMessageRef = el)}
         style={{ display: state.showNullStateMessage ? "block" : "none" }}
       >
         {NULL_STATE_ASCII}

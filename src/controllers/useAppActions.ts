@@ -119,7 +119,8 @@ export function useAppActions() {
     legacy.canvasManager.offset.y = -centroid.y;
 
     const padding = 50;
-    const sidebarWidth = document.getElementById("sidebar")?.offsetWidth ?? 0;
+    const sidebar = document.querySelector("#sidebar") as HTMLElement;
+    const sidebarWidth = sidebar?.offsetWidth ?? 0;
     const availWidth = window.innerWidth - sidebarWidth - 2 * padding;
     const availHeight = window.innerHeight - 2 * padding;
 
