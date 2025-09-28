@@ -2,6 +2,16 @@ import { Matrix, solve } from 'ml-matrix';
 import { sprintf } from 'sprintf-js';
 import { linesToAb, diag } from '../utils/blas';
 import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from '../types/arrays';
+import { centroid } from '../utils/math2d';
+
+const MIN_STEP_SIZE = 1e-10;
+const LINE_SEARCH_SHRINK_FACTOR = 0.5;
+const LINE_SEARCH_SUFFICIENT_DECREASE = 0.01;
+const MAX_LINE_SEARCH_ITERATIONS = 100;
+const DEFAULT_CONVERGENCE_TOLERANCE = 1e-4;
+const DEFAULT_MAX_NEWTON_ITERATIONS = 2000;
+const BARRIER_PARAM_START = 3.0;  // 10^3 = 1000
+const BARRIER_PARAM_END = -5.0;   // 10^-5 = 0.00001
 
 export interface CentralPathOptions {
   niter: number;
@@ -14,132 +24,130 @@ export interface CentralPathXkOptions {
   verbose: boolean;
 }
 
-// Use Newton's method to solve for one point on the central path.
-// An initial feasible point is required, initially set to the centroid of the vertices.
+// H * dx = -g where H is Hessian, g is gradient
+function computeNewtonStep(
+  Amatrix: Matrix, 
+  bVec: VectorM, 
+  cVec: VectorN, 
+  mu: number, 
+  currentPoint: VectorN, 
+  slackVariables: VectorM
+): VectorN | null {
+  try {
+    // g = c - μ * A^T * (1/s)
+    const inverseSlack = Matrix.pow(slackVariables, -1);
+    const gradient = Matrix.sub(cVec, Amatrix.transpose().mmul(inverseSlack).mul(mu));
+
+    // H = μ * A^T * diag(1/s^2) * A
+    const inverseSlackSquared = Matrix.pow(inverseSlack, 2);
+    const hessian = Amatrix.transpose()
+      .mmul(diag(inverseSlackSquared))
+      .mmul(Amatrix)
+      .mul(mu);
+
+    return solve(hessian, gradient);
+  } catch (error) {
+    console.error("Error in Newton step computation:", error);
+    return null;
+  }
+}
+
+function performLineSearch(
+  currentPoint: VectorN,
+  newtonStep: VectorN,
+  Amatrix: Matrix,
+  bVec: VectorM,
+  calculateObjective: (point: VectorN) => number,
+  gradient: VectorN
+): number {
+  let stepSize = 1.0;
+  const currentObjective = calculateObjective(currentPoint);
+  const gradientDotStep = gradient.dot(newtonStep);
+
+  for (let i = 0; i < MAX_LINE_SEARCH_ITERATIONS; i++) {
+    const candidatePoint = Matrix.add(currentPoint, Matrix.mul(newtonStep, stepSize));
+    const candidateObjective = calculateObjective(candidatePoint);
+
+    if (candidateObjective === -Infinity) {
+      stepSize *= LINE_SEARCH_SHRINK_FACTOR;
+    } else if (candidateObjective >= currentObjective + LINE_SEARCH_SUFFICIENT_DECREASE * stepSize * gradientDotStep) {
+      return stepSize;
+    } else {
+      stepSize *= LINE_SEARCH_SHRINK_FACTOR;
+    }
+
+    if (stepSize < MIN_STEP_SIZE) {
+      console.warn("Line search: step size too small");
+      return stepSize;
+    }
+  }
+
+  console.error("Line search: maximum iterations reached");
+  return stepSize;
+}
+
+// minimize c^T x + μ * Σ log(b_i - a_i^T x)
 function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number, x0Vec: VectorN, opts: CentralPathXkOptions) {
   const { maxit, epsilon, verbose } = opts;
 
-  let x = x0Vec.clone();
+  let currentPoint = x0Vec.clone();
 
-  // Calculate the objective function value (original + barrier term).
-  function calculateObjective(currentX: VectorN) {
-    const Ax = Amatrix.mmul(currentX);
-    const r = Matrix.sub(bVec, Ax);
-    if (r.min() <= 0) {
+  function calculateObjective(point: VectorN): number {
+    const constraintResiduals = Amatrix.mmul(point);
+    const slackVariables = Matrix.sub(bVec, constraintResiduals);
+    if (slackVariables.min() <= 0) {
       return -Infinity;
     }
-    return cVec.dot(currentX) + mu * r.log().sum();
+    return cVec.dot(point) + mu * slackVariables.log().sum();
   }
 
-  for (let k = 1; k <= maxit; k++) {
-    // Residual: b - Ax
-    const Ax_val = Amatrix.mmul(x);
-    const r = Matrix.sub(bVec, Ax_val);
+  for (let iteration = 1; iteration <= maxit; iteration++) {
+    const constraintResiduals = Amatrix.mmul(currentPoint);
+    const slackVariables = Matrix.sub(bVec, constraintResiduals);
 
-    if (r.min() <= 0) {
-      console.error("Infeasible point encountered at iteration " + k);
+    if (slackVariables.min() <= 0) {
+      console.error("Infeasible point encountered at iteration " + iteration);
       return null;
     }
 
-    const invR = Matrix.pow(r, -1);
-    const invR2 = Matrix.pow(invR, 2);
-
-    // Gradient: c - μ * Aᵀ * (1 / r)
-    const AT_invR = Amatrix.transpose().mmul(invR);
-    const grad = Matrix.sub(cVec, AT_invR.mul(mu));
-
-    // Hessian: μ * Aᵀ * diag(1 / r^2) * A
-    const invR2_diag = diag(invR2);
-    const AT_diag_invR2 = Amatrix.transpose().mmul(invR2_diag);
-    const hess = AT_diag_invR2.mmul(Amatrix).mul(mu); // hessian is n x n
-
-    let dx: VectorN;
-    try {
-        // Newton step: dx = hess \ grad  => solve(hess, grad)
-        dx = solve(hess, grad);
-    } catch (e) {
-        console.error("Error solving Newton system at iteration " + k + ": " + e);
-        return null;
+    const newtonStep = computeNewtonStep(Amatrix, bVec, cVec, mu, currentPoint, slackVariables);
+    if (newtonStep === null) {
+      console.error("Error computing Newton step at iteration " + iteration);
+      return null;
     }
 
+    const inverseSlack = Matrix.pow(slackVariables, -1);
+    const gradient = Matrix.sub(cVec, Amatrix.transpose().mmul(inverseSlack).mul(mu));
 
-    // Line search to stay in domain
-    let alpha = 1.0;
-    let safetyBreaks = 0;
-    while (true) {
-      const xNew = Matrix.add(x, Matrix.mul(dx, alpha));
-      const rNew = Matrix.sub(bVec, Amatrix.mmul(xNew));
-      if (rNew.min() > 1e-12) { // Add small tolerance, strictly > 0
-          break;
-      }
-      alpha *= 0.5;
-      if (alpha < 1e-10) {
-        console.error("Step size too small (domain) at iteration " + k);
-        return null;
-      }
-      safetyBreaks++;
-      if (safetyBreaks > 100) {
-          console.error("Line search (domain) stuck at iteration " + k);
-          return null;
-      }
-    }
-    
-    // Backtracking line search for sufficient increase (Armijo)
-    const t = 0.5;  // Shrink factor for alpha
-    const beta = 0.01; // Sufficient decrease parameter (typically small)
-    const gradDotDx = grad.dot(dx);
-    const fx = calculateObjective(x);
-    if (fx === -Infinity) { // Should not happen if x is feasible
-        console.error("Current point x is out of domain before backtracking at iteration " + k);
-        return null;
-    }
+    const stepSize = performLineSearch(
+      currentPoint, 
+      newtonStep, 
+      Amatrix, 
+      bVec, 
+      calculateObjective, 
+      gradient
+    );
 
-    safetyBreaks = 0;
-    while (true) {
-        const xNew = Matrix.add(x, Matrix.mul(dx, alpha));
-        const fxNew = calculateObjective(xNew);
+    currentPoint = Matrix.add(currentPoint, Matrix.mul(newtonStep, stepSize));
 
-        if (fxNew === -Infinity) { // Still possible if alpha makes it jump out
-             alpha *= t;
-        } else if (fxNew >= fx + beta * alpha * gradDotDx) {
-            break;
-        } else {
-            alpha *= t;
-        }
-        
-        if (alpha < 1e-10) {
-            // It might be okay to proceed if domain line search found a valid alpha,
-            // but if Armijo fails to make progress, then it's an issue.
-            if (verbose) console.warn("Step size too small (Armijo) at iteration " + k + ", using best alpha from domain search.");
-            break; 
-        }
-        safetyBreaks++;
-        if (safetyBreaks > 100) {
-          console.error("Line search (Armijo) stuck at iteration " + k);
-          // Use current alpha that keeps it in domain if possible
-          break;
-        }
-    }
-
-    x = Matrix.add(x, Matrix.mul(dx, alpha));
-
-    if (grad.max() < epsilon) {
-      if (verbose) console.log("Converged in " + k + " iterations with mu = " + mu);
-      return x;
+    if (gradient.max() < epsilon) {
+      if (verbose) console.log("Converged in " + iteration + " iterations with mu = " + mu);
+      return currentPoint;
     }
 
     if (verbose) {
-        const currentFx = calculateObjective(x);
-        console.log(sprintf("Iter %d: f(x) = %.6f, ||grad||_inf = %.2e, alpha = %.2f", k, currentFx, grad.max(), alpha));
+        const currentObjective = calculateObjective(currentPoint);
+        console.log(sprintf("Iter %d: f(x) = %.6f, ||grad||_inf = %.2e, alpha = %.2f", 
+          iteration, currentObjective, gradient.max(), stepSize));
     }
   }
 
   if (verbose) console.warn("Did not converge after " + maxit + " iterations for mu = " + mu);
-  return null; // Did not converge
+  return null;
 }
 
 
-// Compute the central path, using Newton's method to solve for each point.
+// Central path: smooth curve from analytic center (μ→∞) to optimal solution (μ→0)
 export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, opts: CentralPathOptions) {
   const { niter, verbose } = opts;
 
@@ -149,74 +157,71 @@ export function centralPath(vertices: Vertices, lines: Lines, objective: VecN, o
   const tStart = Date.now();
 
   const { A, b } = linesToAb(lines);
-  const c = Matrix.columnVector(objective);
-  const muValues = centralPathMu(niter);
+  const objectiveVector = Matrix.columnVector(objective);
+  const barrierParameters = centralPathMu(niter);
 
-  const centralPathArray: VecNs = [];
-  const logs: string[] = [];
+  const centralPathPoints: VecNs = [];
+  const progressLogs: string[] = [];
   
-  let logMsg = sprintf("  %-4s %8s %8s %10s %10s  \n", "Iter", "x", "y", "Obj", "µ");
-  if (verbose) console.log(logMsg);
-  logs.push(logMsg);
+  let headerLog = sprintf("  %-4s %8s %8s %10s %10s  \n", "Iter", "x", "y", "Obj", "µ");
+  if (verbose) console.log(headerLog);
+  progressLogs.push(headerLog);
 
-  let x0 = centroid(vertices);
+  let currentPoint = Matrix.columnVector(centroid(vertices));
 
-  for (const muK of muValues) {
-    const xk = centralPathXk(A, b, c, muK, x0, { verbose, epsilon: 1e-4, maxit: 2000 }); // Pass relevant opts
-    if (xk !== null && xk.rows > 0) {
-      const Ax = A.mmul(xk);
-      const r = Matrix.sub(b, Ax);
-      const objectiveValue = c.dot(xk);
-      const barrierTerm = muK * r.log().sum();
-      const totalObjective = objectiveValue + barrierTerm;
+  for (const currentMu of barrierParameters) {
+    const optimalPoint = centralPathXk(A, b, objectiveVector, currentMu, currentPoint, { 
+      verbose, 
+      epsilon: DEFAULT_CONVERGENCE_TOLERANCE, 
+      maxit: DEFAULT_MAX_NEWTON_ITERATIONS 
+    });
+    
+    if (optimalPoint !== null && optimalPoint.rows > 0) {
+      const constraintResiduals = A.mmul(optimalPoint);
+      const slackVariables = Matrix.sub(b, constraintResiduals);
+      const linearObjective = objectiveVector.dot(optimalPoint);
+      const barrierTerm = currentMu * slackVariables.log().sum();
+      const totalObjective = linearObjective + barrierTerm;
       
-      const extendedPoint = [...xk.to1DArray(), totalObjective];
-      centralPathArray.push(extendedPoint);
+      const pathPoint = [...optimalPoint.to1DArray(), totalObjective];
+      centralPathPoints.push(pathPoint);
       
-      const x_val = xk.get(0, 0) !== undefined ? xk.get(0, 0) : 0;
-      const y_val = xk.get(1, 0) !== undefined ? xk.get(1, 0) : 0;
-      logMsg = sprintf("  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n", 
-                       centralPathArray.length, 
-                       x_val, 
-                       y_val, 
-                       objectiveValue, 
-                       muK);
-      if (verbose) console.log(logMsg);
-      logs.push(logMsg);
-      x0 = xk;
+      const xCoordinate = optimalPoint.get(0, 0) !== undefined ? optimalPoint.get(0, 0) : 0;
+      const yCoordinate = optimalPoint.get(1, 0) !== undefined ? optimalPoint.get(1, 0) : 0;
+      
+      const progressLog = sprintf("  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n", 
+                       centralPathPoints.length, 
+                       xCoordinate, 
+                       yCoordinate, 
+                       linearObjective, 
+                       currentMu);
+      if (verbose) console.log(progressLog);
+      progressLogs.push(progressLog);
+      
+      // Use this point as starting point for next iteration
+      currentPoint = optimalPoint;
     } else {
-        if (verbose) console.log(`Failed to find x_k for mu = ${muK}. Skipping.`);
+        if (verbose) console.log(`Failed to find optimal point for μ = ${currentMu}. Skipping.`);
     }
   }
-  const tsolve = (Date.now() - tStart) / 1000.0; // seconds
-  return { iterations: centralPathArray, logs: logs, tsolve: tsolve };
+  const solveTime = (Date.now() - tStart) / 1000.0;
+  return { iterations: centralPathPoints, logs: progressLogs, tsolve: solveTime };
 } 
 
-// Compute the centroid of the vertices. Used to initialize the centralPath solver.
-function centroid(vertices: Vertices) {
-  // if (!vertices || vertices.length === 0) return [0, 0];
-  const n = vertices[0].length;
-  const summed = Matrix.zeros(n, 1);
-  for (const v of vertices) {
-    for (let i = 0; i < n; i++) {
-      summed.set(i, 0, summed.get(i, 0) + v[i]);
-    }
-  }
-  return summed.div(vertices.length);
-}
 
-// Compute the barrier parameter values for the central path.
-// This is logspaced 10^3 to 10^-5.
-function centralPathMu(niter: number) {
+// μ → ∞: analytic center, μ → 0: optimal vertex
+function centralPathMu(niter: number): number[] {
   if (niter <= 0) return [];
   if (niter === 1) return [1000.0];
 
-  const mus = [];
-  const startVal = 3.0;
-  const stopVal = -5.0;
-  const step = (stopVal - startVal) / (niter - 1);
+  const barrierParameters = [];
+  const startVal = BARRIER_PARAM_START;
+  const stopVal = BARRIER_PARAM_END;
+  const stepSize = (stopVal - startVal) / (niter - 1);
+  
   for (let i = 0; i < niter; i++) {
-    mus.push(10.0 ** (startVal + i * step));
+    barrierParameters.push(10.0 ** (startVal + i * stepSize));
   }
-  return mus;
+  
+  return barrierParameters;
 }

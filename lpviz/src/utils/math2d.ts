@@ -50,8 +50,7 @@ export const isPointNearSegment = (point: PointXY, v1: PointXY, v2: PointXY) => 
   return dist < 0.5;
 };
 
-// Polytope functions moved from algorithms/polytope.ts
-function centroid(vertices: Vertices) {
+export function centroid(vertices: Vertices) {
     // compute centroid of vertices
     const n = vertices.length;
     if (n === 0) {
