@@ -54,14 +54,16 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Problem Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L15-L29" target="_blank">lines 15-29</a></span></h4>
+            <h4>Code: Problem Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L17-L31" target="_blank">lines 17-31</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> { A: A_orig, b } = <span class="code-function">linesToAb</span>(lines);</div>
+            <div class="code-line"><span class="code-comment">// Γ = diag(sign(b))</span></div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">gamma</span> = b.to1DArray().map(bi => (bi &lt; 0 ? -1 : 1));</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Gamma</span> = Matrix.diag(gamma);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">b1</span> = Gamma.mmul(b); <span class="code-comment">// Γb</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">b1</span> = Gamma.mmul(b); <span class="code-comment">// Γ b</span></div>
             <div class="code-line"></div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Apos</span> = Gamma.mmul(A_orig);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Aneg</span> = Matrix.mul(Apos, -1);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Im</span> = Matrix.eye(m);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">A1</span> = <span class="code-function">hstack</span>(Apos, Aneg, Gamma.mmul(Im), Im);</div>
         </div>
         <div class="math-section">
@@ -91,13 +93,13 @@
 
         <div class="code-math-container">
             <div class="code-section">
-                <h4>Code: Phase 1 Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L30-L35" target="_blank">lines 30-35</a></span></h4>
+                <h4>Code: Phase 1 Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L32-L37" target="_blank">lines 32-37</a></span></h4>
                 <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c1_zeros</span> = Matrix.zeros(2 * n + m, 1);</div>
                 <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c1_ones</span> = Matrix.ones(m, 1).mul(-1);</div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c1</span> = <span class="code-function">vstack</span>([c1_zeros, c1_ones]);</div>
+                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c1</span> = <span class="code-function">vstack</span>([c1_zeros, c1_ones]); <span class="code-comment">// –Σ t</span></div>
                 <div class="code-line"></div>
-                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">basis1_init</span> = Array(2 * n + 2 * m).fill(false);</div>
-                <div class="code-line"><span class="code-keyword">for</span> (let i = 0; i &lt; m; ++i)</div>
+                <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">basis1_init</span> = Array(2 * n + 2 * m).fill(false); <span class="code-comment">// start: t basic</span></div>
+                <div class="code-line"><span class="code-keyword">for</span> (let i = 0; i &lt; m; ++i) basis1_init[2 * n + m + i] = true;</div>
                 <div class="code-line code-indent-1">basis1_init[2 * n + m + i] = true;</div>
             </div>
             <div class="math-section">
@@ -124,7 +126,7 @@
 
         <div class="code-math-container">
             <div class="code-section">
-                <h4>Code: Phase 2 Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L44-L48" target="_blank">lines 44-48</a></span></h4>
+                <h4>Code: Phase 2 Setup <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L46-L50" target="_blank">lines 46-50</a></span></h4>
                 <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c_neg</span> = Matrix.mul(c_objective, -1);</div>
                 <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c2_zeros</span> = Matrix.zeros(m, 1);</div>
                 <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c2</span> = <span class="code-function">vstack</span>([c_objective, c_neg, c2_zeros]);</div>
@@ -288,7 +290,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Final Solution <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L56-L60" target="_blank">lines 56-60</a></span></h4>
+            <h4>Code: Final Solution <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/simplex.ts#L59-L63" target="_blank">lines 59-63</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">xIters</span> = all_tableau_iters.map((tableau_x: Vec2N) => {</div>
             <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">tableau_matrix</span> = Matrix.columnVector(tableau_x);</div>
             <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">x1</span> = tableau_matrix.subMatrix(0, n-1, 0, 0);</div>

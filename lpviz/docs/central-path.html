@@ -58,14 +58,16 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Barrier Parameters <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L210-L221" target="_blank">lines 210-221</a></span></h4>
+            <h4>Code: Barrier Parameters <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L213-L227" target="_blank">lines 213-227</a></span></h4>
             <div class="code-line"><span class="code-keyword">function</span> <span class="code-function">centralPathMu</span>(niter: number) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">startVal</span> = 3.0;</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">stopVal</span> = -5.0;</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">step</span> = (stopVal - startVal) / (niter - 1);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">barrierParameters</span> = [];</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">startVal</span> = BARRIER_PARAM_START;</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">stopVal</span> = BARRIER_PARAM_END;</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">stepSize</span> = (stopVal - startVal) / (niter - 1);</div>
             <div class="code-line code-indent-1"><span class="code-keyword">for</span> (let i = 0; i &lt; niter; i++) {</div>
-            <div class="code-line code-indent-2">mus.push(10.0 ** (startVal + i * step));</div>
+            <div class="code-line code-indent-2">barrierParameters.push(10.0 ** (startVal + i * stepSize));</div>
             <div class="code-line code-indent-1">}</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">return</span> barrierParameters;</div>
             <div class="code-line">}</div>
         </div>
         <div class="math-section">
@@ -89,12 +91,14 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Barrier Function <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L25-L32" target="_blank">lines 25-32</a></span></h4>
-            <div class="code-line"><span class="code-keyword">function</span> <span class="code-function">calculateObjective</span>(currentX: VectorN) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">Ax</span> = Amatrix.mmul(currentX);</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">r</span> = Matrix.sub(bVec, Ax);</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (r.min() &lt;= 0) <span class="code-keyword">return</span> -Infinity;</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">return</span> cVec.dot(currentX) + mu * r.log().sum();</div>
+            <h4>Code: Barrier Function <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L95-L102" target="_blank">lines 95-102</a></span></h4>
+            <div class="code-line"><span class="code-keyword">function</span> <span class="code-function">calculateObjective</span>(point: VectorN) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">constraintResiduals</span> = Amatrix.mmul(point);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">slackVariables</span> = Matrix.sub(bVec, constraintResiduals);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (slackVariables.min() &lt;= 0) {</div>
+            <div class="code-line code-indent-2"><span class="code-keyword">return</span> -Infinity;</div>
+            <div class="code-line code-indent-1">}</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">return</span> cVec.dot(point) + mu * slackVariables.log().sum();</div>
             <div class="code-line">}</div>
         </div>
         <div class="math-section">
@@ -109,10 +113,9 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Gradient <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L47-L49" target="_blank">lines 47-49</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">invR</span> = Matrix.pow(r, -1);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">AT_invR</span> = Amatrix.transpose().mmul(invR);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">grad</span> = Matrix.sub(cVec, AT_invR.mul(mu));</div>
+            <h4>Code: Gradient <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L38-L39" target="_blank">lines 38-39</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">inverseSlack</span> = Matrix.pow(slackVariables, -1);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">gradient</span> = Matrix.sub(cVec, Amatrix.transpose().mmul(inverseSlack).mul(mu));</div>
         </div>
         <div class="math-section">
             <h4>Mathematical Interpretation</h4>
@@ -126,11 +129,12 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Hessian <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L51-L54" target="_blank">lines 51-54</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">invR2</span> = Matrix.pow(invR, 2);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">invR2_diag</span> = <span class="code-function">diag</span>(invR2);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">AT_diag_invR2</span> = Amatrix.transpose().mmul(invR2_diag);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">hess</span> = AT_diag_invR2.mmul(Amatrix).mul(mu);</div>
+            <h4>Code: Hessian <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L42-L46" target="_blank">lines 42-46</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">inverseSlackSquared</span> = Matrix.pow(inverseSlack, 2);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">hessian</span> = Amatrix.transpose()</div>
+            <div class="code-line code-indent-1">.mmul(<span class="code-function">diag</span>(inverseSlackSquared))</div>
+            <div class="code-line code-indent-1">.mmul(Amatrix)</div>
+            <div class="code-line code-indent-1">.mul(mu);</div>
         </div>
         <div class="math-section">
             <h4>Mathematical Interpretation</h4>
@@ -144,9 +148,8 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Newton Direction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L58-L59" target="_blank">lines 58-59</a></span></h4>
-            <div class="code-line"><span class="code-comment">// Newton step: dx = hess \ grad</span></div>
-            <div class="code-line"><span class="code-variable">dx</span> = <span class="code-function">solve</span>(hess, grad);</div>
+            <h4>Code: Newton Direction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L48" target="_blank">line 48</a></span></h4>
+            <div class="code-line"><span class="code-keyword">return</span> <span class="code-function">solve</span>(hessian, gradient);</div>
         </div>
         <div class="math-section">
             <h4>Mathematical Interpretation</h4>
@@ -167,7 +170,7 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Domain Line Search <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L68-L84" target="_blank">lines 68-84</a></span></h4>
+            <h4>Code: Domain Line Search <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L63-L87" target="_blank">lines 63-87</a></span></h4>
             <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">alpha</span> = 1.0;</div>
             <div class="code-line"><span class="code-keyword">while</span> (true) {</div>
             <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">xNew</span> = Matrix.add(x, Matrix.mul(dx, alpha));</div>
@@ -191,7 +194,7 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Armijo Condition <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L88-L122" target="_blank">lines 88-122</a></span></h4>
+            <h4>Code: Armijo Condition <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L55-L87" target="_blank">lines 55-87</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">t</span> = 0.5;  <span class="code-comment">// Shrink factor</span></div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">beta</span> = 0.01; <span class="code-comment">// Sufficient decrease</span></div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">gradDotDx</span> = grad.dot(dx);</div>
@@ -215,11 +218,11 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Newton Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L126-L128" target="_blank">lines 126-128</a></span></h4>
-            <div class="code-line"><span class="code-keyword">if</span> (grad.max() &lt; epsilon) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (verbose) console.log("Converged in " + k + </div>
+            <h4>Code: Newton Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L133-L136" target="_blank">lines 133-136</a></span></h4>
+            <div class="code-line"><span class="code-keyword">if</span> (gradient.max() &lt; epsilon) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (verbose) console.log("Converged in " + iteration + </div>
             <div class="code-line code-indent-2">" iterations with mu = " + mu);</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">return</span> x;</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">return</span> currentPoint;</div>
             <div class="code-line">}</div>
         </div>
         <div class="math-section">
@@ -234,14 +237,15 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Path Continuation <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L162-L186" target="_blank">lines 162-186</a></span></h4>
-            <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">x0</span> = <span class="code-function">centroid</span>(vertices);</div>
+            <h4>Code: Path Continuation <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L170-L202" target="_blank">lines 170-202</a></span></h4>
+            <div class="code-line"><span class="code-keyword">let</span> <span class="code-variable">currentPoint</span> = Matrix.columnVector(<span class="code-function">centroid</span>(vertices));</div>
             <div class="code-line"></div>
-            <div class="code-line"><span class="code-keyword">for</span> (const muK of muValues) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">xk</span> = <span class="code-function">centralPathXk</span>(A, b, c, muK, x0, opts);</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (xk !== null) {</div>
-            <div class="code-line code-indent-2">centralPathArray.push(extendedPoint);</div>
-            <div class="code-line code-indent-2">x0 = xk; <span class="code-comment">// Warm start next iteration</span></div>
+            <div class="code-line"><span class="code-keyword">for</span> (const currentMu of barrierParameters) {</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">optimalPoint</span> = <span class="code-function">centralPathXk</span>(A, b, objectiveVector,</div>
+            <div class="code-line code-indent-2">currentMu, currentPoint, opts);</div>
+            <div class="code-line code-indent-1"><span class="code-keyword">if</span> (optimalPoint !== null) {</div>
+            <div class="code-line code-indent-2">centralPathPoints.push(pathPoint);</div>
+            <div class="code-line code-indent-2">currentPoint = optimalPoint; <span class="code-comment">// Warm start</span></div>
             <div class="code-line code-indent-1">}</div>
             <div class="code-line">}</div>
         </div>
@@ -260,13 +264,13 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Extended Points <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L169-L173" target="_blank">lines 169-173</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">objectiveValue</span> = c.dot(xk);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">barrierTerm</span> = muK * r.log().sum();</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">totalObjective</span> = objectiveValue + barrierTerm;</div>
+            <h4>Code: Extended Points <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/centralPath.ts#L182-L187" target="_blank">lines 182-187</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">linearObjective</span> = objectiveVector.dot(optimalPoint);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">barrierTerm</span> = currentMu * slackVariables.log().sum();</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">totalObjective</span> = linearObjective + barrierTerm;</div>
             <div class="code-line"></div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">extendedPoint</span> = [...xk.to1DArray(), totalObjective];</div>
-            <div class="code-line">centralPathArray.push(extendedPoint);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">pathPoint</span> = [...optimalPoint.to1DArray(), totalObjective];</div>
+            <div class="code-line">centralPathPoints.push(pathPoint);</div>
         </div>
         <div class="math-section">
             <h4>Mathematical Interpretation</h4>
@@ -277,47 +281,6 @@
             </ul>
             <p>In 3D visualization, the z-coordinate shows the barrier objective evolution.</p>
         </div>
-    </div>
-
-    <h2>Key Features</h2>
-
-    <div class="success">
-        <h3>Smooth Convergence</h3>
-        <p>The central path provides <strong>smooth convergence</strong> to optimality:</p>
-        <ul>
-            <li><strong>Geometric interpretation:</strong> Follows a smooth curve through feasible region interior</li>
-            <li><strong>No combinatorial decisions:</strong> Unlike simplex, no discrete choices of basic variables</li>
-            <li><strong>Predictable trajectory:</strong> Path shape determined by problem geometry</li>
-        </ul>
-    </div>
-
-    <div class="info">
-        <h3>Theoretical Foundation</h3>
-        <p>The central path has <strong>strong theoretical properties</strong>:</p>
-        <ul>
-            <li><strong>Existence:</strong> Path exists and is unique for strictly feasible problems</li>
-            <li><strong>Convergence:</strong> As $\mu \to 0$, path converges to optimal solution</li>
-            <li><strong>Analyticity:</strong> Path is real analytic in $\mu$</li>
-        </ul>
-    </div>
-
-    <div class="warning">
-        <h3>Computational Challenges</h3>
-        <p>Central path computation faces several challenges:</p>
-        <ul>
-            <li><strong>Initialization:</strong> Requires strictly feasible starting point</li>
-            <li><strong>Ill-conditioning:</strong> Hessian becomes ill-conditioned as $\mu \to 0$</li>
-            <li><strong>Line search complexity:</strong> Multiple function evaluations per Newton step</li>
-        </ul>
-    </div>
-
-    <div class="algorithm-box">
-        <h3>Relationship to Interior Point Methods</h3>
-        <p>The central path is the theoretical foundation for interior point methods:</p>
-        <div class="equation-block">
-            $$\text{IPM} = \text{Approximate path following} + \text{Predictor-corrector}$$
-        </div>
-        <p>While IPM uses linear algebra to approximate path following, the central path method computes exact path points using nonlinear optimization.</p>
     </div>
 
     <div class="navigation">

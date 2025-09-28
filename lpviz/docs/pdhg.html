@@ -50,17 +50,11 @@
         
         <div class="code-math-container">
             <div class="code-section">
-                <h4>Code: Mode Selection <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L209-L233" target="_blank">lines 209-233</a></span></h4>
+                <h4>Code: Mode Selection <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L26-L30" target="_blank">lines 26-30</a></span></h4>
                 <div class="code-line"><span class="code-keyword">if</span> (ineq) {</div>
-                <div class="code-line code-indent-1"><span class="code-comment">// Inequality mode: minimize c^T x s.t. A x &lt;= b</span></div>
-                <div class="code-line code-indent-1"><span class="code-keyword">return</span> <span class="code-function">pdhgInequalityForm</span>(A, b, </div>
-                <div class="code-line code-indent-2">Matrix.mul(c, -1), solverOptions);</div>
+                <div class="code-line code-indent-1"><span class="code-keyword">return</span> <span class="code-function">pdhgIneq</span>(lines, objective, solverOptions);</div>
                 <div class="code-line">} <span class="code-keyword">else</span> {</div>
-                <div class="code-line code-indent-1"><span class="code-comment">// Standard form: split variables x = x+ - x-</span></div>
-                <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">A_hat</span> = <span class="code-function">hstack</span>(A, Matrix.mul(A, -1), </div>
-                <div class="code-line code-indent-2">Matrix.eye(m));</div>
-                <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">c_hat</span> = <span class="code-function">vstack</span>([Matrix.mul(c, -1), c, </div>
-                <div class="code-line code-indent-2">Matrix.zeros(m, 1)]);</div>
+                <div class="code-line code-indent-1"><span class="code-keyword">return</span> <span class="code-function">pdhgEq</span>(lines, objective, solverOptions);</div>
                 <div class="code-line">}</div>
             </div>
             <div class="math-section">
@@ -84,15 +78,13 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Standard PDHG Updates <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L87-L95" target="_blank">lines 87-95</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">xk_plus_1</span> = <span class="code-function">projectNonNegative</span>(</div>
-            <div class="code-line code-indent-1">Matrix.sub(xk, Matrix.add(c, </div>
-            <div class="code-line code-indent-2">A.transpose().mmul(yk)).mul(eta))</div>
-            <div class="code-line">);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">x_extrapolated</span> = Matrix.add(xk_plus_1, </div>
-            <div class="code-line code-indent-1">Matrix.sub(xk_plus_1, xk));</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">yk_plus_1</span> = Matrix.add(yk, </div>
-            <div class="code-line code-indent-1">Matrix.sub(A.mmul(x_extrapolated), b).mul(tau));</div>
+            <h4>Code: Standard PDHG Updates <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg_eq.ts#L74-L78" target="_blank">lines 74-78</a></span></h4>
+            <div class="code-line"><span class="code-comment">// x_{k+1} = [x_k - η(c + A^T y_k)]_+</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">xk_plus_1</span> = <span class="code-function">projectNonNegative</span>(Matrix.sub(xk, Matrix.add(c, A.transpose().mmul(yk)).mul(eta)));</div>
+            <div class="code-line"><span class="code-comment">// x̃_k = x_{k+1} + (x_{k+1} - x_k)</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">x_extrapolated</span> = Matrix.add(xk_plus_1, Matrix.sub(xk_plus_1, xk));</div>
+            <div class="code-line"><span class="code-comment">// y_{k+1} = y_k + τ(Ax̃_k - b)</span></div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">yk_plus_1</span> = Matrix.add(yk, Matrix.sub(A.mmul(x_extrapolated), b).mul(tau));</div>
         </div>
         <div class="math-section">
             <h4>Mathematical Interpretation</h4>
@@ -108,7 +100,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Standard Form Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L19-L32" target="_blank">lines 19-32</a></span></h4>
+            <h4>Code: Standard Form Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg_eq.ts#L17-L30" target="_blank">lines 17-30</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Ax</span> = A.mmul(xk);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">primalFeasibility</span> = </div>
             <div class="code-line">  Matrix.sub(Ax, b).norm() / (1 + b.norm());</div>
@@ -139,7 +131,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Inequality PDHG Updates <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L157-L161" target="_blank">lines 157-161</a></span></h4>
+            <h4>Code: Inequality PDHG Updates <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg_ineq.ts#L69-L73" target="_blank">lines 69-73</a></span></h4>
             <div class="code-line"><span class="code-comment">// y update (dual first)</span></div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">yk_plus_1</span> = <span class="code-function">projectNonNegative</span>(</div>
             <div class="code-line code-indent-1">Matrix.add(yk, Matrix.sub(A.mmul(xk), b).mul(tau))</div>
@@ -164,7 +156,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Inequality Form Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L34-L43" target="_blank">lines 34-43</a></span></h4>
+            <h4>Code: Inequality Form Convergence <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg_ineq.ts#L17-L26" target="_blank">lines 17-26</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Ax</span> = A.mmul(xk);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">primalFeasibility</span> = </div>
             <div class="code-line">  <span class="code-function">projectNonNegative</span>(Matrix.sub(Ax, b)).norm() / </div>
@@ -195,7 +187,7 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Default Parameters <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L189-L196" target="_blank">lines 189-196</a></span></h4>
+            <h4>Code: Default Parameters <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L16-L22" target="_blank">lines 16-22</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> {</div>
             <div class="code-line">  ineq = false,</div>
             <div class="code-line">  maxit = 1000,</div>
@@ -217,7 +209,7 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Solution Reconstruction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg.ts#L222-L227" target="_blank">lines 222-227</a></span></h4>
+            <h4>Code: Solution Reconstruction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/pdhg_eq.ts#L101-L106" target="_blank">lines 101-106</a></span></h4>
             <div class="code-line"><span class="code-comment">// Reconstruct x = x+ - x-</span></div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">x_iterates</span> = chi_iterates.map((chi_k: Vec2N) => {</div>
             <div class="code-line code-indent-1"><span class="code-keyword">const</span> <span class="code-variable">x_plus</span> = Matrix.columnVector(</div>

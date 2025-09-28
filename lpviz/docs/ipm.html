@@ -54,8 +54,10 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Problem Conversion <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L27-L30" target="_blank">lines 27-30</a></span></h4>
-            <div class="code-line"><span class="code-comment">// Convert Ax ≤ b, max c^T x → −Ax ≥ −b, min −c^T x</span></div>
+            <h4>Code: Problem Conversion <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L29-L34" target="_blank">lines 29-34</a></span></h4>
+            <div class="code-line"><span class="code-keyword">const</span> { A, b } = <span class="code-function">linesToAb</span>(lines);</div>
+            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c</span> = Matrix.columnVector(objective);</div>
+            <div class="code-line"></div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Aneg</span> = A.mul(-1);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">bneg</span> = b.mul(-1);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">cneg</span> = c.mul(-1);</div>
@@ -100,7 +102,7 @@
 
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: KKT Matrix Assembly <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L118-L141" target="_blank">lines 118-141</a></span></h4>
+            <h4>Code: KKT Matrix Assembly <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L105-L120" target="_blank">lines 105-120</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Y</span> = <span class="code-function">diag</span>(y);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">S</span> = <span class="code-function">diag</span>(s);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">K</span> = Matrix.zeros(m + n + m, n + m + m);</div>
@@ -136,7 +138,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Predictor Direction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L149-L159" target="_blank">lines 149-159</a></span></h4>
+            <h4>Code: Predictor Direction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L123-L132" target="_blank">lines 123-132</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">rhsAff</span> = <span class="code-function">vstack</span>([</div>
             <div class="code-line code-indent-1">r_p,                    <span class="code-comment">// b - Ax + s</span></div>
             <div class="code-line code-indent-1">r_d,                    <span class="code-comment">// c - A^T y</span></div>
@@ -157,7 +159,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Step Size Calculation <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L161-L166" target="_blank">lines 161-166</a></span></h4>
+            <h4>Code: Step Size Calculation <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L134-L139" target="_blank">lines 134-139</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">alphaP</span> = <span class="code-function">alphaStep</span>(s, dsAff);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">alphaD</span> = <span class="code-function">alphaStep</span>(y, dyAff);</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">sds</span> = Matrix.add(s, Matrix.mul(dsAff, alphaP));</div>
@@ -178,7 +180,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Corrector Step <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L173-L196" target="_blank">lines 173-196</a></span></h4>
+            <h4>Code: Corrector Step <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L142-L163" target="_blank">lines 142-163</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">sigma</span> = Math.max(1e-8, Math.min(1 - 1e-8, </div>
             <div class="code-line code-indent-1">(muAff / mu) ** 3));</div>
             <div class="code-line"></div>
@@ -205,7 +207,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Final Update <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L207-L214" target="_blank">lines 207-214</a></span></h4>
+            <h4>Code: Final Update <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L165-L171" target="_blank">lines 165-171</a></span></h4>
             <div class="code-line"><span class="code-variable">stepP</span> = alphaMax * <span class="code-function">alphaStep</span>(s, ds);</div>
             <div class="code-line"><span class="code-variable">stepD</span> = alphaMax * <span class="code-function">alphaStep</span>(y, dy);</div>
             <div class="code-line"></div>
@@ -229,7 +231,7 @@
     
     <div class="code-math-container">
         <div class="code-section">
-            <h4>Code: Convergence Check <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L104-L111" target="_blank">lines 104-111</a></span></h4>
+            <h4>Code: Convergence Check <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L95-L101" target="_blank">lines 95-101</a></span></h4>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">r_p</span> = Matrix.sub(b, Matrix.sub(A.mmul(x), s));</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">r_d</span> = Matrix.sub(c, A.transpose().mmul(y));</div>
             <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">gap</span> = Math.abs(pObj - b.dot(y)) / </div>

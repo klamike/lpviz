@@ -96,19 +96,17 @@ export class GuidedTour {
     });
   }
 
-  private generateNicePolytope(): { x: number; y: number }[] {
-    // Generate a nice-looking convex polytope (a pentagon with some randomness)
+  private generatePentagon(): { x: number; y: number }[] {
     const centerX = 0;
     const centerY = 0;
     const baseRadius = 10;
     const vertices: { x: number; y: number }[] = [];
     
-    // Create a pentagon with slight perturbations for visual interest
     for (let i = 0; i < 5; i++) {
-      const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2; // Start from top
-      const radiusVariation = 0.8 + Math.random() * 0.4; // 20% variation
+      const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+      const radiusVariation = 0.8 + Math.random() * 0.4;
       const radius = baseRadius * radiusVariation;
-      const angleVariation = (Math.random() - 0.5) * 0.3; // Small angle variation
+      const angleVariation = (Math.random() - 0.5) * 0.3;
       
       vertices.push({
         x: centerX + radius * Math.cos(angle + angleVariation),
@@ -120,9 +118,8 @@ export class GuidedTour {
   }
 
   private generateRandomObjective(): { x: number; y: number } {
-    // Generate a nice objective vector (not too steep, visually appealing)
-    const angle = Math.random() * Math.PI / 3 - Math.PI / 6; // -30° to +30° from horizontal
-    const magnitude = 6 + Math.random() * 8; // Length between 2 and 4
+    const angle = Math.random() * Math.PI / 3 - Math.PI / 6;
+    const magnitude = 6 + Math.random() * 8;
     
     return {
       x: magnitude * Math.cos(angle),
@@ -130,20 +127,10 @@ export class GuidedTour {
     };
   }
 
-  private getCanvasCenter(): { x: number; y: number } {
-    const canvas = this.canvasManager.canvas;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
-    };
-  }
-
   private logicalToScreenCoords(logicalX: number, logicalY: number): { x: number; y: number } {
     const canvas = this.canvasManager.canvas;
     const rect = canvas.getBoundingClientRect();
     
-    // Convert logical coordinates to screen coordinates
     const screenX = this.canvasManager.centerX + (logicalX + this.canvasManager.offset.x) * this.canvasManager.gridSpacing * this.canvasManager.scaleFactor;
     const screenY = this.canvasManager.centerY - (logicalY + this.canvasManager.offset.y) * this.canvasManager.gridSpacing * this.canvasManager.scaleFactor;
     
@@ -157,13 +144,11 @@ export class GuidedTour {
     if (!this.animatedCursor) return;
     
     return new Promise((resolve) => {
-      // Scale up with a bounce effect
       this.animatedCursor!.element.style.transform = 'translate(-25%, -25%) scale(2.4)';
       this.animatedCursor!.element.style.filter = 'drop-shadow(2px 2px 8px rgba(74, 144, 226, 0.6))';
       
       setTimeout(() => {
         if (this.animatedCursor) {
-          // Quick scale down then back to normal
           this.animatedCursor.element.style.transform = 'translate(-25%, -25%) scale(0.9)';
           
           setTimeout(() => {
@@ -180,25 +165,21 @@ export class GuidedTour {
 
   private addGlobalClickBlocker(): void {
     this.globalClickBlocker = (e: Event) => {
-      // Allow tour's own programmatic clicks
       if (this.allowNextClick) {
         this.allowNextClick = false;
         return;
       }
 
-      // Allow clicks on the guided tour cursor and popup
       const target = e.target as HTMLElement;
       if (target?.id === 'guidedTourCursor' || target?.closest('#helpPopup')) {
         return;
       }
       
-      // Block all other clicks during tour
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
     };
 
-    // Add the blocker to capture phase to intercept all clicks
     document.addEventListener('click', this.globalClickBlocker, true);
     document.addEventListener('mousedown', this.globalClickBlocker, true);
     document.addEventListener('mouseup', this.globalClickBlocker, true);
@@ -217,14 +198,11 @@ export class GuidedTour {
     switch (step.action) {
       case 'click':
         if (typeof step.target === 'object' && 'x' in step.target && 'y' in step.target) {
-          // Canvas click at logical coordinates
           const screenCoords = this.logicalToScreenCoords(step.target.x, step.target.y);
           await this.moveCursorTo(screenCoords.x, screenCoords.y);
           
-          // Add click animation with ripple effect
           await this.performClickAnimation();
           
-          // Simulate the click
           this.saveToHistory();
           if (!state.polygonComplete) {
             state.vertices.push(step.target);
@@ -253,14 +231,11 @@ export class GuidedTour {
         break;
       case 'click-close':
         if (typeof step.target === 'object' && 'x' in step.target && 'y' in step.target) {
-            // Canvas click at logical coordinates
             const screenCoords = this.logicalToScreenCoords(step.target.x, step.target.y);
             await this.moveCursorTo(screenCoords.x, screenCoords.y);
             
-            // Add click animation with ripple effect
             await this.performClickAnimation();
             
-            // Simulate the click
             this.saveToHistory();
             state.polygonComplete = true;
             state.interiorPoint = step.target;
@@ -275,7 +250,6 @@ export class GuidedTour {
               "zoomButton": true
             });
             
-            // Wait 100ms before moving on
             await new Promise(resolve => setTimeout(resolve, 100));
           }
           break;
@@ -288,24 +262,15 @@ export class GuidedTour {
             const centerY = rect.top + rect.height / 2;
             
             await this.moveCursorTo(centerX, centerY);
-            
-            // Add click animation with ripple effect
             await this.performClickAnimation();
-            
-            // Allow the next click to pass through the blocker
             this.allowNextClick = true;
-            
-            // Click the button
             button.click();
-            
-            // Wait 100ms before moving on
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
         break;
         
       case 'select-solver':
-        // This will be handled by clicking the solver button
         break;
         
       case 'wait':
@@ -319,10 +284,8 @@ export class GuidedTour {
     
     this.isRunning = true;
     
-    // Add global click blocker during tour
     this.addGlobalClickBlocker();
     
-    // Clear any existing vertices and reset the polygon state
     state.vertices = [];
     state.polygonComplete = false;
     state.interiorPoint = null;
@@ -330,7 +293,6 @@ export class GuidedTour {
     state.currentMouse = null;
     state.currentObjective = null;
     
-    // Reset UI buttons to initial state
     setButtonsEnabled({
       "ipmButton": false,
       "simplexButton": false,
@@ -340,13 +302,11 @@ export class GuidedTour {
       "zoomButton": true
     });
     
-    // Update UI displays and redraw canvas
     this.uiManager.updateSolverModeButtons();
     this.uiManager.updateObjectiveDisplay();
     this.canvasManager.draw();
     
-    // Generate the tour steps
-    const nicePolytope = this.generateNicePolytope();
+    const nicePolytope = this.generatePentagon();
     const randomObjective = this.generateRandomObjective();
     
     this.tourSteps = [
@@ -381,7 +341,6 @@ export class GuidedTour {
         
         if (!this.isRunning) break;
         
-        // Small delay between steps
         await new Promise(resolve => setTimeout(resolve, 300));
       }
     } finally {
@@ -396,7 +355,6 @@ export class GuidedTour {
     this.removeGlobalClickBlocker();
     this.removeAnimatedCursor();
     
-    // Clear mouse states when tour stops
     state.currentMouse = null;
     state.currentObjective = null;
     this.canvasManager.draw();
@@ -452,7 +410,6 @@ export class HelpPopup {
       border: 1px solid rgba(255, 255, 255, 0.1);
     `;
     
-    // Style the content
     const content = popup.querySelector('.help-popup-content') as HTMLElement;
     content.style.cssText = `
       display: flex;
@@ -487,7 +444,6 @@ export class HelpPopup {
       flex-shrink: 0;
     `;
     
-    // Add hover effects
     closeBtn.addEventListener('mouseenter', () => {
       closeBtn.style.background = 'rgba(255, 255, 255, 0.3)';
     });
@@ -510,7 +466,6 @@ export class HelpPopup {
       popup.style.opacity = '1';
     }, 50);
     
-    // Add event listeners
     popup.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -525,7 +480,6 @@ export class HelpPopup {
       this.hidePopup();
     });
     
-    // Prevent any mouse events from propagating through the popup
     popup.addEventListener('mousedown', (e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -576,7 +530,6 @@ export class HelpPopup {
       }
     }, 15000); // 15 seconds
     
-    // Also start checking periodically if objective was set to auto-hide popup
     this.checkInterval = window.setInterval(() => {
       if (state.objectiveVector !== null) {
         this.stopTimer();

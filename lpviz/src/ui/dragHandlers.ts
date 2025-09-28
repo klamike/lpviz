@@ -171,8 +171,8 @@ export function setupDragEventListeners(
   dragHandlers: DragHandlers,
   canvasManager: CanvasManager
 ): void {
-  // ===== MOUSE EVENT LISTENERS =====
-  
+  // mouse
+
   canvas.addEventListener("mousedown", (e) => {
     if (state.is3DMode && e.shiftKey && !state.isTransitioning3D) {
       state.isRotatingCamera = true;
@@ -206,7 +206,7 @@ export function setupDragEventListeners(
     dragHandlers.end();
   });
 
-  // ===== TOUCH EVENT LISTENERS =====
+  // touch
   
   canvas.addEventListener("touchstart", (e: TouchEvent) => {
     if (e.touches.length === 1) {
