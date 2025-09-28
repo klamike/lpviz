@@ -27,12 +27,12 @@
 </head>
 <body>
     <div class="navigation">
-        <strong>lpviz Documentation</strong> | 
-        <a href="../">← Back to lpviz</a> |
-        <a href="simplex.html">Simplex Algorithm</a> |
+        <a href="../">← Back to lpviz</a> | &nbsp;
+        <strong>lpviz Documentation</strong>
+        <!-- <a href="simplex.html">Simplex Algorithm</a> |
         <a href="ipm.html">Interior Point Method</a> |
         <a href="pdhg.html">PDHG</a> |
-        <a href="central-path.html">Central Path</a>
+        <a href="central-path.html">Central Path</a> -->
     </div>
 
     <div class="warning">
@@ -66,7 +66,7 @@
     lpviz implements four solvers: IPM, PDHG, Simplex, and Central Path. Click on each solver below for detailed explanations with code references.
 
     <h3><a href="simplex.html" style="color: #2c3e50; text-decoration: none;">Simplex Algorithm</a></h3>
-    <p>The simplex method implements a two-phase revised simplex algorithm with Bland's anti-cycling rule. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution. <a href="simplex.html"><strong>→ Detailed explanation</strong></a></p>
+    <p>The simplex method implements a two-phase revised simplex algorithm with Bland's anti-cycling rule. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution.</p>
     
     <div class="equation-block">
         $$\begin{align}
@@ -77,7 +77,7 @@
 
     <p>In 3D mode, the z-axis of each iterate of Simplex is set to $c^\top x$.</p>
 
-    <h3>Interior Point Method (IPM)</h3>
+    <h3><a href="ipm.html" style="color: #2c3e50; text-decoration: none;">Interior Point Method (IPM)</a></h3>
     <p>IPM implements an infeasible primal-dual interior point algorithm.
         The core IPM routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax \geq b$.
         Each iteration involves solving two linear systems differing only in their right-hand sides.</p>
@@ -109,7 +109,7 @@
 
     <p>In 3D mode, the z-axis is of each iterate of IPM is set to $c^\top x + \frac{s^\top y}{m}$.</p>
 
-    <h3>Primal-Dual Hybrid Gradient (PDHG)</h3>
+    <h3><a href="pdhg.html" style="color: #2c3e50; text-decoration: none;">Primal-Dual Hybrid Gradient (PDHG)</a></h3>
     <p>PDHG implements a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
     
     <div class="equation-block">
@@ -135,7 +135,7 @@
     
     <p>where $\tilde{y}^{k+1} = 2y^{k+1} - y^k$ is the extrapolated dual variable. Due to the inequality constraints in the primal, the dual variables $y$ are now constrained to be non-negative.</p>
 
-    <h3>Central Path</h3>
+    <h3><a href="central-path.html" style="color: #2c3e50; text-decoration: none;">Central Path</a></h3>
     <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$. Each point on the path is found using Newton's method with Armijo line search.</p>
     
     <div class="equation-block">

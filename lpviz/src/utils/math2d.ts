@@ -51,7 +51,6 @@ export const isPointNearSegment = (point: PointXY, v1: PointXY, v2: PointXY) => 
 };
 
 export function centroid(vertices: Vertices) {
-    // compute centroid of vertices
     const n = vertices.length;
     if (n === 0) {
         throw new Error("No intersections found");
@@ -71,7 +70,6 @@ function polytope_format_float(x: number) {
 }
 
 function polytope_format(A: number, B: number, C: number) {
-    // Rounding
     let A_disp = polytope_format_float(A);
     let B_disp = polytope_format_float(B);
     let C_disp = polytope_format_float(C);
@@ -100,8 +98,7 @@ function polytope_format(A: number, B: number, C: number) {
             By_str = B_disp < 0 ? ` - ${B_term_val}` : ` + ${B_term_val}`;
         }
     }
-    
-    // Handle cases like 0x + 0y <= C
+
     if (Ax_str === "" && By_str === "") {
         return `0 ${ineq_sign} ${C_disp}`;
     }
@@ -168,14 +165,13 @@ function polytope_edges(points: Vertices, tol = 1e-6) {
         let Bnorm = B / normAB;
         let Cnorm = Anorm * p1[0] + Bnorm * p1[1]; // C for the normalized equation Ax + By = C
 
-        // Orient the inequality Ax + By <= C such that the interior point satisfies it
-        if (Anorm * interior[0] + Bnorm * interior[1] > Cnorm + tol) { // Add tol for robustness
+        if (Anorm * interior[0] + Bnorm * interior[1] > Cnorm + tol) {
             Anorm = -Anorm;
             Bnorm = -Bnorm;
             Cnorm = -Cnorm;
         }
 
-        inequalities.push(polytope_format(A, B, C_original)); // Format with original A,B,C for integer representation if possible
+        inequalities.push(polytope_format(A, B, C_original));
         lines.push([Anorm, Bnorm, Cnorm]);
     }
 
@@ -183,8 +179,7 @@ function polytope_edges(points: Vertices, tol = 1e-6) {
 }
 
 export function polytope(points: Vertices) {
-    // Constructs the polytope representation from a set of points in 2D.
-    if (points.length > 256) { // 2^8 = 256
+    if (points.length > 256) {
         throw new Error("points.length > 256 not allowed");
     }
 

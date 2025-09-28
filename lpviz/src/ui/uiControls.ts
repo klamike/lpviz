@@ -119,12 +119,10 @@ export function setupUIControls(
           }
         }
         
-        // Update button states
         buttonElements.forEach(btn => {
           btn.element.disabled = (btn.element === element);
         });
         
-        // Manage settings panels
         ["ipmSettings", "pdhgSettings", "centralPathSettings"].forEach(hideElement);
         if (settings) {
           showElement(settings);
@@ -197,7 +195,6 @@ export function setupUIControls(
       }
     });
     
-    // Input configurations
     const inputs = [
       { id: "maxitInput", solver: "ipm" },
       { id: "maxitInputPDHG", solver: "pdhg" },
@@ -217,13 +214,11 @@ export function setupUIControls(
   }
   
   function setupActionButtons() {
-    // Trace/Solve Button
     getElement<HTMLButtonElement>("traceButton").addEventListener("click", () => {
       computePath();
       state.iteratePathComputed = true;
     });
 
-    // Rotate Objective Buttons
     const startRotateButton = getElement<HTMLButtonElement>("startRotateObjectiveButton");
     const stopRotateButton = getElement<HTMLButtonElement>("stopRotateObjectiveButton");
     const rotationSettings = getElement<HTMLElement>("objectiveRotationSettings");
@@ -256,7 +251,6 @@ export function setupUIControls(
   }
   
   function setupTraceAndAnimation() {
-    // Trace Checkbox
     const traceCheckbox = getElement<HTMLInputElement>("traceCheckbox");
     traceCheckbox.checked = false;
     traceCheckbox.addEventListener("change", () => {
@@ -269,7 +263,6 @@ export function setupUIControls(
       }
     });
 
-    // Animation Button
     const animateButton = getElement<HTMLButtonElement>("animateButton");
     const replaySpeedSlider = getElement<HTMLInputElement>("replaySpeedSlider");
     
@@ -376,7 +369,6 @@ export function setupUIControls(
     const handle = getElement<HTMLElement>("sidebarHandle");
     let isResizing = false;
     
-    // Calculate intelligent minimum width based on content
     const minSidebarWidth = calculateMinSidebarWidth();
     
     handle.addEventListener("mousedown", (e) => {
@@ -442,7 +434,6 @@ export function setupUIControls(
     resultDiv.addEventListener("scroll", updateHoverState);
   }
 
-  // Setup all handlers
   setupZoomHandlers();
   setup3DHandlers();
   setupSolverModeHandlers();

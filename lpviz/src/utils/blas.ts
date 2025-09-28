@@ -19,7 +19,6 @@ export function vstack(matrices: AbstractMatrix[]): Matrix {
     return new Matrix([]);
   }
 
-  // Check that all matrices have the same number of columns
   const cols = matrices[0].columns;
   if (!matrices.every(M => M.columns === cols)) {
     throw new Error("vstack: all matrices must have the same number of columns");
