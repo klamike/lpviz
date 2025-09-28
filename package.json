@@ -7,7 +7,8 @@
     "dev": "vite --port 3000",
     "build": "vite build",
     "preview": "vite preview --port 3000",
-    "deploy": "npx wrangler deploy --assets=./dist --name lpviz --compatibility-date 2025-09-01"
+    "deploy": "npx wrangler deploy --assets=./dist --name lpviz --compatibility-date 2025-09-01",
+    "prdeploy": "npx wrangler versions upload --assets=./dist --name lpviz --compatibility-date 2025-09-01"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
