@@ -10,6 +10,7 @@ export class UIManager {
   zoomButton!: HTMLButtonElement;
   unzoomButton!: HTMLButtonElement;
   toggle3DButton!: HTMLButtonElement;
+  showUnionButton!: HTMLButtonElement;
   zScaleSliderContainer!: HTMLElement;
   zScaleSlider!: HTMLInputElement;
   zScaleValue!: HTMLElement;
@@ -38,8 +39,9 @@ export class UIManager {
       inequalitiesDiv: "inequalities",
       resultDiv: "result",
       zoomButton: "zoomButton",
-      unzoomButton: "unzoomButton", 
+      unzoomButton: "unzoomButton",
       toggle3DButton: "toggle3DButton",
+      showUnionButton: "showUnionButton",
       zScaleSliderContainer: "zScaleSliderContainer",
       zScaleSlider: "zScaleSlider",
       zScaleValue: "zScaleValue",
@@ -196,6 +198,25 @@ export class UIManager {
       this.set3DButtonActive(button, false);
       container.style.display = "none";
     }
+
+    this.updateUnionButtonVisibility();
+  }
+
+  updateUnionButtonVisibility() {
+    const shouldShow = state.is3DMode;
+    this.showUnionButton.style.display = shouldShow ? "block" : "none";
+  }
+
+  updateUnionButtonState() {
+    if (state.showUnionView) {
+      this.showUnionButton.style.backgroundColor = "#4CAF50";
+      this.showUnionButton.style.color = "white";
+      this.showUnionButton.title = "Stop Recording & Hide Union Polytope";
+    } else {
+      this.showUnionButton.style.backgroundColor = "";
+      this.showUnionButton.style.color = "";
+      this.showUnionButton.title = "Start Recording & Show Union Polytope";
+    }
   }
 
   private set3DButtonActive(button: HTMLButtonElement, active: boolean): void {
@@ -220,6 +241,7 @@ export class UIManager {
     this.updateZScaleValue();
     this.updateObjectiveDisplay();
     this.updateSolverModeButtons();
+    this.updateUnionButtonState();
     if (state.vertices.length > 0 || state.objectiveVector) {
       this.hideNullStateMessage();
     }

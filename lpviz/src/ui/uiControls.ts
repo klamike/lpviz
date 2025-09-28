@@ -1,4 +1,4 @@
-import { state, SolverMode, handleStepSizeChange, resetTraceState } from "../state/state";
+import { state, SolverMode, handleStepSizeChange, resetTraceState, resetUnionState, initializeVertexHeightRanges, updateVertexHeightRanges } from "../state/state";
 import { start3DTransition } from "../utils/transitions";
 import { 
   getElement, 
@@ -85,13 +85,30 @@ export function setupUIControls(
       if (state.isTransitioning3D) return;
       start3DTransition(canvasManager, uiManager, !state.is3DMode);
     });
-    
+
     uiManager.zScaleSlider?.addEventListener("input", () => {
       state.zScale = parseFloat(uiManager.zScaleSlider?.value || "0.1");
       uiManager.updateZScaleValue();
       if (state.is3DMode || state.isTransitioning3D) {
         canvasManager.draw();
       }
+    });
+
+    uiManager.showUnionButton?.addEventListener("click", () => {
+      if (!state.showUnionView) {
+        // Enabling union view - start recording
+        state.showUnionView = true;
+        state.unionRecordingEnabled = true;
+        if (state.rotateObjectiveMode) {
+          initializeVertexHeightRanges();
+        }
+      } else {
+        // Disabling union view - stop recording but keep data
+        state.showUnionView = false;
+        state.unionRecordingEnabled = false;
+      }
+      uiManager.updateUnionButtonState();
+      canvasManager.draw();
     });
   }
   
@@ -111,12 +128,13 @@ export function setupUIControls(
     buttonElements.forEach(({ element, mode, settings }) => {
       element.addEventListener("click", () => {
         state.solverMode = mode;
-        
+
         if (state.rotateObjectiveMode) {
           resetTraceState();
           if (state.traceEnabled) {
             canvasManager.draw();
           }
+          uiManager.updateUnionButtonVisibility();
         }
         
         buttonElements.forEach(btn => {
@@ -226,19 +244,26 @@ export function setupUIControls(
     startRotateButton.addEventListener("click", () => {
       state.rotateObjectiveMode = true;
       resetTraceState();
-      
+      resetUnionState();
+
       if (!state.objectiveVector) {
         state.objectiveVector = { x: 1, y: 0 };
         uiManager.updateObjectiveDisplay();
       }
-      
+
       if (state.animationIntervalId !== null) {
         clearInterval(state.animationIntervalId);
         state.animationIntervalId = null;
       }
-      
+
+      // Initialize vertex height tracking if union recording is enabled
+      if (state.unionRecordingEnabled) {
+        initializeVertexHeightRanges();
+      }
+
       rotationSettings.style.display = "block";
       uiManager.updateSolverModeButtons();
+      uiManager.updateUnionButtonVisibility();
       computeAndRotate();
     });
     
@@ -261,6 +286,7 @@ export function setupUIControls(
       } else {
         handleStepSizeChange();
       }
+      uiManager.updateUnionButtonVisibility();
     });
 
     const animateButton = getElement<HTMLButtonElement>("animateButton");
@@ -302,7 +328,7 @@ export function setupUIControls(
 
   async function computePath() {
     prepareAnimationInterval();
-    
+
     switch (state.solverMode) {
       case "ipm":
         await computeIPMSolution(settingsElements.alphaMaxSlider, settingsElements.maxitInput, updateResult);
@@ -323,6 +349,7 @@ export function setupUIControls(
         break;
     }
     uiManager.updateSolverModeButtons();
+    uiManager.updateUnionButtonVisibility();
   }
 
   async function computeAndRotate() {
@@ -343,11 +370,16 @@ export function setupUIControls(
       x: magnitude * Math.cos(angle + angleStep),
       y: magnitude * Math.sin(angle + angleStep),
     };
-    
+
     if (state.traceEnabled) {
       state.totalRotationAngle += angleStep;
     }
-    
+
+    // Update union data independently of trace state
+    if (state.unionRecordingEnabled) {
+      updateVertexHeightRanges();
+    }
+
     uiManager.updateObjectiveDisplay();
     canvasManager.draw();
     

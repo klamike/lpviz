@@ -7,6 +7,11 @@ export interface TraceEntry {
   angle: number;
 }
 
+export interface VertexHeightRange {
+  minHeight: number;
+  maxHeight: number;
+}
+
 export type SolverMode = 'central' | 'ipm' | 'simplex' | 'pdhg';
 export type InputMode = 'visual' | 'manual';
 export type ObjectiveDirection = 'max' | 'min';
@@ -65,6 +70,9 @@ export interface State {
   manualObjective: string | null;
   objectiveDirection: ObjectiveDirection;
   parsedConstraints: Lines;
+  showUnionView: boolean;
+  vertexHeightRanges: VertexHeightRange[];
+  unionRecordingEnabled: boolean;
 }
 
 const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
@@ -126,7 +134,10 @@ function createInitialState(): State {
     manualConstraints: [],
     manualObjective: null,
     objectiveDirection: 'max' as ObjectiveDirection,
-    parsedConstraints: []
+    parsedConstraints: [],
+    showUnionView: false,
+    vertexHeightRanges: [],
+    unionRecordingEnabled: false
   };
 }
 
@@ -181,6 +192,10 @@ export function resetTraceState(): void {
   }
 }
 
+export function resetUnionState(): void {
+  state.vertexHeightRanges = [];
+}
+
 export function handleStepSizeChange(): void {
   if (!state.traceEnabled) return;
   
@@ -195,4 +210,33 @@ export function handleStepSizeChange(): void {
   while (state.traceBuffer.length > state.maxTraceCount) {
     state.traceBuffer.shift();
   }
+}
+
+export function initializeVertexHeightRanges(): void {
+  if (!state.objectiveVector || state.vertices.length === 0) return;
+
+  state.vertexHeightRanges = state.vertices.map(vertex => {
+    const height = state.objectiveVector!.x * vertex.x + state.objectiveVector!.y * vertex.y;
+    return {
+      minHeight: height,
+      maxHeight: height
+    };
+  });
+}
+
+export function updateVertexHeightRanges(): void {
+  if (!state.objectiveVector || state.vertices.length === 0 || !state.unionRecordingEnabled) return;
+
+  // Initialize if not already done
+  if (state.vertexHeightRanges.length !== state.vertices.length) {
+    initializeVertexHeightRanges();
+    return;
+  }
+
+  // Update ranges with current objective
+  state.vertices.forEach((vertex, i) => {
+    const height = state.objectiveVector!.x * vertex.x + state.objectiveVector!.y * vertex.y;
+    state.vertexHeightRanges[i].minHeight = Math.min(state.vertexHeightRanges[i].minHeight, height);
+    state.vertexHeightRanges[i].maxHeight = Math.max(state.vertexHeightRanges[i].maxHeight, height);
+  });
 }

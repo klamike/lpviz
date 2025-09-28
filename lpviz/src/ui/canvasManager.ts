@@ -386,63 +386,148 @@ export class CanvasManager {
     this.ctx.fill();
   }
 
-  drawSingleTrace(path: number[][]) {
+  drawSingleTrace(path: number[][], alpha: number = 0.6) {
     if (path.length === 0) return;
-    
-    this.ctx.strokeStyle = "rgba(255, 165, 0, 0.6)";
+
+    this.ctx.strokeStyle = `rgba(255, 165, 0, ${alpha})`;
     this.ctx.lineWidth = 1.5;
     this.ctx.beginPath();
-    
-    const startZ = path[0][2] !== undefined ? path[0][2] : 
+
+    const startZ = path[0][2] !== undefined ? path[0][2] :
       (state.objectiveVector ? state.objectiveVector.x * path[0][0] + state.objectiveVector.y * path[0][1] : 0);
     const start = this.toCanvasCoords(path[0][0], path[0][1], startZ);
     this.ctx.moveTo(start.x, start.y);
-    
+
     for (let i = 1; i < path.length; i++) {
-      const z = path[i][2] !== undefined ? path[i][2] : 
+      const z = path[i][2] !== undefined ? path[i][2] :
         (state.objectiveVector ? state.objectiveVector.x * path[i][0] + state.objectiveVector.y * path[i][1] : 0);
       const pt = this.toCanvasCoords(path[i][0], path[i][1], z);
       this.ctx.lineTo(pt.x, pt.y);
     }
-    
+
     this.ctx.stroke();
-  
+
     path.forEach((entry: number[]) => {
-      const z = entry[2] !== undefined ? entry[2] : 
+      const z = entry[2] !== undefined ? entry[2] :
         (state.objectiveVector ? state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1] : 0);
       const cp = this.toCanvasCoords(entry[0], entry[1], z);
       this.ctx.beginPath();
-      this.ctx.fillStyle = "rgba(255, 165, 0, 0.8)";
+      this.ctx.fillStyle = `rgba(255, 165, 0, ${Math.min(alpha + 0.2, 1.0)})`;
       this.ctx.arc(cp.x, cp.y, 2, 0, 2 * Math.PI);
       this.ctx.fill();
     });
   }
 
-  drawIteratePath() {
-    if (state.traceEnabled) {
-      if (state.traceBuffer && state.traceBuffer.length > 0) {
-        state.traceBuffer.forEach(traceEntry => {
-          this.drawSingleTrace(traceEntry.path);
-        });
-      }
+  drawUnionPolytope() {
+    if (!state.showUnionView || !state.is3DMode || state.vertexHeightRanges.length === 0) return;
+    if (state.vertices.length < 3) return;
+
+    const alpha = 0.3;
+
+    // Draw the top surface (max heights)
+    this.ctx.fillStyle = `rgba(100, 150, 255, ${alpha})`;
+    this.ctx.beginPath();
+    const topStart = this.toCanvasCoords(state.vertices[0].x, state.vertices[0].y, state.vertexHeightRanges[0].maxHeight);
+    this.ctx.moveTo(topStart.x, topStart.y);
+    for (let i = 1; i < state.vertices.length; i++) {
+      const cp = this.toCanvasCoords(state.vertices[i].x, state.vertices[i].y, state.vertexHeightRanges[i].maxHeight);
+      this.ctx.lineTo(cp.x, cp.y);
     }
-    
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    // Draw the bottom surface (min heights)
+    this.ctx.fillStyle = `rgba(100, 150, 255, ${alpha})`;
+    this.ctx.beginPath();
+    const bottomStart = this.toCanvasCoords(state.vertices[0].x, state.vertices[0].y, state.vertexHeightRanges[0].minHeight);
+    this.ctx.moveTo(bottomStart.x, bottomStart.y);
+    for (let i = 1; i < state.vertices.length; i++) {
+      const cp = this.toCanvasCoords(state.vertices[i].x, state.vertices[i].y, state.vertexHeightRanges[i].minHeight);
+      this.ctx.lineTo(cp.x, cp.y);
+    }
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    // Draw side faces connecting min and max heights
+    for (let i = 0; i < state.vertices.length; i++) {
+      const nextI = (i + 1) % state.vertices.length;
+
+      const v1 = state.vertices[i];
+      const v2 = state.vertices[nextI];
+      const h1 = state.vertexHeightRanges[i];
+      const h2 = state.vertexHeightRanges[nextI];
+
+      // Draw quadrilateral face
+      this.ctx.fillStyle = `rgba(100, 150, 255, ${alpha * 0.8})`;
+      this.ctx.beginPath();
+
+      const p1min = this.toCanvasCoords(v1.x, v1.y, h1.minHeight);
+      const p1max = this.toCanvasCoords(v1.x, v1.y, h1.maxHeight);
+      const p2min = this.toCanvasCoords(v2.x, v2.y, h2.minHeight);
+      const p2max = this.toCanvasCoords(v2.x, v2.y, h2.maxHeight);
+
+      this.ctx.moveTo(p1min.x, p1min.y);
+      this.ctx.lineTo(p1max.x, p1max.y);
+      this.ctx.lineTo(p2max.x, p2max.y);
+      this.ctx.lineTo(p2min.x, p2min.y);
+      this.ctx.closePath();
+      this.ctx.fill();
+
+      // Draw edge lines for better visibility
+      this.ctx.strokeStyle = `rgba(50, 100, 200, ${alpha + 0.3})`;
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+    }
+
+    // Draw vertical edges at each vertex
+    this.ctx.strokeStyle = `rgba(50, 100, 200, ${alpha + 0.4})`;
+    this.ctx.lineWidth = 2;
+    for (let i = 0; i < state.vertices.length; i++) {
+      const v = state.vertices[i];
+      const h = state.vertexHeightRanges[i];
+
+      const pMin = this.toCanvasCoords(v.x, v.y, h.minHeight);
+      const pMax = this.toCanvasCoords(v.x, v.y, h.maxHeight);
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(pMin.x, pMin.y);
+      this.ctx.lineTo(pMax.x, pMax.y);
+      this.ctx.stroke();
+    }
+  }
+
+  drawIteratePath() {
+    // Draw union polytope if enabled (but don't return - keep drawing traces too)
+    if (state.showUnionView && state.is3DMode && state.vertexHeightRanges.length > 0) {
+      this.drawUnionPolytope();
+    }
+
+    // Draw traces when enabled
+    if (state.traceEnabled && state.traceBuffer && state.traceBuffer.length > 0) {
+      // Use lower alpha when union view is active for better visibility
+      const traceAlpha = state.showUnionView ? 0.4 : 0.6;
+      state.traceBuffer.forEach(traceEntry => {
+        this.drawSingleTrace(traceEntry.path, traceAlpha);
+      });
+    }
+
+    // Always draw the current iterate path on top (unless union view is active and we want to keep it subtle)
     if (state.iteratePath && state.iteratePath.length > 0) {
       this.ctx.strokeStyle = "purple";
       this.ctx.lineWidth = 2;
       this.ctx.beginPath();
-      
+
       const startZ = state.iteratePath[0][2] !== undefined ? state.iteratePath[0][2] : state.objectiveVector ? state.objectiveVector.x * state.iteratePath[0][0] + state.objectiveVector.y * state.iteratePath[0][1] : 0;
       const start = this.toCanvasCoords(state.iteratePath[0][0], state.iteratePath[0][1], startZ);
       this.ctx.moveTo(start.x, start.y);
-      
+
       for (let i = 1; i < state.iteratePath.length; i++) {
         const z = state.iteratePath[i][2] !== undefined ? state.iteratePath[i][2] : state.objectiveVector ? state.objectiveVector.x * state.iteratePath[i][0] + state.objectiveVector.y * state.iteratePath[i][1] : 0;
         const pt = this.toCanvasCoords(state.iteratePath[i][0], state.iteratePath[i][1], z);
         this.ctx.lineTo(pt.x, pt.y);
       }
       this.ctx.stroke();
-      
+
       state.iteratePath.forEach((entry, i) => {
         const z = entry[2] !== undefined ? entry[2] : state.objectiveVector ? state.objectiveVector.x * entry[0] + state.objectiveVector.y * entry[1] : 0;
         const cp = this.toCanvasCoords(entry[0], entry[1], z);

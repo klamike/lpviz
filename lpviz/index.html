@@ -180,6 +180,20 @@
         </svg>
       </button>
       <button id="toggle3DButton" title="Toggle 3D Mode">3D</button>
+      <button id="showUnionButton" title="Start Recording & Show Union Polytope" style="display: none;">
+        <svg width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <g stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Front face -->
+            <rect x="4" y="8" width="8" height="8" />
+            <!-- Back face (offset) -->
+            <rect x="8" y="4" width="8" height="8" />
+            <!-- Connecting lines to show 3D depth -->
+            <line x1="4" y1="8" x2="8" y2="4" />
+            <line x1="12" y1="8" x2="16" y2="4" />
+            <line x1="12" y1="16" x2="16" y2="12" />
+          </g>
+        </svg>
+      </button>
       <button id="shareButton" title="Share this configuration">
         <svg fill="currentColor" width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="share-alt" class="icon glyph">
           <path d="M20,21H4a2,2,0,0,1-2-2V6A2,2,0,0,1,4,4H8A1,1,0,0,1,8,6H4V19H20V13a1,1,0,0,1,2,0v6A2,2,0,0,1,20,21Z"></path>
