@@ -16,19 +16,29 @@ export function linesToAb(lines: Lines) {
 
 export function vstack(matrices: AbstractMatrix[]): Matrix {
   if (matrices.length === 0) {
-    return Matrix.columnVector([]);
+    return new Matrix([]);
   }
 
-  const allValues: number[] = [];
-  
-  for (const matrix of matrices) {
-    if (matrix.columns !== 1) {
-      throw new Error("vstack: all matrices must be column vectors");
-    }
-    allValues.push(...matrix.to1DArray());
+  // Check that all matrices have the same number of columns
+  const cols = matrices[0].columns;
+  if (!matrices.every(M => M.columns === cols)) {
+    throw new Error("vstack: all matrices must have the same number of columns");
   }
-  
-  return Matrix.columnVector(allValues);
+
+  const totalRows = matrices.reduce((sum, M) => sum + M.rows, 0);
+  const result = Matrix.zeros(totalRows, cols);
+
+  let currentRow = 0;
+  for (const matrix of matrices) {
+    for (let r = 0; r < matrix.rows; r++) {
+      for (let c = 0; c < matrix.columns; c++) {
+        result.set(currentRow + r, c, matrix.get(r, c));
+      }
+    }
+    currentRow += matrix.rows;
+  }
+
+  return result;
 }
 
 export const vslice = (v: Matrix, start: number, end: number) => {
