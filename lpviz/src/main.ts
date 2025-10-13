@@ -68,7 +68,7 @@ function initializeApplication() {
     }
   }
   
-  if (window.location.pathname === '/demo' || window.location.pathname.endsWith('/demo')) {
+  if (params.has("demo")) {
     guidedTour.startGuidedTour();
   }
   uiManager.synchronizeUIWithState();
