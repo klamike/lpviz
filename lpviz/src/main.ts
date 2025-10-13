@@ -67,6 +67,10 @@ function initializeApplication() {
       console.error("Failed to load shared state", err);
     }
   }
+  
+  if (window.location.pathname === '/demo' || window.location.pathname.endsWith('/demo')) {
+    guidedTour.startGuidedTour();
+  }
   uiManager.synchronizeUIWithState();
   canvas.focus();
 }
