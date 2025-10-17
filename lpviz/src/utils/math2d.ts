@@ -74,13 +74,7 @@ function polytope_format(A: number, B: number, C: number) {
     let B_disp = polytope_format_float(B);
     let C_disp = polytope_format_float(C);
 
-    let ineq_sign = "≤";
-    if (A_disp <= 0 && B_disp <= 0 && C_disp <= 0 && !(A_disp === 0 && B_disp === 0 && C_disp === 0) ) {
-        A_disp = -A_disp;
-        B_disp = -B_disp;
-        C_disp = -C_disp;
-        ineq_sign = "≥";
-    }
+    const ineq_sign = "≤";
 
     let Ax_str = "";
     if (A_disp === 1) Ax_str = "x";
@@ -171,7 +165,14 @@ function polytope_edges(points: Vertices, tol = 1e-6) {
             Cnorm = -Cnorm;
         }
 
-        inequalities.push(polytope_format(A, B, C_original));
+        // if both Anorm and Bnorm are less than 1.0, multiply everything by 10
+        if (Math.abs(Anorm) < 1.0 && Math.abs(Bnorm) < 1.0) {
+            Anorm *= 10;
+            Bnorm *= 10;
+            Cnorm *= 10;
+        }
+
+        inequalities.push(polytope_format(Anorm, Bnorm, Cnorm));
         lines.push([Anorm, Bnorm, Cnorm]);
     }
 
