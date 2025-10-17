@@ -164,15 +164,7 @@ function polytope_edges(points: Vertices, tol = 1e-6) {
             Bnorm = -Bnorm;
             Cnorm = -Cnorm;
         }
-
-        // if both Anorm and Bnorm are less than 1.0, multiply everything by 10
-        if (Math.abs(Anorm) < 1.0 && Math.abs(Bnorm) < 1.0) {
-            Anorm *= 10;
-            Bnorm *= 10;
-            Cnorm *= 10;
-        }
-
-        inequalities.push(polytope_format(Anorm, Bnorm, Cnorm));
+        inequalities.push(polytope_format(A, B, C_original));
         lines.push([Anorm, Bnorm, Cnorm]);
     }
 
