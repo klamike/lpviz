@@ -73,7 +73,7 @@ export async function computePDHGSolution(
   const iteratesArray = (result.iterations as number[][]).map((xy: number[], i: number) => {
     const eps = (result.eps && result.eps[i] !== undefined) ? result.eps[i] : 0;
     const [cx, cy] = getObjectiveVector();
-    const pObj = (pdhgIneq ? 1 : -1) * (cx * xy[0] + cy * xy[1]);
+    const pObj = (cx * xy[0] + cy * xy[1]);
     const z = pObj + 500 * eps;
     return [xy[0], xy[1], z];
   });
