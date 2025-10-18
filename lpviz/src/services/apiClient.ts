@@ -22,7 +22,7 @@ async function wrapSolverCall<T>(
   }
 }
 
-const DEFAULT_TOLERANCE = 1e-6;
+const DEFAULT_TOLERANCE = 1e-5;
 const DEFAULT_BASE_OPTIONS: BaseSolverOptions = {
   tol: DEFAULT_TOLERANCE,
   verbose: false,

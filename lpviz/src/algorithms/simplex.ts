@@ -138,8 +138,17 @@ function simplexCore(cVec: Matrix, A: Matrix, bVec: Matrix, basisInit: boolean[]
     const z = Matrix.sub(cVec, ATy);
 
     objVal = cVec.dot(x_tableau);
-    const x0_log = x_tableau.get(0, 0);
-    const y0_log = y.get(0, 0);
+    let x0_log = 0;
+    let y0_log = 0;
+    if (nOrig >= 1) {
+      const x1_part = x_tableau.subMatrix(0, nOrig - 1, 0, 0);
+      const x2_part = x_tableau.subMatrix(nOrig, 2 * nOrig - 1, 0, 0);
+      const x_primal = Matrix.sub(x1_part, x2_part);
+      x0_log = x_primal.get(0, 0);
+      if (nOrig >= 2) {
+        y0_log = x_primal.get(1, 0);
+      }
+    }
 
     const line = sprintf('%5d %+8.2f %+8.2f %+10.1e %s\n',
                          iter,
