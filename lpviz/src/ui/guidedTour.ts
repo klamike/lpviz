@@ -377,6 +377,10 @@ export class HelpPopup {
     return this.popup !== null;
   }
 
+  public isTouring(): boolean {
+    return this.guidedTour.isTouring();
+  }
+
   private createPopup(): void {
     const popup = document.createElement('div');
     popup.id = 'helpPopup';

@@ -4,6 +4,7 @@ import { distance } from "../utils/math2d";
 import { setButtonState } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
+import { HelpPopup } from "./guidedTour";
 
 export interface PointerEvent {
   clientX: number;
@@ -24,11 +25,11 @@ export function getLogicalCoords(canvasManager: CanvasManager, e: PointerEvent):
 }
 
 export function createDragHandlers(
-  canvasManager: CanvasManager, 
+  canvasManager: CanvasManager,
   uiManager: UIManager,
   saveToHistory: () => void,
   sendPolytope: () => void,
-  helpPopup?: any
+  helpPopup?: HelpPopup
 ): DragHandlers {
   const canvas = canvasManager.canvas;
 
@@ -121,7 +122,7 @@ export function createDragHandlers(
     }
 
     // Default mouse move behavior (not dragging or panning)
-    if (helpPopup?.isTouring) {
+    if (helpPopup?.isTouring()) {
       return;
     }
     

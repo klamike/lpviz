@@ -5,6 +5,7 @@ import { showElement, setButtonsEnabled } from "../utils/uiHelpers";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 import { PointerEvent } from "./dragHandlers";
+import { HelpPopup } from "./guidedTour";
 
 export function setupCanvasInteractions(
   canvasManager: CanvasManager,
@@ -12,7 +13,7 @@ export function setupCanvasInteractions(
   saveToHistory: () => void,
   sendPolytope: () => void,
   getLogicalCoords: (canvasManager: CanvasManager, e: PointerEvent) => PointXY,
-  helpPopup?: any
+  helpPopup?: HelpPopup
 ): void {
   const canvas = canvasManager.canvas;
 
@@ -71,7 +72,7 @@ export function setupCanvasInteractions(
   // ===== CANVAS INTERACTION HANDLERS =====
   
   canvas.addEventListener("dblclick", (e) => {
-    if (helpPopup?.isTouring) {
+    if (helpPopup?.isTouring()) {
       return;
     }
 
@@ -100,7 +101,7 @@ export function setupCanvasInteractions(
   });
 
   canvas.addEventListener("click", (e) => {
-    if (helpPopup?.isTouring) {
+    if (helpPopup?.isTouring()) {
       return;
     }
 

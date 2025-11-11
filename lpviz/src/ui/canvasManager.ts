@@ -9,7 +9,6 @@ import {
   Sprite,
   SpriteMaterial,
   CanvasTexture,
-  Color,
   Euler,
   NearestFilter,
 } from "three";
@@ -29,6 +28,7 @@ import {
   IterateRenderer,
 } from "./canvas/renderers";
 import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./canvas/constants";
+import type { GuidedTour } from "./guidedTour";
 
 export class CanvasManager {
   canvas: HTMLCanvasElement;
@@ -42,18 +42,22 @@ export class CanvasManager {
   private backgroundScene: Scene;
   private transparentScene: Scene;
   private foregroundScene: Scene;
+  private vertexScene: Scene;
+  private overlayScene: Scene;
   private orthoCamera: OrthographicCamera;
   private perspectiveCamera: PerspectiveCamera;
   private activeCamera: PerspectiveCamera | OrthographicCamera;
   private gridGroup: Group;
   private polygonFillGroup: Group;
   private polygonOutlineGroup: Group;
+  private polygonVertexGroup: Group;
   private constraintGroup: Group;
   private objectiveGroup: Group;
   private traceGroup: Group;
   private iterateGroup: Group;
+  private overlayGroup: Group;
   private renderScheduled = false;
-  private guidedTour: any = null;
+  private guidedTour: GuidedTour | null = null;
   private initialized = false;
   private starTextures = new Map<number, CanvasTexture>();
   private circleTextures = new Map<string, CanvasTexture>();
@@ -85,13 +89,18 @@ export class CanvasManager {
     this.backgroundScene = new Scene();
     this.transparentScene = new Scene();
     this.foregroundScene = new Scene();
+    this.vertexScene = new Scene();
+    this.overlayScene = new Scene();
+    this.vertexScene = new Scene();
     this.gridGroup = new Group();
     this.polygonFillGroup = new Group();
     this.polygonOutlineGroup = new Group();
+    this.polygonVertexGroup = new Group();
     this.constraintGroup = new Group();
     this.objectiveGroup = new Group();
     this.traceGroup = new Group();
     this.iterateGroup = new Group();
+    this.overlayGroup = new Group();
 
     this.backgroundScene.add(this.gridGroup);
     this.transparentScene.add(this.polygonFillGroup);
@@ -100,6 +109,8 @@ export class CanvasManager {
     this.foregroundScene.add(this.objectiveGroup);
     this.foregroundScene.add(this.traceGroup);
     this.foregroundScene.add(this.iterateGroup);
+    this.vertexScene.add(this.polygonVertexGroup);
+    this.overlayScene.add(this.overlayGroup);
 
     this.orthoCamera = new OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
     this.perspectiveCamera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
@@ -115,12 +126,12 @@ export class CanvasManager {
     return new CanvasManager(canvas);
   }
 
-  setTourComponents(guidedTour: any) {
+  setTourComponents(guidedTour: GuidedTour) {
     this.guidedTour = guidedTour;
   }
 
   private shouldSkipPreviewDrawing(): boolean {
-    return this.guidedTour?.isTouring();
+    return this.guidedTour?.isTouring() ?? false;
   }
 
   private handleResize = () => {
@@ -173,6 +184,8 @@ export class CanvasManager {
     this.renderer.autoClear = false;
     this.renderer.render(this.transparentScene, this.activeCamera);
     this.renderer.render(this.foregroundScene, this.activeCamera);
+    this.renderer.render(this.vertexScene, this.activeCamera);
+    this.renderer.render(this.overlayScene, this.activeCamera);
     this.renderer.autoClear = true;
   }
 
@@ -183,6 +196,8 @@ export class CanvasManager {
         grid: this.gridGroup,
         polygonFill: this.polygonFillGroup,
         polygonOutline: this.polygonOutlineGroup,
+        polygonVertices: this.polygonVertexGroup,
+        overlay: this.overlayGroup,
         constraint: this.constraintGroup,
         objective: this.objectiveGroup,
         trace: this.traceGroup,
@@ -222,7 +237,6 @@ export class CanvasManager {
     const is3D = state.is3DMode || state.isTransitioning3D;
     this.activeCamera = is3D ? this.perspectiveCamera : this.orthoCamera;
 
-    const pixelsPerUnit = this.getPixelsPerUnit();
     const unitsPerPixel = this.getUnitsPerPixel();
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -331,7 +345,7 @@ export class CanvasManager {
 
   private createCircleSprite(position: Vector3, color: number, size: number) {
     const material = new SpriteMaterial({
-      map: this.getCircleTexture(color),
+      map: this.getCircleTexture(),
       transparent: false,
       alphaTest: 0.5,
       depthTest: false,
@@ -471,29 +485,21 @@ export class CanvasManager {
     this.renderer.setSize(targetWidth, targetHeight, false);
   }
 
-  private hexToRgb(hex: number) {
-    const color = new Color(hex);
-    return {
-      r: Math.round(color.r * 255),
-      g: Math.round(color.g * 255),
-      b: Math.round(color.b * 255),
-    };
-  }
-
   private clearGroup(group: Group) {
     group.children.forEach((child) => {
-      const obj: any = child;
-      const geometry = obj.geometry;
+      const mesh = child as {
+        geometry?: { dispose?: () => void };
+        material?: { dispose?: () => void } | Array<{ dispose?: () => void }>;
+      };
+      const geometry = mesh.geometry;
       if (geometry && typeof geometry.dispose === "function") {
         geometry.dispose();
       }
-      const material = obj.material;
-      if (material) {
-        if (Array.isArray(material)) {
-          material.forEach((mat) => mat?.dispose?.());
-        } else if (typeof material.dispose === "function") {
-          material.dispose();
-        }
+      const material = mesh.material;
+      if (Array.isArray(material)) {
+        material.forEach((mat) => mat?.dispose?.());
+      } else if (material && typeof material.dispose === "function") {
+        material.dispose();
       }
     });
     group.clear();
@@ -537,11 +543,12 @@ export class CanvasManager {
   ) {
     const geometry = new LineGeometry();
     geometry.setPositions(positions);
+    const transparent = opacity < 1;
     const material = new LineMaterial({
       color,
       linewidth: width,
-      transparent: false,
-      opacity: 1,
+      transparent,
+      opacity,
       depthTest,
       depthWrite,
     });
@@ -552,7 +559,7 @@ export class CanvasManager {
     return line;
   }
 
-  private getCircleTexture(color: number) {
+  private getCircleTexture() {
     const deviceRatio = Math.max(1, Math.round((window.devicePixelRatio || 1)));
     const scaleBucket = Math.min(4, Math.max(1, Math.round(this.scaleFactor)));
     const cacheKey = `circle-${deviceRatio}-${scaleBucket}`;

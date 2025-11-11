@@ -35,7 +35,7 @@ const pendingSolverRequests = new Map<
   number,
   {
     resolve: (value: SolverWorkerSuccessResponse) => void;
-    reject: (reason?: any) => void;
+    reject: (reason?: unknown) => void;
   }
 >();
 

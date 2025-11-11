@@ -3,18 +3,14 @@ import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 import { isPolygonConvex, polytope } from "../utils/math2d";
 import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize, getElement, showElement } from "../utils/uiHelpers";
-
 import { createDragHandlers, setupDragEventListeners, getLogicalCoords } from "./dragHandlers";
 import { setupCanvasInteractions } from "./canvasInteractions";
-import { 
-  saveToHistory,
-  setupKeyboardHandlers, 
-  createUndoRedoHandler 
-} from "../state/history";
+import { saveToHistory, setupKeyboardHandlers, createUndoRedoHandler } from "../state/history";
 import { setupUIControls } from "./uiControls";
 import { createSharingHandlers } from "../state/sharing";
+import { HelpPopup } from "./guidedTour";
 
-export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager, helpPopup?: any) {
+export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager, helpPopup?: HelpPopup) {
   const canvas = canvasManager.canvas;
 
   function sendPolytope() {
@@ -98,7 +94,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   // Setup all event listeners
   setupDragEventListeners(canvas, dragHandlers, canvasManager);
   setupCanvasInteractions(canvasManager, uiManager, saveToHistory, sendPolytope, getLogicalCoords, helpPopup);
-  setupKeyboardHandlers(canvasManager, saveToHistory, sendPolytope, handleUndoRedo);
+  setupKeyboardHandlers(handleUndoRedo);
 
   return { loadStateFromObject, generateShareLink, sendPolytope, saveToHistory };
 }

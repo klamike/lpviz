@@ -44,12 +44,7 @@ export function createUndoRedoHandler(
   };
 }
 
-export function setupKeyboardHandlers(
-  canvasManager: CanvasManager,
-  saveToHistory: () => void,
-  sendPolytope: () => void,
-  handleUndoRedo: (isRedo: boolean) => void
-): void {
+export function setupKeyboardHandlers(handleUndoRedo: (isRedo: boolean) => void): void {
   // ===== KEYBOARD HANDLERS =====
   
   window.addEventListener("keydown", (e) => {
@@ -61,17 +56,4 @@ export function setupKeyboardHandlers(
       state.snapToGrid = !state.snapToGrid;
     }
   });
-}
-
-export function clearHistory(): void {
-  state.historyStack = [];
-  state.redoStack = [];
-}
-
-export function hasUndoHistory(): boolean {
-  return state.historyStack.length > 0;
-}
-
-export function hasRedoHistory(): boolean {
-  return state.redoStack.length > 0;
 }

@@ -8,7 +8,6 @@ export type Vec2 = number[]; // [x, y]
 export type Vec3 = number[]; // [x, y, z] or [A, B, C]
 export type VecM = number[]; // M refers to number of constraints
 export type VecN = number[]; // N refers to number of variables, e.g. for the objective vector
-export type ArrayMatrix = number[][];
 
 export type VectorM = Matrix;
 export type VectorN = Matrix;

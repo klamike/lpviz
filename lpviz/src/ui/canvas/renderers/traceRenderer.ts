@@ -59,7 +59,7 @@ export class TraceRenderer implements CanvasLayerRenderer {
         depthTest: false,
         transparent: false,
         opacity: 1,
-        map: helpers.getCircleTexture(COLORS.trace),
+        map: helpers.getCircleTexture(),
         alphaTest: 0.2,
       });
       const pointMesh = new Points(pointGeometry, material);

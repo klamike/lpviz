@@ -1,4 +1,10 @@
 import { Lines, VecN, Vertices } from "../types/arrays";
+import type {
+  CentralPathResult,
+  IPMResult,
+  PDHGResult,
+  SimplexResult,
+} from "../services/solverService";
 
 export type SolverModeWorker = "central" | "ipm" | "simplex" | "pdhg";
 
@@ -34,12 +40,31 @@ export type SolverWorkerPayload =
 
 export type SolverWorkerRequest = SolverWorkerPayload & { id: number };
 
-export type SolverWorkerSuccessResponse = {
-  id: number;
-  solver: SolverModeWorker;
-  success: true;
-  result: any;
-};
+export type SolverWorkerSuccessResponse =
+  | {
+      id: number;
+      solver: "ipm";
+      success: true;
+      result: IPMResult;
+    }
+  | {
+      id: number;
+      solver: "simplex";
+      success: true;
+      result: SimplexResult;
+    }
+  | {
+      id: number;
+      solver: "pdhg";
+      success: true;
+      result: PDHGResult;
+    }
+  | {
+      id: number;
+      solver: "central";
+      success: true;
+      result: CentralPathResult;
+    };
 
 export type SolverWorkerErrorResponse = {
   id: number;

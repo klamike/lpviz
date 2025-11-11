@@ -26,11 +26,9 @@ export interface CentralPathXkOptions {
 
 // H * dx = -g where H is Hessian, g is gradient
 function computeNewtonStep(
-  Amatrix: Matrix, 
-  bVec: VectorM, 
-  cVec: VectorN, 
-  mu: number, 
-  currentPoint: VectorN, 
+  Amatrix: Matrix,
+  cVec: VectorN,
+  mu: number,
   slackVariables: VectorM
 ): VectorN | null {
   try {
@@ -55,8 +53,6 @@ function computeNewtonStep(
 function performLineSearch(
   currentPoint: VectorN,
   newtonStep: VectorN,
-  Amatrix: Matrix,
-  bVec: VectorM,
   calculateObjective: (point: VectorN) => number,
   gradient: VectorN
 ): number {
@@ -110,7 +106,7 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
       return null;
     }
 
-    const newtonStep = computeNewtonStep(Amatrix, bVec, cVec, mu, currentPoint, slackVariables);
+    const newtonStep = computeNewtonStep(Amatrix, cVec, mu, slackVariables);
     if (newtonStep === null) {
       console.error("Error computing Newton step at iteration " + iteration);
       return null;
@@ -119,14 +115,7 @@ function centralPathXk(Amatrix: Matrix, bVec: VectorM, cVec: VectorN, mu: number
     const inverseSlack = Matrix.pow(slackVariables, -1);
     const gradient = Matrix.sub(cVec, Amatrix.transpose().mmul(inverseSlack).mul(mu));
 
-    const stepSize = performLineSearch(
-      currentPoint, 
-      newtonStep, 
-      Amatrix, 
-      bVec, 
-      calculateObjective, 
-      gradient
-    );
+    const stepSize = performLineSearch(currentPoint, newtonStep, calculateObjective, gradient);
 
     currentPoint = Matrix.add(currentPoint, Matrix.mul(newtonStep, stepSize));
 

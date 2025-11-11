@@ -53,30 +53,34 @@ const FULL_KEYS = Object.fromEntries(
   Object.entries(COMPACT_KEYS).map(([full, compact]) => [compact, full])
 ) as Record<string, string>;
 
-function compactObject(obj: any): any {
+function compactObject<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
-  if (typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(compactObject);
-  
-  const result: any = {};
-  for (const [key, value] of Object.entries(obj)) {
+  if (typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((item) => compactObject(item)) as unknown as T;
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     const compactKey = COMPACT_KEYS[key as keyof typeof COMPACT_KEYS] || key;
     result[compactKey] = compactObject(value);
   }
-  return result;
+  return result as T;
 }
 
-function expandObject(obj: any): any {
+function expandObject<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
-  if (typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(expandObject);
-  
-  const result: any = {};
-  for (const [key, value] of Object.entries(obj)) {
+  if (typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((item) => expandObject(item)) as unknown as T;
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     const fullKey = FULL_KEYS[key] || key;
     result[fullKey] = expandObject(value);
   }
-  return result;
+  return result as T;
 }
 
 interface SettingsElements {

@@ -26,6 +26,7 @@ export class PolygonRenderer implements CanvasLayerRenderer {
     const vertices = state.vertices;
     helpers.clearGroup(groups.polygonFill);
     helpers.clearGroup(groups.polygonOutline);
+    helpers.clearGroup(groups.polygonVertices);
 
     if (vertices.length === 0) {
       return;
@@ -105,7 +106,7 @@ export class PolygonRenderer implements CanvasLayerRenderer {
       const position = new Vector3(v.x, v.y, zFn(v.x, v.y) + VERTEX_Z_OFFSET);
       const sprite = helpers.createCircleSpriteWithPixelSize(position, COLORS.vertex, vertexSizePx);
       sprite.renderOrder = RENDER_LAYERS.polygonVertices;
-      groups.polygonOutline.add(sprite);
+      groups.polygonVertices.add(sprite);
     });
 
     if (!isPolygonConvex(vertices)) {

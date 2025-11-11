@@ -1,80 +1,29 @@
-import { fetchIPM, fetchSimplex, fetchPDHG, fetchCentralPath } from "./apiClient";
 import { state, updateIteratePathsWithTrace, addTraceToBuffer } from "../state/state";
-import { getElementChecked } from "../utils/uiHelpers";
-
-type Awaited<T> = T extends Promise<infer U> ? U : T;
-type IPMResult = Awaited<ReturnType<typeof fetchIPM>>;
-type SimplexResult = Awaited<ReturnType<typeof fetchSimplex>>;
-type PDHGResult = Awaited<ReturnType<typeof fetchPDHG>>;
-type CentralPathResult = Awaited<ReturnType<typeof fetchCentralPath>>;
-
-export async function computeIPMSolution(
-  alphaMaxSlider: HTMLInputElement,
-  maxitInput: HTMLInputElement,
-  updateResult: (html: string) => void
-): Promise<void> {
-  const alphaMax = parseFloat(alphaMaxSlider.value);
-  const maxit = parseInt(maxitInput.value, 10);
-  
-  const result = await fetchIPM(
-    state.computedLines,
-    getObjectiveVector(),
-    alphaMax,
-    maxit
-  );
-  
-  applyIPMResult(result, updateResult);
+export interface IPMResult {
+  iterates: {
+    solution: {
+      x: number[][];
+      log: string[];
+      mu?: number[];
+    };
+  };
 }
 
-export async function computeSimplexSolution(
-  updateResult: (html: string) => void
-): Promise<void> {
-  const result = await fetchSimplex(
-    state.computedLines,
-    getObjectiveVector()
-  );
-  
-  applySimplexResult(result, updateResult);
+export interface SimplexResult {
+  iterations: number[][];
+  logs: string[][];
 }
 
-export async function computePDHGSolution(
-  maxitInputPDHG: HTMLInputElement,
-  pdhgEtaSlider: HTMLInputElement,
-  pdhgTauSlider: HTMLInputElement,
-  updateResult: (html: string) => void
-): Promise<void> {
-  const maxitPDHG = parseInt(maxitInputPDHG.value, 10);
-  const pdhgIneq = getElementChecked("pdhgIneqMode");
-  const eta = parseFloat(pdhgEtaSlider.value);
-  const tau = parseFloat(pdhgTauSlider.value);
-  
-  const result = await fetchPDHG(
-    state.computedLines,
-    getObjectiveVector(),
-    pdhgIneq,
-    maxitPDHG,
-    eta,
-    tau
-  );
-  
-  applyPDHGResult(result, updateResult);
+export interface PDHGResult {
+  iterations: number[][];
+  logs: string[];
+  eps?: number[];
 }
 
-export async function computeCentralPathSolution(
-  centralPathIterSlider: HTMLInputElement,
-  objectiveAngleStepSlider: HTMLInputElement,
-  updateResult: (html: string) => void
-): Promise<void> {
-  const maxitCentral = parseInt(centralPathIterSlider.value, 10);
-  
-  const result = await fetchCentralPath(
-    state.computedVertices,
-    state.computedLines,
-    getObjectiveVector(),
-    maxitCentral
-  );
-  
-  applyCentralPathResult(result, parseFloat(objectiveAngleStepSlider.value), updateResult);
+export interface CentralPathResult {
+  iterations: number[][];
+  logs: string[];
+  tsolve: number;
 }
 
 export function applyIPMResult(result: IPMResult, updateResult: (html: string) => void) {

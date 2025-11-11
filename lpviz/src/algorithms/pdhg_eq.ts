@@ -56,8 +56,6 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
 
     const pObj = -c.dot(xk);
     const pFeas = Matrix.sub(A.mmul(xk), b).max();
-    const dFeas = projectNonNegative(Matrix.sub(A.transpose().mmul(yk).mul(-1), c)).max();
-
     let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
       k,
       xk.get(0, 0),

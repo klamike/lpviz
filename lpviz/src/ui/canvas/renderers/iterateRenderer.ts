@@ -11,8 +11,9 @@ import { CanvasLayerRenderer, CanvasRenderContext } from "../types";
 
 export class IterateRenderer implements CanvasLayerRenderer {
   render(context: CanvasRenderContext): void {
-    const { helpers, groups, is3D } = context;
+    const { helpers, groups } = context;
     helpers.clearGroup(groups.iterate);
+    helpers.clearGroup(groups.overlay);
 
     if (!state.iteratePath || state.iteratePath.length === 0) {
       return;
@@ -38,7 +39,7 @@ export class IterateRenderer implements CanvasLayerRenderer {
       depthTest: false,
       transparent: false,
       opacity: 1,
-      map: helpers.getCircleTexture(COLORS.iteratePath),
+      map: helpers.getCircleTexture(),
       alphaTest: 0.2,
     });
     const iteratePoints = new Points(pointsGeometry, material);
@@ -71,6 +72,6 @@ export class IterateRenderer implements CanvasLayerRenderer {
       ITERATE_Z_OFFSET
     );
     const star = helpers.createStarSprite(lastPos, COLORS.iterateHighlight);
-    groups.iterate.add(star);
+    groups.overlay.add(star);
   }
 }

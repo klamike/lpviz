@@ -52,12 +52,17 @@ export class UIManager {
       stopRotateObjectiveButton: "stopRotateObjectiveButton"
     };
 
+    const target = this as unknown as Record<
+      string,
+      HTMLElement | HTMLButtonElement | HTMLInputElement | undefined
+    >;
     Object.entries(elementMappings).forEach(([property, id]) => {
       const element = document.getElementById(id);
       if (!element) {
         console.warn(`Element with id "${id}" not found`);
+        return;
       }
-      (this as any)[property] = element;
+      target[property] = element as HTMLElement;
     });
   }
 

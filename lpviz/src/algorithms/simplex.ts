@@ -37,7 +37,7 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   for (let i = 0; i < m; ++i) basis1_init[2 * n + m + i] = true;
 
   if (verbose) console.log("Phase One");
-  const { iterations: iters1, finalBasis: rawBasis1, logs: log1 } = simplexCore(
+  const { finalBasis: rawBasis1, logs: log1 } = simplexCore(
     c1, A1, b1, basis1_init,
     { tol, verbose, phase1: true, nOrig: n, m }
   );

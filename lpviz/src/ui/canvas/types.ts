@@ -6,10 +6,12 @@ export interface CanvasGroups {
   grid: Group;
   polygonFill: Group;
   polygonOutline: Group;
+  polygonVertices: Group;
   constraint: Group;
   objective: Group;
   trace: Group;
   iterate: Group;
+  overlay: Group;
 }
 
 export interface ThickLineOptions {
@@ -30,7 +32,7 @@ export interface CanvasRenderHelpers {
   buildPositionArray(path: number[][], planarOffset?: number): Float32Array;
   buildPositionVector(entry: number[], planarOffset?: number): Vector3;
   getWorldSizeFromPixels(pixels: number, worldPosition?: Vector3): number;
-  getCircleTexture(color: number): CanvasTexture;
+  getCircleTexture(): CanvasTexture;
 }
 
 export interface CanvasRenderContext {

@@ -132,10 +132,6 @@ function createInitialState(): State {
 
 export const state: State = createInitialState();
 
-export function resetState(): void {
-  Object.assign(state, createInitialState());
-}
-
 export function prepareAnimationInterval(): void {
   if (state.animationIntervalId !== null) {
     clearInterval(state.animationIntervalId);

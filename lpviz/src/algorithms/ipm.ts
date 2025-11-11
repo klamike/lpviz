@@ -18,6 +18,14 @@ export interface IPMOptions {
   verbose: boolean;
 }
 
+interface IPMSolutionData {
+  x: VecN[];
+  s: VecM[];
+  y: VecM[];
+  mu: number[];
+  log: string[];
+}
+
 // Convert A x ≤ b, max c^T x → −A x ≥ −b, min −c^T x
 export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
   const { eps_p, eps_d, eps_opt, maxit, alphaMax, verbose } = opts;
@@ -55,9 +63,10 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
   const m = A.rows; // inequalities
   const n = A.columns; // variables
 
+  const solution: IPMSolutionData = { x: [], s: [], y: [], mu: [], log: [] };
   const res = {
     iterates: {
-      solution: { x: [] as VecN[], s: [] as VecM[], y: [] as VecM[], mu: [] as number[], log: [] as string[] },
+      solution,
     },
   };
 
@@ -91,8 +100,8 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
     // |c^T x - b^T y| / (1 + |c^T x|)
     const gap = Math.abs(pObj - b.dot(y)) / (1 + Math.abs(pObj));
 
-    logIter(res.iterates.solution, verbose, x, mu, pObj, r_p.max());
-    pushIter(res.iterates.solution, x, s, y, mu);
+    logIter(solution, verbose, x, mu, pObj, r_p.max());
+    pushIter(solution, x, s, y, mu);
 
     // ||r_p|| ≤ ε_p, ||r_d|| ≤ ε_d, gap ≤ ε_opt
     if (r_p.max() <= eps_p && r_d.max() <= eps_d && gap <= eps_opt) {
@@ -172,7 +181,7 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
   }
 
   const tSolve = Math.round((Date.now() - t0) * 10) / 10;
-  logFinal(res.iterates.solution, verbose, converged, tSolve);
+  logFinal(solution, verbose, converged, tSolve);
   return res;
 }
 
@@ -185,14 +194,14 @@ function alphaStep(x: VectorN, dx: VectorN) {
   return Math.min(1.0, Math.min(...x.to1DArray().map((xi: number, i: number) => alphaScalar(xi, dx.get(i, 0)))));
 }
 
-function pushIter(d: any, x: VectorN, s: VectorM, y: VectorM, mu: number) {
+function pushIter(d: IPMSolutionData, x: VectorN, s: VectorM, y: VectorM, mu: number) {
   d.x.push(x.to1DArray());
   d.s.push(s.to1DArray());
   d.y.push(y.to1DArray());
   d.mu.push(mu);
 }
   
-function logIter(d: any, verbose: boolean, x: VectorN, mu: number, pObj: number, pRes: number) {
+function logIter(d: IPMSolutionData, verbose: boolean, x: VectorN, mu: number, pObj: number, pRes: number) {
   const msg = sprintf(
     "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n",
     d.x.length, x.get(0, 0), x.get(1, 0), -pObj, pRes, mu,
@@ -201,7 +210,7 @@ function logIter(d: any, verbose: boolean, x: VectorN, mu: number, pObj: number,
   d.log.push(msg);
 }
 
-function logFinal(d: any, verbose: boolean, converged: boolean, tSolve: number) {
+function logFinal(d: IPMSolutionData, verbose: boolean, converged: boolean, tSolve: number) {
   const msg = converged
     ? `Converged to primal-dual optimal solution in ${tSolve} ms\n`
     : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;
