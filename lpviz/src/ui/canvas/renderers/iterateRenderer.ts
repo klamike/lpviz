@@ -1,5 +1,5 @@
 import { BufferGeometry, Float32BufferAttribute, Points, PointsMaterial } from "three";
-import { state } from "../../../state/state";
+import { getSolverState } from "../../../state/state";
 import {
   COLORS,
   ITERATE_LINE_THICKNESS,
@@ -15,11 +15,12 @@ export class IterateRenderer implements CanvasLayerRenderer {
     helpers.clearGroup(groups.iterate);
     helpers.clearGroup(groups.overlay);
 
-    if (!state.iteratePath || state.iteratePath.length === 0) {
+    const solver = getSolverState();
+    if (!solver.iteratePath || solver.iteratePath.length === 0) {
       return;
     }
 
-    const positions = helpers.buildPositionArray(state.iteratePath, ITERATE_Z_OFFSET);
+    const positions = helpers.buildPositionArray(solver.iteratePath, ITERATE_Z_OFFSET);
     const iterateLine = helpers.createThickLine(Array.from(positions), {
       color: COLORS.iteratePath,
       width: ITERATE_LINE_THICKNESS,
@@ -47,11 +48,11 @@ export class IterateRenderer implements CanvasLayerRenderer {
     groups.iterate.add(iteratePoints);
 
     if (
-      state.highlightIteratePathIndex !== null &&
-      state.highlightIteratePathIndex < state.iteratePath.length
+      solver.highlightIteratePathIndex !== null &&
+      solver.highlightIteratePathIndex < solver.iteratePath.length
     ) {
       const highlightPos = helpers.buildPositionVector(
-        state.iteratePath[state.highlightIteratePathIndex],
+        solver.iteratePath[solver.highlightIteratePathIndex],
         ITERATE_Z_OFFSET
       );
       const highlightSize = helpers.getWorldSizeFromPixels(
@@ -68,7 +69,7 @@ export class IterateRenderer implements CanvasLayerRenderer {
     }
 
     const lastPos = helpers.buildPositionVector(
-      state.iteratePath[state.iteratePath.length - 1],
+      solver.iteratePath[solver.iteratePath.length - 1],
       ITERATE_Z_OFFSET
     );
     const star = helpers.createStarSprite(lastPos, COLORS.iterateHighlight);

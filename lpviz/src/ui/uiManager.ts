@@ -1,4 +1,9 @@
-import { state } from "../state/state";
+import {
+  getObjectiveState,
+  getSolverState,
+  getGeometryState,
+  getViewState,
+} from "../state/state";
 import { CanvasManager } from "./canvasManager";
 
 export class UIManager {
@@ -115,9 +120,10 @@ export class UIManager {
   }
 
   updateObjectiveDisplay() {
-    if (state.objectiveVector) {
-      const a = this.roundToPrecision(state.objectiveVector.x, UIManager.OBJECTIVE_PRECISION);
-      const b = this.roundToPrecision(state.objectiveVector.y, UIManager.OBJECTIVE_PRECISION);
+    const snapshot = getObjectiveState();
+    if (snapshot.objectiveVector) {
+      const a = this.roundToPrecision(snapshot.objectiveVector.x, UIManager.OBJECTIVE_PRECISION);
+      const b = this.roundToPrecision(snapshot.objectiveVector.y, UIManager.OBJECTIVE_PRECISION);
       const formattedObjective = this.formatObjectiveString(a, b);
       
       this.objectiveDisplay.classList.add("objective-item");
@@ -140,9 +146,12 @@ export class UIManager {
   }
 
   updateSolverModeButtons() {
-    const hasComputedLines = state.computedLines && state.computedLines.length > 0;
-    const hasSolution = state.originalIteratePath && state.originalIteratePath.length > 0;
-    const hasObjective = state.objectiveVector !== null;
+    const geometry = getGeometryState();
+    const solver = getSolverState();
+    const objective = getObjectiveState();
+    const hasComputedLines = geometry.computedLines && geometry.computedLines.length > 0;
+    const hasSolution = solver.originalIteratePath && solver.originalIteratePath.length > 0;
+    const hasObjective = objective.objectiveVector !== null;
     
     if (!hasComputedLines) {
       // Disable all buttons when no computed lines
@@ -164,7 +173,7 @@ export class UIManager {
       ];
       
       buttonModeMap.forEach(({ button, mode }) => {
-        button.disabled = state.solverMode === mode;
+        button.disabled = solver.solverMode === mode;
       });
       
       // Animate button should only be enabled when there's a solution to animate
@@ -175,7 +184,7 @@ export class UIManager {
     }
     
     // Stop rotate button should be enabled when rotation is active
-    this.stopRotateObjectiveButton.disabled = !state.rotateObjectiveMode;
+    this.stopRotateObjectiveButton.disabled = !solver.rotateObjectiveMode;
   }
 
   private setButtonsDisabled(buttons: HTMLButtonElement[], disabled: boolean): void {
@@ -194,7 +203,7 @@ export class UIManager {
     const button = this.toggle3DButton;
     const container = this.zScaleSliderContainer;
     
-    if (state.is3DMode) {
+    if (getViewState().is3DMode) {
       this.set3DButtonActive(button, true);
       container.style.display = "flex";
     } else {
@@ -216,8 +225,9 @@ export class UIManager {
   }
 
   updateZScaleValue() {
-    this.zScaleValue.textContent = state.zScale.toFixed(2);
-    this.zScaleSlider.value = String(state.zScale);
+    const snapshot = getViewState();
+    this.zScaleValue.textContent = snapshot.zScale.toFixed(2);
+    this.zScaleSlider.value = String(snapshot.zScale);
   }
 
   synchronizeUIWithState() {
@@ -225,7 +235,9 @@ export class UIManager {
     this.updateZScaleValue();
     this.updateObjectiveDisplay();
     this.updateSolverModeButtons();
-    if (state.vertices.length > 0 || state.objectiveVector) {
+    const geometry = getGeometryState();
+    const objective = getObjectiveState();
+    if (geometry.vertices.length > 0 || objective.objectiveVector) {
       this.hideNullStateMessage();
     }
     this.checkMobileOrientation();

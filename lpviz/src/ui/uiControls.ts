@@ -1,4 +1,18 @@
-import { state, SolverMode, handleStepSizeChange, resetTraceState } from "../state/state";
+import {
+  getGeometryState,
+  getObjectiveState,
+  getSolverState,
+  getTraceState,
+  getViewState,
+  mutateObjectiveState,
+  mutateSolverState,
+  mutateTraceState,
+  mutateViewState,
+  SolverMode,
+  handleStepSizeChange,
+  resetTraceState,
+  prepareAnimationInterval,
+} from "../state/state";
 import { start3DTransition } from "../utils/transitions";
 import {
   getElement,
@@ -10,7 +24,6 @@ import {
   calculateMinSidebarWidth,
   getElementChecked,
 } from "../utils/uiHelpers";
-import { prepareAnimationInterval } from "../state/state";
 import {
   applyCentralPathResult,
   applyIPMResult,
@@ -70,9 +83,10 @@ export function setupUIControls(
 ): SettingsElements {
   function setupZoomHandlers() {
     uiManager.zoomButton?.addEventListener("click", () => {
-      if (state.vertices.length === 0) return;
+      const geometry = getGeometryState();
+      if (geometry.vertices.length === 0) return;
       
-      const bounds = state.vertices.reduce(
+      const bounds = geometry.vertices.reduce(
         (acc, v) => ({
           minX: Math.min(acc.minX, v.x),
           maxX: Math.max(acc.maxX, v.x),
@@ -111,9 +125,11 @@ export function setupUIControls(
       canvasManager.scaleFactor = 1;
       canvasManager.offset.x = 0;
       canvasManager.offset.y = 0;
-      state.viewAngle.x = -1.15;
-      state.viewAngle.y = 0.4;
-      state.viewAngle.z = 0;
+      mutateViewState((draft) => {
+        draft.viewAngle.x = -1.15;
+        draft.viewAngle.y = 0.4;
+        draft.viewAngle.z = 0;
+      });
       canvasManager.draw();
       uiManager.updateZoomButtonsState(canvasManager);
     });
@@ -121,14 +137,19 @@ export function setupUIControls(
 
   function setup3DHandlers() {
     uiManager.toggle3DButton?.addEventListener("click", () => {
-      if (state.isTransitioning3D) return;
-      start3DTransition(canvasManager, uiManager, !state.is3DMode);
+      const viewState = getViewState();
+      if (viewState.isTransitioning3D) return;
+      start3DTransition(canvasManager, uiManager, !viewState.is3DMode);
     });
     
     uiManager.zScaleSlider?.addEventListener("input", () => {
-      state.zScale = parseFloat(uiManager.zScaleSlider?.value || "0.1");
+      const newScale = parseFloat(uiManager.zScaleSlider?.value || "0.1");
+      mutateViewState((draft) => {
+        draft.zScale = newScale;
+      });
       uiManager.updateZScaleValue();
-      if (state.is3DMode || state.isTransitioning3D) {
+      const viewState = getViewState();
+      if (viewState.is3DMode || viewState.isTransitioning3D) {
         canvasManager.draw();
       }
     });
@@ -149,11 +170,14 @@ export function setupUIControls(
     
     buttonElements.forEach(({ element, mode, settings }) => {
       element.addEventListener("click", () => {
-        state.solverMode = mode;
+        const wasRotating = getSolverState().rotateObjectiveMode;
+        mutateSolverState((draft) => {
+          draft.solverMode = mode;
+        });
         
-        if (state.rotateObjectiveMode) {
+        if (wasRotating) {
           resetTraceState();
-          if (state.traceEnabled) {
+          if (getTraceState().traceEnabled) {
             canvasManager.draw();
           }
         }
@@ -185,14 +209,14 @@ export function setupUIControls(
       
       if (solverMode) {
         resetTraceState();
-        if (state.traceEnabled) {
+        if (getTraceState().traceEnabled) {
           canvasManager.draw();
         }
       }
       
       if (customCallback) {
         customCallback();
-      } else if (solverMode && state.solverMode === solverMode) {
+      } else if (solverMode && getSolverState().solverMode === solverMode) {
         computePath();
       }
     });
@@ -204,11 +228,11 @@ export function setupUIControls(
     const input = getElement<HTMLInputElement>(inputId);
     input.addEventListener(eventType, () => {
       resetTraceState();
-      if (state.traceEnabled) {
+      if (getTraceState().traceEnabled) {
         canvasManager.draw();
       }
       
-      if (state.solverMode === solverMode) computePath();
+      if (getSolverState().solverMode === solverMode) computePath();
     });
     return input;
   }
@@ -228,7 +252,7 @@ export function setupUIControls(
     
     // Special callback for objective angle step
     const objectiveAngleStepSlider = setupSliderWithDisplay("objectiveAngleStepSlider", "objectiveAngleStepValue", 2, undefined, () => {
-      if (state.traceEnabled) {
+      if (getTraceState().traceEnabled) {
         handleStepSizeChange();
         canvasManager.draw();
       }
@@ -255,7 +279,9 @@ export function setupUIControls(
   function setupActionButtons() {
     getElement<HTMLButtonElement>("traceButton").addEventListener("click", () => {
       computePath();
-      state.iteratePathComputed = true;
+      mutateSolverState((draft) => {
+        draft.iteratePathComputed = true;
+      });
     });
 
     const startRotateButton = getElement<HTMLButtonElement>("startRotateObjectiveButton");
@@ -263,17 +289,28 @@ export function setupUIControls(
     const rotationSettings = getElement<HTMLElement>("objectiveRotationSettings");
 
     startRotateButton.addEventListener("click", () => {
-      state.rotateObjectiveMode = true;
+      const objectiveSnapshot = getObjectiveState();
+      const solverSnapshot = getSolverState();
+      const hadObjective = Boolean(objectiveSnapshot.objectiveVector);
+      const existingInterval = solverSnapshot.animationIntervalId;
+      
+      mutateSolverState((draft) => {
+        draft.rotateObjectiveMode = true;
+        draft.animationIntervalId = null;
+      });
+      mutateObjectiveState((draft) => {
+        if (!draft.objectiveVector) {
+          draft.objectiveVector = { x: 1, y: 0 };
+        }
+      });
       resetTraceState();
       
-      if (!state.objectiveVector) {
-        state.objectiveVector = { x: 1, y: 0 };
+      if (!hadObjective) {
         uiManager.updateObjectiveDisplay();
       }
       
-      if (state.animationIntervalId !== null) {
-        clearInterval(state.animationIntervalId);
-        state.animationIntervalId = null;
+      if (existingInterval !== null) {
+        clearInterval(existingInterval);
       }
       
       rotationSettings.style.display = "block";
@@ -282,8 +319,12 @@ export function setupUIControls(
     });
     
     stopRotateButton.addEventListener("click", () => {
-      state.rotateObjectiveMode = false;
-      state.totalRotationAngle = 0;
+      mutateSolverState((draft) => {
+        draft.rotateObjectiveMode = false;
+      });
+      mutateTraceState((draft) => {
+        draft.totalRotationAngle = 0;
+      });
       rotationSettings.style.display = "none";
       uiManager.updateSolverModeButtons();
     });
@@ -293,8 +334,10 @@ export function setupUIControls(
     const traceCheckbox = getElement<HTMLInputElement>("traceCheckbox");
     traceCheckbox.checked = false;
     traceCheckbox.addEventListener("change", () => {
-      state.traceEnabled = traceCheckbox.checked;
-      if (!state.traceEnabled) {
+      mutateTraceState((draft) => {
+        draft.traceEnabled = traceCheckbox.checked;
+      });
+      if (!traceCheckbox.checked) {
         resetTraceState();
         canvasManager.draw();
       } else {
@@ -306,53 +349,65 @@ export function setupUIControls(
     const replaySpeedSlider = getElement<HTMLInputElement>("replaySpeedSlider");
     
     animateButton.addEventListener("click", () => {
-      if (state.rotateObjectiveMode) return;
+      const solverSnapshot = getSolverState();
+      if (solverSnapshot.rotateObjectiveMode) return;
       
-      if (state.animationIntervalId !== null) {
-        clearInterval(state.animationIntervalId);
-        state.animationIntervalId = null;
+      if (solverSnapshot.animationIntervalId !== null) {
+        clearInterval(solverSnapshot.animationIntervalId);
       }
       
       const intervalTime = parseInt(replaySpeedSlider.value, 10) || 500;
-      const iteratesToAnimate = [...state.originalIteratePath];
-      state.iteratePath = [];
-      state.highlightIteratePathIndex = null;
+      const iteratesToAnimate = [...solverSnapshot.originalIteratePath];
+      mutateSolverState((draft) => {
+        draft.iteratePath = [];
+        draft.highlightIteratePathIndex = null;
+        draft.animationIntervalId = null;
+      });
       canvasManager.draw();
       
       let currentIndex = 0;
       const intervalId = window.setInterval(() => {
-        if (state.animationIntervalId !== intervalId) return;
+        if (getSolverState().animationIntervalId !== intervalId) return;
         
         if (currentIndex >= iteratesToAnimate.length) {
           clearInterval(intervalId);
-          state.animationIntervalId = null;
+          mutateSolverState((draft) => {
+            draft.animationIntervalId = null;
+          });
           return;
         }
         
-        state.iteratePath.push(iteratesToAnimate[currentIndex]);
-        state.highlightIteratePathIndex = currentIndex;
+        mutateSolverState((draft) => {
+          draft.iteratePath.push(iteratesToAnimate[currentIndex]);
+          draft.highlightIteratePathIndex = currentIndex;
+        });
         currentIndex++;
         canvasManager.draw();
       }, intervalTime);
       
-      state.animationIntervalId = intervalId;
+      mutateSolverState((draft) => {
+        draft.animationIntervalId = intervalId;
+      });
     });
   }
 
   async function computePath() {
     prepareAnimationInterval();
-    if (!state.objectiveVector || !state.computedLines?.length) {
+    const geometry = getGeometryState();
+    const objective = getObjectiveState();
+    const solver = getSolverState();
+    if (!objective.objectiveVector || !geometry.computedLines?.length) {
       return;
     }
-    const objective: [number, number] = [state.objectiveVector.x, state.objectiveVector.y];
+    const objectiveVec: [number, number] = [objective.objectiveVector.x, objective.objectiveVector.y];
     let request: SolverWorkerPayload | null = null;
     
-    switch (state.solverMode) {
+    switch (solver.solverMode) {
       case "ipm":
         request = {
           solver: "ipm",
-          lines: state.computedLines,
-          objective,
+          lines: geometry.computedLines,
+          objective: objectiveVec,
           alphaMax: parseFloat(settingsElements.alphaMaxSlider.value),
           maxit: parseInt(settingsElements.maxitInput.value, 10),
         };
@@ -360,15 +415,15 @@ export function setupUIControls(
       case "simplex":
         request = {
           solver: "simplex",
-          lines: state.computedLines,
-          objective,
+          lines: geometry.computedLines,
+          objective: objectiveVec,
         };
         break;
       case "pdhg":
         request = {
           solver: "pdhg",
-          lines: state.computedLines,
-          objective,
+          lines: geometry.computedLines,
+          objective: objectiveVec,
           ineq: getElementChecked("pdhgIneqMode"),
           maxit: parseInt(settingsElements.maxitInputPDHG.value, 10),
           eta: parseFloat(settingsElements.pdhgEtaSlider.value),
@@ -376,12 +431,12 @@ export function setupUIControls(
         };
         break;
       default: // central
-        if (!state.computedVertices?.length) return;
+        if (!geometry.computedVertices?.length) return;
         request = {
           solver: "central",
-          vertices: state.computedVertices,
-          lines: state.computedLines,
-          objective,
+          vertices: geometry.computedVertices,
+          lines: geometry.computedLines,
+          objective: objectiveVec,
           niter: parseInt(settingsElements.centralPathIterSlider.value, 10),
         };
         break;
@@ -416,30 +471,37 @@ export function setupUIControls(
   async function computeAndRotate() {
     const MIN_WAIT = 30;
     
-    if (!isPolygonConvex(state.vertices)) {
+    const geometry = getGeometryState();
+    if (!isPolygonConvex(geometry.vertices)) {
       setTimeout(computeAndRotate, MIN_WAIT);
       return;
     }
     
-    if (!state.rotateObjectiveMode) return;
-    
+    const solverSnapshot = getSolverState();
+    const objectiveSnapshot = getObjectiveState();
+    if (!solverSnapshot.rotateObjectiveMode || !objectiveSnapshot.objectiveVector) return;
+
     const angleStep = parseFloat(settingsElements.objectiveAngleStepSlider.value);
-    const angle = Math.atan2(state.objectiveVector!.y, state.objectiveVector!.x);
-    const magnitude = Math.hypot(state.objectiveVector!.x, state.objectiveVector!.y);
+    const angle = Math.atan2(objectiveSnapshot.objectiveVector.y, objectiveSnapshot.objectiveVector.x);
+    const magnitude = Math.hypot(objectiveSnapshot.objectiveVector.x, objectiveSnapshot.objectiveVector.y);
     
-    state.objectiveVector = {
-      x: magnitude * Math.cos(angle + angleStep),
-      y: magnitude * Math.sin(angle + angleStep),
-    };
-    
-    if (state.traceEnabled) {
-      state.totalRotationAngle += angleStep;
-    }
+    mutateObjectiveState((draft) => {
+      draft.objectiveVector = {
+        x: magnitude * Math.cos(angle + angleStep),
+        y: magnitude * Math.sin(angle + angleStep),
+      };
+    });
+    mutateTraceState((draft) => {
+      if (draft.traceEnabled) {
+        draft.totalRotationAngle += angleStep;
+      }
+    });
     
     uiManager.updateObjectiveDisplay();
     canvasManager.draw();
     
-    if (state.polygonComplete && state.computedLines?.length > 0) {
+    const updatedGeometry = getGeometryState();
+    if (updatedGeometry.polygonComplete && updatedGeometry.computedLines?.length > 0) {
       try {
         await computePath();
       } catch (error) {
@@ -447,7 +509,7 @@ export function setupUIControls(
       }
     }
     
-    if (state.rotateObjectiveMode) {
+    if (getSolverState().rotateObjectiveMode) {
       setTimeout(computeAndRotate, MIN_WAIT);
     }
   }

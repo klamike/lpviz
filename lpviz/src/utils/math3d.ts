@@ -27,7 +27,6 @@ export function transform2DTo3DAndProject(point: PointXYZ, viewAngles: PointXYZ,
 export function inverseTransform2DProjection(
   projectedPoint2d: PointXY,
   viewAngles: PointXYZ,
-  _focalDistance?: number
 ): PointXY {
   rotationEuler.set(viewAngles.x, viewAngles.y, viewAngles.z, "XYZ");
   inverseRotationMatrix.makeRotationFromEuler(rotationEuler).invert();

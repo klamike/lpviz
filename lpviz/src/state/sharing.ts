@@ -1,4 +1,12 @@
-import { state, SolverMode } from "./state";
+import {
+  getGeometryState,
+  getObjectiveState,
+  getSolverState,
+  mutateGeometryState,
+  mutateObjectiveState,
+  mutateSolverState,
+  SolverMode,
+} from "./state";
 import { PointXY } from "../types/arrays";
 import JSONCrush from "jsoncrush";
 import { 
@@ -94,9 +102,12 @@ export function createSharingHandlers(
   sendPolytope: () => void
 ) {
   function generateShareLink(): string {
+    const geometryState = getGeometryState();
+    const objectiveState = getObjectiveState();
+    const solverState = getSolverState();
     const settings: ShareSettings = {};
     
-    switch (state.solverMode) {
+    switch (solverState.solverMode) {
       case "ipm":
         settings.alphaMax = parseFloat(settingsElements.alphaMaxSlider.value);
         settings.maxitIPM = parseInt(settingsElements.maxitInput.value, 10);
@@ -113,9 +124,9 @@ export function createSharingHandlers(
     }
     
     const data: ShareState = {
-      vertices: state.vertices,
-      objective: state.objectiveVector,
-      solverMode: state.solverMode,
+      vertices: geometryState.vertices,
+      objective: objectiveState.objectiveVector,
+      solverMode: solverState.solverMode,
       settings
     };
     
@@ -133,17 +144,28 @@ export function createSharingHandlers(
     const expandedObj = expandObject(obj) as ShareState;
     
     if (Array.isArray(expandedObj.vertices)) {
-      state.vertices = expandedObj.vertices.map((v: PointXY) => ({ x: v.x, y: v.y }));
-      state.polygonComplete = state.vertices.length > 2;
+      const mappedVertices = expandedObj.vertices.map((v: PointXY) => ({ x: v.x, y: v.y }));
+      mutateGeometryState((draft) => {
+        draft.vertices = mappedVertices;
+        draft.polygonComplete = mappedVertices.length > 2;
+      });
     }
     
     if (expandedObj.objective) {
-      state.objectiveVector = { x: expandedObj.objective.x, y: expandedObj.objective.y };
+      mutateObjectiveState((draft) => {
+        draft.objectiveVector = { x: expandedObj.objective!.x, y: expandedObj.objective!.y };
+      });
     }
     
     if (expandedObj.solverMode) {
-      state.solverMode = expandedObj.solverMode as SolverMode;
+      mutateSolverState((draft) => {
+        draft.solverMode = expandedObj.solverMode as SolverMode;
+      });
     }
+    
+    const geometryState = getGeometryState();
+    const objectiveState = getObjectiveState();
+    const solverState = getSolverState();
     
     const settings = expandedObj.settings || {};
 
@@ -171,14 +193,14 @@ export function createSharingHandlers(
     
     uiManager.hideNullStateMessage();
 
-    if (state.polygonComplete && state.objectiveVector) {
+    if (geometryState.polygonComplete && objectiveState.objectiveVector) {
       showElement("maximize");
       
       setButtonsEnabled({
-        "iteratePathButton": state.solverMode !== "central",
-        "ipmButton": state.solverMode !== "ipm",
-        "simplexButton": state.solverMode !== "simplex",
-        "pdhgButton": state.solverMode !== "pdhg",
+        "iteratePathButton": solverState.solverMode !== "central",
+        "ipmButton": solverState.solverMode !== "ipm",
+        "simplexButton": solverState.solverMode !== "simplex",
+        "pdhgButton": solverState.solverMode !== "pdhg",
         "traceButton": true,
         "zoomButton": true
       });
@@ -190,15 +212,15 @@ export function createSharingHandlers(
       uiManager.updateSolverModeButtons();
     }
 
-    setElementDisplay("ipmSettings", state.solverMode === "ipm" ? "block" : "none");
-    setElementDisplay("pdhgSettings", state.solverMode === "pdhg" ? "block" : "none");
-    setElementDisplay("centralPathSettings", state.solverMode === "central" ? "block" : "none");
+    setElementDisplay("ipmSettings", solverState.solverMode === "ipm" ? "block" : "none");
+    setElementDisplay("pdhgSettings", solverState.solverMode === "pdhg" ? "block" : "none");
+    setElementDisplay("centralPathSettings", solverState.solverMode === "central" ? "block" : "none");
 
     uiManager.updateObjectiveDisplay();
     uiManager.updateSolverModeButtons();
     canvasManager.draw();
 
-    if (state.polygonComplete) {
+    if (geometryState.polygonComplete) {
       sendPolytope();
     }
   }

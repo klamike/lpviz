@@ -1,4 +1,11 @@
-import { state } from "../state/state";
+import {
+  getGeometryState,
+  getObjectiveState,
+  getSolverState,
+  mutateGeometryState,
+  mutateInteractionState,
+  mutateSolverState,
+} from "../state/state";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 import { isPolygonConvex, polytope } from "../utils/math2d";
@@ -14,16 +21,17 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   const canvas = canvasManager.canvas;
 
   function sendPolytope() {
-    const points = state.vertices.map((pt) => [pt.x, pt.y]);
+    const geometry = getGeometryState();
+    const points = geometry.vertices.map((pt) => [pt.x, pt.y]);
     try {
       const result = polytope(points);
       if (result.inequalities) {
-        if (!isPolygonConvex(state.vertices)) {
+        if (!isPolygonConvex(geometry.vertices)) {
           uiManager.inequalitiesDiv.textContent = "Nonconvex";
           return;
         }
         uiManager.inequalitiesDiv.innerHTML = result.inequalities
-          .slice(0, state.polygonComplete ? result.inequalities.length : result.inequalities.length - 1)
+          .slice(0, geometry.polygonComplete ? result.inequalities.length : result.inequalities.length - 1)
           .map(
             (ineq, index) => `
             <div class="inequality-item" data-index="${index}">
@@ -36,11 +44,15 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
         setupHoverHighlight(
           inequalityElements,
           (index) => {
-            state.highlightIndex = index;
+            mutateInteractionState((draft) => {
+              draft.highlightIndex = index;
+            });
             canvasManager.draw();
           },
           () => {
-            state.highlightIndex = null;
+            mutateInteractionState((draft) => {
+              draft.highlightIndex = null;
+            });
             canvasManager.draw();
           }
         );
@@ -48,10 +60,19 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
         if (result.lines.length > 0) {
           showElement("subjectTo");
         }
-        state.computedVertices = result.vertices;
-        state.computedLines = result.lines;
+        mutateGeometryState((draft) => {
+          draft.computedVertices = result.vertices;
+          draft.computedLines = result.lines;
+        });
         uiManager.updateSolverModeButtons();
-        if (state.iteratePathComputed && state.objectiveVector && state.computedLines.length > 0) {
+        const solverSnapshot = getSolverState();
+        const objectiveSnapshot = getObjectiveState();
+        const updatedGeometry = getGeometryState();
+        if (
+          solverSnapshot.iteratePathComputed &&
+          objectiveSnapshot.objectiveVector &&
+          updatedGeometry.computedLines.length > 0
+        ) {
           // Note: computePath will be available after UI controls setup
         }
       } else {
@@ -71,11 +92,15 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     setupHoverHighlight(
       iterateElements,
       (index) => {
-        state.highlightIteratePathIndex = index;
+        mutateSolverState((draft) => {
+          draft.highlightIteratePathIndex = index;
+        });
         canvasManager.draw();
       },
       () => {
-        state.highlightIteratePathIndex = null;
+        mutateSolverState((draft) => {
+          draft.highlightIteratePathIndex = null;
+        });
         canvasManager.draw();
       }
     );

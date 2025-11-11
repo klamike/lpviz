@@ -1,4 +1,4 @@
-import { state } from "../../../state/state";
+import { getObjectiveState, getGeometryState } from "../../../state/state";
 import {
   COLORS,
   ITERATE_LINE_THICKNESS,
@@ -13,10 +13,12 @@ export class ObjectiveRenderer implements CanvasLayerRenderer {
     const { helpers, groups, is3D, skipPreviewDrawing } = context;
     helpers.clearGroup(groups.objective);
 
+    const objectiveState = getObjectiveState();
+    const geometry = getGeometryState();
     const target =
-      state.objectiveVector ||
-      (state.polygonComplete && state.currentObjective && !skipPreviewDrawing
-        ? state.currentObjective
+      objectiveState.objectiveVector ||
+      (geometry.polygonComplete && objectiveState.currentObjective && !skipPreviewDrawing
+        ? objectiveState.currentObjective
         : null);
 
     if (!target) return;

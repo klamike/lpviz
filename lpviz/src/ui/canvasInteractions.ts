@@ -1,4 +1,11 @@
-import { state } from "../state/state";
+import {
+  getGeometryState,
+  getObjectiveState,
+  getInteractionState,
+  mutateGeometryState,
+  mutateObjectiveState,
+  mutateInteractionState,
+} from "../state/state";
 import { PointXY } from "../types/arrays";
 import { distance, pointCentroid, isPolygonConvex, isPointInsidePolygon, isPointNearSegment } from "../utils/math2d";
 import { showElement, setButtonsEnabled } from "../utils/uiHelpers";
@@ -18,20 +25,25 @@ export function setupCanvasInteractions(
   const canvas = canvasManager.canvas;
 
   function handlePolygonConstruction(pt: PointXY) {
-    if (state.vertices.length >= 3) {
+    const geometry = getGeometryState();
+    if (geometry.vertices.length >= 3) {
       // Check if clicking near first vertex to close polygon
-      if (distance(pt, state.vertices[0]) < 0.5) {
-        state.polygonComplete = true;
-        state.interiorPoint = pointCentroid(state.vertices);
+      if (distance(pt, geometry.vertices[0]) < 0.5) {
+        mutateGeometryState((draft) => {
+          draft.polygonComplete = true;
+          draft.interiorPoint = pointCentroid(draft.vertices);
+        });
         canvasManager.draw();
         sendPolytope();
         return;
       }
       
       // Check if clicking inside polygon to close it
-      if (isPointInsidePolygon(pt, state.vertices)) {
-        state.polygonComplete = true;
-        state.interiorPoint = pt;
+      if (isPointInsidePolygon(pt, geometry.vertices)) {
+        mutateGeometryState((draft) => {
+          draft.polygonComplete = true;
+          draft.interiorPoint = { x: pt.x, y: pt.y };
+        });
         canvasManager.draw();
         sendPolytope();
         return;
@@ -39,14 +51,16 @@ export function setupCanvasInteractions(
     }
     
     // Validate convexity before adding vertex
-    const tentative = [...state.vertices, pt];
+    const tentative = [...geometry.vertices, pt];
     if (tentative.length >= 3 && !isPolygonConvex(tentative)) {
       alert("Adding this vertex would make the polygon nonconvex. Please choose another point.");
       return;
     }
     
     saveToHistory();
-    state.vertices.push(pt);
+    mutateGeometryState((draft) => {
+      draft.vertices.push({ x: pt.x, y: pt.y });
+    });
     uiManager.hideNullStateMessage();
     canvasManager.draw();
     sendPolytope();
@@ -54,7 +68,11 @@ export function setupCanvasInteractions(
 
   function handleObjectiveSelection(pt: PointXY) {
     saveToHistory();
-    state.objectiveVector = state.currentObjective || pt;
+    const snapshot = getObjectiveState();
+    const nextObjective = snapshot.currentObjective || pt;
+    mutateObjectiveState((draft) => {
+      draft.objectiveVector = { x: nextObjective.x, y: nextObjective.y };
+    });
     showElement("maximize");
     setButtonsEnabled({
       "ipmButton": true,
@@ -78,9 +96,10 @@ export function setupCanvasInteractions(
 
     const logicalMouse = getLogicalCoords(canvasManager, e);
     
-    for (let i = 0; i < state.vertices.length; i++) {
-      const v1 = state.vertices[i];
-      const v2 = state.vertices[(i + 1) % state.vertices.length];
+    const vertices = getGeometryState().vertices;
+    for (let i = 0; i < vertices.length; i++) {
+      const v1 = vertices[i];
+      const v2 = vertices[(i + 1) % vertices.length];
       
       if (isPointNearSegment(logicalMouse, v1, v2)) {
         const dx = v2.x - v1.x;
@@ -92,7 +111,9 @@ export function setupCanvasInteractions(
           y: logicalMouse.y - normal.y * 0.1,
         };
         saveToHistory();
-        state.vertices.splice(i + 1, 0, newPoint);
+        mutateGeometryState((draft) => {
+          draft.vertices.splice(i + 1, 0, newPoint);
+        });
         canvasManager.draw();
         sendPolytope();
         break;
@@ -106,18 +127,24 @@ export function setupCanvasInteractions(
     }
 
     // Ignore clicks that were part of drag operations
-    if (state.wasPanning || state.wasDraggingPoint || state.wasDraggingObjective) {
-      state.wasPanning = false;
-      state.wasDraggingPoint = false;
-      state.wasDraggingObjective = false;
+    const interaction = getInteractionState();
+    if (interaction.wasPanning || interaction.wasDraggingPoint || interaction.wasDraggingObjective) {
+      mutateInteractionState((draft) => {
+        draft.wasPanning = false;
+        draft.wasDraggingPoint = false;
+        draft.wasDraggingObjective = false;
+      });
       return;
     }
 
     const pt = getLogicalCoords(canvasManager, e);
     
-    if (!state.polygonComplete) {
+    const geometry = getGeometryState();
+    const objective = getObjectiveState();
+    
+    if (!geometry.polygonComplete) {
       handlePolygonConstruction(pt);
-    } else if (state.objectiveVector === null) {
+    } else if (objective.objectiveVector === null) {
       handleObjectiveSelection(pt);
     }
   });

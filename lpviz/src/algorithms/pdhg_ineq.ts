@@ -18,6 +18,7 @@ function pdhgIneqEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: Vec
   const Ax = A.mmul(xk);
   const primalFeasibility = projectNonNegative(Matrix.sub(Ax, b)).norm() / (1 + b.norm());
   const dualFeasibility = projectNonNegative(yk.mul(-1)).norm() / (1 + c.norm());
+  yk.mul(-1) // put it back
 
   const cTx = c.dot(xk);
   const bTy = b.dot(yk);

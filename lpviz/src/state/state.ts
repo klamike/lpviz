@@ -1,194 +1,199 @@
-import { PointXY, PointXYZ } from '../types/arrays';
-import { Vertices, Lines, VecNs } from '../types/arrays';
-import { HistoryEntry } from './history';
+import { createStore, type StoreApi } from 'zustand/vanilla';
+import { produce, type Draft } from 'immer';
 
-export interface TraceEntry {
-  path: number[][];
-  angle: number;
-}
+import { createGeometrySlice, type GeometrySlice } from './slices/geometrySlice';
+import { createObjectiveSlice, type ObjectiveSlice } from './slices/objectiveSlice';
+import { createSolverSlice, type SolverSlice } from './slices/solverSlice';
+import { createInteractionSlice, type InteractionSlice } from './slices/interactionSlice';
+import { createHistorySlice, type HistorySlice } from './slices/historySlice';
+import { createViewSlice, type ViewSlice } from './slices/viewSlice';
+import { createTraceSlice, type TraceSlice } from './slices/traceSlice';
+import { createInputSlice, type InputSlice } from './slices/inputSlice';
+export type { SolverMode, InputMode, ObjectiveDirection } from './types';
+export type { TraceEntry } from './slices/traceSlice';
 
-export type SolverMode = 'central' | 'ipm' | 'simplex' | 'pdhg';
-export type InputMode = 'visual' | 'manual';
-export type ObjectiveDirection = 'max' | 'min';
-
-export interface State {
-  vertices: PointXY[];
-  currentMouse: PointXY | null;
-  polygonComplete: boolean;
-  interiorPoint: PointXY | null;
-  objectiveVector: PointXY | null;
-  currentObjective: PointXY | null;
-  computedVertices: Vertices;
-  computedLines: Lines;
-  snapToGrid: boolean;
-  highlightIndex: number | null;
-  analyticCenter: PointXY | null;
-  iteratePath: VecNs;
-  iteratePathComputed: boolean;
-  historyStack: HistoryEntry[];
-  redoStack: HistoryEntry[];
-  highlightIteratePathIndex: number | null;
-  isIteratePathComputing: boolean;
-  rotateObjectiveMode: boolean;
-  draggingPointIndex: number | null;
-  potentialDragPointIndex: number | null;
-  dragStartPos: { x: number; y: number } | null;
-  draggingObjective: boolean;
-  solverMode: SolverMode;
-  animationIntervalId: number | null;
-  originalIteratePath: VecNs;
-  isPanning: boolean;
-  lastPan: { x: number; y: number };
-  wasPanning: boolean;
-  wasDraggingPoint: boolean;
-  wasDraggingObjective: boolean;
-  is3DMode: boolean;
-  viewAngle: PointXYZ;
-  focalDistance: number;
-  isRotatingCamera: boolean;
-  lastRotationMouse: { x: number; y: number };
-  zScale: number;
-  traceEnabled: boolean;
-  currentTracePath: VecNs;
-  totalRotationAngle: number;
-  rotationCount: number;
-  traceBuffer: TraceEntry[];
-  maxTraceCount: number;
-  lastDrawnTraceIndex: number;
-  isTransitioning3D: boolean;
-  transitionStartTime: number;
-  transitionDuration: number;
-  transition3DStartAngles: PointXYZ;
-  transition3DEndAngles: PointXYZ;
-  inputMode: InputMode;
-  manualConstraints: string[];
-  manualObjective: string | null;
-  objectiveDirection: ObjectiveDirection;
-  parsedConstraints: Lines;
-}
-
-const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
-const DEFAULT_TRANSITION_DURATION = 500;
-const DEFAULT_FOCAL_DISTANCE = 1000;
-const DEFAULT_Z_SCALE = 0.1;
+export type State = GeometrySlice &
+  ObjectiveSlice &
+  SolverSlice &
+  InteractionSlice &
+  HistorySlice &
+  ViewSlice &
+  TraceSlice &
+  InputSlice;
 
 function createInitialState(): State {
   return {
-    vertices: [],
-    currentMouse: null,
-    polygonComplete: false,
-    interiorPoint: null,
-    objectiveVector: null,
-    currentObjective: null,
-    computedVertices: [],
-    computedLines: [],
-    snapToGrid: false,
-    highlightIndex: null,
-    analyticCenter: null,
-    iteratePath: [],
-    iteratePathComputed: false,
-    historyStack: [],
-    redoStack: [],
-    highlightIteratePathIndex: null,
-    isIteratePathComputing: false,
-    rotateObjectiveMode: false,
-    draggingPointIndex: null,
-    potentialDragPointIndex: null,
-    dragStartPos: null,
-    draggingObjective: false,
-    solverMode: "central" as SolverMode,
-    animationIntervalId: null,
-    originalIteratePath: [],
-    isPanning: false,
-    lastPan: { x: 0, y: 0 },
-    wasPanning: false,
-    wasDraggingPoint: false,
-    wasDraggingObjective: false,
-    is3DMode: false,
-    viewAngle: { ...DEFAULT_VIEW_ANGLE },
-    focalDistance: DEFAULT_FOCAL_DISTANCE,
-    isRotatingCamera: false,
-    lastRotationMouse: { x: 0, y: 0 },
-    zScale: DEFAULT_Z_SCALE,
-    traceEnabled: false,
-    currentTracePath: [],
-    totalRotationAngle: 0,
-    rotationCount: 0,
-    traceBuffer: [],
-    maxTraceCount: 0,
-    lastDrawnTraceIndex: -1,
-    isTransitioning3D: false,
-    transitionStartTime: 0,
-    transitionDuration: DEFAULT_TRANSITION_DURATION,
-    transition3DStartAngles: { x: 0, y: 0, z: 0 },
-    transition3DEndAngles: { ...DEFAULT_VIEW_ANGLE },
-    inputMode: 'visual' as InputMode,
-    manualConstraints: [],
-    manualObjective: null,
-    objectiveDirection: 'max' as ObjectiveDirection,
-    parsedConstraints: []
+    ...createGeometrySlice(),
+    ...createObjectiveSlice(),
+    ...createSolverSlice(),
+    ...createInteractionSlice(),
+    ...createHistorySlice(),
+    ...createViewSlice(),
+    ...createTraceSlice(),
+    ...createInputSlice(),
   };
 }
 
-export const state: State = createInitialState();
+const appStateStore: StoreApi<State> = createStore<State>(() => createInitialState());
+
+export const getState = (): State => appStateStore.getState();
+
+export const setState = (partial: Partial<State>): void => {
+  appStateStore.setState(partial);
+};
+
+export const mutateState = (recipe: (draft: Draft<State>) => void): void => {
+  appStateStore.setState((current) =>
+    produce(current, (draft) => {
+      recipe(draft);
+    })
+  );
+};
+
+export const subscribeToState: StoreApi<State>['subscribe'] = appStateStore.subscribe;
+
+type SliceHelpers<Slice> = {
+  get: () => Slice;
+  set: (partial: Partial<Slice>) => void;
+  mutate: (recipe: (draft: Draft<Slice>) => void) => void;
+};
+
+const createSliceHelpers = <Slice>(selector: (state: State) => Slice): SliceHelpers<Slice> => ({
+  get: () => selector(appStateStore.getState()),
+  set: (partial) => {
+    appStateStore.setState(partial);
+  },
+  mutate: (recipe) => {
+    mutateState((draft) => {
+      recipe(draft as Draft<Slice>);
+    });
+  },
+});
+
+const geometrySelector = (state: State): GeometrySlice => state;
+const objectiveSelector = (state: State): ObjectiveSlice => state;
+const solverSelector = (state: State): SolverSlice => state;
+const interactionSelector = (state: State): InteractionSlice => state;
+const historySelector = (state: State): HistorySlice => state;
+const viewSelector = (state: State): ViewSlice => state;
+const traceSelector = (state: State): TraceSlice => state;
+const inputSelector = (state: State): InputSlice => state;
+
+export const {
+  get: getGeometryState,
+  set: setGeometryState,
+  mutate: mutateGeometryState,
+} = createSliceHelpers<GeometrySlice>(geometrySelector);
+
+export const {
+  get: getObjectiveState,
+  set: setObjectiveState,
+  mutate: mutateObjectiveState,
+} = createSliceHelpers<ObjectiveSlice>(objectiveSelector);
+
+export const {
+  get: getSolverState,
+  set: setSolverState,
+  mutate: mutateSolverState,
+} = createSliceHelpers<SolverSlice>(solverSelector);
+
+export const {
+  get: getInteractionState,
+  set: setInteractionState,
+  mutate: mutateInteractionState,
+} = createSliceHelpers<InteractionSlice>(interactionSelector);
+
+export const {
+  get: getHistoryState,
+  set: setHistoryState,
+  mutate: mutateHistoryState,
+} = createSliceHelpers<HistorySlice>(historySelector);
+
+export const {
+  get: getViewState,
+  set: setViewState,
+  mutate: mutateViewState,
+} = createSliceHelpers<ViewSlice>(viewSelector);
+
+export const {
+  get: getTraceState,
+  set: setTraceState,
+  mutate: mutateTraceState,
+} = createSliceHelpers<TraceSlice>(traceSelector);
+
+export const {
+  get: getInputState,
+  set: setInputState,
+  mutate: mutateInputState,
+} = createSliceHelpers<InputSlice>(inputSelector);
 
 export function prepareAnimationInterval(): void {
-  if (state.animationIntervalId !== null) {
-    clearInterval(state.animationIntervalId);
-    state.animationIntervalId = null;
+  const { animationIntervalId } = getState();
+  if (animationIntervalId !== null) {
+    clearInterval(animationIntervalId);
+    setState({ animationIntervalId: null });
   }
 }
 
 export function updateIteratePaths(iteratesArray: number[][]): void {
-  state.originalIteratePath = [...iteratesArray];
-  state.iteratePath = iteratesArray;
+  mutateState((draft) => {
+    draft.originalIteratePath = [...iteratesArray];
+    draft.iteratePath = iteratesArray;
+  });
 }
 
 export function addTraceToBuffer(iteratesArray: number[][]): void {
-  if (!state.traceEnabled || iteratesArray.length === 0) return;
+  const snapshot = getState();
+  if (!snapshot.traceEnabled || iteratesArray.length === 0) return;
   
-  state.traceBuffer.push({
-    path: [...iteratesArray],
-    angle: state.totalRotationAngle
+  mutateState((draft) => {
+    draft.traceBuffer.push({
+      path: [...iteratesArray],
+      angle: draft.totalRotationAngle
+    });
+    
+    while (draft.traceBuffer.length > draft.maxTraceCount) {
+      draft.traceBuffer.shift();
+    }
+    
+    if (draft.totalRotationAngle >= 2 * Math.PI) {
+      draft.rotationCount = Math.floor(draft.totalRotationAngle / (2 * Math.PI));
+    }
   });
-  
-  // Only trim traces if we exceed the buffer limit
-  while (state.traceBuffer.length > state.maxTraceCount) {
-    state.traceBuffer.shift();
-  }
-  
-  if (state.totalRotationAngle >= 2 * Math.PI) {
-    state.rotationCount = Math.floor(state.totalRotationAngle / (2 * Math.PI));
-  }
 }
 
 export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {
   updateIteratePaths(iteratesArray);
-  if (state.traceEnabled && iteratesArray.length > 0) {
+  const snapshot = getState();
+  if (snapshot.traceEnabled && iteratesArray.length > 0) {
     addTraceToBuffer(iteratesArray);
   }
 }
 
 export function resetTraceState(): void {
-  if (state.traceEnabled) {
-    state.traceBuffer = [];
-    state.totalRotationAngle = 0;
-    state.rotationCount = 0;
+  if (!getState().traceEnabled) {
+    return;
   }
+  
+  mutateState((draft) => {
+    draft.traceBuffer = [];
+    draft.totalRotationAngle = 0;
+    draft.rotationCount = 0;
+  });
 }
 
 export function handleStepSizeChange(): void {
-  if (!state.traceEnabled) return;
+  if (!getState().traceEnabled) return;
   
   const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
   const angleStep = parseFloat(objectiveAngleStepSlider?.value || "0.1");
   const newMaxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
   
-  // Update maxTraceCount to the new value
-  state.maxTraceCount = newMaxTracesPerRotation;
-  
-  // If the new limit is smaller than current buffer, trim from the beginning (oldest traces)
-  while (state.traceBuffer.length > state.maxTraceCount) {
-    state.traceBuffer.shift();
-  }
+  mutateState((draft) => {
+    draft.maxTraceCount = newMaxTracesPerRotation;
+    
+    while (draft.traceBuffer.length > draft.maxTraceCount) {
+      draft.traceBuffer.shift();
+    }
+  });
 }

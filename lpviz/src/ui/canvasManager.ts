@@ -15,7 +15,7 @@ import {
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { state } from "../state/state";
+import { getObjectiveState, getViewState, getInteractionState } from "../state/state";
 import { PointXY } from "../types/arrays";
 import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
 import { CanvasRenderContext, CanvasRenderHelpers } from "./canvas/types";
@@ -169,7 +169,8 @@ export class CanvasManager {
 
   private renderFrame() {
     if (!this.initialized) return;
-    const is3D = state.is3DMode || state.isTransitioning3D;
+    const viewState = getViewState();
+    const is3D = viewState.is3DMode || viewState.isTransitioning3D;
     this.updateCamera();
     const context = this.buildRenderContext(is3D);
     this.gridRenderer.render(context);
@@ -234,7 +235,8 @@ export class CanvasManager {
   }
 
   private updateCamera() {
-    const is3D = state.is3DMode || state.isTransitioning3D;
+    const viewState = getViewState();
+    const is3D = viewState.is3DMode || viewState.isTransitioning3D;
     this.activeCamera = is3D ? this.perspectiveCamera : this.orthoCamera;
 
     const unitsPerPixel = this.getUnitsPerPixel();
@@ -267,7 +269,7 @@ export class CanvasManager {
       const desiredWorldHeight = height * unitsPerPixel;
       const fov = this.perspectiveCamera.fov * (Math.PI / 180);
       const baseDistance = Math.max(10, desiredWorldHeight / (2 * Math.tan(fov / 2)));
-      const camEuler = new Euler(-state.viewAngle.x, -state.viewAngle.y, -state.viewAngle.z, "XYZ");
+      const camEuler = new Euler(-viewState.viewAngle.x, -viewState.viewAngle.y, -viewState.viewAngle.z, "XYZ");
       const direction = new Vector3(0, 0, 1).applyEuler(camEuler).normalize();
       const position = target.clone().add(direction.multiplyScalar(baseDistance));
       this.perspectiveCamera.position.copy(position);
@@ -279,11 +281,11 @@ export class CanvasManager {
 
   toLogicalCoords(x: number, y: number): PointXY {
     const planeCoords = this.screenToPlane(x, y);
-    if (state.is3DMode || state.isTransitioning3D) {
+    const viewState = getViewState();
+    if (viewState.is3DMode || viewState.isTransitioning3D) {
       const logical = inverseTransform2DProjection(
         { x: planeCoords.x, y: planeCoords.y },
-        state.viewAngle,
-        state.focalDistance
+        viewState.viewAngle,
       );
       return this.snapPoint(logical);
     }
@@ -292,12 +294,13 @@ export class CanvasManager {
   }
 
   toCanvasCoords(x: number, y: number, z?: number) {
-    if (state.is3DMode || state.isTransitioning3D) {
+    const viewState = getViewState();
+    if (viewState.is3DMode || viewState.isTransitioning3D) {
       const zValue = z ?? this.computeObjectiveValue(x, y);
       const projected = transform2DTo3DAndProject(
         { x, y, z: this.scaleZValue(zValue) },
-        state.viewAngle,
-        state.focalDistance
+        viewState.viewAngle,
+        viewState.focalDistance
       );
       return this.toPoint(this.planeToScreen(projected.x, projected.y));
     }
@@ -448,7 +451,7 @@ export class CanvasManager {
   }
 
   private snapPoint(point: PointXY) {
-    if (state.snapToGrid) {
+    if (getInteractionState().snapToGrid) {
       point.x = Math.round(point.x);
       point.y = Math.round(point.y);
     }
@@ -506,16 +509,18 @@ export class CanvasManager {
   }
 
   private computeObjectiveValue(x: number, y: number) {
-    if (!state.objectiveVector) return 0;
-    return state.objectiveVector.x * x + state.objectiveVector.y * y;
+    const objective = getObjectiveState();
+    if (!objective.objectiveVector) return 0;
+    return objective.objectiveVector.x * x + objective.objectiveVector.y * y;
   }
 
   private scaleZValue(value: number) {
-    return (value * state.zScale) / 100;
+    return (value * getViewState().zScale) / 100;
   }
 
   private getPlanarOffset(offset: number) {
-    return state.is3DMode || state.isTransitioning3D ? 0 : offset;
+    const viewState = getViewState();
+    return viewState.is3DMode || viewState.isTransitioning3D ? 0 : offset;
   }
 
   private getVertexZ(x: number, y: number, extra = 0) {

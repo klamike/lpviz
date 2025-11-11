@@ -1,4 +1,9 @@
-import { state } from "../state/state";
+import {
+  getGeometryState,
+  getObjectiveState,
+  mutateGeometryState,
+  mutateObjectiveState,
+} from "../state/state";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 import { showElement, setButtonsEnabled } from "../utils/uiHelpers";
@@ -193,21 +198,26 @@ export class GuidedTour {
 
   private async executeStep(step: TourStep): Promise<void> {
     switch (step.action) {
-      case 'click':
-        if (typeof step.target === 'object' && 'x' in step.target && 'y' in step.target) {
-          const screenCoords = this.logicalToScreenCoords(step.target.x, step.target.y);
+      case 'click': {
+        const target = step.target;
+        if (target && typeof target === 'object' && 'x' in target && 'y' in target) {
+          const screenCoords = this.logicalToScreenCoords(target.x, target.y);
           await this.moveCursorTo(screenCoords.x, screenCoords.y);
           
           await this.performClickAnimation();
           
           this.saveToHistory();
-          if (!state.polygonComplete) {
-            state.vertices.push(step.target);
+          if (!getGeometryState().polygonComplete) {
+            mutateGeometryState((draft) => {
+              draft.vertices.push({ x: target.x, y: target.y });
+            });
             this.uiManager.hideNullStateMessage();
             this.canvasManager.draw();
             this.sendPolytope();
-          } else if (state.objectiveVector === null) {
-            state.objectiveVector = step.target;
+          } else if (getObjectiveState().objectiveVector === null) {
+            mutateObjectiveState((draft) => {
+              draft.objectiveVector = { x: target.x, y: target.y };
+            });
             showElement("maximize");
             setButtonsEnabled({
               "ipmButton": true,
@@ -226,16 +236,20 @@ export class GuidedTour {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         break;
+      }
       case 'click-close':
-        if (typeof step.target === 'object' && 'x' in step.target && 'y' in step.target) {
-            const screenCoords = this.logicalToScreenCoords(step.target.x, step.target.y);
+        if (step.target && typeof step.target === 'object' && 'x' in step.target && 'y' in step.target) {
+            const target = step.target;
+            const screenCoords = this.logicalToScreenCoords(target.x, target.y);
             await this.moveCursorTo(screenCoords.x, screenCoords.y);
             
             await this.performClickAnimation();
             
             this.saveToHistory();
-            state.polygonComplete = true;
-            state.interiorPoint = step.target;
+            mutateGeometryState((draft) => {
+              draft.polygonComplete = true;
+              draft.interiorPoint = { x: target.x, y: target.y };
+            });
             this.canvasManager.draw();
             this.sendPolytope();
             setButtonsEnabled({
@@ -283,12 +297,16 @@ export class GuidedTour {
     
     this.addGlobalClickBlocker();
     
-    state.vertices = [];
-    state.polygonComplete = false;
-    state.interiorPoint = null;
-    state.objectiveVector = null;
-    state.currentMouse = null;
-    state.currentObjective = null;
+    mutateGeometryState((draft) => {
+      draft.vertices = [];
+      draft.polygonComplete = false;
+      draft.interiorPoint = null;
+      draft.currentMouse = null;
+    });
+    mutateObjectiveState((draft) => {
+      draft.objectiveVector = null;
+      draft.currentObjective = null;
+    });
     
     setButtonsEnabled({
       "ipmButton": false,
@@ -352,8 +370,12 @@ export class GuidedTour {
     this.removeGlobalClickBlocker();
     this.removeAnimatedCursor();
     
-    state.currentMouse = null;
-    state.currentObjective = null;
+    mutateGeometryState((draft) => {
+      draft.currentMouse = null;
+    });
+    mutateObjectiveState((draft) => {
+      draft.currentObjective = null;
+    });
     this.canvasManager.draw();
   }
 
@@ -525,14 +547,14 @@ export class HelpPopup {
     
     this.timer = window.setTimeout(() => {
       // Check if user still hasn't set an objective
-      if (state.objectiveVector === null && !this.guidedTour.isTouring()) {
+      if (getObjectiveState().objectiveVector === null && !this.guidedTour.isTouring()) {
         this.hasShownPopup = true;
         this.createPopup();
       }
     }, 15000); // 15 seconds
     
     this.checkInterval = window.setInterval(() => {
-      if (state.objectiveVector !== null) {
+      if (getObjectiveState().objectiveVector !== null) {
         this.stopTimer();
       }
     }, 300);

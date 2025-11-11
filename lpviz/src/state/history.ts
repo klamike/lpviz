@@ -1,4 +1,12 @@
-import { state } from "./state";
+import {
+  getGeometryState,
+  getObjectiveState,
+  getHistoryState,
+  mutateGeometryState,
+  mutateObjectiveState,
+  mutateHistoryState,
+  mutateInteractionState,
+} from "./state";
 import { PointXY } from "../types/arrays";
 import { CanvasManager } from "../ui/canvasManager";
 
@@ -8,9 +16,13 @@ export interface HistoryEntry {
 }
 
 export function saveToHistory(): void {
-  state.historyStack.push({
-    vertices: JSON.parse(JSON.stringify(state.vertices)),
-    objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
+  const geometry = getGeometryState();
+  const objective = getObjectiveState();
+  mutateHistoryState((draft) => {
+    draft.historyStack.push({
+      vertices: JSON.parse(JSON.stringify(geometry.vertices)),
+      objectiveVector: objective.objectiveVector ? { ...objective.objectiveVector } : null,
+    });
   });
 }
 
@@ -20,25 +32,42 @@ export function createUndoRedoHandler(
   sendPolytope: () => void
 ) {
   return function handleUndoRedo(isRedo: boolean) {
-    const sourceStack = isRedo ? state.redoStack : state.historyStack;
-    const targetStack = isRedo ? state.historyStack : state.redoStack;
+    const historySnapshot = getHistoryState();
+    const sourceStackLength = isRedo ? historySnapshot.redoStack.length : historySnapshot.historyStack.length;
+    if (sourceStackLength === 0) return;
     
-    if (sourceStack.length === 0) return;
-    
-    const stateToRestore = sourceStack.pop();
-    if (!stateToRestore) return;
-    
-    if (!isRedo) {
-      targetStack.push({
-        vertices: JSON.parse(JSON.stringify(state.vertices)),
-        objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
-      });
-    } else {
+    if (isRedo) {
       saveToHistory();
     }
     
-    state.vertices = stateToRestore.vertices;
-    state.objectiveVector = stateToRestore.objectiveVector;
+    const geometrySnapshot = getGeometryState();
+    const objectiveSnapshot = getObjectiveState();
+    let stateToRestore: HistoryEntry | null = null;
+    mutateHistoryState((draft) => {
+      const sourceStack = isRedo ? draft.redoStack : draft.historyStack;
+      const targetStack = isRedo ? draft.historyStack : draft.redoStack;
+      if (sourceStack.length === 0) return;
+      
+      const popped = sourceStack.pop();
+      if (!popped) return;
+      stateToRestore = popped;
+      
+      if (!isRedo) {
+        targetStack.push({
+          vertices: JSON.parse(JSON.stringify(geometrySnapshot.vertices)),
+          objectiveVector: objectiveSnapshot.objectiveVector ? { ...objectiveSnapshot.objectiveVector } : null,
+        });
+      }
+    });
+    
+    if (!stateToRestore) return;
+    
+    mutateGeometryState((draft) => {
+      draft.vertices = stateToRestore!.vertices;
+    });
+    mutateObjectiveState((draft) => {
+      draft.objectiveVector = stateToRestore!.objectiveVector;
+    });
     canvasManager.draw();
     sendPolytope();
   };
@@ -53,7 +82,9 @@ export function setupKeyboardHandlers(handleUndoRedo: (isRedo: boolean) => void)
       handleUndoRedo(e.shiftKey);
     }
     if (e.key.toLowerCase() === "s") {
-      state.snapToGrid = !state.snapToGrid;
+      mutateInteractionState((draft) => {
+        draft.snapToGrid = !draft.snapToGrid;
+      });
     }
   });
 }

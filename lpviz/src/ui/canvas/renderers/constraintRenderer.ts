@@ -1,4 +1,4 @@
-import { state } from "../../../state/state";
+import { getGeometryState, getInteractionState, getInputState } from "../../../state/state";
 import { COLORS, POLY_LINE_THICKNESS } from "../constants";
 import { CanvasLayerRenderer, CanvasRenderContext } from "../types";
 import { clipLineToBounds, Bounds } from "../geometry";
@@ -8,7 +8,10 @@ export class ConstraintRenderer implements CanvasLayerRenderer {
     const { helpers, groups, is3D, toLogicalCoords } = context;
     helpers.clearGroup(groups.constraint);
 
-    if (state.inputMode !== "manual" || !state.computedLines || state.computedLines.length === 0) {
+    const input = getInputState();
+    const geometry = getGeometryState();
+    const interaction = getInteractionState();
+    if (input.inputMode !== "manual" || !geometry.computedLines || geometry.computedLines.length === 0) {
       return;
     }
 
@@ -24,12 +27,12 @@ export class ConstraintRenderer implements CanvasLayerRenderer {
       maxY: Math.max(topLeft.y, bottomRight.y) + margin,
     };
 
-    state.computedLines.forEach((line, index) => {
+    geometry.computedLines.forEach((line, index) => {
       const segment = clipLineToBounds(line, bounds);
       if (!segment) return;
       const [start, end] = segment;
 
-      const highlighted = state.highlightIndex === index;
+      const highlighted = interaction.highlightIndex === index;
       const lineObj = helpers.createThickLine(
         [start.x, start.y, 0, end.x, end.y, 0],
         {

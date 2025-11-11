@@ -1,4 +1,4 @@
-import { state } from "../state/state";
+import { getViewState, mutateViewState } from "../state/state";
 import { CanvasManager } from "../ui/canvasManager";
 import { UIManager } from "../ui/uiManager";
 
@@ -15,28 +15,31 @@ export function start3DTransition(
   uiManager: UIManager,
   targetMode: boolean
 ) {
-  if (state.isTransitioning3D) {
+  if (getViewState().isTransitioning3D) {
     return;
   }
-  
-  state.isTransitioning3D = true;
-  state.transitionStartTime = performance.now();
-  
+
   const transitionDuration = targetMode ? 400 : 500;
-  
-  if (targetMode) {
-    state.transition3DStartAngles = { x: 0, y: 0, z: 0 };
-    state.transition3DEndAngles = { x: -1.15, y: 0.4, z: 0 };
-  } else {
-    state.transition3DStartAngles = { 
-      x: state.viewAngle.x, 
-      y: state.viewAngle.y, 
-      z: state.viewAngle.z 
-    };
-    state.transition3DEndAngles = { x: 0, y: 0, z: 0 };
-  }
-  
-  state.is3DMode = targetMode;
+
+  mutateViewState((draft) => {
+    draft.isTransitioning3D = true;
+    draft.transitionStartTime = performance.now();
+    
+    if (targetMode) {
+      draft.transition3DStartAngles = { x: 0, y: 0, z: 0 };
+      draft.transition3DEndAngles = { x: -1.15, y: 0.4, z: 0 };
+    } else {
+      draft.transition3DStartAngles = { 
+        x: draft.viewAngle.x, 
+        y: draft.viewAngle.y, 
+        z: draft.viewAngle.z 
+      };
+      draft.transition3DEndAngles = { x: 0, y: 0, z: 0 };
+    }
+    
+    draft.is3DMode = targetMode;
+  });
+
   uiManager.update3DButtonState();
   
   animate3DTransition(canvasManager, uiManager, targetMode, transitionDuration);
@@ -49,43 +52,47 @@ function animate3DTransition(
   transitionDuration: number
 ) {
   const currentTime = performance.now();
-  const elapsed = currentTime - state.transitionStartTime;
+  const snapshot = getViewState();
+  const elapsed = currentTime - snapshot.transitionStartTime;
   const progress = Math.min(elapsed / transitionDuration, 1);
   
   const easedProgress = easeInOutCubic(progress);
-  
-  state.viewAngle.x = lerpAngle(
-    state.transition3DStartAngles.x, 
-    state.transition3DEndAngles.x, 
-    easedProgress
-  );
-  state.viewAngle.y = lerpAngle(
-    state.transition3DStartAngles.y, 
-    state.transition3DEndAngles.y, 
-    easedProgress
-  );
-  state.viewAngle.z = lerpAngle(
-    state.transition3DStartAngles.z, 
-    state.transition3DEndAngles.z, 
-    easedProgress
-  );
+  mutateViewState((draft) => {
+    draft.viewAngle.x = lerpAngle(
+      draft.transition3DStartAngles.x, 
+      draft.transition3DEndAngles.x, 
+      easedProgress
+    );
+    draft.viewAngle.y = lerpAngle(
+      draft.transition3DStartAngles.y, 
+      draft.transition3DEndAngles.y, 
+      easedProgress
+    );
+    draft.viewAngle.z = lerpAngle(
+      draft.transition3DStartAngles.z, 
+      draft.transition3DEndAngles.z, 
+      easedProgress
+    );
+  });
   
   if (progress < 1) {
     canvasManager.draw();
     requestAnimationFrame(() => animate3DTransition(canvasManager, uiManager, targetMode, transitionDuration));
   } else {
-    state.isTransitioning3D = false;
-    
-    if (targetMode) {
-      state.viewAngle.x = -1.15;
-      state.viewAngle.y = 0.4;
-      state.viewAngle.z = 0;
-    } else {
-      state.viewAngle.x = 0;
-      state.viewAngle.y = 0;
-      state.viewAngle.z = 0;
-    }
+    mutateViewState((draft) => {
+      draft.isTransitioning3D = false;
+      
+      if (targetMode) {
+        draft.viewAngle.x = -1.15;
+        draft.viewAngle.y = 0.4;
+        draft.viewAngle.z = 0;
+      } else {
+        draft.viewAngle.x = 0;
+        draft.viewAngle.y = 0;
+        draft.viewAngle.z = 0;
+      }
+    });
     
     canvasManager.draw();
   }
-} 
+}

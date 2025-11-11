@@ -1,5 +1,5 @@
 import { BufferGeometry, Float32BufferAttribute, Points, PointsMaterial } from "three";
-import { state } from "../../../state/state";
+import { getTraceState } from "../../../state/state";
 import {
   COLORS,
   MAX_TRACE_POINT_SPRITES,
@@ -15,14 +15,15 @@ export class TraceRenderer implements CanvasLayerRenderer {
     const { helpers, groups, is3D } = context;
     helpers.clearGroup(groups.trace);
 
-    if (!state.traceEnabled || !state.traceBuffer || state.traceBuffer.length === 0) {
+    const traceState = getTraceState();
+    if (!traceState.traceEnabled || !traceState.traceBuffer || traceState.traceBuffer.length === 0) {
       return;
     }
 
     const pointSize = TRACE_POINT_PIXEL_SIZE;
     const pointGeometry = new BufferGeometry();
     const sampledPositions: number[] = [];
-    state.traceBuffer.forEach((traceEntry) => {
+    traceState.traceBuffer.forEach((traceEntry) => {
       const path = traceEntry.path;
       if (!path || path.length === 0) return;
       const positions = helpers.buildPositionArray(path, TRACE_Z_OFFSET);

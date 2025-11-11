@@ -1,4 +1,13 @@
-import { state } from "../state/state";
+import {
+  getGeometryState,
+  getObjectiveState,
+  getInteractionState,
+  getViewState,
+  mutateGeometryState,
+  mutateObjectiveState,
+  mutateInteractionState,
+  mutateViewState,
+} from "../state/state";
 import { PointXY } from "../types/arrays";
 import { distance } from "../utils/math2d";
 import { setButtonState } from "../utils/uiHelpers";
@@ -34,15 +43,18 @@ export function createDragHandlers(
   const canvas = canvasManager.canvas;
 
   function cleanupDragState() {
-    state.potentialDragPointIndex = null;
-    state.dragStartPos = null;
+    mutateInteractionState((draft) => {
+      draft.potentialDragPointIndex = null;
+      draft.dragStartPos = null;
+    });
   }
 
   function exceedsDragThreshold(e: PointerEvent): boolean {
-    if (!state.dragStartPos) return false;
+    const { dragStartPos } = getInteractionState();
+    if (!dragStartPos) return false;
     const dragDistance = Math.hypot(
-      e.clientX - state.dragStartPos.x,
-      e.clientY - state.dragStartPos.y
+      e.clientX - dragStartPos.x,
+      e.clientY - dragStartPos.y
     );
     return dragDistance > 5;
   }
@@ -52,70 +64,94 @@ export function createDragHandlers(
     const rect = canvas.getBoundingClientRect();
     const localX = e.clientX - rect.left;
     const localY = e.clientY - rect.top;
+    const geometry = getGeometryState();
+    const objective = getObjectiveState();
 
-    if (!state.polygonComplete) {
-      const idx = state.vertices.findIndex(v => distance(logicalCoords, v) < 0.5);
+    if (!geometry.polygonComplete) {
+      const idx = geometry.vertices.findIndex(v => distance(logicalCoords, v) < 0.5);
       if (idx !== -1) {
-        state.potentialDragPointIndex = idx;
-        state.dragStartPos = { x: e.clientX, y: e.clientY };
+        mutateInteractionState((draft) => {
+          draft.potentialDragPointIndex = idx;
+          draft.dragStartPos = { x: e.clientX, y: e.clientY };
+        });
       }
       return;
     }
 
     // Check for objective dragging first
-    if (state.objectiveVector !== null) {
-      const tip = canvasManager.toCanvasCoords(state.objectiveVector.x, state.objectiveVector.y);
+    if (objective.objectiveVector !== null) {
+      const tip = canvasManager.toCanvasCoords(objective.objectiveVector.x, objective.objectiveVector.y);
       if (Math.hypot(localX - tip.x, localY - tip.y) < 10) { 
-        state.draggingObjective = true;
+        mutateInteractionState((draft) => {
+          draft.draggingObjective = true;
+        });
         return;
       }
     }
 
     // Check for vertex dragging
-    const idx = state.vertices.findIndex(v => distance(logicalCoords, v) < 0.5);
+    const idx = geometry.vertices.findIndex(v => distance(logicalCoords, v) < 0.5);
     if (idx !== -1) {
-      state.potentialDragPointIndex = idx;
-      state.dragStartPos = { x: e.clientX, y: e.clientY };
+      mutateInteractionState((draft) => {
+        draft.potentialDragPointIndex = idx;
+        draft.dragStartPos = { x: e.clientX, y: e.clientY };
+      });
       return;
     }
 
     // Handle panning
-    if (state.objectiveVector !== null) {
-      state.isPanning = true;
-      state.lastPan = { x: e.clientX, y: e.clientY };
+    if (objective.objectiveVector !== null) {
+      mutateInteractionState((draft) => {
+        draft.isPanning = true;
+        draft.lastPan = { x: e.clientX, y: e.clientY };
+      });
     }
   }
 
   function handleDragMove(e: PointerEvent) {
     const logicalCoords = getLogicalCoords(canvasManager, e);
+    let interaction = getInteractionState();
+    let geometry = getGeometryState();
+    let objective = getObjectiveState();
 
     // Check if we should start dragging a point (after some movement)
-    if (state.potentialDragPointIndex !== null && state.draggingPointIndex === null) {
+    if (interaction.potentialDragPointIndex !== null && interaction.draggingPointIndex === null) {
       if (exceedsDragThreshold(e)) {
-        state.draggingPointIndex = state.potentialDragPointIndex;
-        state.potentialDragPointIndex = null;
+        const dragIndex = interaction.potentialDragPointIndex;
+        mutateInteractionState((draft) => {
+          draft.draggingPointIndex = dragIndex;
+          draft.potentialDragPointIndex = null;
+        });
+        interaction = getInteractionState();
       }
     }
 
     // Handle active dragging states
-    if (state.draggingPointIndex !== null) {
-      state.vertices[state.draggingPointIndex] = logicalCoords;
+    if (interaction.draggingPointIndex !== null) {
+      const index = interaction.draggingPointIndex;
+      mutateGeometryState((draft) => {
+        draft.vertices[index] = logicalCoords;
+      });
       canvasManager.draw();
       return;
     }
     
-    if (state.draggingObjective) {
-      state.objectiveVector = logicalCoords;
+    if (interaction.draggingObjective) {
+      mutateObjectiveState((draft) => {
+        draft.objectiveVector = logicalCoords;
+      });
       uiManager.updateObjectiveDisplay();
       canvasManager.draw();
       return;
     }
     
-    if (state.isPanning) {
-      const dx = e.clientX - state.lastPan.x;
-      const dy = e.clientY - state.lastPan.y;
+    if (interaction.isPanning && interaction.lastPan) {
+      const dx = e.clientX - interaction.lastPan.x;
+      const dy = e.clientY - interaction.lastPan.y;
       canvasManager.panByScreenDelta(dx, dy);
-      state.lastPan = { x: e.clientX, y: e.clientY };
+      mutateInteractionState((draft) => {
+        draft.lastPan = { x: e.clientX, y: e.clientY };
+      });
       canvasManager.draw();
       setButtonState("unzoomButton", true);
       return;
@@ -126,35 +162,46 @@ export function createDragHandlers(
       return;
     }
     
-    if (!state.polygonComplete) {
-      state.currentMouse = logicalCoords;
+    if (!geometry.polygonComplete) {
+      mutateGeometryState((draft) => {
+        draft.currentMouse = logicalCoords;
+      });
       canvasManager.draw();
-    } else if (state.polygonComplete && state.objectiveVector === null) {
-      state.currentObjective = logicalCoords;
+    } else if (geometry.polygonComplete && objective.objectiveVector === null) {
+      mutateObjectiveState((draft) => {
+        draft.currentObjective = logicalCoords;
+      });
       canvasManager.draw();
     }
   }
 
   function handleDragEnd() {
     cleanupDragState();
+    const interaction = getInteractionState();
     
-    if (state.isPanning) {
-      state.isPanning = false;
-      state.wasPanning = true;
+    if (interaction.isPanning) {
+      mutateInteractionState((draft) => {
+        draft.isPanning = false;
+        draft.wasPanning = true;
+      });
       return;
     }
     
-    if (state.draggingPointIndex !== null) {
+    if (interaction.draggingPointIndex !== null) {
       saveToHistory();
-      state.draggingPointIndex = null;
-      state.wasDraggingPoint = true;
+      mutateInteractionState((draft) => {
+        draft.draggingPointIndex = null;
+        draft.wasDraggingPoint = true;
+      });
       sendPolytope(); 
     }
     
-    if (state.draggingObjective) {
+    if (interaction.draggingObjective) {
       saveToHistory();
-      state.draggingObjective = false;
-      state.wasDraggingObjective = true;
+      mutateInteractionState((draft) => {
+        draft.draggingObjective = false;
+        draft.wasDraggingObjective = true;
+      });
       sendPolytope(); 
     }
   }
@@ -174,24 +221,29 @@ export function setupDragEventListeners(
   // mouse
 
   canvas.addEventListener("mousedown", (e) => {
-    if (state.is3DMode && e.shiftKey && !state.isTransitioning3D) {
-      state.isRotatingCamera = true;
-      state.lastRotationMouse = { x: e.clientX, y: e.clientY };
+    const viewState = getViewState();
+    if (viewState.is3DMode && e.shiftKey && !viewState.isTransitioning3D) {
+      mutateViewState((draft) => {
+        draft.isRotatingCamera = true;
+        draft.lastRotationMouse = { x: e.clientX, y: e.clientY };
+      });
       return;
     }
     dragHandlers.start(e);
   });
 
   canvas.addEventListener("mousemove", (e) => {
-    if (state.isRotatingCamera) {
-      const deltaX = e.clientX - state.lastRotationMouse.x;
-      const deltaY = e.clientY - state.lastRotationMouse.y;
+    const viewState = getViewState();
+    if (viewState.isRotatingCamera && viewState.lastRotationMouse) {
+      const deltaX = e.clientX - viewState.lastRotationMouse.x;
+      const deltaY = e.clientY - viewState.lastRotationMouse.y;
       
-      state.viewAngle.y += deltaX * 0.01;
-      state.viewAngle.x += deltaY * 0.01;
-      state.viewAngle.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, state.viewAngle.x));
-      
-      state.lastRotationMouse = { x: e.clientX, y: e.clientY };
+      mutateViewState((draft) => {
+        draft.viewAngle.y += deltaX * 0.01;
+        draft.viewAngle.x += deltaY * 0.01;
+        draft.viewAngle.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, draft.viewAngle.x));
+        draft.lastRotationMouse = { x: e.clientX, y: e.clientY };
+      });
       canvasManager.draw();
       return;
     }
@@ -199,8 +251,10 @@ export function setupDragEventListeners(
   });
 
   canvas.addEventListener("mouseup", () => {
-    if (state.isRotatingCamera) {
-      state.isRotatingCamera = false;
+    if (getViewState().isRotatingCamera) {
+      mutateViewState((draft) => {
+        draft.isRotatingCamera = false;
+      });
       return;
     }
     dragHandlers.end();
@@ -217,7 +271,8 @@ export function setupDragEventListeners(
 
   canvas.addEventListener("touchmove", (e: TouchEvent) => {
     if (e.touches.length === 1) {
-      if (state.isPanning || state.draggingPointIndex !== null || state.draggingObjective) {
+      const interaction = getInteractionState();
+      if (interaction.isPanning || interaction.draggingPointIndex !== null || interaction.draggingObjective) {
         e.preventDefault();
       }
       const touch = e.touches[0];
@@ -226,7 +281,8 @@ export function setupDragEventListeners(
   }, { passive: false });
 
   canvas.addEventListener("touchend", (e: TouchEvent) => {
-    if (state.isPanning || state.draggingPointIndex !== null || state.draggingObjective) {
+    const interaction = getInteractionState();
+    if (interaction.isPanning || interaction.draggingPointIndex !== null || interaction.draggingObjective) {
       e.preventDefault();
     }
     dragHandlers.end();

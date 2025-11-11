@@ -8,7 +8,7 @@ import {
   ShapeGeometry,
   Vector3,
 } from "three";
-import { state } from "../../../state/state";
+import { getGeometryState, getInteractionState, getInputState } from "../../../state/state";
 import { isPolygonConvex } from "../../../utils/math2d";
 import {
   COLORS,
@@ -23,7 +23,10 @@ import { CanvasLayerRenderer, CanvasRenderContext } from "../types";
 export class PolygonRenderer implements CanvasLayerRenderer {
   render(context: CanvasRenderContext): void {
     const { helpers, groups, is3D, skipPreviewDrawing } = context;
-    const vertices = state.vertices;
+    const geometry = getGeometryState();
+    const interaction = getInteractionState();
+    const input = getInputState();
+    const vertices = geometry.vertices;
     helpers.clearGroup(groups.polygonFill);
     helpers.clearGroup(groups.polygonOutline);
     helpers.clearGroup(groups.polygonVertices);
@@ -37,7 +40,7 @@ export class PolygonRenderer implements CanvasLayerRenderer {
       ? (x: number, y: number) => context.scaleZValue(context.computeObjectiveValue(x, y))
       : (x: number, y: number) => context.getVertexZ(x, y);
 
-    if (state.polygonComplete && vertices.length >= 3 && state.inputMode !== "manual") {
+    if (geometry.polygonComplete && vertices.length >= 3 && input.inputMode !== "manual") {
       const material = new MeshBasicMaterial({
         color: COLORS.polygonFill,
         transparent: true,
@@ -81,16 +84,16 @@ export class PolygonRenderer implements CanvasLayerRenderer {
       groups.polygonFill.add(mesh);
     }
 
-    const edgeCount = state.polygonComplete ? vertices.length : Math.max(0, vertices.length - 1);
+    const edgeCount = geometry.polygonComplete ? vertices.length : Math.max(0, vertices.length - 1);
     for (let i = 0; i < edgeCount; i++) {
       const nextIndex = (i + 1) % vertices.length;
-      if (!state.polygonComplete && nextIndex >= vertices.length) break;
+      if (!geometry.polygonComplete && nextIndex >= vertices.length) break;
       const v = vertices[i];
       const next = vertices[nextIndex];
       const z1 = zFn(v.x, v.y) + EDGE_Z_OFFSET;
       const z2 = zFn(next.x, next.y) + EDGE_Z_OFFSET;
       const positions = [v.x, v.y, z1, next.x, next.y, z2];
-      const highlight = state.inputMode !== "manual" && state.highlightIndex === i;
+      const highlight = input.inputMode !== "manual" && interaction.highlightIndex === i;
       const edgeLine = helpers.createThickLine(positions, {
         color: highlight ? COLORS.polygonHighlight : 0x000000,
         width: POLY_LINE_THICKNESS,
@@ -128,15 +131,15 @@ export class PolygonRenderer implements CanvasLayerRenderer {
     }
 
     if (
-      !state.polygonComplete &&
+      !geometry.polygonComplete &&
       vertices.length >= 1 &&
-      state.currentMouse &&
+      geometry.currentMouse &&
       !skipPreviewDrawing
     ) {
       const last = vertices[vertices.length - 1];
       const lastZ = context.getVertexZ(last.x, last.y, EDGE_Z_OFFSET);
-      const previewZ = context.getVertexZ(state.currentMouse.x, state.currentMouse.y, EDGE_Z_OFFSET);
-      const previewPositions = [last.x, last.y, lastZ, state.currentMouse.x, state.currentMouse.y, previewZ];
+      const previewZ = context.getVertexZ(geometry.currentMouse.x, geometry.currentMouse.y, EDGE_Z_OFFSET);
+      const previewPositions = [last.x, last.y, lastZ, geometry.currentMouse.x, geometry.currentMouse.y, previewZ];
       const previewLine = helpers.createThickLine(previewPositions, {
         color: 0x000000,
         width: POLY_LINE_THICKNESS,

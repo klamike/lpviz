@@ -1,4 +1,11 @@
-import { state, updateIteratePathsWithTrace, addTraceToBuffer } from "../state/state";
+import {
+  getObjectiveState,
+  getSolverState,
+  getTraceState,
+  mutateSolverState,
+  updateIteratePathsWithTrace,
+  addTraceToBuffer,
+} from "../state/state";
 export interface IPMResult {
   iterates: {
     solution: {
@@ -32,8 +39,9 @@ export function applyIPMResult(result: IPMResult, updateResult: (html: string) =
   const iteratesArray2D = sol.x;
   const muArray = sol.mu;
   
+  const { objectiveVector } = getObjectiveState();
   const iteratesArray = iteratesArray2D.map((xy, i) => {
-    const obj = state.objectiveVector ? state.objectiveVector.x * xy[0] + state.objectiveVector.y * xy[1] : 0;
+    const obj = objectiveVector ? objectiveVector.x * xy[0] + objectiveVector.y * xy[1] : 0;
     const mu = muArray?.[i] ?? 0;
     return [xy[0], xy[1], obj + mu];
   });
@@ -77,10 +85,14 @@ export function applyCentralPathResult(
   const logArray = result.logs;
   const tsolve = result.tsolve;
   
-  state.originalIteratePath = [...iteratesArray];
-  state.iteratePath = iteratesArray;
-  if (state.traceEnabled && iteratesArray.length > 0) {
-    if (state.rotateObjectiveMode && state.totalRotationAngle >= 2 * Math.PI + 0.9 * angleStep) {
+  mutateSolverState((draft) => {
+    draft.originalIteratePath = [...iteratesArray];
+    draft.iteratePath = iteratesArray;
+  });
+  const traceState = getTraceState();
+  const solverState = getSolverState();
+  if (traceState.traceEnabled && iteratesArray.length > 0) {
+    if (solverState.rotateObjectiveMode && traceState.totalRotationAngle >= 2 * Math.PI + 0.9 * angleStep) {
       // Skip trace when rotation is complete
     } else {
       addTraceToBuffer(iteratesArray);
@@ -132,8 +144,9 @@ export function generateCentralPathHTML(logArray: string[], tsolve: number): str
 
 
 export function getObjectiveVector(): [number, number] {
-  if (!state.objectiveVector) {
+  const snapshot = getObjectiveState();
+  if (!snapshot.objectiveVector) {
     throw new Error("Objective vector is not set");
   }
-  return [state.objectiveVector.x, state.objectiveVector.y];
+  return [snapshot.objectiveVector.x, snapshot.objectiveVector.y];
 }
