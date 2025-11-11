@@ -11,14 +11,21 @@ import {
   CanvasTexture,
   Euler,
   NearestFilter,
+  PointsMaterial,
+  Material,
 } from "three";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { AlwaysVisibleLineGeometry } from "../three/AlwaysVisibleLineGeometry";
+import { UndashedLine2 } from "../three/UndashedLine2";
 import { getObjectiveState, getViewState, getInteractionState } from "../state/state";
 import { PointXY } from "../types/arrays";
 import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
-import { CanvasRenderContext, CanvasRenderHelpers } from "./canvas/types";
+import {
+  CanvasRenderContext,
+  CanvasRenderHelpers,
+  PointMaterialOptions,
+  ThickLineOptions,
+} from "./canvas/types";
 import {
   GridRenderer,
   PolygonRenderer,
@@ -43,6 +50,7 @@ export class CanvasManager {
   private transparentScene: Scene;
   private foregroundScene: Scene;
   private vertexScene: Scene;
+  private traceScene: Scene;
   private overlayScene: Scene;
   private orthoCamera: OrthographicCamera;
   private perspectiveCamera: PerspectiveCamera;
@@ -61,6 +69,10 @@ export class CanvasManager {
   private initialized = false;
   private starTextures = new Map<number, CanvasTexture>();
   private circleTextures = new Map<string, CanvasTexture>();
+  private lineMaterialCache = new Map<string, LineMaterial>();
+  private pointsMaterialCache = new Map<string, PointsMaterial>();
+  private spriteMaterialCache = new Map<string, SpriteMaterial>();
+  private cachedMaterials = new Set<Material>();
   private lineResolution = new Vector2(window.innerWidth, window.innerHeight);
   private currentPixelRatio = window.devicePixelRatio || 1;
   private screenToPlaneVec = new Vector2();
@@ -90,8 +102,8 @@ export class CanvasManager {
     this.transparentScene = new Scene();
     this.foregroundScene = new Scene();
     this.vertexScene = new Scene();
+    this.traceScene = new Scene();
     this.overlayScene = new Scene();
-    this.vertexScene = new Scene();
     this.gridGroup = new Group();
     this.polygonFillGroup = new Group();
     this.polygonOutlineGroup = new Group();
@@ -107,9 +119,9 @@ export class CanvasManager {
     this.foregroundScene.add(this.polygonOutlineGroup);
     this.foregroundScene.add(this.constraintGroup);
     this.foregroundScene.add(this.objectiveGroup);
-    this.foregroundScene.add(this.traceGroup);
-    this.foregroundScene.add(this.iterateGroup);
     this.vertexScene.add(this.polygonVertexGroup);
+    this.traceScene.add(this.traceGroup);
+    this.traceScene.add(this.iterateGroup);
     this.overlayScene.add(this.overlayGroup);
 
     this.orthoCamera = new OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
@@ -186,6 +198,7 @@ export class CanvasManager {
     this.renderer.render(this.transparentScene, this.activeCamera);
     this.renderer.render(this.foregroundScene, this.activeCamera);
     this.renderer.render(this.vertexScene, this.activeCamera);
+    this.renderer.render(this.traceScene, this.activeCamera);
     this.renderer.render(this.overlayScene, this.activeCamera);
     this.renderer.autoClear = true;
   }
@@ -231,6 +244,7 @@ export class CanvasManager {
       buildPositionVector: this.buildPositionVector.bind(this),
       getWorldSizeFromPixels: this.getWorldSizeFromPixels.bind(this),
       getCircleTexture: this.getCircleTexture.bind(this),
+      getPointMaterial: this.getPointMaterial.bind(this),
     };
   }
 
@@ -329,15 +343,7 @@ export class CanvasManager {
   }
 
   private createStarSprite(position: Vector3, color: number) {
-    const texture = this.getStarTexture(color);
-    const material = new SpriteMaterial({
-      map: texture,
-      transparent: false,
-      alphaTest: 0.5,
-      depthTest: false,
-      depthWrite: false,
-    });
-    material.color.set(color);
+    const material = this.getStarSpriteMaterial(color);
     const sprite = new Sprite(material);
     sprite.position.copy(position);
     const starSize = this.getWorldSizeFromPixels(STAR_POINT_PIXEL_SIZE, position);
@@ -347,14 +353,7 @@ export class CanvasManager {
   }
 
   private createCircleSprite(position: Vector3, color: number, size: number) {
-    const material = new SpriteMaterial({
-      map: this.getCircleTexture(),
-      transparent: false,
-      alphaTest: 0.5,
-      depthTest: false,
-      depthWrite: false,
-    });
-    material.color.set(color);
+    const material = this.getCircleSpriteMaterial(color);
     const sprite = new Sprite(material);
     sprite.position.copy(position);
     sprite.scale.set(size, size, size);
@@ -500,12 +499,22 @@ export class CanvasManager {
       }
       const material = mesh.material;
       if (Array.isArray(material)) {
-        material.forEach((mat) => mat?.dispose?.());
-      } else if (material && typeof material.dispose === "function") {
-        material.dispose();
+        material.forEach((mat) => this.disposeMaterial(mat));
+      } else {
+        this.disposeMaterial(material);
       }
     });
     group.clear();
+  }
+
+  private disposeMaterial(material?: { dispose?: () => void }) {
+    if (!material || typeof material.dispose !== "function") {
+      return;
+    }
+    if (this.cachedMaterials.has(material as Material)) {
+      return;
+    }
+    material.dispose();
   }
 
   private computeObjectiveValue(x: number, y: number) {
@@ -528,6 +537,114 @@ export class CanvasManager {
     return base + this.getPlanarOffset(extra);
   }
 
+  private registerCachedMaterial(material: Material) {
+    this.cachedMaterials.add(material);
+  }
+
+  private getLineMaterialKey({ color, width, depthTest, depthWrite }: Omit<ThickLineOptions, "renderOrder">) {
+    return [color, width, depthTest ?? true, depthWrite ?? true].join(":");
+  }
+
+  private getLineMaterial(options: Omit<ThickLineOptions, "renderOrder">) {
+    const key = this.getLineMaterialKey(options);
+    let material = this.lineMaterialCache.get(key);
+    if (!material) {
+      material = new LineMaterial({
+        color: options.color,
+        linewidth: options.width,
+        transparent: false,
+        opacity: 1,
+        depthTest: options.depthTest ?? true,
+        depthWrite: options.depthWrite ?? true,
+      });
+      this.lineMaterialCache.set(key, material);
+      this.registerCachedMaterial(material);
+    }
+    material.depthTest = options.depthTest ?? true;
+    material.depthWrite = options.depthWrite ?? true;
+    material.resolution.copy(this.lineResolution);
+    return material;
+  }
+
+  private getPointMaterial(options: PointMaterialOptions) {
+    const key = [
+      options.color,
+      options.size,
+      options.sizeAttenuation,
+      options.depthTest,
+      options.depthWrite,
+      options.transparent ?? false,
+      options.opacity ?? 1,
+      options.alphaTest ?? 0,
+    ].join(":");
+    let material = this.pointsMaterialCache.get(key);
+    const texture = this.getCircleTexture();
+    if (!material) {
+      material = new PointsMaterial({
+        color: options.color,
+        size: options.size,
+        sizeAttenuation: options.sizeAttenuation,
+        depthTest: options.depthTest,
+        depthWrite: options.depthWrite,
+        transparent: options.transparent ?? false,
+        opacity: options.opacity ?? 1,
+        alphaTest: options.alphaTest ?? 0,
+        map: texture,
+      });
+      material.needsUpdate = true;
+      this.pointsMaterialCache.set(key, material);
+      this.registerCachedMaterial(material);
+    } else if (material.map !== texture) {
+      material.map = texture;
+      material.needsUpdate = true;
+    }
+    return material;
+  }
+
+  private getCircleSpriteMaterial(color: number) {
+    const key = `circle:${color}`;
+    let material = this.spriteMaterialCache.get(key);
+    const texture = this.getCircleTexture();
+    if (!material) {
+      material = new SpriteMaterial({
+        map: texture,
+        transparent: false,
+        alphaTest: 0.5,
+        depthTest: false,
+        depthWrite: false,
+      });
+      material.color.set(color);
+      this.spriteMaterialCache.set(key, material);
+      this.registerCachedMaterial(material);
+    } else if (material.map !== texture) {
+      material.map = texture;
+      material.needsUpdate = true;
+    }
+    return material;
+  }
+
+  private getStarSpriteMaterial(color: number) {
+    const key = `star:${color}`;
+    let material = this.spriteMaterialCache.get(key);
+    const texture = this.getStarTexture(color);
+    if (!material) {
+      material = new SpriteMaterial({
+        map: texture,
+        transparent: false,
+        alphaTest: 0.5,
+        depthTest: false,
+        depthWrite: false,
+      });
+      material.color.set(color);
+      this.spriteMaterialCache.set(key, material);
+      this.registerCachedMaterial(material);
+    } else if (material.map !== texture) {
+      material.map = texture;
+      material.needsUpdate = true;
+    }
+    return material;
+  }
+
   private createThickLine(
     positions: number[],
     {
@@ -544,20 +661,12 @@ export class CanvasManager {
       renderOrder?: number;
     }
   ) {
-    const geometry = new LineGeometry();
+    const geometry = new AlwaysVisibleLineGeometry();
     geometry.setPositions(positions);
-    const material = new LineMaterial({
-      color,
-      linewidth: width,
-      transparent: false,
-      opacity: 1,
-      depthTest,
-      depthWrite,
-    });
-    material.resolution.copy(this.lineResolution);
-    const line = new Line2(geometry, material);
-    line.computeLineDistances();
+    const material = this.getLineMaterial({ color, width, depthTest, depthWrite });
+    const line = new UndashedLine2(geometry, material);
     line.renderOrder = renderOrder;
+    line.frustumCulled = false;
     return line;
   }
 

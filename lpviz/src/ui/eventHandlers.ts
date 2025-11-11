@@ -16,9 +16,19 @@ import { saveToHistory, setupKeyboardHandlers, createUndoRedoHandler } from "../
 import { setupUIControls } from "./uiControls";
 import { createSharingHandlers } from "../state/sharing";
 import { HelpPopup } from "./guidedTour";
+import type { ResultRenderPayload, VirtualResultPayload } from "../types/resultPayload";
 
 export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIManager, helpPopup?: HelpPopup) {
   const canvas = canvasManager.canvas;
+  const ROTATE_ROW_LIMIT = 20; // FIXME: detect number of rows
+  let lastVirtualResult: VirtualResultPayload | null = null;
+
+  const setHighlight = (index: number | null) => {
+    mutateSolverState((draft) => {
+      draft.highlightIteratePathIndex = index;
+    });
+    canvasManager.draw();
+  };
 
   function sendPolytope() {
     const geometry = getGeometryState();
@@ -84,36 +94,90 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
     }
   }
 
-  function updateResult(html: string) {
+  function renderVirtualResult(payload: VirtualResultPayload, limitRows: boolean) {
+    const resultDiv = getElement<HTMLElement>("result");
+    resultDiv.classList.add("virtualized");
+    resultDiv.innerHTML = "";
+    setHighlight(null);
+
+    const headerEl = document.createElement("div");
+    headerEl.className = "iterate-header";
+    headerEl.textContent = payload.header || "";
+    resultDiv.appendChild(headerEl);
+
+    const bodyEl = document.createElement("div");
+    bodyEl.className = "iterate-scroll";
+    const entries = payload.rows.map((text, index) => ({ text, index }));
+    const rowsToRender = limitRows ? entries.slice(0, ROTATE_ROW_LIMIT) : entries;
+
+    if (rowsToRender.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "iterate-item-nohover";
+      empty.textContent = "No iterations available.";
+      bodyEl.appendChild(empty);
+    } else {
+      rowsToRender.forEach(({ text, index }) => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "iterate-item";
+        rowEl.dataset.index = String(index);
+        rowEl.textContent = text;
+        rowEl.addEventListener("mouseenter", () => setHighlight(index));
+        rowEl.addEventListener("mouseleave", () => setHighlight(null));
+        bodyEl.appendChild(rowEl);
+      });
+    }
+    resultDiv.appendChild(bodyEl);
+
+    if (payload.footer) {
+      const footerEl = document.createElement("div");
+      footerEl.className = "iterate-footer";
+      footerEl.textContent = payload.footer;
+      resultDiv.appendChild(footerEl);
+    }
+  }
+
+  function renderHtmlResult(html: string) {
     const resultDiv = getElement("result");
+    resultDiv.classList.remove("virtualized");
     resultDiv.innerHTML = html;
     
-    const iterateElements = document.querySelectorAll(".iterate-header, .iterate-item, .iterate-footer");
+    const iterateElements = resultDiv.querySelectorAll(".iterate-header, .iterate-item, .iterate-footer");
     setupHoverHighlight(
       iterateElements,
-      (index) => {
-        mutateSolverState((draft) => {
-          draft.highlightIteratePathIndex = index;
-        });
-        canvasManager.draw();
-      },
-      () => {
-        mutateSolverState((draft) => {
-          draft.highlightIteratePathIndex = null;
-        });
-        canvasManager.draw();
-      }
+      (index) => setHighlight(index),
+      () => setHighlight(null)
     );
-    
+  }
+
+  function refreshFullVirtualResult() {
+    if (lastVirtualResult && !getSolverState().rotateObjectiveMode) {
+      renderVirtualResult(lastVirtualResult, false);
+      finalizeResultRender();
+    }
+  }
+
+  function finalizeResultRender() {
     canvasManager.draw();
     adjustFontSize();
     adjustLogoFontSize();
   }
 
+  function updateResult(payload: ResultRenderPayload) {
+    if (payload.type === "virtual") {
+      lastVirtualResult = payload;
+      const limitRows = getSolverState().rotateObjectiveMode;
+      renderVirtualResult(payload, limitRows);
+    } else {
+      lastVirtualResult = null;
+      renderHtmlResult(payload.html);
+    }
+    finalizeResultRender();
+  }
+
   // Create and setup all handler modules
   const dragHandlers = createDragHandlers(canvasManager, uiManager, saveToHistory, sendPolytope, helpPopup);
   const handleUndoRedo = createUndoRedoHandler(canvasManager, saveToHistory, sendPolytope);
-  const settingsElements = setupUIControls(canvasManager, uiManager, updateResult);
+  const settingsElements = setupUIControls(canvasManager, uiManager, updateResult, refreshFullVirtualResult);
   const { loadStateFromObject, generateShareLink } = createSharingHandlers(canvasManager, uiManager, settingsElements, sendPolytope);
 
   // Setup all event listeners

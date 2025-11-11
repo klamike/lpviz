@@ -1,4 +1,4 @@
-import { CanvasTexture, Group, Sprite, Vector2, Vector3 } from "three";
+import { CanvasTexture, Group, PointsMaterial, Sprite, Vector2, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { PointXY } from "../../types/arrays";
 
@@ -32,6 +32,18 @@ export interface CanvasRenderHelpers {
   buildPositionVector(entry: number[], planarOffset?: number): Vector3;
   getWorldSizeFromPixels(pixels: number, worldPosition?: Vector3): number;
   getCircleTexture(): CanvasTexture;
+  getPointMaterial(options: PointMaterialOptions): PointsMaterial;
+}
+
+export interface PointMaterialOptions {
+  color: number;
+  size: number;
+  sizeAttenuation: boolean;
+  depthTest: boolean;
+  depthWrite: boolean;
+  transparent?: boolean;
+  opacity?: number;
+  alphaTest?: number;
 }
 
 export interface CanvasRenderContext {

@@ -80,7 +80,7 @@ export function setupHoverHighlight(
 
 // tries to maximize font size to fit in a container
 export function adjustFontSize(containerId: string = "result"): void {
-  const container = getElement(containerId);
+  const container = getElement<HTMLElement>(containerId);
   if (!container || container.querySelector("#usageTips")) return;
   
   const containerStyle = window.getComputedStyle(container);
@@ -88,7 +88,10 @@ export function adjustFontSize(containerId: string = "result"): void {
   const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
   const effectiveContainerWidth = container.clientWidth - paddingLeft - paddingRight;
   
-  const texts = container.querySelectorAll("div");
+  const selector = container.classList.contains("virtualized")
+    ? ".iterate-header, .iterate-item, .iterate-footer"
+    : "div";
+  const texts = container.querySelectorAll(selector);
   if (texts.length === 0) return;
   
   const measurementDiv = document.createElement("div");
@@ -116,7 +119,12 @@ export function adjustFontSize(containerId: string = "result"): void {
     }
   });
   
-  const newFontSize = Math.min(24, baselineFontSize * minScaleFactor * 0.875);
+  if (!Number.isFinite(minScaleFactor) || minScaleFactor <= 0) {
+    minScaleFactor = 1;
+  }
+
+  const minFont = 10;
+  const newFontSize = Math.min(24, Math.max(minFont, baselineFontSize * minScaleFactor * 0.875));
   texts.forEach(text => {
     (text as HTMLElement).style.fontSize = `${newFontSize}px`;
   });

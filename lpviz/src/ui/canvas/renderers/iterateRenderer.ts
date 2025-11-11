@@ -1,4 +1,4 @@
-import { BufferGeometry, Float32BufferAttribute, Points, PointsMaterial } from "three";
+import { BufferGeometry, Float32BufferAttribute, Points } from "three";
 import { getSolverState } from "../../../state/state";
 import {
   COLORS,
@@ -32,7 +32,7 @@ export class IterateRenderer implements CanvasLayerRenderer {
 
     const pointsGeometry = new BufferGeometry();
     pointsGeometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-    const material = new PointsMaterial({
+    const material = helpers.getPointMaterial({
       color: COLORS.iteratePath,
       size: ITERATE_POINT_PIXEL_SIZE,
       sizeAttenuation: false,
@@ -40,7 +40,6 @@ export class IterateRenderer implements CanvasLayerRenderer {
       depthTest: false,
       transparent: false,
       opacity: 1,
-      map: helpers.getCircleTexture(),
       alphaTest: 0.2,
     });
     const iteratePoints = new Points(pointsGeometry, material);

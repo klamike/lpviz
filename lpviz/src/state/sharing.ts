@@ -29,6 +29,7 @@ export interface ShareSettings {
   pdhgIneqMode?: boolean;
   centralPathIter?: number;
   objectiveAngleStep?: number;
+  objectiveRotationSpeed?: number;
 }
 
 export interface ShareState {
@@ -54,7 +55,8 @@ const COMPACT_KEYS = {
   maxitPDHG: 'p',
   pdhgIneqMode: 'm',
   centralPathIter: 'c',
-  objectiveAngleStep: 'r'
+  objectiveAngleStep: 'r',
+  objectiveRotationSpeed: 'q'
 } as const;
 
 const FULL_KEYS = Object.fromEntries(
@@ -122,6 +124,8 @@ export function createSharingHandlers(
         settings.centralPathIter = parseInt(settingsElements.centralPathIterSlider.value, 10);
         break;
     }
+    settings.objectiveAngleStep = parseFloat(settingsElements.objectiveAngleStepSlider.value);
+    settings.objectiveRotationSpeed = parseFloat(settingsElements.objectiveRotationSpeedSlider.value);
     
     const data: ShareState = {
       vertices: geometryState.vertices,
@@ -177,7 +181,8 @@ export function createSharingHandlers(
       { key: 'maxitPDHG', type: 'input', id: 'maxitInputPDHG' },
       { key: 'pdhgIneqMode', type: 'input', id: 'pdhgIneqMode' },
       { key: 'centralPathIter', type: 'slider', id: 'centralPathIterSlider', displayId: 'centralPathIterValue', decimals: 0 },
-      { key: 'objectiveAngleStep', type: 'slider', id: 'objectiveAngleStepSlider', displayId: 'objectiveAngleStepValue', decimals: 2 }
+      { key: 'objectiveAngleStep', type: 'slider', id: 'objectiveAngleStepSlider', displayId: 'objectiveAngleStepValue', decimals: 2 },
+      { key: 'objectiveRotationSpeed', type: 'slider', id: 'objectiveRotationSpeedSlider', displayId: 'objectiveRotationSpeedValue', decimals: 1 },
     ];
     
     settingsConfig.forEach(config => {

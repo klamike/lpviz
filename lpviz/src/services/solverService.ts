@@ -6,6 +6,7 @@ import {
   updateIteratePathsWithTrace,
   addTraceToBuffer,
 } from "../state/state";
+import type { ResultRenderPayload, VirtualResultPayload } from "../types/resultPayload";
 export interface IPMResult {
   iterates: {
     solution: {
@@ -33,7 +34,7 @@ export interface CentralPathResult {
   tsolve: number;
 }
 
-export function applyIPMResult(result: IPMResult, updateResult: (html: string) => void) {
+export function applyIPMResult(result: IPMResult, updateResult: (payload: ResultRenderPayload) => void) {
   const sol = result.iterates.solution;
   const logArray = sol.log;
   const iteratesArray2D = sol.x;
@@ -47,21 +48,20 @@ export function applyIPMResult(result: IPMResult, updateResult: (html: string) =
   });
   
   updateIteratePathsWithTrace(iteratesArray);
-  const html = generateIterateHTML(logArray);
-  updateResult(html);
+  updateResult(buildIteratePayload(logArray));
 }
 
-export function applySimplexResult(result: SimplexResult, updateResult: (html: string) => void) {
+export function applySimplexResult(result: SimplexResult, updateResult: (payload: ResultRenderPayload) => void) {
   const iteratesArray = result.iterations;
   const phase1logs = result.logs[0];
   const phase2logs = result.logs[1];
   
   updateIteratePathsWithTrace(iteratesArray);
   const html = generateSimplexHTML(phase1logs, phase2logs);
-  updateResult(html);
+  updateResult({ type: "html", html });
 }
 
-export function applyPDHGResult(result: PDHGResult, updateResult: (html: string) => void) {
+export function applyPDHGResult(result: PDHGResult, updateResult: (payload: ResultRenderPayload) => void) {
   const iteratesArray = (result.iterations as number[][]).map((xy: number[], i: number) => {
     const eps = result.eps && result.eps[i] !== undefined ? result.eps[i] : 0;
     const [cx, cy] = getObjectiveVector();
@@ -72,14 +72,13 @@ export function applyPDHGResult(result: PDHGResult, updateResult: (html: string)
   const logArray = result.logs;
   
   updateIteratePathsWithTrace(iteratesArray);
-  const html = generateIterateHTML(logArray);
-  updateResult(html);
+  updateResult(buildIteratePayload(logArray));
 }
 
 export function applyCentralPathResult(
   result: CentralPathResult,
   angleStep: number,
-  updateResult: (html: string) => void
+  updateResult: (payload: ResultRenderPayload) => void
 ) {
   const iteratesArray = result.iterations;
   const logArray = result.logs;
@@ -99,20 +98,11 @@ export function applyCentralPathResult(
     }
   }
   
-  const html = generateCentralPathHTML(logArray, tsolve);
-  updateResult(html);
-}
-
-export function generateIterateHTML(logArray: string[], startIndex: number = 1): string {
-  let html = "";
-  html += `<div class="iterate-header">${logArray[0]}</div>`;
-  for (let i = startIndex; i < logArray.length - 1; i++) {
-    html += `<div class="iterate-item" data-index="${i-startIndex}">${logArray[i]}</div>`;
-  }
-  if (logArray.length > 1) {
-    html += `<div class="iterate-footer">${logArray[logArray.length - 1]}</div>`;
-  }
-  return html;
+  const payload = buildIteratePayload(logArray, {
+    includeLastInRows: true,
+    footerOverride: `Traced central path in ${Math.round(tsolve * 1000)}ms`,
+  });
+  updateResult(payload);
 }
 
 export function generateSimplexHTML(phase1logs: string[], phase2logs: string[]): string {
@@ -130,23 +120,37 @@ export function generateSimplexHTML(phase1logs: string[], phase2logs: string[]):
   return html;
 }
 
-export function generateCentralPathHTML(logArray: string[], tsolve: number): string {
-  let html = "";
-  html += `<div class="iterate-header">${logArray[0]}</div>`;
-  for (let i = 1; i < logArray.length; i++) {
-    html += `<div class="iterate-item" data-index="${i-1}">${logArray[i]}</div>`;
-  }
-  if (logArray.length > 1) {
-    html += `<div class="iterate-footer">Traced central path in ${Math.round(tsolve * 1000)}ms</div>`;
-  }
-  return html;
-}
-
-
 export function getObjectiveVector(): [number, number] {
   const snapshot = getObjectiveState();
   if (!snapshot.objectiveVector) {
     throw new Error("Objective vector is not set");
   }
   return [snapshot.objectiveVector.x, snapshot.objectiveVector.y];
+}
+
+function buildIteratePayload(
+  logArray: string[],
+  options: { startIndex?: number; includeLastInRows?: boolean; footerOverride?: string } = {}
+): VirtualResultPayload {
+  const { startIndex = 1, includeLastInRows = false, footerOverride } = options;
+  if (logArray.length === 0) {
+    return { type: "virtual", header: "", rows: [], footer: footerOverride };
+  }
+
+  const header = logArray[0];
+  let footer = footerOverride;
+  let endExclusive = logArray.length;
+
+  if (!includeLastInRows && logArray.length - startIndex > 0) {
+    endExclusive = Math.max(startIndex, logArray.length - 1);
+    footer = footer ?? logArray[logArray.length - 1];
+  }
+
+  const rows = logArray.slice(startIndex, endExclusive);
+  return {
+    type: "virtual",
+    header,
+    rows,
+    footer,
+  };
 }

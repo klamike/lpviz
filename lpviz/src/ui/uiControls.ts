@@ -13,6 +13,7 @@ import {
   resetTraceState,
   prepareAnimationInterval,
 } from "../state/state";
+import type { ResultRenderPayload } from "../types/resultPayload";
 import { start3DTransition } from "../utils/transitions";
 import {
   getElement,
@@ -79,7 +80,8 @@ interface SettingsElements {
 export function setupUIControls(
   canvasManager: CanvasManager,
   uiManager: UIManager,
-  updateResult: (html: string) => void
+  updateResult: (payload: ResultRenderPayload) => void,
+  showAllResults?: () => void
 ): SettingsElements {
   function setupZoomHandlers() {
     uiManager.zoomButton?.addEventListener("click", () => {
@@ -257,6 +259,11 @@ export function setupUIControls(
         canvasManager.draw();
       }
     });
+    const objectiveRotationSpeedSlider = setupSliderWithDisplay(
+      "objectiveRotationSpeedSlider",
+      "objectiveRotationSpeedValue",
+      1
+    );
     
     const inputs = [
       { id: "maxitInput", solver: "ipm" },
@@ -271,7 +278,8 @@ export function setupUIControls(
     
     return { 
       ...sliderElements, 
-      objectiveAngleStepSlider, 
+      objectiveAngleStepSlider,
+      objectiveRotationSpeedSlider,
       ...inputElements 
     } as Record<string, HTMLInputElement>;
   }
@@ -327,6 +335,7 @@ export function setupUIControls(
       });
       rotationSettings.style.display = "none";
       uiManager.updateSolverModeButtons();
+      showAllResults?.();
     });
   }
   
@@ -468,12 +477,22 @@ export function setupUIControls(
     }
   }
 
+  const BASE_ROTATION_WAIT_MS = 30;
+
+  function scheduleNextRotation() {
+    if (!getSolverState().rotateObjectiveMode) {
+      return;
+    }
+    const speedValue = parseFloat(settingsElements.objectiveRotationSpeedSlider.value || "1");
+    const clampedSpeed = Math.max(0.2, speedValue);
+    const wait = BASE_ROTATION_WAIT_MS / clampedSpeed;
+    setTimeout(computeAndRotate, wait);
+  }
+
   async function computeAndRotate() {
-    const MIN_WAIT = 30;
-    
     const geometry = getGeometryState();
     if (!isPolygonConvex(geometry.vertices)) {
-      setTimeout(computeAndRotate, MIN_WAIT);
+      scheduleNextRotation();
       return;
     }
     
@@ -509,9 +528,7 @@ export function setupUIControls(
       }
     }
     
-    if (getSolverState().rotateObjectiveMode) {
-      setTimeout(computeAndRotate, MIN_WAIT);
-    }
+    scheduleNextRotation();
   }
   
   function setupSidebarResize() {

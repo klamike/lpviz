@@ -245,6 +245,18 @@ canvas {
   padding-top: 5px;
 }
 
+#result.virtualized {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+#result.virtualized .iterate-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
 /* -------------------------------
     GitHub Icon
     ------------------------------- */
@@ -631,4 +643,3 @@ input[type="range"]:active::-ms-thumb {
   0%, 100% { opacity: 1; }
   70% { opacity: 0.8; }
 }
-

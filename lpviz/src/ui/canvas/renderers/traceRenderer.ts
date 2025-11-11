@@ -1,4 +1,4 @@
-import { BufferGeometry, Float32BufferAttribute, Points, PointsMaterial } from "three";
+import { BufferGeometry, Float32BufferAttribute, Points } from "three";
 import { getTraceState } from "../../../state/state";
 import {
   COLORS,
@@ -50,7 +50,7 @@ export class TraceRenderer implements CanvasLayerRenderer {
 
     if (sampledPositions.length) {
       pointGeometry.setAttribute("position", new Float32BufferAttribute(sampledPositions, 3));
-      const material = new PointsMaterial({
+      const material = helpers.getPointMaterial({
         color: COLORS.trace,
         size: pointSize,
         sizeAttenuation: false,
@@ -58,7 +58,6 @@ export class TraceRenderer implements CanvasLayerRenderer {
         depthTest: false,
         transparent: false,
         opacity: 1,
-        map: helpers.getCircleTexture(),
         alphaTest: 0.2,
       });
       const pointMesh = new Points(pointGeometry, material);
