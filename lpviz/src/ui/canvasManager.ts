@@ -516,7 +516,7 @@ export class CanvasManager {
     const angle = Math.atan2(target.y, target.x);
     const width = Math.max(this.getWorldSizeFromPixels(12), 0.02);
 
-    const baseZ = this.getPlanarOffset(OBJECTIVE_Z_OFFSET) + (is3D ? this.scaleZValue(this.computeObjectiveValue(target.x, target.y)) : 0);
+    const baseZ = this.getPlanarOffset(OBJECTIVE_Z_OFFSET);
     const arrowColor = COLORS.objective;
     const shaftLine = this.createThickLine(
       [0, 0, baseZ, target.x, target.y, baseZ],
