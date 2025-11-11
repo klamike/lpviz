@@ -53,9 +53,23 @@ const OBJECTIVE_Z_OFFSET = 0.015;
 const MAX_TRACE_POINT_SPRITES = 1200;
 const TRACE_POINT_PIXEL_SIZE = 6;
 const ITERATE_POINT_PIXEL_SIZE = 8;
+const STAR_POINT_PIXEL_SIZE = 18;
+const VERTEX_POINT_PIXEL_SIZE = 10;
 const POLY_LINE_THICKNESS = 2;
 const TRACE_LINE_THICKNESS = 2;
 const ITERATE_LINE_THICKNESS = 3;
+
+const RENDER_LAYERS = {
+  grid: 0,
+  polyEdges: 5,
+  constraintLines: 6,
+  traceLine: 10,
+  tracePoints: 12,
+  iterateLine: 15,
+  iteratePoints: 18,
+  iterateHighlight: 25,
+  objective: 30,
+};
 
 export class CanvasManager {
   canvas: HTMLCanvasElement;
@@ -401,10 +415,12 @@ export class CanvasManager {
       this.polygonGroup.add(edgeLine);
     }
 
-    const vertexSize = this.getWorldSizeFromPixels(10);
+    const vertexSizePx = VERTEX_POINT_PIXEL_SIZE;
     vertices.forEach((v) => {
       const position = new Vector3(v.x, v.y, zFn(v.x, v.y) + VERTEX_Z_OFFSET);
-      this.polygonGroup.add(this.createCircleSprite(position, COLORS.vertex, vertexSize));
+      const sprite = this.createCircleSpriteWithPixelSize(position, COLORS.vertex, vertexSizePx);
+      sprite.renderOrder = useDepth ? 12 : 12;
+      this.polygonGroup.add(sprite);
     });
 
     if (!this.isPolygonConvex(vertices)) {
@@ -525,9 +541,9 @@ export class CanvasManager {
         width: ITERATE_LINE_THICKNESS,
         depthTest: is3D,
         depthWrite: is3D,
+        renderOrder: RENDER_LAYERS.objective,
       }
     );
-    shaftLine.renderOrder = 5;
     this.objectiveGroup.add(shaftLine);
 
     const headLength = Math.max(this.getWorldSizeFromPixels(20), length * 0.2);
@@ -540,7 +556,7 @@ export class CanvasManager {
         target.y - headLength * Math.sin(angle + Math.PI / 6),
         baseZ,
       ],
-      { color: arrowColor, width: ITERATE_LINE_THICKNESS, depthTest: is3D, depthWrite: is3D, renderOrder: 6 }
+      { color: arrowColor, width: ITERATE_LINE_THICKNESS, depthTest: is3D, depthWrite: is3D, renderOrder: RENDER_LAYERS.objective }
     );
     const head2 = this.createThickLine(
       [
@@ -551,7 +567,7 @@ export class CanvasManager {
         target.y - headLength * Math.sin(angle - Math.PI / 6),
         baseZ,
       ],
-      { color: arrowColor, width: ITERATE_LINE_THICKNESS, depthTest: is3D, depthWrite: is3D, renderOrder: 6 }
+      { color: arrowColor, width: ITERATE_LINE_THICKNESS, depthTest: is3D, depthWrite: is3D, renderOrder: RENDER_LAYERS.objective }
     );
     this.objectiveGroup.add(head1);
     this.objectiveGroup.add(head2);
@@ -577,7 +593,7 @@ export class CanvasManager {
         depthTest: is3D,
         depthWrite: is3D,
       });
-      line.renderOrder = 0;
+      line.renderOrder = 5;
       this.traceGroup.add(line);
 
       const step = Math.max(1, Math.ceil(path.length / MAX_TRACE_POINT_SPRITES));
@@ -624,7 +640,7 @@ export class CanvasManager {
       depthTest: is3D,
       depthWrite: is3D,
     });
-    iterateLine.renderOrder = 0;
+    iterateLine.renderOrder = 15;
     this.iterateGroup.add(iterateLine);
 
     const iteratePointSizeWorld = this.getWorldSizeFromPixels(ITERATE_POINT_PIXEL_SIZE);
@@ -643,14 +659,15 @@ export class CanvasManager {
       alphaTest: 0.2,
     });
     const iteratePoints = new Points(pointsGeometry, material);
-    iteratePoints.renderOrder = 10;
+    iteratePoints.renderOrder = 20;
     this.iterateGroup.add(iteratePoints);
 
     if (state.highlightIteratePathIndex !== null && state.highlightIteratePathIndex < state.iteratePath.length) {
       const highlightPos = this.buildPositionVector(state.iteratePath[state.highlightIteratePathIndex], ITERATE_Z_OFFSET);
-      this.iterateGroup.add(
-        this.createCircleSprite(highlightPos, COLORS.iterateHighlight, iteratePointSizeWorld * 1.3)
-      );
+      const highlightSize = this.getWorldSizeFromPixels(ITERATE_POINT_PIXEL_SIZE * 1.3, highlightPos);
+      const highlightSprite = this.createCircleSprite(highlightPos, COLORS.iterateHighlight, highlightSize);
+      highlightSprite.renderOrder = 30;
+      this.iterateGroup.add(highlightSprite);
     }
 
     const lastPos = this.buildPositionVector(state.iteratePath[state.iteratePath.length - 1], ITERATE_Z_OFFSET);
@@ -686,10 +703,12 @@ export class CanvasManager {
       depthTest: false,
       depthWrite: false,
     });
+    material.color.set(color);
     const sprite = new Sprite(material);
     sprite.position.copy(position);
-    const starSize = this.getWorldSizeFromPixels(18);
+    const starSize = this.getWorldSizeFromPixels(STAR_POINT_PIXEL_SIZE, position);
     sprite.scale.set(starSize, starSize, starSize);
+    sprite.renderOrder = 25;
     return sprite;
   }
 
@@ -704,6 +723,11 @@ export class CanvasManager {
     sprite.position.copy(position);
     sprite.scale.set(size, size, size);
     return sprite;
+  }
+
+  private createCircleSpriteWithPixelSize(position: Vector3, color: number, pixelSize: number) {
+    const worldSize = this.getWorldSizeFromPixels(pixelSize, position);
+    return this.createCircleSprite(position, color, worldSize);
   }
 
   private getStarTexture(color: number) {
@@ -746,7 +770,15 @@ export class CanvasManager {
     return texture;
   }
 
-  private getWorldSizeFromPixels(pixels: number) {
+  private getWorldSizeFromPixels(pixels: number, worldPosition?: Vector3) {
+    if (this.activeCamera instanceof PerspectiveCamera && worldPosition) {
+      const camera = this.perspectiveCamera;
+      const distance = camera.position.distanceTo(worldPosition);
+      const vFov = (camera.fov * Math.PI) / 180;
+      const viewportHeight = 2 * Math.tan(vFov / 2) * distance;
+      const worldPerPixel = viewportHeight / this.lineResolution.y;
+      return pixels * worldPerPixel;
+    }
     return pixels / (this.gridSpacing * this.scaleFactor || 1);
   }
 
