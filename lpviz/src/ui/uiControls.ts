@@ -1,24 +1,63 @@
 import { state, SolverMode, handleStepSizeChange, resetTraceState } from "../state/state";
 import { start3DTransition } from "../utils/transitions";
-import { 
-  getElement, 
-  showElement, 
-  hideElement, 
+import {
+  getElement,
+  showElement,
+  hideElement,
   adjustFontSize,
   adjustLogoFontSize,
   adjustTerminalHeight,
   calculateMinSidebarWidth,
+  getElementChecked,
 } from "../utils/uiHelpers";
 import { prepareAnimationInterval } from "../state/state";
-import { 
-  computeIPMSolution,
-  computeSimplexSolution, 
-  computePDHGSolution,
-  computeCentralPathSolution 
+import {
+  applyCentralPathResult,
+  applyIPMResult,
+  applyPDHGResult,
+  applySimplexResult,
 } from "../services/solverService";
 import { isPolygonConvex } from "../utils/math2d";
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
+import {
+  SolverWorkerPayload,
+  SolverWorkerResponse,
+  SolverWorkerSuccessResponse,
+} from "../workers/solverWorkerTypes";
+
+const solverWorker = new Worker(new URL("../workers/solverWorker.ts", import.meta.url), {
+  type: "module",
+});
+
+let solverWorkerMessageId = 0;
+const pendingSolverRequests = new Map<
+  number,
+  {
+    resolve: (value: SolverWorkerSuccessResponse) => void;
+    reject: (reason?: any) => void;
+  }
+>();
+
+solverWorker.addEventListener("message", (event: MessageEvent<SolverWorkerResponse>) => {
+  const data = event.data;
+  const pending = pendingSolverRequests.get(data.id);
+  if (!pending) return;
+  pendingSolverRequests.delete(data.id);
+  if (data.success) {
+    pending.resolve(data);
+  } else {
+    pending.reject(new Error(data.error));
+  }
+});
+
+function runSolverWorker(request: SolverWorkerPayload): Promise<SolverWorkerSuccessResponse> {
+  return new Promise((resolve, reject) => {
+    const id = ++solverWorkerMessageId;
+    pendingSolverRequests.set(id, { resolve, reject });
+    solverWorker.postMessage({ id, ...request });
+  });
+}
 
 interface SettingsElements {
   [key: string]: HTMLInputElement;
@@ -302,27 +341,76 @@ export function setupUIControls(
 
   async function computePath() {
     prepareAnimationInterval();
+    if (!state.objectiveVector || !state.computedLines?.length) {
+      return;
+    }
+    const objective: [number, number] = [state.objectiveVector.x, state.objectiveVector.y];
+    let request: SolverWorkerPayload | null = null;
     
     switch (state.solverMode) {
       case "ipm":
-        await computeIPMSolution(settingsElements.alphaMaxSlider, settingsElements.maxitInput, updateResult);
+        request = {
+          solver: "ipm",
+          lines: state.computedLines,
+          objective,
+          alphaMax: parseFloat(settingsElements.alphaMaxSlider.value),
+          maxit: parseInt(settingsElements.maxitInput.value, 10),
+        };
         break;
       case "simplex":
-        await computeSimplexSolution(updateResult);
+        request = {
+          solver: "simplex",
+          lines: state.computedLines,
+          objective,
+        };
         break;
       case "pdhg":
-        await computePDHGSolution(
-          settingsElements.maxitInputPDHG,
-          settingsElements.pdhgEtaSlider,
-          settingsElements.pdhgTauSlider,
-          updateResult
-        );
+        request = {
+          solver: "pdhg",
+          lines: state.computedLines,
+          objective,
+          ineq: getElementChecked("pdhgIneqMode"),
+          maxit: parseInt(settingsElements.maxitInputPDHG.value, 10),
+          eta: parseFloat(settingsElements.pdhgEtaSlider.value),
+          tau: parseFloat(settingsElements.pdhgTauSlider.value),
+        };
         break;
       default: // central
-        await computeCentralPathSolution(settingsElements.centralPathIterSlider, settingsElements.objectiveAngleStepSlider, updateResult);
+        if (!state.computedVertices?.length) return;
+        request = {
+          solver: "central",
+          vertices: state.computedVertices,
+          lines: state.computedLines,
+          objective,
+          niter: parseInt(settingsElements.centralPathIterSlider.value, 10),
+        };
         break;
     }
-    uiManager.updateSolverModeButtons();
+    if (!request) return;
+    try {
+      const response = await runSolverWorker(request);
+      switch (response.solver) {
+        case "ipm":
+          applyIPMResult(response.result, updateResult);
+          break;
+        case "simplex":
+          applySimplexResult(response.result, updateResult);
+          break;
+        case "pdhg":
+          applyPDHGResult(response.result, updateResult);
+          break;
+        case "central":
+          applyCentralPathResult(
+            response.result,
+            parseFloat(settingsElements.objectiveAngleStepSlider.value),
+            updateResult
+          );
+          break;
+      }
+      uiManager.updateSolverModeButtons();
+    } catch (error) {
+      console.error("Error in computePath:", error);
+    }
   }
 
   async function computeAndRotate() {

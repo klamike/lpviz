@@ -2,6 +2,12 @@ import { fetchIPM, fetchSimplex, fetchPDHG, fetchCentralPath } from "./apiClient
 import { state, updateIteratePathsWithTrace, addTraceToBuffer } from "../state/state";
 import { getElementChecked } from "../utils/uiHelpers";
 
+type Awaited<T> = T extends Promise<infer U> ? U : T;
+type IPMResult = Awaited<ReturnType<typeof fetchIPM>>;
+type SimplexResult = Awaited<ReturnType<typeof fetchSimplex>>;
+type PDHGResult = Awaited<ReturnType<typeof fetchPDHG>>;
+type CentralPathResult = Awaited<ReturnType<typeof fetchCentralPath>>;
+
 export async function computeIPMSolution(
   alphaMaxSlider: HTMLInputElement,
   maxitInput: HTMLInputElement,
@@ -17,20 +23,7 @@ export async function computeIPMSolution(
     maxit
   );
   
-  const sol = result.iterates.solution;
-  const logArray = sol.log;
-  const iteratesArray2D = sol.x;
-  const muArray = sol.mu;
-  
-  const iteratesArray = iteratesArray2D.map((xy, i) => {
-    const obj = (state.objectiveVector ? state.objectiveVector.x * xy[0] + state.objectiveVector.y * xy[1] : 0);
-    const mu = (muArray?.[i] ?? 0);
-    return [xy[0], xy[1], obj + mu];
-  });
-  
-  updateIteratePathsWithTrace(iteratesArray);
-  const html = generateIterateHTML(logArray);
-  updateResult(html);
+  applyIPMResult(result, updateResult);
 }
 
 export async function computeSimplexSolution(
@@ -41,13 +34,7 @@ export async function computeSimplexSolution(
     getObjectiveVector()
   );
   
-  const iteratesArray = result.iterations;
-  const phase1logs = result.logs[0];
-  const phase2logs = result.logs[1];
-  
-  updateIteratePathsWithTrace(iteratesArray);
-  const html = generateSimplexHTML(phase1logs, phase2logs);
-  updateResult(html);
+  applySimplexResult(result, updateResult);
 }
 
 export async function computePDHGSolution(
@@ -70,18 +57,7 @@ export async function computePDHGSolution(
     tau
   );
   
-  const iteratesArray = (result.iterations as number[][]).map((xy: number[], i: number) => {
-    const eps = (result.eps && result.eps[i] !== undefined) ? result.eps[i] : 0;
-    const [cx, cy] = getObjectiveVector();
-    const pObj = (cx * xy[0] + cy * xy[1]);
-    const z = pObj + 500 * eps;
-    return [xy[0], xy[1], z];
-  });
-  const logArray = result.logs;
-  
-  updateIteratePathsWithTrace(iteratesArray);
-  const html = generateIterateHTML(logArray);
-  updateResult(html);
+  applyPDHGResult(result, updateResult);
 }
 
 export async function computeCentralPathSolution(
@@ -98,6 +74,56 @@ export async function computeCentralPathSolution(
     maxitCentral
   );
   
+  applyCentralPathResult(result, parseFloat(objectiveAngleStepSlider.value), updateResult);
+}
+
+export function applyIPMResult(result: IPMResult, updateResult: (html: string) => void) {
+  const sol = result.iterates.solution;
+  const logArray = sol.log;
+  const iteratesArray2D = sol.x;
+  const muArray = sol.mu;
+  
+  const iteratesArray = iteratesArray2D.map((xy, i) => {
+    const obj = state.objectiveVector ? state.objectiveVector.x * xy[0] + state.objectiveVector.y * xy[1] : 0;
+    const mu = muArray?.[i] ?? 0;
+    return [xy[0], xy[1], obj + mu];
+  });
+  
+  updateIteratePathsWithTrace(iteratesArray);
+  const html = generateIterateHTML(logArray);
+  updateResult(html);
+}
+
+export function applySimplexResult(result: SimplexResult, updateResult: (html: string) => void) {
+  const iteratesArray = result.iterations;
+  const phase1logs = result.logs[0];
+  const phase2logs = result.logs[1];
+  
+  updateIteratePathsWithTrace(iteratesArray);
+  const html = generateSimplexHTML(phase1logs, phase2logs);
+  updateResult(html);
+}
+
+export function applyPDHGResult(result: PDHGResult, updateResult: (html: string) => void) {
+  const iteratesArray = (result.iterations as number[][]).map((xy: number[], i: number) => {
+    const eps = result.eps && result.eps[i] !== undefined ? result.eps[i] : 0;
+    const [cx, cy] = getObjectiveVector();
+    const pObj = cx * xy[0] + cy * xy[1];
+    const z = pObj + 500 * eps;
+    return [xy[0], xy[1], z];
+  });
+  const logArray = result.logs;
+  
+  updateIteratePathsWithTrace(iteratesArray);
+  const html = generateIterateHTML(logArray);
+  updateResult(html);
+}
+
+export function applyCentralPathResult(
+  result: CentralPathResult,
+  angleStep: number,
+  updateResult: (html: string) => void
+) {
   const iteratesArray = result.iterations;
   const logArray = result.logs;
   const tsolve = result.tsolve;
@@ -105,7 +131,7 @@ export async function computeCentralPathSolution(
   state.originalIteratePath = [...iteratesArray];
   state.iteratePath = iteratesArray;
   if (state.traceEnabled && iteratesArray.length > 0) {
-    if (state.rotateObjectiveMode && state.totalRotationAngle >= 2 * Math.PI + 0.9*parseFloat(objectiveAngleStepSlider.value)) {
+    if (state.rotateObjectiveMode && state.totalRotationAngle >= 2 * Math.PI + 0.9 * angleStep) {
       // Skip trace when rotation is complete
     } else {
       addTraceToBuffer(iteratesArray);
