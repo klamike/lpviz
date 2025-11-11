@@ -32,12 +32,8 @@ export function setButtonsEnabled(buttonStates: Record<string, boolean>): void {
   });
 }
 
-export function getElement<T extends HTMLElement>(id: string): T {
-  return document.getElementById(id) as T;
-}
-
 export function setButtonState(id: string, enabled: boolean): void {
-  const button = getElement<HTMLButtonElement>(id);
+  const button = document.getElementById(id) as HTMLButtonElement | null;
   if (button) button.disabled = !enabled;
 }
 
@@ -80,7 +76,7 @@ export function setupHoverHighlight(
 
 // tries to maximize font size to fit in a container
 export function adjustFontSize(containerId: string = "result"): void {
-  const container = getElement<HTMLElement>(containerId);
+  const container = document.getElementById(containerId) as HTMLElement | null;
   if (!container || container.querySelector("#usageTips")) return;
   
   const containerStyle = window.getComputedStyle(container);
@@ -133,10 +129,10 @@ export function adjustFontSize(containerId: string = "result"): void {
 }
 
 export function adjustLogoFontSize(): void {
-  const logoElement = getElement("nullStateMessage");
+  const logoElement = document.getElementById("nullStateMessage") as HTMLElement | null;
   if (!logoElement || logoElement.style.display === "none") return;
   
-  const topResultContainer = getElement("topResult");
+  const topResultContainer = document.getElementById("topResult") as HTMLElement | null;
   if (!topResultContainer) return;
   
   const containerStyle = window.getComputedStyle(topResultContainer);
@@ -171,8 +167,8 @@ export function adjustLogoFontSize(): void {
 }
 
 export function adjustTerminalHeight(): void {
-  const terminalContainer = getElement("terminal-container2");
-  const sidebar = getElement("sidebar");
+  const terminalContainer = document.getElementById("terminal-container2") as HTMLElement | null;
+  const sidebar = document.getElementById("sidebar") as HTMLElement | null;
   
   if (!terminalContainer || !sidebar) return;
   
@@ -188,8 +184,8 @@ export function adjustTerminalHeight(): void {
 }
 
 export function calculateMinSidebarWidth(): number {
-  const logoElement = getElement("nullStateMessage");
-  const topResultContainer = getElement("topResult");
+  const logoElement = document.getElementById("nullStateMessage") as HTMLElement | null;
+  const topResultContainer = document.getElementById("topResult") as HTMLElement | null;
   
   if (!logoElement || !topResultContainer) {
     return 300;

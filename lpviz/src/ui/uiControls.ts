@@ -16,7 +16,6 @@ import {
 import type { ResultRenderPayload } from "../types/resultPayload";
 import { start3DTransition } from "../utils/transitions";
 import {
-  getElement,
   showElement,
   hideElement,
   adjustFontSize,
@@ -106,7 +105,8 @@ export function setupUIControls(
       canvasManager.offset.y = -centroid.y;
       
       const padding = 50;
-      const sidebarWidth = getElement("sidebar")?.offsetWidth ?? 0;
+      const sidebarElement = document.getElementById("sidebar") as HTMLElement | null;
+      const sidebarWidth = sidebarElement?.offsetWidth ?? 0;
       const availWidth = (window.innerWidth - sidebarWidth) - 2 * padding;
       const availHeight = window.innerHeight - 2 * padding;
       
@@ -165,9 +165,9 @@ export function setupUIControls(
       { id: "pdhgButton", mode: "pdhg" as SolverMode, settings: "pdhgSettings" }
     ];
     
-    const buttonElements = solverButtons.map(config => ({
+    const buttonElements = solverButtons.map((config) => ({
       ...config,
-      element: getElement<HTMLButtonElement>(config.id)
+      element: document.getElementById(config.id) as HTMLButtonElement,
     }));
     
     buttonElements.forEach(({ element, mode, settings }) => {
@@ -203,8 +203,8 @@ export function setupUIControls(
     solverMode?: string,
     customCallback?: () => void
   ) {
-    const slider = getElement<HTMLInputElement>(sliderId);
-    const display = getElement<HTMLElement>(displayId);
+    const slider = document.getElementById(sliderId) as HTMLInputElement;
+    const display = document.getElementById(displayId) as HTMLElement;
     
     slider.addEventListener("input", () => {
       display.textContent = parseFloat(slider.value).toFixed(decimalPlaces);
@@ -227,7 +227,7 @@ export function setupUIControls(
   }
   
   function setupInputWithSolverMode(inputId: string, solverMode: string, eventType: "input" | "change" = "input") {
-    const input = getElement<HTMLInputElement>(inputId);
+    const input = document.getElementById(inputId) as HTMLInputElement;
     input.addEventListener(eventType, () => {
       resetTraceState();
       if (getTraceState().traceEnabled) {
@@ -285,16 +285,17 @@ export function setupUIControls(
   }
   
   function setupActionButtons() {
-    getElement<HTMLButtonElement>("traceButton").addEventListener("click", () => {
+    const traceButton = document.getElementById("traceButton") as HTMLButtonElement;
+    traceButton.addEventListener("click", () => {
       computePath();
       mutateSolverState((draft) => {
         draft.iteratePathComputed = true;
       });
     });
 
-    const startRotateButton = getElement<HTMLButtonElement>("startRotateObjectiveButton");
-    const stopRotateButton = getElement<HTMLButtonElement>("stopRotateObjectiveButton");
-    const rotationSettings = getElement<HTMLElement>("objectiveRotationSettings");
+    const startRotateButton = document.getElementById("startRotateObjectiveButton") as HTMLButtonElement;
+    const stopRotateButton = document.getElementById("stopRotateObjectiveButton") as HTMLButtonElement;
+    const rotationSettings = document.getElementById("objectiveRotationSettings") as HTMLElement;
 
     startRotateButton.addEventListener("click", () => {
       const objectiveSnapshot = getObjectiveState();
@@ -340,7 +341,7 @@ export function setupUIControls(
   }
   
   function setupTraceAndAnimation() {
-    const traceCheckbox = getElement<HTMLInputElement>("traceCheckbox");
+    const traceCheckbox = document.getElementById("traceCheckbox") as HTMLInputElement;
     traceCheckbox.checked = false;
     traceCheckbox.addEventListener("change", () => {
       mutateTraceState((draft) => {
@@ -354,8 +355,8 @@ export function setupUIControls(
       }
     });
 
-    const animateButton = getElement<HTMLButtonElement>("animateButton");
-    const replaySpeedSlider = getElement<HTMLInputElement>("replaySpeedSlider");
+    const animateButton = document.getElementById("animateButton") as HTMLButtonElement;
+    const replaySpeedSlider = document.getElementById("replaySpeedSlider") as HTMLInputElement;
     
     animateButton.addEventListener("click", () => {
       const solverSnapshot = getSolverState();
@@ -532,8 +533,8 @@ export function setupUIControls(
   }
   
   function setupSidebarResize() {
-    const sidebar = getElement<HTMLElement>("sidebar");
-    const handle = getElement<HTMLElement>("sidebarHandle");
+    const sidebar = document.getElementById("sidebar") as HTMLElement;
+    const handle = document.getElementById("sidebarHandle") as HTMLElement;
     let isResizing = false;
     
     const minSidebarWidth = calculateMinSidebarWidth();
@@ -570,7 +571,7 @@ export function setupUIControls(
     let mouseX = 0;
     let mouseY = 0;
     let currentHovered: HTMLElement | null = null;
-    const resultDiv = getElement<HTMLElement>("result");
+    const resultDiv = document.getElementById("result") as HTMLElement;
     
     function updateHoverState() {
       const el = document.elementFromPoint(mouseX, mouseY);

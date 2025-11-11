@@ -15,7 +15,6 @@ import {
   setButtonsEnabled, 
   setElementDisplay, 
   showElement,
-  getElement
 } from "../utils/uiHelpers";
 import { CanvasManager } from "../ui/canvasManager";
 import { UIManager } from "../ui/uiManager";
@@ -231,7 +230,8 @@ export function createSharingHandlers(
   }
 
   function setupShareButton(): void {
-    getElement<HTMLButtonElement>("shareButton").addEventListener("click", () => {
+    const shareButton = document.getElementById("shareButton") as HTMLButtonElement | null;
+    shareButton?.addEventListener("click", () => {
       const url = generateShareLink();
       window.prompt("Share this link:", url);
     });

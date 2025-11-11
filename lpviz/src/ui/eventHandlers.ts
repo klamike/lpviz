@@ -9,7 +9,7 @@ import {
 import { CanvasManager } from "./canvasManager";
 import { UIManager } from "./uiManager";
 import { isPolygonConvex, polytope } from "../utils/math2d";
-import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize, getElement, showElement } from "../utils/uiHelpers";
+import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize, showElement } from "../utils/uiHelpers";
 import { createDragHandlers, setupDragEventListeners, getLogicalCoords } from "./dragHandlers";
 import { setupCanvasInteractions } from "./canvasInteractions";
 import { saveToHistory, setupKeyboardHandlers, createUndoRedoHandler } from "../state/history";
@@ -95,7 +95,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   }
 
   function renderVirtualResult(payload: VirtualResultPayload, limitRows: boolean) {
-    const resultDiv = getElement<HTMLElement>("result");
+    const resultDiv = document.getElementById("result") as HTMLElement;
     resultDiv.classList.add("virtualized");
     resultDiv.innerHTML = "";
     setHighlight(null);
@@ -137,7 +137,7 @@ export function setupEventHandlers(canvasManager: CanvasManager, uiManager: UIMa
   }
 
   function renderHtmlResult(html: string) {
-    const resultDiv = getElement("result");
+    const resultDiv = document.getElementById("result") as HTMLElement;
     resultDiv.classList.remove("virtualized");
     resultDiv.innerHTML = html;
     
