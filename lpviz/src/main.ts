@@ -5,9 +5,9 @@ import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./util
 import { GuidedTour, HelpPopup } from "./ui/guidedTour";
 import JSONCrush from "jsoncrush";
 
-function initializeApplication() {
+async function initializeApplication() {
   const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
-  const canvasManager = new CanvasManager(canvas);
+  const canvasManager = await CanvasManager.create(canvas);
   const uiManager = new UIManager();
 
   function resizeCanvas() {
@@ -75,8 +75,14 @@ function initializeApplication() {
   canvas.focus();
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeApplication);
+function bootstrapApplication() {
+  initializeApplication().catch((err) => {
+    console.error("Failed to initialize lpviz", err);
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootstrapApplication);
 } else {
-  initializeApplication();
+  bootstrapApplication();
 }

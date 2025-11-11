@@ -123,6 +123,8 @@ export function setupCanvasInteractions(
 
   // ===== WHEEL EVENT HANDLER =====
   
+  const MAX_SCALE_FACTOR = 400;
+
   canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
     
@@ -132,7 +134,7 @@ export function setupCanvasInteractions(
     const oldScale = canvasManager.scaleFactor;
     const zoomFactor = 1.05;
     
-    const newScale = Math.min(100, Math.max(0.1, 
+    const newScale = Math.min(MAX_SCALE_FACTOR, Math.max(0.05, 
       e.deltaY < 0 ? oldScale * zoomFactor : oldScale / zoomFactor
     ));
     
