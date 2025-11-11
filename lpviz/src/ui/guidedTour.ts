@@ -130,13 +130,10 @@ export class GuidedTour {
   private logicalToScreenCoords(logicalX: number, logicalY: number): { x: number; y: number } {
     const canvas = this.canvasManager.canvas;
     const rect = canvas.getBoundingClientRect();
-    
-    const screenX = this.canvasManager.centerX + (logicalX + this.canvasManager.offset.x) * this.canvasManager.gridSpacing * this.canvasManager.scaleFactor;
-    const screenY = this.canvasManager.centerY - (logicalY + this.canvasManager.offset.y) * this.canvasManager.gridSpacing * this.canvasManager.scaleFactor;
-    
+    const canvasPoint = this.canvasManager.toCanvasCoords(logicalX, logicalY);
     return {
-      x: rect.left + screenX,
-      y: rect.top + screenY
+      x: rect.left + canvasPoint.x,
+      y: rect.top + canvasPoint.y
     };
   }
 

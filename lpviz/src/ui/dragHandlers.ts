@@ -113,8 +113,7 @@ export function createDragHandlers(
     if (state.isPanning) {
       const dx = e.clientX - state.lastPan.x;
       const dy = e.clientY - state.lastPan.y;
-      canvasManager.offset.x += dx / (canvasManager.gridSpacing * canvasManager.scaleFactor);
-      canvasManager.offset.y -= dy / (canvasManager.gridSpacing * canvasManager.scaleFactor);
+      canvasManager.panByScreenDelta(dx, dy);
       state.lastPan = { x: e.clientX, y: e.clientY };
       canvasManager.draw();
       setButtonState("unzoomButton", true);

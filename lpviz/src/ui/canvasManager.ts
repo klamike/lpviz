@@ -4,25 +4,14 @@ import {
   PerspectiveCamera,
   OrthographicCamera,
   Group,
-  LineBasicMaterial,
-  LineSegments,
-  BufferGeometry,
-  Float32BufferAttribute,
-  MeshBasicMaterial,
-  Mesh,
-  Shape,
-  ShapeGeometry,
   Vector3,
   Vector2,
-  Line,
-  DoubleSide,
   Sprite,
   SpriteMaterial,
   CanvasTexture,
   Color,
   Euler,
-  Points,
-  PointsMaterial,
+  NearestFilter,
 } from "three";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -30,46 +19,16 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { state } from "../state/state";
 import { PointXY } from "../types/arrays";
 import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
-
-const COLORS = {
-  grid: 0xe0e0e0,
-  axis: 0x707070,
-  polygonFill: 0xe6e6e6,
-  polygonHighlight: 0xff0000,
-  vertex: 0xff0000,
-  objective: 0x008000,
-  iteratePath: 0x800080,
-  iterateHighlight: 0x008000,
-  trace: 0xffa500,
-};
-
-const GRID_MARGIN = 100;
-const TRACE_OPACITY = 1;
-const TRACE_Z_OFFSET = 0.02;
-const ITERATE_Z_OFFSET = 0.03;
-const EDGE_Z_OFFSET = 0.002;
-const VERTEX_Z_OFFSET = 0.004;
-const OBJECTIVE_Z_OFFSET = 0.015;
-const MAX_TRACE_POINT_SPRITES = 1200;
-const TRACE_POINT_PIXEL_SIZE = 6;
-const ITERATE_POINT_PIXEL_SIZE = 8;
-const STAR_POINT_PIXEL_SIZE = 18;
-const VERTEX_POINT_PIXEL_SIZE = 10;
-const POLY_LINE_THICKNESS = 2;
-const TRACE_LINE_THICKNESS = 2;
-const ITERATE_LINE_THICKNESS = 3;
-
-const RENDER_LAYERS = {
-  grid: 0,
-  polyEdges: 5,
-  constraintLines: 6,
-  traceLine: 10,
-  tracePoints: 12,
-  iterateLine: 15,
-  iteratePoints: 18,
-  iterateHighlight: 25,
-  objective: 30,
-};
+import { CanvasRenderContext, CanvasRenderHelpers } from "./canvas/types";
+import {
+  GridRenderer,
+  PolygonRenderer,
+  ConstraintRenderer,
+  ObjectiveRenderer,
+  TraceRenderer,
+  IterateRenderer,
+} from "./canvas/renderers";
+import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./canvas/constants";
 
 export class CanvasManager {
   canvas: HTMLCanvasElement;
@@ -80,23 +39,34 @@ export class CanvasManager {
   centerY = window.innerHeight / 2;
 
   private renderer: WebGLRenderer;
-  private scene: Scene;
+  private backgroundScene: Scene;
+  private transparentScene: Scene;
+  private foregroundScene: Scene;
   private orthoCamera: OrthographicCamera;
   private perspectiveCamera: PerspectiveCamera;
   private activeCamera: PerspectiveCamera | OrthographicCamera;
   private gridGroup: Group;
-  private polygonGroup: Group;
+  private polygonFillGroup: Group;
+  private polygonOutlineGroup: Group;
   private constraintGroup: Group;
   private objectiveGroup: Group;
   private traceGroup: Group;
   private iterateGroup: Group;
   private renderScheduled = false;
-  private renderHandle: number | null = null;
   private guidedTour: any = null;
   private initialized = false;
   private starTextures = new Map<number, CanvasTexture>();
-  private circleTextures = new Map<number, CanvasTexture>();
+  private circleTextures = new Map<string, CanvasTexture>();
   private lineResolution = new Vector2(window.innerWidth, window.innerHeight);
+  private currentPixelRatio = window.devicePixelRatio || 1;
+  private screenToPlaneVec = new Vector2();
+  private planeToScreenVec = new Vector2();
+  private gridRenderer = new GridRenderer();
+  private polygonRenderer = new PolygonRenderer();
+  private constraintRenderer = new ConstraintRenderer();
+  private objectiveRenderer = new ObjectiveRenderer();
+  private traceRenderer = new TraceRenderer();
+  private iterateRenderer = new IterateRenderer();
 
   private constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -107,24 +77,29 @@ export class CanvasManager {
       preserveDrawingBuffer: false,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+    this.currentPixelRatio = this.getDynamicPixelRatio();
+    this.renderer.setPixelRatio(this.currentPixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.setClearColor(0x000000, 0);
 
-    this.scene = new Scene();
+    this.backgroundScene = new Scene();
+    this.transparentScene = new Scene();
+    this.foregroundScene = new Scene();
     this.gridGroup = new Group();
-    this.polygonGroup = new Group();
+    this.polygonFillGroup = new Group();
+    this.polygonOutlineGroup = new Group();
     this.constraintGroup = new Group();
     this.objectiveGroup = new Group();
     this.traceGroup = new Group();
     this.iterateGroup = new Group();
 
-    this.scene.add(this.gridGroup);
-    this.scene.add(this.polygonGroup);
-    this.scene.add(this.constraintGroup);
-    this.scene.add(this.objectiveGroup);
-    this.scene.add(this.traceGroup);
-    this.scene.add(this.iterateGroup);
+    this.backgroundScene.add(this.gridGroup);
+    this.transparentScene.add(this.polygonFillGroup);
+    this.foregroundScene.add(this.polygonOutlineGroup);
+    this.foregroundScene.add(this.constraintGroup);
+    this.foregroundScene.add(this.objectiveGroup);
+    this.foregroundScene.add(this.traceGroup);
+    this.foregroundScene.add(this.iterateGroup);
 
     this.orthoCamera = new OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
     this.perspectiveCamera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
@@ -133,6 +108,7 @@ export class CanvasManager {
     this.initialized = true;
     this.updateDimensions();
     this.draw();
+    window.addEventListener("resize", this.handleResize);
   }
 
   static async create(canvas: HTMLCanvasElement) {
@@ -147,11 +123,15 @@ export class CanvasManager {
     return this.guidedTour?.isTouring();
   }
 
+  private handleResize = () => {
+    this.updateDimensions();
+  };
+
   updateDimensions() {
     if (!this.initialized) return;
     const width = window.innerWidth;
     const height = window.innerHeight;
-    this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+    this.syncRendererPixelRatio(width, height);
     this.renderer.setSize(width, height, false);
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
@@ -167,10 +147,11 @@ export class CanvasManager {
       return;
     }
 
+    this.syncRendererPixelRatio();
+
     this.renderScheduled = true;
-    this.renderHandle = window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       this.renderScheduled = false;
-      this.renderHandle = null;
       this.renderFrame();
     });
   }
@@ -179,26 +160,70 @@ export class CanvasManager {
     if (!this.initialized) return;
     const is3D = state.is3DMode || state.isTransitioning3D;
     this.updateCamera();
-    this.drawGrid(is3D);
-    if (is3D) {
-      this.drawPolygonGeometry((x, y) => this.scaleZValue(this.computeObjectiveValue(x, y)), true);
-    } else {
-      this.drawPolygonGeometry((x, y) => this.getVertexZ(x, y), false);
-    }
-    this.drawConstraintLines(is3D);
-    this.drawObjective(is3D);
-    this.drawTraces(is3D);
-    this.drawIteratePath(is3D);
+    const context = this.buildRenderContext(is3D);
+    this.gridRenderer.render(context);
+    this.polygonRenderer.render(context);
+    this.constraintRenderer.render(context);
+    this.objectiveRenderer.render(context);
+    this.traceRenderer.render(context);
+    this.iterateRenderer.render(context);
 
-    this.renderer.render(this.scene, this.activeCamera);
+    this.renderer.autoClear = true;
+    this.renderer.render(this.backgroundScene, this.activeCamera);
+    this.renderer.autoClear = false;
+    this.renderer.render(this.transparentScene, this.activeCamera);
+    this.renderer.render(this.foregroundScene, this.activeCamera);
+    this.renderer.autoClear = true;
+  }
+
+  private buildRenderContext(is3D: boolean): CanvasRenderContext {
+    return {
+      is3D,
+      groups: {
+        grid: this.gridGroup,
+        polygonFill: this.polygonFillGroup,
+        polygonOutline: this.polygonOutlineGroup,
+        constraint: this.constraintGroup,
+        objective: this.objectiveGroup,
+        trace: this.traceGroup,
+        iterate: this.iterateGroup,
+      },
+      gridSpacing: this.gridSpacing,
+      scaleFactor: this.scaleFactor,
+      offset: this.offset,
+      centerX: this.centerX,
+      centerY: this.centerY,
+      lineResolution: this.lineResolution,
+      skipPreviewDrawing: this.shouldSkipPreviewDrawing(),
+      helpers: this.getRenderHelpers(),
+      toLogicalCoords: this.toLogicalCoords.bind(this),
+      computeObjectiveValue: this.computeObjectiveValue.bind(this),
+      scaleZValue: this.scaleZValue.bind(this),
+      getPlanarOffset: this.getPlanarOffset.bind(this),
+      getVertexZ: this.getVertexZ.bind(this),
+    };
+  }
+
+  private getRenderHelpers(): CanvasRenderHelpers {
+    return {
+      clearGroup: this.clearGroup.bind(this),
+      createThickLine: this.createThickLine.bind(this),
+      createCircleSpriteWithPixelSize: this.createCircleSpriteWithPixelSize.bind(this),
+      createCircleSprite: this.createCircleSprite.bind(this),
+      createStarSprite: this.createStarSprite.bind(this),
+      buildPositionArray: this.buildPositionArray.bind(this),
+      buildPositionVector: this.buildPositionVector.bind(this),
+      getWorldSizeFromPixels: this.getWorldSizeFromPixels.bind(this),
+      getCircleTexture: this.getCircleTexture.bind(this),
+    };
   }
 
   private updateCamera() {
     const is3D = state.is3DMode || state.isTransitioning3D;
     this.activeCamera = is3D ? this.perspectiveCamera : this.orthoCamera;
 
-    const pixelsPerUnit = this.gridSpacing * this.scaleFactor || 1;
-    const unitsPerPixel = 1 / pixelsPerUnit;
+    const pixelsPerUnit = this.getPixelsPerUnit();
+    const unitsPerPixel = this.getUnitsPerPixel();
     const width = window.innerWidth;
     const height = window.innerHeight;
     const halfWidth = (width * unitsPerPixel) / 2;
@@ -238,441 +263,32 @@ export class CanvasManager {
     }
   }
 
-  toLogicalCoords(x: number, y: number) {
+  toLogicalCoords(x: number, y: number): PointXY {
+    const planeCoords = this.screenToPlane(x, y);
     if (state.is3DMode || state.isTransitioning3D) {
-      const projected2D = {
-        x: (x - this.centerX) / (this.gridSpacing * this.scaleFactor) - this.offset.x,
-        y: (this.centerY - y) / (this.gridSpacing * this.scaleFactor) - this.offset.y,
-      };
-
-      const logical = inverseTransform2DProjection(projected2D, state.viewAngle, state.focalDistance);
-
-      if (state.snapToGrid) {
-        logical.x = Math.round(logical.x);
-        logical.y = Math.round(logical.y);
-      }
-      return logical;
+      const logical = inverseTransform2DProjection(
+        { x: planeCoords.x, y: planeCoords.y },
+        state.viewAngle,
+        state.focalDistance
+      );
+      return this.snapPoint(logical);
     }
 
-    const logical = {
-      x: (x - this.centerX) / (this.gridSpacing * this.scaleFactor) - this.offset.x,
-      y: (this.centerY - y) / (this.gridSpacing * this.scaleFactor) - this.offset.y,
-    };
-    if (state.snapToGrid) {
-      logical.x = Math.round(logical.x);
-      logical.y = Math.round(logical.y);
-    }
-    return logical;
+    return this.snapPoint(this.toPoint(planeCoords));
   }
 
   toCanvasCoords(x: number, y: number, z?: number) {
     if (state.is3DMode || state.isTransitioning3D) {
-      let actualZ = z;
-      if (actualZ === undefined && state.objectiveVector) {
-        actualZ = state.objectiveVector.x * x + state.objectiveVector.y * y;
-      } else if (actualZ === undefined) {
-        actualZ = 0;
-      }
-      const scaledZ = (actualZ * state.zScale) / 100;
-      const projected = transform2DTo3DAndProject({ x, y, z: scaledZ }, state.viewAngle, state.focalDistance);
-      return {
-        x: this.centerX + (projected.x + this.offset.x) * this.gridSpacing * this.scaleFactor,
-        y: this.centerY - (projected.y + this.offset.y) * this.gridSpacing * this.scaleFactor,
-      };
-    }
-
-    return {
-      x: this.centerX + (x + this.offset.x) * this.gridSpacing * this.scaleFactor,
-      y: this.centerY - (y + this.offset.y) * this.gridSpacing * this.scaleFactor,
-    };
-  }
-
-  private drawGrid(is3D: boolean) {
-    this.clearGroup(this.gridGroup);
-    let minX: number;
-    let maxX: number;
-    let minY: number;
-    let maxY: number;
-
-    if (is3D) {
-      const extent = Math.max(200, 200 / this.scaleFactor);
-      minX = -extent;
-      maxX = extent;
-      minY = -extent;
-      maxY = extent;
-    } else {
-      const tl = this.toLogicalCoords(-GRID_MARGIN, -GRID_MARGIN);
-      const br = this.toLogicalCoords(window.innerWidth + GRID_MARGIN, window.innerHeight + GRID_MARGIN);
-      minX = Math.min(tl.x, br.x) - 5;
-      maxX = Math.max(tl.x, br.x) + 5;
-      minY = Math.min(tl.y, br.y) - 5;
-      maxY = Math.max(tl.y, br.y) + 5;
-    }
-
-    const gridPositions: number[] = [];
-    for (let x = Math.floor(minX); x <= Math.ceil(maxX); x++) {
-      gridPositions.push(x, minY, 0, x, maxY, 0);
-    }
-    for (let y = Math.floor(minY); y <= Math.ceil(maxY); y++) {
-      gridPositions.push(minX, y, 0, maxX, y, 0);
-    }
-    if (gridPositions.length) {
-      const geom = new BufferGeometry();
-      geom.setAttribute("position", new Float32BufferAttribute(gridPositions, 3));
-      const material = new LineBasicMaterial({
-        color: COLORS.grid,
-        transparent: true,
-        opacity: 0.5,
-        depthTest: is3D,
-        depthWrite: is3D,
-      });
-      this.gridGroup.add(new LineSegments(geom, material));
-    }
-
-    const axisPositions = new Float32Array([
-      0, minY, 0, 0, maxY, 0,
-      minX, 0, 0, maxX, 0, 0,
-    ]);
-    const axisGeom = new BufferGeometry();
-    axisGeom.setAttribute("position", new Float32BufferAttribute(axisPositions, 3));
-    const axisMaterial = new LineBasicMaterial({
-      color: COLORS.axis,
-      depthTest: is3D,
-      depthWrite: is3D,
-    });
-    this.gridGroup.add(new LineSegments(axisGeom, axisMaterial));
-  }
-
-  private drawPolygonGeometry(zFn: (x: number, y: number) => number, useDepth: boolean) {
-    this.clearGroup(this.polygonGroup);
-    if (state.vertices.length === 0) return;
-    const vertices = state.vertices;
-
-    if (state.polygonComplete && vertices.length >= 3 && state.inputMode !== "manual") {
-      const material = new MeshBasicMaterial({
-        color: COLORS.polygonFill,
-        transparent: true,
-        opacity: 0.3,
-        side: DoubleSide,
-        depthWrite: useDepth,
-        depthTest: useDepth,
-        polygonOffset: true,
-        polygonOffsetFactor: 1,
-        polygonOffsetUnits: 1,
-      });
-
-      let mesh: Mesh;
-      if (useDepth) {
-        const positions: number[] = [];
-        vertices.forEach((v) => {
-          const z = zFn(v.x, v.y);
-          positions.push(v.x, v.y, z);
-        });
-        const indices: number[] = [];
-        for (let i = 1; i < vertices.length - 1; i++) {
-          indices.push(0, i, i + 1);
-        }
-        const geom = new BufferGeometry();
-        geom.setAttribute("position", new Float32BufferAttribute(positions, 3));
-        geom.setIndex(indices);
-        geom.computeVertexNormals();
-        mesh = new Mesh(geom, material);
-      } else {
-        const shape = new Shape();
-        shape.moveTo(vertices[0].x, vertices[0].y);
-        for (let i = 1; i < vertices.length; i++) {
-          shape.lineTo(vertices[i].x, vertices[i].y);
-        }
-        shape.closePath();
-        const geom = new ShapeGeometry(shape);
-        mesh = new Mesh(geom, material);
-        mesh.position.z = this.getPlanarOffset(VERTEX_Z_OFFSET / 2);
-      }
-      this.polygonGroup.add(mesh);
-    }
-
-    const edgeCount = state.polygonComplete ? vertices.length : Math.max(0, vertices.length - 1);
-    for (let i = 0; i < edgeCount; i++) {
-      const nextIndex = (i + 1) % vertices.length;
-      if (!state.polygonComplete && nextIndex >= vertices.length) break;
-      const v = vertices[i];
-      const next = vertices[nextIndex];
-      const z1 = zFn(v.x, v.y) + EDGE_Z_OFFSET;
-      const z2 = zFn(next.x, next.y) + EDGE_Z_OFFSET;
-      const edgeGeom = new BufferGeometry();
-      edgeGeom.setAttribute(
-        "position",
-        new Float32BufferAttribute([v.x, v.y, z1, next.x, next.y, z2], 3)
+      const zValue = z ?? this.computeObjectiveValue(x, y);
+      const projected = transform2DTo3DAndProject(
+        { x, y, z: this.scaleZValue(zValue) },
+        state.viewAngle,
+        state.focalDistance
       );
-      const highlight = state.inputMode !== "manual" && state.highlightIndex === i;
-      const edgeLine = this.createThickLine([v.x, v.y, z1, next.x, next.y, z2], {
-        color: highlight ? COLORS.polygonHighlight : 0x000000,
-        width: POLY_LINE_THICKNESS,
-        opacity: highlight ? 1 : 0.85,
-        depthTest: useDepth,
-        depthWrite: useDepth,
-      });
-      this.polygonGroup.add(edgeLine);
+      return this.toPoint(this.planeToScreen(projected.x, projected.y));
     }
 
-    const vertexSizePx = VERTEX_POINT_PIXEL_SIZE;
-    vertices.forEach((v) => {
-      const position = new Vector3(v.x, v.y, zFn(v.x, v.y) + VERTEX_Z_OFFSET);
-      const sprite = this.createCircleSpriteWithPixelSize(position, COLORS.vertex, vertexSizePx);
-      sprite.renderOrder = useDepth ? 12 : 12;
-      this.polygonGroup.add(sprite);
-    });
-
-    if (!this.isPolygonConvex(vertices)) {
-      const shape = new Shape();
-      shape.moveTo(vertices[0].x, vertices[0].y);
-      for (let i = 1; i < vertices.length; i++) {
-        shape.lineTo(vertices[i].x, vertices[i].y);
-      }
-      shape.closePath();
-      const geometry = new ShapeGeometry(shape);
-      const material = new MeshBasicMaterial({
-        color: COLORS.polygonHighlight,
-        transparent: true,
-        opacity: 0.3,
-        side: DoubleSide,
-      });
-      this.polygonGroup.add(new Mesh(geometry, material));
-    }
-
-    if (!state.polygonComplete && vertices.length >= 2 && state.currentMouse && !this.shouldSkipPreviewDrawing()) {
-      const previewGeom = new BufferGeometry();
-      const last = vertices[vertices.length - 1];
-      const lastZ = this.getVertexZ(last.x, last.y, EDGE_Z_OFFSET);
-      const previewZ = this.getVertexZ(state.currentMouse.x, state.currentMouse.y, EDGE_Z_OFFSET);
-      const previewPositions = [
-        last.x,
-        last.y,
-        lastZ,
-        state.currentMouse.x,
-        state.currentMouse.y,
-        previewZ,
-      ];
-      previewGeom.setAttribute("position", new Float32BufferAttribute(previewPositions, 3));
-      const previewLine = this.createThickLine(previewPositions, {
-        color: 0x000000,
-        width: POLY_LINE_THICKNESS,
-        opacity: 0.7,
-        depthTest: useDepth,
-        depthWrite: useDepth,
-      });
-      this.polygonGroup.add(previewLine);
-    }
-  }
-
-  private drawConstraintLines(is3D: boolean) {
-    this.clearGroup(this.constraintGroup);
-    if (state.inputMode !== "manual" || !state.computedLines || state.computedLines.length === 0) {
-      return;
-    }
-
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const margin = 50;
-    const topLeft = this.toLogicalCoords(-margin, -margin);
-    const bottomRight = this.toLogicalCoords(width + margin, height + margin);
-    const minX = Math.min(topLeft.x, bottomRight.x) - margin;
-    const maxX = Math.max(topLeft.x, bottomRight.x) + margin;
-    const minY = Math.min(topLeft.y, bottomRight.y) - margin;
-    const maxY = Math.max(topLeft.y, bottomRight.y) + margin;
-
-    state.computedLines.forEach((line, index) => {
-      const [A, B, C] = line;
-      if (Math.abs(A) < 1e-10 && Math.abs(B) < 1e-10) return;
-
-      let x1: number;
-      let y1: number;
-      let x2: number;
-      let y2: number;
-
-      if (Math.abs(B) > Math.abs(A)) {
-        x1 = minX;
-        y1 = (C - A * x1) / B;
-        x2 = maxX;
-        y2 = (C - A * x2) / B;
-      } else {
-        y1 = minY;
-        x1 = (C - B * y1) / A;
-        y2 = maxY;
-        x2 = (C - B * y2) / A;
-      }
-
-      const highlighted = state.highlightIndex === index;
-      const lineObj = this.createThickLine(
-        [x1, y1, 0, x2, y2, 0],
-        {
-          color: highlighted ? COLORS.polygonHighlight : 0x646464,
-          width: POLY_LINE_THICKNESS,
-          opacity: 1,
-          depthTest: is3D,
-          depthWrite: is3D,
-        }
-      );
-      this.constraintGroup.add(lineObj);
-    });
-  }
-
-  private drawObjective(is3D: boolean) {
-    this.clearGroup(this.objectiveGroup);
-    const target =
-      state.objectiveVector ||
-      (state.polygonComplete && state.currentObjective && !this.shouldSkipPreviewDrawing()
-        ? state.currentObjective
-        : null);
-
-    if (!target) return;
-
-    const length = Math.hypot(target.x, target.y);
-    if (length < 1e-3) return;
-    const angle = Math.atan2(target.y, target.x);
-    const width = Math.max(this.getWorldSizeFromPixels(12), 0.02);
-
-    const baseZ = this.getPlanarOffset(OBJECTIVE_Z_OFFSET);
-    const arrowColor = COLORS.objective;
-    const shaftLine = this.createThickLine(
-      [0, 0, baseZ, target.x, target.y, baseZ],
-      {
-        color: arrowColor,
-        width: ITERATE_LINE_THICKNESS,
-        depthTest: is3D,
-        depthWrite: is3D,
-        renderOrder: RENDER_LAYERS.objective,
-      }
-    );
-    this.objectiveGroup.add(shaftLine);
-
-    const headLength = Math.max(this.getWorldSizeFromPixels(20), length * 0.2);
-    const head1 = this.createThickLine(
-      [
-        target.x,
-        target.y,
-        baseZ,
-        target.x - headLength * Math.cos(angle + Math.PI / 6),
-        target.y - headLength * Math.sin(angle + Math.PI / 6),
-        baseZ,
-      ],
-      { color: arrowColor, width: ITERATE_LINE_THICKNESS, depthTest: is3D, depthWrite: is3D, renderOrder: RENDER_LAYERS.objective }
-    );
-    const head2 = this.createThickLine(
-      [
-        target.x,
-        target.y,
-        baseZ,
-        target.x - headLength * Math.cos(angle - Math.PI / 6),
-        target.y - headLength * Math.sin(angle - Math.PI / 6),
-        baseZ,
-      ],
-      { color: arrowColor, width: ITERATE_LINE_THICKNESS, depthTest: is3D, depthWrite: is3D, renderOrder: RENDER_LAYERS.objective }
-    );
-    this.objectiveGroup.add(head1);
-    this.objectiveGroup.add(head2);
-  }
-
-  private drawTraces(is3D: boolean) {
-    this.clearGroup(this.traceGroup);
-    if (!state.traceEnabled || !state.traceBuffer || state.traceBuffer.length === 0) {
-      return;
-    }
-
-    const pointSize = TRACE_POINT_PIXEL_SIZE;
-    const pointGeometry = new BufferGeometry();
-    const sampledPositions: number[] = [];
-    state.traceBuffer.forEach((traceEntry) => {
-      const path = traceEntry.path;
-      if (!path || path.length === 0) return;
-      const positions = this.buildPositionArray(path, TRACE_Z_OFFSET);
-      const line = this.createThickLine(Array.from(positions), {
-        color: COLORS.trace,
-        width: TRACE_LINE_THICKNESS,
-        opacity: TRACE_OPACITY,
-        depthTest: is3D,
-        depthWrite: is3D,
-      });
-      line.renderOrder = 5;
-      this.traceGroup.add(line);
-
-      const step = Math.max(1, Math.ceil(path.length / MAX_TRACE_POINT_SPRITES));
-      for (let i = 0; i < path.length; i += step) {
-        const vec = this.buildPositionVector(path[i], TRACE_Z_OFFSET);
-        sampledPositions.push(vec.x, vec.y, vec.z);
-      }
-      const lastIdx = path.length - 1;
-      if (lastIdx % step !== 0) {
-        const vec = this.buildPositionVector(path[lastIdx], TRACE_Z_OFFSET);
-        sampledPositions.push(vec.x, vec.y, vec.z);
-      }
-    });
-
-    if (sampledPositions.length) {
-      pointGeometry.setAttribute("position", new Float32BufferAttribute(sampledPositions, 3));
-      const material = new PointsMaterial({
-        color: COLORS.trace,
-        size: pointSize,
-        sizeAttenuation: false,
-        depthWrite: false,
-        depthTest: false,
-        transparent: true,
-        opacity: 1,
-        map: this.getCircleTexture(COLORS.trace),
-        alphaTest: 0.2,
-      });
-      const pointMesh = new Points(pointGeometry, material);
-      pointMesh.renderOrder = 10;
-      this.traceGroup.add(pointMesh);
-    }
-  }
-
-  private drawIteratePath(is3D: boolean) {
-    this.clearGroup(this.iterateGroup);
-    if (!state.iteratePath || state.iteratePath.length === 0) {
-      return;
-    }
-
-    const positions = this.buildPositionArray(state.iteratePath, ITERATE_Z_OFFSET);
-    const iterateLine = this.createThickLine(Array.from(positions), {
-      color: COLORS.iteratePath,
-      width: ITERATE_LINE_THICKNESS,
-      depthTest: is3D,
-      depthWrite: is3D,
-    });
-    iterateLine.renderOrder = 15;
-    this.iterateGroup.add(iterateLine);
-
-    const iteratePointSizeWorld = this.getWorldSizeFromPixels(ITERATE_POINT_PIXEL_SIZE);
-    const iteratePointSizePx = ITERATE_POINT_PIXEL_SIZE;
-    const pointsGeometry = new BufferGeometry();
-    pointsGeometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-    const material = new PointsMaterial({
-      color: COLORS.iteratePath,
-      size: iteratePointSizePx,
-      sizeAttenuation: false,
-      depthWrite: false,
-      depthTest: false,
-      transparent: true,
-      opacity: 1,
-      map: this.getCircleTexture(COLORS.iteratePath),
-      alphaTest: 0.2,
-    });
-    const iteratePoints = new Points(pointsGeometry, material);
-    iteratePoints.renderOrder = 20;
-    this.iterateGroup.add(iteratePoints);
-
-    if (state.highlightIteratePathIndex !== null && state.highlightIteratePathIndex < state.iteratePath.length) {
-      const highlightPos = this.buildPositionVector(state.iteratePath[state.highlightIteratePathIndex], ITERATE_Z_OFFSET);
-      const highlightSize = this.getWorldSizeFromPixels(ITERATE_POINT_PIXEL_SIZE * 1.3, highlightPos);
-      const highlightSprite = this.createCircleSprite(highlightPos, COLORS.iterateHighlight, highlightSize);
-      highlightSprite.renderOrder = 30;
-      this.iterateGroup.add(highlightSprite);
-    }
-
-    const lastPos = this.buildPositionVector(state.iteratePath[state.iteratePath.length - 1], ITERATE_Z_OFFSET);
-    const star = this.createStarSprite(lastPos, COLORS.iterateHighlight);
-    this.iterateGroup.add(star);
+    return this.toPoint(this.planeToScreen(x, y));
   }
 
   private buildPositionArray(path: number[][], planarOffset = 0) {
@@ -699,7 +315,8 @@ export class CanvasManager {
     const texture = this.getStarTexture(color);
     const material = new SpriteMaterial({
       map: texture,
-      transparent: true,
+      transparent: false,
+      alphaTest: 0.5,
       depthTest: false,
       depthWrite: false,
     });
@@ -708,17 +325,19 @@ export class CanvasManager {
     sprite.position.copy(position);
     const starSize = this.getWorldSizeFromPixels(STAR_POINT_PIXEL_SIZE, position);
     sprite.scale.set(starSize, starSize, starSize);
-    sprite.renderOrder = 25;
+    sprite.renderOrder = RENDER_LAYERS.iterateStar;
     return sprite;
   }
 
   private createCircleSprite(position: Vector3, color: number, size: number) {
     const material = new SpriteMaterial({
       map: this.getCircleTexture(color),
-      transparent: true,
+      transparent: false,
+      alphaTest: 0.5,
       depthTest: false,
       depthWrite: false,
     });
+    material.color.set(color);
     const sprite = new Sprite(material);
     sprite.position.copy(position);
     sprite.scale.set(size, size, size);
@@ -779,7 +398,77 @@ export class CanvasManager {
       const worldPerPixel = viewportHeight / this.lineResolution.y;
       return pixels * worldPerPixel;
     }
-    return pixels / (this.gridSpacing * this.scaleFactor || 1);
+    return pixels / this.getPixelsPerUnit();
+  }
+
+  getPixelsPerUnit(scale = this.scaleFactor) {
+    return this.gridSpacing * scale || 1;
+  }
+
+  getUnitsPerPixel(scale = this.scaleFactor) {
+    return 1 / this.getPixelsPerUnit(scale);
+  }
+
+  private screenToPlane(screenX: number, screenY: number) {
+    const unitsPerPixel = this.getUnitsPerPixel();
+    this.screenToPlaneVec
+      .set(screenX - this.centerX, this.centerY - screenY)
+      .multiplyScalar(unitsPerPixel);
+    this.screenToPlaneVec.x -= this.offset.x;
+    this.screenToPlaneVec.y -= this.offset.y;
+    return this.screenToPlaneVec;
+  }
+
+  private planeToScreen(worldX: number, worldY: number) {
+    const pixelsPerUnit = this.getPixelsPerUnit();
+    this.planeToScreenVec.set(worldX + this.offset.x, worldY + this.offset.y).multiplyScalar(pixelsPerUnit);
+    this.planeToScreenVec.set(
+      this.centerX + this.planeToScreenVec.x,
+      this.centerY - this.planeToScreenVec.y
+    );
+    return this.planeToScreenVec;
+  }
+
+  private toPoint(vec: Vector2): PointXY {
+    return { x: vec.x, y: vec.y };
+  }
+
+  private snapPoint(point: PointXY) {
+    if (state.snapToGrid) {
+      point.x = Math.round(point.x);
+      point.y = Math.round(point.y);
+    }
+    return point;
+  }
+
+  setOffsetForAnchor(screenX: number, screenY: number, logicalPoint: PointXY, scale = this.scaleFactor) {
+    const unitsPerPixel = this.getUnitsPerPixel(scale);
+    this.offset.x = (screenX - this.centerX) * unitsPerPixel - logicalPoint.x;
+    this.offset.y = (this.centerY - screenY) * unitsPerPixel - logicalPoint.y;
+  }
+
+  panByScreenDelta(deltaX: number, deltaY: number) {
+    const unitsPerPixel = this.getUnitsPerPixel();
+    this.offset.x += deltaX * unitsPerPixel;
+    this.offset.y -= deltaY * unitsPerPixel;
+  }
+
+  private getDynamicPixelRatio() {
+    const deviceRatio = window.devicePixelRatio || 1;
+    const zoomFactor = Math.min(4, Math.max(1, this.scaleFactor));
+    return Math.min(4, deviceRatio * zoomFactor);
+  }
+
+  private syncRendererPixelRatio(width?: number, height?: number) {
+    const ratio = this.getDynamicPixelRatio();
+    if (ratio === this.currentPixelRatio) {
+      return;
+    }
+    this.currentPixelRatio = ratio;
+    this.renderer.setPixelRatio(ratio);
+    const targetWidth = width ?? window.innerWidth;
+    const targetHeight = height ?? window.innerHeight;
+    this.renderer.setSize(targetWidth, targetHeight, false);
   }
 
   private hexToRgb(hex: number) {
@@ -851,8 +540,8 @@ export class CanvasManager {
     const material = new LineMaterial({
       color,
       linewidth: width,
-      transparent: opacity < 1,
-      opacity,
+      transparent: false,
+      opacity: 1,
       depthTest,
       depthWrite,
     });
@@ -864,37 +553,27 @@ export class CanvasManager {
   }
 
   private getCircleTexture(color: number) {
-    let texture = this.circleTextures.get(color);
+    const deviceRatio = Math.max(1, Math.round((window.devicePixelRatio || 1)));
+    const scaleBucket = Math.min(4, Math.max(1, Math.round(this.scaleFactor)));
+    const cacheKey = `circle-${deviceRatio}-${scaleBucket}`;
+    let texture = this.circleTextures.get(cacheKey);
     if (texture) return texture;
-    const size = 64;
+    const size = 64 * deviceRatio * scaleBucket;
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d")!;
-    const { r, g, b } = this.hexToRgb(color);
-    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 1)`;
+    ctx.fillStyle = "rgba(255, 255, 255, 1)";
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    const radius = size / 2;
+    ctx.arc(radius, radius, radius, 0, Math.PI * 2);
     ctx.fill();
     texture = new CanvasTexture(canvas);
-    this.circleTextures.set(color, texture);
+    texture.minFilter = NearestFilter;
+    texture.magFilter = NearestFilter;
+    texture.needsUpdate = true;
+    this.circleTextures.set(cacheKey, texture);
     return texture;
-  }
-
-  private isPolygonConvex(points: PointXY[]) {
-    if (points.length < 3) return true;
-    let prevCross = 0;
-    for (let i = 0, n = points.length; i < n; i++) {
-      const p0 = points[i];
-      const p1 = points[(i + 1) % n];
-      const p2 = points[(i + 2) % n];
-      const cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
-      if (cross !== 0) {
-        if (prevCross === 0) prevCross = cross;
-        else if (Math.sign(cross) !== Math.sign(prevCross)) return false;
-      }
-    }
-    return true;
   }
 
 }

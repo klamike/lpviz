@@ -131,25 +131,15 @@ export function setupCanvasInteractions(
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    const oldScale = canvasManager.scaleFactor;
     const zoomFactor = 1.05;
     
     const newScale = Math.min(MAX_SCALE_FACTOR, Math.max(0.05, 
-      e.deltaY < 0 ? oldScale * zoomFactor : oldScale / zoomFactor
+      e.deltaY < 0 ? canvasManager.scaleFactor * zoomFactor : canvasManager.scaleFactor / zoomFactor
     ));
     
-    if (state.is3DMode || state.isTransitioning3D) {
-      const worldX = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * oldScale) - canvasManager.offset.x;
-      const worldY = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * oldScale) - canvasManager.offset.y;
-      canvasManager.scaleFactor = newScale;
-      canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - worldX;
-      canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - worldY;
-    } else {
-      const logical = canvasManager.toLogicalCoords(mouseX, mouseY);
-      canvasManager.scaleFactor = newScale;
-      canvasManager.offset.x = (mouseX - canvasManager.centerX) / (canvasManager.gridSpacing * newScale) - logical.x;
-      canvasManager.offset.y = (canvasManager.centerY - mouseY) / (canvasManager.gridSpacing * newScale) - logical.y;
-    }
+    const focusPoint = canvasManager.toLogicalCoords(mouseX, mouseY);
+    canvasManager.scaleFactor = newScale;
+    canvasManager.setOffsetForAnchor(mouseX, mouseY, focusPoint);
     canvasManager.draw();
   });
 }
