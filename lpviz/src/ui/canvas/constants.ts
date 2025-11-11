@@ -12,7 +12,6 @@ export const COLORS = {
 
 export const GRID_MARGIN = 100;
 
-export const TRACE_OPACITY = 1;
 export const TRACE_Z_OFFSET = 0.02;
 export const ITERATE_Z_OFFSET = 0.03;
 export const EDGE_Z_OFFSET = 0.002;

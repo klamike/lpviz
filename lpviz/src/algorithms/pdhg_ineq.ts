@@ -67,7 +67,6 @@ export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions
 
     const pObj = c.dot(xk);
     const pFeasVal = projectNonNegative(Matrix.sub(A.mmul(xk), b)).max();
-    const dFeasVal = projectNonNegative(yk.mul(-1)).max();
 
     let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
       k,

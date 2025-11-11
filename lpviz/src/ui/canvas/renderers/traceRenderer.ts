@@ -4,7 +4,6 @@ import {
   COLORS,
   MAX_TRACE_POINT_SPRITES,
   TRACE_LINE_THICKNESS,
-  TRACE_OPACITY,
   TRACE_POINT_PIXEL_SIZE,
   TRACE_Z_OFFSET,
   RENDER_LAYERS,
@@ -30,7 +29,6 @@ export class TraceRenderer implements CanvasLayerRenderer {
       const line = helpers.createThickLine(Array.from(positions), {
         color: COLORS.trace,
         width: TRACE_LINE_THICKNESS,
-        opacity: TRACE_OPACITY,
         depthTest: is3D,
         depthWrite: is3D,
       });

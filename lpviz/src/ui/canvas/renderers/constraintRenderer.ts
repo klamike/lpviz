@@ -35,7 +35,6 @@ export class ConstraintRenderer implements CanvasLayerRenderer {
         {
           color: highlighted ? COLORS.polygonHighlight : 0x646464,
           width: POLY_LINE_THICKNESS,
-          opacity: 1,
           depthTest: is3D,
           depthWrite: is3D,
         }

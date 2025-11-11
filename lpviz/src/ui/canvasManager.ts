@@ -528,14 +528,12 @@ export class CanvasManager {
     {
       color,
       width,
-      opacity = 1,
       depthTest = true,
       depthWrite = true,
       renderOrder = 0,
     }: {
       color: number;
       width: number;
-      opacity?: number;
       depthTest?: boolean;
       depthWrite?: boolean;
       renderOrder?: number;
@@ -543,12 +541,11 @@ export class CanvasManager {
   ) {
     const geometry = new LineGeometry();
     geometry.setPositions(positions);
-    const transparent = opacity < 1;
     const material = new LineMaterial({
       color,
       linewidth: width,
-      transparent,
-      opacity,
+      transparent: false,
+      opacity: 1,
       depthTest,
       depthWrite,
     });

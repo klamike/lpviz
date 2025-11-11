@@ -94,7 +94,6 @@ export class PolygonRenderer implements CanvasLayerRenderer {
       const edgeLine = helpers.createThickLine(positions, {
         color: highlight ? COLORS.polygonHighlight : 0x000000,
         width: POLY_LINE_THICKNESS,
-        opacity: highlight ? 1 : 0.85,
         depthTest: useDepth,
         depthWrite: useDepth,
       });
@@ -141,7 +140,6 @@ export class PolygonRenderer implements CanvasLayerRenderer {
       const previewLine = helpers.createThickLine(previewPositions, {
         color: 0x000000,
         width: POLY_LINE_THICKNESS,
-        opacity: 0.7,
         depthTest: useDepth,
         depthWrite: useDepth,
       });

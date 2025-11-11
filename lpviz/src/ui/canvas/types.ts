@@ -17,7 +17,6 @@ export interface CanvasGroups {
 export interface ThickLineOptions {
   color: number;
   width: number;
-  opacity?: number;
   depthTest?: boolean;
   depthWrite?: boolean;
   renderOrder?: number;
