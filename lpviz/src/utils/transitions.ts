@@ -18,6 +18,8 @@ export function start3DTransition(canvasManager: CanvasViewportManager, uiManage
   const startAngles = targetMode ? { x: 0, y: 0, z: 0 } : { ...viewAngle };
   const endAngles = targetMode ? { x: -1.15, y: 0.4, z: 0 } : { x: 0, y: 0, z: 0 };
 
+  canvasManager.prepareFor3DTransition(targetMode);
+
   setFields({
     isTransitioning3D: true,
     transitionStartTime: performance.now(),

@@ -323,33 +323,18 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
 
   // ===== POINTER EVENTS =====
 
+
   canvas.addEventListener("mousedown", (e) => {
     const { is3DMode, isTransitioning3D } = getState();
-    if (is3DMode && e.shiftKey && !isTransitioning3D) {
-      setFields({
-        isRotatingCamera: true,
-        lastRotationMouse: { x: e.clientX, y: e.clientY },
-      });
+    if (is3DMode || isTransitioning3D) {
       return;
     }
     handleDragStart(e.clientX, e.clientY);
   });
 
   canvas.addEventListener("mousemove", (e) => {
-    const { isRotatingCamera, lastRotationMouse, viewAngle } = getState();
-    if (isRotatingCamera && lastRotationMouse) {
-      const deltaX = e.clientX - lastRotationMouse.x;
-      const deltaY = e.clientY - lastRotationMouse.y;
-
-      setFields({
-        viewAngle: {
-          ...viewAngle,
-          y: viewAngle.y + deltaX * 0.01,
-          x: Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, viewAngle.x + deltaY * 0.01)),
-        },
-        lastRotationMouse: { x: e.clientX, y: e.clientY },
-      });
-      canvasManager.draw();
+    const { is3DMode, isTransitioning3D } = getState();
+    if (is3DMode || isTransitioning3D) {
       return;
     }
 
@@ -357,8 +342,8 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
   });
 
   canvas.addEventListener("mouseup", () => {
-    if (getState().isRotatingCamera) {
-      setState({ isRotatingCamera: false });
+    const { is3DMode, isTransitioning3D } = getState();
+    if (is3DMode || isTransitioning3D) {
       return;
     }
     handleDragEnd();
@@ -367,6 +352,8 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
   canvas.addEventListener(
     "touchstart",
     (e: TouchEvent) => {
+      const { is3DMode, isTransitioning3D } = getState();
+      if (is3DMode || isTransitioning3D) return;
       if (e.touches.length === 1) {
         const touch = e.touches[0];
         handleDragStart(touch.clientX, touch.clientY);
@@ -378,6 +365,8 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
   canvas.addEventListener(
     "touchmove",
     (e: TouchEvent) => {
+      const { is3DMode, isTransitioning3D } = getState();
+      if (is3DMode || isTransitioning3D) return;
       if (e.touches.length === 1) {
         const interaction = getState();
         if (interaction.isPanning || interaction.draggingPoint || interaction.draggingObjective) {
@@ -393,6 +382,8 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
   canvas.addEventListener(
     "touchend",
     (e: TouchEvent) => {
+      const { is3DMode, isTransitioning3D } = getState();
+      if (is3DMode || isTransitioning3D) return;
       const interaction = getState();
       if (interaction.isPanning || interaction.draggingPoint || interaction.draggingObjective) {
         e.preventDefault();
@@ -405,6 +396,10 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
   // ===== CANVAS INTERACTION HANDLERS =====
 
   canvas.addEventListener("dblclick", (e) => {
+    const { is3DMode, isTransitioning3D } = getState();
+    if (is3DMode || isTransitioning3D) {
+      return;
+    }
     if (helpPopup?.isTouring()) {
       return;
     }
@@ -445,6 +440,10 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
   });
 
   canvas.addEventListener("click", (e) => {
+    const { is3DMode, isTransitioning3D } = getState();
+    if (is3DMode || isTransitioning3D) {
+      return;
+    }
     if (helpPopup?.isTouring()) {
       return;
     }
@@ -477,18 +476,35 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
   const MAX_SCALE_FACTOR = 400;
 
   canvas.addEventListener("wheel", (e) => {
+    const { is3DMode, isTransitioning3D, zScale } = getState();
+    const is3D = is3DMode || isTransitioning3D;
+    const zoomFactor = 1.05;
+
+    if (is3D) {
+      if (e.shiftKey && !isTransitioning3D) {
+        e.preventDefault();
+        const delta = (zScale || 0.1) * (e.deltaY < 0 ? 1 / zoomFactor : zoomFactor);
+        setState({ zScale: Math.max(0.01, Math.min(100, delta)) });
+        canvasManager.draw();
+      }
+      return;
+    }
+
     e.preventDefault();
 
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    const zoomFactor = 1.05;
 
-    const newScale = Math.min(MAX_SCALE_FACTOR, Math.max(0.05, e.deltaY < 0 ? canvasManager.scaleFactor * zoomFactor : canvasManager.scaleFactor / zoomFactor));
+    const newScale = Math.min(
+      MAX_SCALE_FACTOR,
+      Math.max(0.05, e.deltaY < 0 ? canvasManager.scaleFactor * zoomFactor : canvasManager.scaleFactor / zoomFactor),
+    );
 
     const focusPoint = canvasManager.toLogicalCoords(mouseX, mouseY);
     canvasManager.scaleFactor = newScale;
     canvasManager.setOffsetForAnchor(mouseX, mouseY, focusPoint);
     canvasManager.draw();
   });
+
 }

@@ -231,8 +231,8 @@ export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {
       if (satisfiesAll) {
         intersections.push([x, y]);
       }
-    }
-  }
+        }
+      }
 
   if (intersections.length === 0) return [];
 
@@ -245,7 +245,7 @@ export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {
 
   if (unique.length <= 2) {
     return unique.map(([x, y]) => [parseFloat(x.toFixed(2)), parseFloat(y.toFixed(2))]);
-  }
+      }
 
   const center = centroid(unique);
   return unique

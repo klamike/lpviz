@@ -1,9 +1,10 @@
-import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial, MOUSE } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { AlwaysVisibleLineGeometry } from "../../three/AlwaysVisibleLineGeometry";
 import { UndashedLine2 } from "../../three/UndashedLine2";
-import { getState } from "../../state/store";
-import { PointXY } from "../../types/arrays";
+import { getState, setState } from "../../state/store";
+import { PointXY, PointXYZ } from "../../types/arrays";
 import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../../utils/math3d";
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "../canvas/types";
 import { CanvasRenderPipeline } from "../canvas/canvasRenderPipeline";
@@ -52,6 +53,8 @@ export class CanvasViewportManager {
   private screenToPlaneVec = new Vector2();
   private planeToScreenVec = new Vector2();
   private renderPipeline = new CanvasRenderPipeline();
+  private orbitControls: OrbitControls;
+  private orbitControlsActive = false;
 
   private constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -96,6 +99,12 @@ export class CanvasViewportManager {
     this.orthoCamera = new OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
     this.perspectiveCamera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
     this.activeCamera = this.orthoCamera;
+    this.orbitControls = new OrbitControls(this.perspectiveCamera, this.canvas);
+    this.orbitControls.enabled = false;
+    this.orbitControls.enableDamping = true;
+    this.orbitControls.dampingFactor = 0.08;
+    this.orbitControls.enableRotate = false;
+    this.orbitControls.addEventListener("change", () => this.draw());
 
     this.initialized = true;
     this.updateDimensions();
@@ -149,6 +158,9 @@ export class CanvasViewportManager {
     if (!this.initialized) return;
     const { is3DMode, isTransitioning3D } = getState();
     const is3D = is3DMode || isTransitioning3D;
+    if (this.orbitControlsActive) {
+      this.orbitControls.update();
+    }
     this.updateCamera();
     const context = this.buildRenderContext(is3D);
     this.renderPipeline.render(context);
@@ -208,23 +220,25 @@ export class CanvasViewportManager {
   }
 
   private updateCamera() {
-    const { is3DMode, isTransitioning3D, viewAngle } = getState();
-    const is3D = is3DMode || isTransitioning3D;
-    this.activeCamera = is3D ? this.perspectiveCamera : this.orthoCamera;
-
-    const unitsPerPixel = this.getUnitsPerPixel();
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const halfWidth = (width * unitsPerPixel) / 2;
-    const halfHeight = (height * unitsPerPixel) / 2;
-
-    const centerShiftX = (this.centerX - width / 2) * unitsPerPixel;
-    const centerShiftY = (this.centerY - height / 2) * unitsPerPixel;
-
-    const targetX = -this.offset.x - centerShiftX;
-    const targetY = -this.offset.y + centerShiftY;
-
+    const state = getState();
+    const transitioning = state.isTransitioning3D;
+    const is3D = state.is3DMode || transitioning;
     if (!is3D) {
+      this.deactivateOrbitControls();
+      this.activeCamera = this.orthoCamera;
+
+      const unitsPerPixel = this.getUnitsPerPixel();
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const halfWidth = (width * unitsPerPixel) / 2;
+      const halfHeight = (height * unitsPerPixel) / 2;
+
+      const centerShiftX = (this.centerX - width / 2) * unitsPerPixel;
+      const centerShiftY = (this.centerY - height / 2) * unitsPerPixel;
+
+      const targetX = -this.offset.x - centerShiftX;
+      const targetY = -this.offset.y + centerShiftY;
+
       this.orthoCamera.left = -halfWidth;
       this.orthoCamera.right = halfWidth;
       this.orthoCamera.top = halfHeight;
@@ -232,35 +246,43 @@ export class CanvasViewportManager {
       this.orthoCamera.position.set(targetX, targetY, 10);
       this.orthoCamera.lookAt(new Vector3(targetX, targetY, 0));
       this.orthoCamera.updateProjectionMatrix();
-    } else {
-      this.perspectiveCamera.aspect = width / height;
-      this.perspectiveCamera.updateProjectionMatrix();
+      return;
+    }
 
-      const target = new Vector3(targetX, targetY, 0);
-      const fov = this.perspectiveCamera.fov * (Math.PI / 180);
-      const baseDistance = Math.max(10, (height * unitsPerPixel) / (2 * Math.tan(fov / 2)));
-      const camEuler = new Euler(-viewAngle.x, -viewAngle.y, -viewAngle.z, "XYZ");
-      const direction = new Vector3(0, 0, 1).applyEuler(camEuler).normalize();
-      this.perspectiveCamera.position.copy(target.clone().add(direction.multiplyScalar(baseDistance)));
-      this.perspectiveCamera.up.copy(new Vector3(0, 1, 0).applyEuler(camEuler).normalize());
-      this.perspectiveCamera.lookAt(target);
+    this.activeCamera = this.perspectiveCamera;
+    this.perspectiveCamera.aspect = window.innerWidth / window.innerHeight;
+    this.perspectiveCamera.updateProjectionMatrix();
+
+    if (transitioning) {
+      this.deactivateOrbitControls();
+      this.positionPerspectiveCamera(state.viewAngle);
+      return;
+    }
+
+    if (!this.orbitControlsActive) {
+      this.activateOrbitControls();
     }
   }
 
   toLogicalCoords(x: number, y: number): PointXY {
     const planeCoords = this.screenToPlane(x, y);
-    const { is3DMode, isTransitioning3D, viewAngle } = getState();
+    const { is3DMode, isTransitioning3D } = getState();
     if (is3DMode || isTransitioning3D) {
-      return this.snapPoint(inverseTransform2DProjection({ x: planeCoords.x, y: planeCoords.y }, viewAngle));
+      const angles = this.getRenderViewAngles();
+      return this.snapPoint(inverseTransform2DProjection({ x: planeCoords.x, y: planeCoords.y }, angles));
     }
     return this.snapPoint(this.toPoint(planeCoords));
   }
 
   toCanvasCoords(x: number, y: number, z?: number) {
-    const { is3DMode, isTransitioning3D, viewAngle, focalDistance } = getState();
+    const { is3DMode, isTransitioning3D, focalDistance } = getState();
     if (is3DMode || isTransitioning3D) {
       const zValue = z ?? this.computeObjectiveValue(x, y);
-      const projected = transform2DTo3DAndProject({ x, y, z: this.scaleZValue(zValue) }, viewAngle, focalDistance);
+      const projected = transform2DTo3DAndProject(
+        { x, y, z: this.scaleZValue(zValue) },
+        this.getRenderViewAngles(),
+        focalDistance,
+      );
       return this.toPoint(this.planeToScreen(projected.x, projected.y));
     }
     return this.toPoint(this.planeToScreen(x, y));
@@ -395,6 +417,78 @@ export class CanvasViewportManager {
     const unitsPerPixel = this.getUnitsPerPixel();
     this.offset.x += deltaX * unitsPerPixel;
     this.offset.y -= deltaY * unitsPerPixel;
+  }
+
+  private getViewportTarget(unitsPerPixel = this.getUnitsPerPixel()) {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const centerShiftX = (this.centerX - width / 2) * unitsPerPixel;
+    const centerShiftY = (this.centerY - height / 2) * unitsPerPixel;
+    return new Vector3(-this.offset.x - centerShiftX, -this.offset.y + centerShiftY, 0);
+  }
+
+  private getPerspectiveDistance(unitsPerPixel: number, height: number) {
+    const fov = this.perspectiveCamera.fov * (Math.PI / 180);
+    return Math.max(10, (height * unitsPerPixel) / (2 * Math.tan(fov / 2)));
+  }
+
+  private positionPerspectiveCamera(viewAngle: PointXYZ, unitsPerPixel = this.getUnitsPerPixel()) {
+    const target = this.getViewportTarget(unitsPerPixel);
+    const distance = this.getPerspectiveDistance(unitsPerPixel, window.innerHeight);
+    const euler = new Euler(-viewAngle.x, -viewAngle.y, -viewAngle.z, "XYZ");
+    const direction = new Vector3(0, 0, 1).applyEuler(euler).normalize();
+    this.perspectiveCamera.position.copy(target.clone().add(direction.multiplyScalar(distance)));
+    this.perspectiveCamera.up.copy(new Vector3(0, 1, 0).applyEuler(euler).normalize());
+    this.perspectiveCamera.lookAt(target);
+    return target;
+  }
+
+  private getOrbitViewAngles() {
+    const { x, y, z } = this.perspectiveCamera.rotation;
+    return { x: -x, y: -y, z: -z };
+  }
+
+  private getRenderViewAngles() {
+    return this.orbitControlsActive ? this.getOrbitViewAngles() : getState().viewAngle;
+  }
+
+  private syncViewAngleToState() {
+    if (!this.orbitControlsActive) return;
+    setState({ viewAngle: this.getOrbitViewAngles() });
+  }
+
+  private activateOrbitControls() {
+    const target = this.positionPerspectiveCamera(getState().viewAngle);
+    this.orbitControls.target.copy(target);
+    this.orbitControls.enabled = true;
+    this.orbitControlsActive = true;
+    this.applyOrbitDragMode();
+    this.orbitControls.update();
+  }
+
+  private deactivateOrbitControls() {
+    if (!this.orbitControlsActive) return;
+    this.orbitControls.enabled = false;
+    this.orbitControlsActive = false;
+    this.syncViewAngleToState();
+  }
+
+  prepareFor3DTransition(targetMode: boolean) {
+    if (!this.orbitControlsActive) return;
+    if (!targetMode) {
+      this.deactivateOrbitControls();
+    } else {
+      this.syncViewAngleToState();
+    }
+  }
+
+  private applyOrbitDragMode() {
+    this.orbitControls.enableRotate = true;
+    this.orbitControls.enablePan = true;
+    this.orbitControls.mouseButtons.LEFT = MOUSE.PAN;
+    this.orbitControls.mouseButtons.RIGHT = MOUSE.ROTATE;
+    this.orbitControls.mouseButtons.MIDDLE = MOUSE.DOLLY;
+    this.orbitControls.update();
   }
 
   private getDynamicPixelRatio() {
