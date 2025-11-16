@@ -2,8 +2,8 @@ import { getState, mutate, SolverMode } from "./store";
 import { PointXY } from "../types/arrays";
 import JSONCrush from "jsoncrush";
 import { updateSliderAndDisplay, updateInputValue, setButtonsEnabled, setElementDisplay, showElement } from "./utils";
-import { CanvasViewportManager } from "../ui/managers/canvasViewportManager";
-import { InterfaceLayoutManager } from "../ui/managers/interfaceLayoutManager";
+import { CanvasViewportManager } from "../ui/viewport";
+import { InterfaceLayoutManager } from "../ui/layout";
 
 export interface ShareSettings {
   alphaMax?: number;

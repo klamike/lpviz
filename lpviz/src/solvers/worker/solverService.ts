@@ -1,5 +1,5 @@
-import { getState, updateIteratePaths, updateIteratePathsWithTrace, addTraceToBuffer } from "../state/store";
-import type { ResultRenderPayload, VirtualResultPayload } from "../types/resultPayload";
+import { getState, updateIteratePaths, updateIteratePathsWithTrace, addTraceToBuffer } from "../../state/store";
+import type { ResultRenderPayload, VirtualResultPayload } from "../../types/resultPayload";
 export interface IPMResult {
   iterates: {
     solution: {

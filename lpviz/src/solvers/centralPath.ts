@@ -1,8 +1,8 @@
 import { Matrix, solve } from "ml-matrix";
 import { sprintf } from "sprintf-js";
-import { linesToAb, diag } from "../utils/blas";
+import { linesToAb, diag } from "./utils/blas";
 import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from "../types/arrays";
-import { centroid } from "../utils/math2d";
+import { centroid } from "./utils/polytope";
 
 const MIN_STEP_SIZE = 1e-10;
 const LINE_SEARCH_SHRINK_FACTOR = 0.5;

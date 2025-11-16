@@ -1,14 +1,14 @@
 import { getState, mutate, setState } from "../../state/store";
-import { CanvasViewportManager } from "../managers/canvasViewportManager";
-import { InterfaceLayoutManager } from "../managers/interfaceLayoutManager";
-import { VRep } from "../../utils/math2d";
+import { CanvasViewportManager } from "../viewport";
+import { InterfaceLayoutManager } from "../layout";
+import { VRep } from "../../solvers/utils/polytope";
 import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize } from "../utils";
 import { showElement } from "../../state/utils";
-import { registerCanvasInteractions } from "./canvasInteractionBindings";
+import { registerCanvasInteractions } from "./canvas";
 import { saveToHistory, setupKeyboardHandlers, createUndoRedoHandler } from "../../state/history";
-import { initializeControlPanel } from "../controls/controlPanelBindings";
+import { initializeControlPanel } from "../controls/controlPanel";
 import { createSharingHandlers } from "../../state/sharing";
-import { InactivityHelpOverlay } from "../overlays/guidedExperience";
+import { InactivityHelpOverlay } from "../tour/tour";
 import type { ResultRenderPayload, VirtualResultPayload } from "../../types/resultPayload";
 import { hasPolytopeLines } from "../../types/problem";
 

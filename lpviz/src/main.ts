@@ -1,8 +1,8 @@
-import { CanvasViewportManager } from "./ui/managers/canvasViewportManager";
-import { InterfaceLayoutManager } from "./ui/managers/interfaceLayoutManager";
-import { initializeApplicationInteractions } from "./ui/interactions/applicationEventRegistry";
+import { CanvasViewportManager } from "./ui/viewport";
+import { InterfaceLayoutManager } from "./ui/layout";
+import { initializeApplicationInteractions } from "./ui/interactions/registry";
 import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./ui/utils";
-import { GuidedExperience, InactivityHelpOverlay, NonconvexHullHintOverlay } from "./ui/overlays/guidedExperience";
+import { GuidedExperience, InactivityHelpOverlay, NonconvexHullHintOverlay } from "./ui/tour/tour";
 import JSONCrush from "jsoncrush";
 
 async function initializeApplication() {

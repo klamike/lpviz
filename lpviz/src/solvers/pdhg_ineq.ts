@@ -1,6 +1,6 @@
 import { Matrix } from "ml-matrix";
 import { sprintf } from "sprintf-js";
-import { linesToAb, projectNonNegative } from "../utils/blas";
+import { linesToAb, projectNonNegative } from "./utils/blas";
 import { Lines, VecN, Vec2Ns, VectorM, VectorN } from "../types/arrays";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;

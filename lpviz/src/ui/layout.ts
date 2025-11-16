@@ -1,7 +1,7 @@
-import { getState } from "../../state/store";
-import { computeDrawingSnapshot } from "../../state/drawing";
-import { CanvasViewportManager } from "./canvasViewportManager";
-import { hasPolytopeLines } from "../../types/problem";
+import { getState } from "../state/store";
+import { computeDrawingSnapshot } from "../state/drawing";
+import { CanvasViewportManager } from "./viewport";
+import { hasPolytopeLines } from "../types/problem";
 
 export class InterfaceLayoutManager {
   uiContainer!: HTMLElement;
@@ -25,7 +25,6 @@ export class InterfaceLayoutManager {
   smallScreenOverlay!: HTMLElement;
 
   private static readonly MIN_SCREEN_WIDTH = 750;
-  private static readonly OBJECTIVE_PRECISION = 3;
 
   constructor() {
     this.initializeElements();

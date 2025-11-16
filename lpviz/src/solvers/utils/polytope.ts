@@ -1,5 +1,5 @@
-import { PointXY, Lines, Vertices } from "../types/arrays";
-import type { PolytopeRepresentation } from "../types/problem";
+import { PointXY, Lines, Vertices } from "../../types/arrays";
+import type { PolytopeRepresentation } from "../../types/problem";
 
 export interface BoundingBox {
   minX: number;

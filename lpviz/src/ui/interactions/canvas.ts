@@ -1,11 +1,11 @@
 import { getState, mutate, setState, setFields } from "../../state/store";
 import { computeDrawingSnapshot } from "../../state/drawing";
 import type { Line, PointXY } from "../../types/arrays";
-import { VRep, verticesFromLines } from "../../utils/math2d";
+import { VRep, verticesFromLines } from "../../solvers/utils/polytope";
 import { showElement, setButtonsEnabled } from "../../state/utils";
-import { CanvasViewportManager } from "../managers/canvasViewportManager";
-import { InterfaceLayoutManager } from "../managers/interfaceLayoutManager";
-import { InactivityHelpOverlay } from "../overlays/guidedExperience";
+import { CanvasViewportManager } from "../viewport";
+import { InterfaceLayoutManager } from "../layout";
+import { InactivityHelpOverlay } from "../tour/tour";
 
 export function registerCanvasInteractions(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, saveToHistory: () => void, sendPolytope: () => void, recomputeSolver?: () => void, helpPopup?: InactivityHelpOverlay): void {
   const canvas = canvasManager.canvas;

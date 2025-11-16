@@ -1,6 +1,6 @@
 import { Matrix, solve } from "ml-matrix";
 import { sprintf } from "sprintf-js";
-import { linesToAb, diag, vstack, vslice, hstack } from "../utils/blas";
+import { linesToAb, diag, vstack, vslice, hstack } from "./utils/blas";
 import { Lines, VecM, VecN, VectorM, VectorN } from "../types/arrays";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;

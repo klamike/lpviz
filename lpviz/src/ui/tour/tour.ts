@@ -1,11 +1,11 @@
 import { getState, mutate, setState, subscribe } from "../../state/store";
 import type { State } from "../../state/store";
 import { computeDrawingSnapshot } from "../../state/drawing";
-import { CanvasViewportManager } from "../managers/canvasViewportManager";
-import { InterfaceLayoutManager } from "../managers/interfaceLayoutManager";
+import { CanvasViewportManager } from "../viewport";
+import { InterfaceLayoutManager } from "../layout";
 import { showElement, setButtonsEnabled } from "../../state/utils";
-import { VRep } from "../../utils/math2d";
-import { buildGuidedScript, generateObjective, generatePentagon, type GuidedStep } from "./guidedConfig";
+import { VRep } from "../../solvers/utils/polytope";
+import { buildGuidedScript, generateObjective, generatePentagon, type GuidedStep } from "./config";
 
 const CURSOR_TRANSITION_MS = 700;
 const POPUP_ANIMATION_MS = 300;

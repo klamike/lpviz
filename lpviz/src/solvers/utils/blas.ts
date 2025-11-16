@@ -1,5 +1,5 @@
 import { Matrix, AbstractMatrix } from "ml-matrix";
-import { VecM, Lines } from "../types/arrays";
+import { Lines } from "../../types/arrays";
 
 export const diag = (v: Matrix) => Matrix.diag(v.to1DArray());
 

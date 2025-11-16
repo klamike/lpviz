@@ -12,7 +12,7 @@ import {
 } from "three";
 import { getState } from "../../state/store";
 import { PointXY } from "../../types/arrays";
-import { VRep } from "../../utils/math2d";
+import { VRep } from "../../solvers/utils/polytope";
 import { hasPolytopeLines } from "../../types/problem";
 import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
 import {

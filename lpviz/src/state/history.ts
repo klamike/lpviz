@@ -1,6 +1,6 @@
 import { getState, mutate, setState } from "./store";
 import { PointXY } from "../types/arrays";
-import { CanvasViewportManager } from "../ui/managers/canvasViewportManager";
+import { CanvasViewportManager } from "../ui/viewport";
 
 export interface HistoryEntry {
   vertices: PointXY[];

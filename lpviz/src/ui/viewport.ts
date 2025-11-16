@@ -1,15 +1,15 @@
 import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial, MOUSE } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { AlwaysVisibleLineGeometry } from "../../three/AlwaysVisibleLineGeometry";
-import { UndashedLine2 } from "../../three/UndashedLine2";
-import { getState, setState } from "../../state/store";
-import { PointXY, PointXYZ } from "../../types/arrays";
-import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../../utils/math3d";
-import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "../canvas/types";
-import { CanvasRenderPipeline } from "../canvas/canvasRenderPipeline";
-import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "../canvas/constants";
-import type { GuidedExperience } from "../overlays/guidedExperience";
+import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGeometry";
+import { UndashedLine2 } from "./rendering/three/UndashedLine2";
+import { getState, setState } from "../state/store";
+import { PointXY, PointXYZ } from "../types/arrays";
+import { transform2DTo3DAndProject, inverseTransform2DProjection } from "./rendering/math3d";
+import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
+import { CanvasRenderPipeline } from "./rendering/pipeline";
+import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./rendering/constants";
+import type { GuidedExperience } from "./tour/tour";
 
 export class CanvasViewportManager {
   canvas: HTMLCanvasElement;
