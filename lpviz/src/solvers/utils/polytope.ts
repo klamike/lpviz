@@ -200,7 +200,8 @@ export class VRep {
 
 export function centroid(vertices: Vertices) {
   if (vertices.length === 0) throw new Error("No intersections found");
-  let sumX = 0, sumY = 0;
+  let sumX = 0,
+    sumY = 0;
   for (const p of vertices) {
     sumX += p[0];
     sumY += p[1];
@@ -208,7 +209,7 @@ export function centroid(vertices: Vertices) {
   return [sumX / vertices.length, sumY / vertices.length];
 }
 
-const polytope_format_float = (x: number) => x === Math.floor(x) ? x : parseFloat(x.toFixed(3));
+const polytope_format_float = (x: number) => (x === Math.floor(x) ? x : parseFloat(x.toFixed(3)));
 
 function polytope_format(A: number, B: number, C: number) {
   let A_disp = polytope_format_float(A);
@@ -259,8 +260,8 @@ export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {
       if (satisfiesAll) {
         intersections.push([x, y]);
       }
-        }
-      }
+    }
+  }
 
   if (intersections.length === 0) return [];
 
@@ -273,7 +274,7 @@ export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {
 
   if (unique.length <= 2) {
     return unique.map(([x, y]) => [parseFloat(x.toFixed(2)), parseFloat(y.toFixed(2))]);
-      }
+  }
 
   const center = centroid(unique);
   return unique

@@ -185,7 +185,7 @@ export function subscribe(listener: (snapshot: State) => void): () => void {
 
 export function prepareAnimationInterval(): void {
   const { animationIntervalId } = getState();
-  if (animationIntervalId !== null) clearInterval(animationIntervalId), setState({ animationIntervalId: null });
+  if (animationIntervalId !== null) (clearInterval(animationIntervalId), setState({ animationIntervalId: null }));
 }
 
 export function updateIteratePaths(iteratesArray: number[][]): void {

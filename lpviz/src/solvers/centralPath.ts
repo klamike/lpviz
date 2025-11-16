@@ -28,7 +28,10 @@ function computeNewtonStep(Amatrix: Matrix, cVec: VectorN, mu: number, slackVari
   try {
     const invSlack = Matrix.pow(slackVariables, -1);
     const gradient = Matrix.sub(cVec, Amatrix.transpose().mmul(invSlack).mul(mu));
-    const hessian = Amatrix.transpose().mmul(diag(Matrix.pow(invSlack, 2))).mmul(Amatrix).mul(mu);
+    const hessian = Amatrix.transpose()
+      .mmul(diag(Matrix.pow(invSlack, 2)))
+      .mmul(Amatrix)
+      .mul(mu);
     return solve(hessian, gradient);
   } catch (error) {
     console.error("Error in Newton step computation:", error);
@@ -44,8 +47,7 @@ function performLineSearch(currentPoint: VectorN, newtonStep: VectorN, calculate
   for (let i = 0; i < MAX_LINE_SEARCH_ITERATIONS; i++) {
     const candidateObjective = calculateObjective(Matrix.add(currentPoint, Matrix.mul(newtonStep, stepSize)));
 
-    if (candidateObjective !== -Infinity && 
-        candidateObjective >= currentObjective + LINE_SEARCH_SUFFICIENT_DECREASE * stepSize * gradientDotStep) {
+    if (candidateObjective !== -Infinity && candidateObjective >= currentObjective + LINE_SEARCH_SUFFICIENT_DECREASE * stepSize * gradientDotStep) {
       return stepSize;
     }
 

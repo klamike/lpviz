@@ -50,10 +50,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       const availHeight = window.innerHeight - 2 * padding;
 
       if (width > 0 && height > 0) {
-        canvasManager.scaleFactor = Math.min(
-          availWidth / (width * canvasManager.gridSpacing),
-          availHeight / (height * canvasManager.gridSpacing)
-        );
+        canvasManager.scaleFactor = Math.min(availWidth / (width * canvasManager.gridSpacing), availHeight / (height * canvasManager.gridSpacing));
       }
 
       canvasManager.centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
@@ -116,9 +113,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       element: document.getElementById(definition.buttonId) as HTMLButtonElement | null,
     }));
 
-    const settingsPanels = solverButtons
-      .map((btn) => btn.settingsPanelId)
-      .filter((id): id is string => Boolean(id));
+    const settingsPanels = solverButtons.map((btn) => btn.settingsPanelId).filter((id): id is string => Boolean(id));
 
     solverButtons.forEach(({ element, mode, settingsPanelId }) => {
       if (!element) return;
@@ -146,7 +141,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
         decimals: 2,
         affectsTrace: false,
         onChange: () => {
-          if (getState().traceEnabled) handleStepSizeChange(), canvasManager.draw();
+          if (getState().traceEnabled) (handleStepSizeChange(), canvasManager.draw());
         },
       },
       { id: "objectiveRotationSpeedSlider", displayId: "objectiveRotationSpeedValue", decimals: 1, affectsTrace: false },
@@ -314,8 +309,10 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       },
     });
     if (getState().traceEnabled) {
-      mutate((draft) => { draft.totalRotationAngle += angleStep; });
-      }
+      mutate((draft) => {
+        draft.totalRotationAngle += angleStep;
+      });
+    }
 
     uiManager.updateObjectiveDisplay();
     canvasManager.draw();
@@ -341,7 +338,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
 
     const minSidebarWidth = calculateMinSidebarWidth();
 
-    handle.addEventListener("mousedown", (e) => (isResizing = true, e.preventDefault()));
+    handle.addEventListener("mousedown", (e) => ((isResizing = true), e.preventDefault()));
 
     document.addEventListener("mousemove", (e) => {
       if (!isResizing) return;
@@ -355,7 +352,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     });
 
     document.addEventListener("mouseup", () => {
-      if (isResizing) isResizing = false, refreshResponsiveLayout();
+      if (isResizing) ((isResizing = false), refreshResponsiveLayout());
     });
   }
 
@@ -364,7 +361,9 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     if (!resultDiv) return;
 
     const SELECTOR = ".iterate-item, .iterate-header, .iterate-footer";
-    let mouseX = 0, mouseY = 0, pointerInside = false;
+    let mouseX = 0,
+      mouseY = 0,
+      pointerInside = false;
     let rafId: number | null = null;
     let currentHovered: HTMLElement | null = null;
 
@@ -379,7 +378,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       if (currentHovered === next) return;
       clearHover();
       if (next) {
-      currentHovered = next;
+        currentHovered = next;
         next.classList.add("hover");
         next.dispatchEvent(new Event("mouseenter", { bubbles: true }));
       }

@@ -31,9 +31,9 @@ export const diag = (v: Matrix) => Matrix.diag(v.to1DArray());
 
 export function linesToAb(lines: Lines) {
   if (lines.length === 0) return { A: new Matrix([]), b: Matrix.columnVector([]) };
-  return { 
-    A: new Matrix(lines.map((line) => line.slice(0, -1))), 
-    b: Matrix.columnVector(lines.map((line) => line[line.length - 1]))
+  return {
+    A: new Matrix(lines.map((line) => line.slice(0, -1))),
+    b: Matrix.columnVector(lines.map((line) => line[line.length - 1])),
   };
 }
 
@@ -45,7 +45,10 @@ export function vstack(matrices: AbstractMatrix[]): Matrix {
     throw new Error("vstack: all matrices must have the same number of columns");
   }
 
-  const result = Matrix.zeros(matrices.reduce((sum, M) => sum + M.rows, 0), cols);
+  const result = Matrix.zeros(
+    matrices.reduce((sum, M) => sum + M.rows, 0),
+    cols,
+  );
 
   let currentRow = 0;
   for (const matrix of matrices) {

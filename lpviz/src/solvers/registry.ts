@@ -12,11 +12,7 @@ export interface SolverDefinition {
   buttonId: string;
   settingsPanelId?: string;
   buildRequest: (state: State, settings: SettingsElements) => SolverWorkerPayload | null;
-  applyResult: (
-    response: SolverWorkerSuccessResponse,
-    settings: SettingsElements,
-    updateResult: (payload: ResultRenderPayload) => void,
-  ) => void;
+  applyResult: (response: SolverWorkerSuccessResponse, settings: SettingsElements, updateResult: (payload: ResultRenderPayload) => void) => void;
 }
 
 type BaseRequest = {
@@ -121,4 +117,3 @@ export const SOLVER_DEFINITIONS: SolverDefinition[] = [
     },
   },
 ];
-

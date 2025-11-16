@@ -167,8 +167,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     if (interaction.draggingConstraint && interaction.constraintDragNormal && interaction.constraintDragStart && constraintDragContext) {
       const normal = interaction.constraintDragNormal;
       const start = interaction.constraintDragStart;
-      const delta =
-        (logicalCoords.x - start.x) * normal.x + (logicalCoords.y - start.y) * normal.y;
+      const delta = (logicalCoords.x - start.x) * normal.x + (logicalCoords.y - start.y) * normal.y;
       const index = interaction.draggingConstraintIndex ?? 0;
       const line = constraintDragContext[index];
       const length = Math.hypot(line[0], line[1]);
@@ -323,7 +322,6 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
   // ===== POINTER EVENTS =====
 
-
   canvas.addEventListener("mousedown", (e) => {
     const { is3DMode, isTransitioning3D } = getState();
     if (is3DMode || isTransitioning3D) {
@@ -426,7 +424,8 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     if (edgeIndex !== null) {
       const v1 = vertices[edgeIndex];
       const v2 = vertices[(edgeIndex + 1) % vertices.length];
-      const dx = v2.x - v1.x, dy = v2.y - v1.y;
+      const dx = v2.x - v1.x,
+        dy = v2.y - v1.y;
       const len = Math.hypot(dx, dy);
       const normal = { x: -dy / len, y: dx / len };
       const newPoint = { x: logicalMouse.x - normal.x * 0.1, y: logicalMouse.y - normal.y * 0.1 };
@@ -500,15 +499,11 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const newScale = Math.min(
-      MAX_SCALE_FACTOR,
-      Math.max(0.05, e.deltaY < 0 ? canvasManager.scaleFactor * zoomFactor : canvasManager.scaleFactor / zoomFactor),
-    );
+    const newScale = Math.min(MAX_SCALE_FACTOR, Math.max(0.05, e.deltaY < 0 ? canvasManager.scaleFactor * zoomFactor : canvasManager.scaleFactor / zoomFactor));
 
     const focusPoint = canvasManager.toLogicalCoords(mouseX, mouseY);
     canvasManager.scaleFactor = newScale;
     canvasManager.setOffsetForAnchor(mouseX, mouseY, focusPoint);
     canvasManager.draw();
   });
-
 }

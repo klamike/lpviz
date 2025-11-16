@@ -181,7 +181,7 @@ export class GuidedExperience {
 
   private async runStep(step: GuidedStep) {
     if (step.type === "wait") {
-        await delay(step.duration);
+      await delay(step.duration);
       return;
     }
     if (step.type === "click-button") {
@@ -189,52 +189,54 @@ export class GuidedExperience {
       return;
     }
     if (step.type === "draw-vertex") {
-        await this.clickAtPoint(step.point, () => {
-          this.saveToHistory();
-          mutate((draft) => draft.vertices.push(step.point));
-          this.uiManager.hideNullStateMessage();
-          this.canvasManager.draw();
-          this.sendPolytope();
-        });
+      await this.clickAtPoint(step.point, () => {
+        this.saveToHistory();
+        mutate((draft) => draft.vertices.push(step.point));
+        this.uiManager.hideNullStateMessage();
+        this.canvasManager.draw();
+        this.sendPolytope();
+      });
       return;
     }
     if (step.type === "set-objective") {
-        await this.clickAtPoint(step.point, () => {
-          this.saveToHistory();
-        mutate((draft) => { draft.objectiveVector = step.point; });
-          showElement("maximize");
-          setButtonsEnabled({
-            ipmButton: true,
-            simplexButton: true,
-            pdhgButton: true,
-            iteratePathButton: false,
-            traceButton: true,
-            zoomButton: true,
-          });
-          this.uiManager.updateSolverModeButtons();
-          this.uiManager.updateObjectiveDisplay();
-          this.canvasManager.draw();
+      await this.clickAtPoint(step.point, () => {
+        this.saveToHistory();
+        mutate((draft) => {
+          draft.objectiveVector = step.point;
         });
+        showElement("maximize");
+        setButtonsEnabled({
+          ipmButton: true,
+          simplexButton: true,
+          pdhgButton: true,
+          iteratePathButton: false,
+          traceButton: true,
+          zoomButton: true,
+        });
+        this.uiManager.updateSolverModeButtons();
+        this.uiManager.updateObjectiveDisplay();
+        this.canvasManager.draw();
+      });
       return;
     }
     if (step.type === "close-polytope") {
-        await this.clickAtPoint(step.point, () => {
-          this.saveToHistory();
-          mutate((draft) => {
-            draft.polytopeComplete = true;
-            draft.interiorPoint = step.point;
-          });
-          this.canvasManager.draw();
-          this.sendPolytope();
-          setButtonsEnabled({
-            ipmButton: true,
-            simplexButton: true,
-            pdhgButton: true,
-            iteratePathButton: false,
-            traceButton: true,
-            zoomButton: true,
-          });
+      await this.clickAtPoint(step.point, () => {
+        this.saveToHistory();
+        mutate((draft) => {
+          draft.polytopeComplete = true;
+          draft.interiorPoint = step.point;
         });
+        this.canvasManager.draw();
+        this.sendPolytope();
+        setButtonsEnabled({
+          ipmButton: true,
+          simplexButton: true,
+          pdhgButton: true,
+          iteratePathButton: false,
+          traceButton: true,
+          zoomButton: true,
+        });
+      });
     }
   }
 
@@ -433,7 +435,7 @@ export class NonconvexHullHintOverlay {
   private reset() {
     this.hintShown = false;
     if (this.timer) clearTimeout(this.timer);
-      this.timer = null;
+    this.timer = null;
     this.hidePopup();
   }
 
@@ -463,7 +465,6 @@ export class NonconvexHullHintOverlay {
   public destroy() {
     this.reset();
     if (this.unsubscribe) this.unsubscribe();
-      this.unsubscribe = null;
+    this.unsubscribe = null;
   }
 }
-

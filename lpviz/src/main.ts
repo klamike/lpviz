@@ -34,7 +34,12 @@ async function initializeApplication() {
 
   window.addEventListener("resize", throttledResize);
 
-  const guidedTour = new GuidedExperience(canvasManager, uiManager, () => {}, () => {});
+  const guidedTour = new GuidedExperience(
+    canvasManager,
+    uiManager,
+    () => {},
+    () => {},
+  );
   const helpPopup = new InactivityHelpOverlay(guidedTour);
   new NonconvexHullHintOverlay(guidedTour);
 

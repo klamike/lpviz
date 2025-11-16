@@ -105,17 +105,8 @@ type IterateRenderParams = {
   updateTrace?: boolean;
 };
 
-function updateIteratesAndRender({
-  iterations,
-  logs,
-  updateResult,
-  zFrom,
-  payloadOptions,
-  updateTrace = true,
-}: IterateRenderParams) {
-  const iteratesWithZ = zFrom
-    ? iterations.map((xy, index) => [xy[0], xy[1], zFrom(xy, index)])
-    : iterations;
+function updateIteratesAndRender({ iterations, logs, updateResult, zFrom, payloadOptions, updateTrace = true }: IterateRenderParams) {
+  const iteratesWithZ = zFrom ? iterations.map((xy, index) => [xy[0], xy[1], zFrom(xy, index)]) : iterations;
 
   if (updateTrace) {
     updateIteratePathsWithTrace(iteratesWithZ);
@@ -127,14 +118,7 @@ function updateIteratesAndRender({
 }
 
 export function generateSimplexHTML(phase1logs: string[], phase2logs: string[]): string {
-  const parts = [
-    `<div class="iterate-header">Phase 1\n${phase1logs[0]}</div>`,
-    ...phase1logs.slice(1, -1).map((log) => `<div class="iterate-item-nohover">${log}</div>`),
-    `<div class="iterate-footer">${phase1logs[phase1logs.length - 1]}</div>`,
-    `<div class="iterate-header">Phase 2\n${phase2logs[0]}</div>`,
-    ...phase2logs.slice(1, -1).map((log, i) => `<div class="iterate-item" data-index="${i}">${log}</div>`),
-    `<div class="iterate-footer">${phase2logs[phase2logs.length - 1]}</div>`,
-  ];
+  const parts = [`<div class="iterate-header">Phase 1\n${phase1logs[0]}</div>`, ...phase1logs.slice(1, -1).map((log) => `<div class="iterate-item-nohover">${log}</div>`), `<div class="iterate-footer">${phase1logs[phase1logs.length - 1]}</div>`, `<div class="iterate-header">Phase 2\n${phase2logs[0]}</div>`, ...phase2logs.slice(1, -1).map((log, i) => `<div class="iterate-item" data-index="${i}">${log}</div>`), `<div class="iterate-footer">${phase2logs[phase2logs.length - 1]}</div>`];
   return parts.join("");
 }
 
@@ -157,10 +141,8 @@ function buildIteratePayload(
     return { type: "virtual", header: "", rows: [], footer: footerOverride };
   }
 
-  const endIdx = includeLastInRows || logArray.length - startIndex === 0 
-    ? logArray.length 
-    : Math.max(startIndex, logArray.length - 1);
-  
+  const endIdx = includeLastInRows || logArray.length - startIndex === 0 ? logArray.length : Math.max(startIndex, logArray.length - 1);
+
   return {
     type: "virtual",
     header: logArray[0],

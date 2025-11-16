@@ -72,4 +72,3 @@ export interface CanvasRenderContext {
   getPlanarOffset(offset: number): number;
   getVertexZ(x: number, y: number, extra?: number): number;
 }
-

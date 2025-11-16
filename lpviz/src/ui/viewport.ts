@@ -168,8 +168,7 @@ export class ViewportManager {
     this.renderer.autoClear = true;
     this.renderer.render(this.backgroundScene, this.activeCamera);
     this.renderer.autoClear = false;
-    [this.transparentScene, this.foregroundScene, this.vertexScene, 
-     this.traceScene, this.overlayScene].forEach(scene => this.renderer.render(scene, this.activeCamera));
+    [this.transparentScene, this.foregroundScene, this.vertexScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
     this.renderer.autoClear = true;
   }
 
@@ -278,11 +277,7 @@ export class ViewportManager {
     const { is3DMode, isTransitioning3D, focalDistance } = getState();
     if (is3DMode || isTransitioning3D) {
       const zValue = z ?? this.computeObjectiveValue(x, y);
-      const projected = transform2DTo3DAndProject(
-        { x, y, z: this.scaleZValue(zValue) },
-        this.getRenderViewAngles(),
-        focalDistance,
-      );
+      const projected = transform2DTo3DAndProject({ x, y, z: this.scaleZValue(zValue) }, this.getRenderViewAngles(), focalDistance);
       return this.toPoint(this.planeToScreen(projected.x, projected.y));
     }
     return this.toPoint(this.planeToScreen(x, y));
@@ -523,7 +518,7 @@ export class ViewportManager {
 
   private disposeMaterial(material?: { dispose?: () => void }) {
     if (material?.dispose && !this.cachedMaterials.has(material as Material)) {
-    material.dispose();
+      material.dispose();
     }
   }
 
@@ -621,10 +616,10 @@ export class ViewportManager {
     return material;
   }
 
-  private getSpriteMaterial(type: 'circle' | 'star', color: number) {
+  private getSpriteMaterial(type: "circle" | "star", color: number) {
     const key = `${type}:${color}`;
     let material = this.spriteMaterialCache.get(key);
-    const texture = type === 'star' ? this.getStarTexture(color) : this.getCircleTexture();
+    const texture = type === "star" ? this.getStarTexture(color) : this.getCircleTexture();
     if (!material) {
       material = new SpriteMaterial({
         map: texture,
@@ -644,11 +639,11 @@ export class ViewportManager {
   }
 
   private getCircleSpriteMaterial(color: number) {
-    return this.getSpriteMaterial('circle', color);
+    return this.getSpriteMaterial("circle", color);
   }
 
   private getStarSpriteMaterial(color: number) {
-    return this.getSpriteMaterial('star', color);
+    return this.getSpriteMaterial("star", color);
   }
 
   private createThickLine(

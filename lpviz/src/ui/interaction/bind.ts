@@ -39,4 +39,3 @@ export function bindControls(configs: ControlBinding[], handlers: BindHandlers):
     return acc;
   }, {});
 }
-

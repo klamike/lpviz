@@ -8,10 +8,7 @@ type PendingResolver<Response> = {
  */
 type WorkerSource = URL | Worker;
 
-export function createWorkerRPC<Request extends { id: number }, Response extends { id: number }>(
-  workerSource: WorkerSource,
-  options?: WorkerOptions,
-) {
+export function createWorkerRPC<Request extends { id: number }, Response extends { id: number }>(workerSource: WorkerSource, options?: WorkerOptions) {
   const worker = workerSource instanceof Worker ? workerSource : new Worker(workerSource, { type: "module", ...options });
   const pending = new Map<number, PendingResolver<Response>>();
   let nextId = 0;
@@ -35,4 +32,3 @@ export function createWorkerRPC<Request extends { id: number }, Response extends
       worker.postMessage({ id, ...(payload as Record<string, unknown>) });
     });
 }
-

@@ -1,36 +1,9 @@
-import {
-  BufferGeometry,
-  Float32BufferAttribute,
-  LineSegments,
-  Mesh,
-  MeshBasicMaterial,
-  Shape,
-  ShapeGeometry,
-  Vector3,
-  Points,
-  DoubleSide,
-} from "three";
+import { BufferGeometry, Float32BufferAttribute, LineSegments, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3, Points, DoubleSide } from "three";
 import { getState } from "../../state/store";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
-import {
-  COLORS,
-  EDGE_Z_OFFSET,
-  GRID_MARGIN,
-  ITERATE_LINE_THICKNESS,
-  ITERATE_POINT_PIXEL_SIZE,
-  ITERATE_Z_OFFSET,
-  MAX_TRACE_POINT_SPRITES,
-  OBJECTIVE_Z_OFFSET,
-  POLY_LINE_THICKNESS,
-  RENDER_LAYERS,
-  TRACE_LINE_THICKNESS,
-  TRACE_POINT_PIXEL_SIZE,
-  TRACE_Z_OFFSET,
-  VERTEX_POINT_PIXEL_SIZE,
-  VERTEX_Z_OFFSET,
-} from "./constants";
+import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, MAX_TRACE_POINT_SPRITES, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
 import { CanvasRenderContext } from "./types";
 
 const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {
@@ -116,9 +89,7 @@ export class CanvasRenderPipeline {
     }
 
     const vrep = VRep.fromPoints(vertices);
-    const zFn = is3D
-      ? (x: number, y: number) => context.scaleZValue(context.computeObjectiveValue(x, y))
-      : (x: number, y: number) => context.getVertexZ(x, y);
+    const zFn = is3D ? (x: number, y: number) => context.scaleZValue(context.computeObjectiveValue(x, y)) : (x: number, y: number) => context.getVertexZ(x, y);
 
     if (polytopeComplete && vertices.length >= 3 && inputMode !== "manual") {
       const material = new MeshBasicMaterial({
@@ -392,4 +363,3 @@ export class CanvasRenderPipeline {
     groups.overlay.add(star);
   }
 }
-

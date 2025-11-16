@@ -73,9 +73,7 @@ export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions
   }
 
   const tsolve = parseFloat((performance.now() - startTime).toFixed(2));
-  const finalLogMsg = epsilonK <= tol
-    ? `Converged to primal-dual optimal solution in ${tsolve}ms`
-    : `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
+  const finalLogMsg = epsilonK <= tol ? `Converged to primal-dual optimal solution in ${tsolve}ms` : `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
   if (verbose) console.log(finalLogMsg);
   logs.push(finalLogMsg);
 

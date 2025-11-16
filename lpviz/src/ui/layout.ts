@@ -147,7 +147,9 @@ export class LayoutManager {
   }
 
   private setButtonsDisabled(buttons: HTMLButtonElement[], disabled: boolean): void {
-    buttons.forEach((button) => { if (button) button.disabled = disabled; });
+    buttons.forEach((button) => {
+      if (button) button.disabled = disabled;
+    });
   }
 
   updateResult(html: string) {
@@ -157,7 +159,7 @@ export class LayoutManager {
   update3DButtonState() {
     const { is3DMode } = getState();
     const btn = this.toggle3DButton;
-    
+
     btn.textContent = is3DMode ? "2D" : "3D";
     btn.style.backgroundColor = is3DMode ? "#4CAF50" : "";
     btn.style.color = is3DMode ? "white" : "";

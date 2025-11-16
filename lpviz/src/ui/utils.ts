@@ -21,16 +21,7 @@ export function setupHoverHighlight(elements: NodeListOf<Element>, onMouseEnter:
 }
 
 // tries to maximize font size to fit in a container
-function adjustTextSize(config: {
-  containerId: string;
-  selector: string;
-  baseSize: number;
-  minSize: number;
-  maxSize: number;
-  padding: number;
-  scaleFactor: number;
-  skipCondition?: () => boolean;
-}): void {
+function adjustTextSize(config: { containerId: string; selector: string; baseSize: number; minSize: number; maxSize: number; padding: number; scaleFactor: number; skipCondition?: () => boolean }): void {
   const container = document.getElementById(config.containerId) as HTMLElement | null;
   if (!container || config.skipCondition?.()) return;
 

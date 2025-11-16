@@ -138,9 +138,9 @@ async function executeSolver(data: SolverWorkerRequest): Promise<SolverWorkerSuc
   }
   if (data.solver === "central") {
     return { id, solver: "central", success: true, result: await runCentralPath(data.vertices, data.lines, data.objective, data.niter) };
-    }
-      const exhaustive: never = data;
-      throw new Error(`Unsupported solver: ${JSON.stringify(exhaustive)}`);
+  }
+  const exhaustive: never = data;
+  throw new Error(`Unsupported solver: ${JSON.stringify(exhaustive)}`);
 }
 
 ctx.addEventListener("message", async (event: MessageEvent<SolverWorkerRequest>) => {

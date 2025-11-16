@@ -70,9 +70,7 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
   }
 
   const tsolve = (performance.now() - startTime).toFixed(2);
-  const finalLogMsg = epsilonK <= tol 
-    ? `Converged to primal-dual optimal solution in ${tsolve}ms`
-    : `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
+  const finalLogMsg = epsilonK <= tol ? `Converged to primal-dual optimal solution in ${tsolve}ms` : `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
   if (verbose) console.log(finalLogMsg);
   logs.push(finalLogMsg);
 

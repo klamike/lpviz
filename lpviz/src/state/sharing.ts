@@ -25,11 +25,21 @@ export interface ShareState {
 }
 
 const KEYS: Record<string, string> = {
-  vertices: "v", objective: "o", solverMode: "s", settings: "g",
-  x: "x", y: "y",
-  alphaMax: "a", maxitIPM: "i", pdhgEta: "e", pdhgTau: "t",
-  maxitPDHG: "p", pdhgIneqMode: "m", centralPathIter: "c",
-  objectiveAngleStep: "r", objectiveRotationSpeed: "q",
+  vertices: "v",
+  objective: "o",
+  solverMode: "s",
+  settings: "g",
+  x: "x",
+  y: "y",
+  alphaMax: "a",
+  maxitIPM: "i",
+  pdhgEta: "e",
+  pdhgTau: "t",
+  maxitPDHG: "p",
+  pdhgIneqMode: "m",
+  centralPathIter: "c",
+  objectiveAngleStep: "r",
+  objectiveRotationSpeed: "q",
 };
 
 const REVERSE_KEYS = Object.fromEntries(Object.entries(KEYS).map(([k, v]) => [v, k]));
