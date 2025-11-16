@@ -1,155 +1,127 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>lpviz Documentation</title>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
     </script>
-    <link rel="stylesheet" href="docs.css">
+    <link rel="stylesheet" href="docs.css" />
     <style>
-        /* Index page specific overrides */
-        body {
-            max-width: 800px;
-        }
+      /* Index page specific overrides */
+      body {
+        max-width: 800px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="navigation">
-        <a href="../">← Back to lpviz</a> | &nbsp;
-        <strong>lpviz Documentation</strong>
-        <!-- <a href="simplex.html">Simplex Algorithm</a> |
+      <a href="../">← Back to lpviz</a> | &nbsp;
+      <strong>lpviz Documentation</strong>
+      <!-- <a href="simplex.html">Simplex Algorithm</a> |
         <a href="ipm.html">Interior Point Method</a> |
         <a href="pdhg.html">PDHG</a> |
         <a href="central-path.html">Central Path</a> -->
     </div>
 
-    <div class="warning">
-        <strong>Note:</strong> The documentation is still under construction. Contributions are welcome!
-    </div>
+    <div class="warning"><strong>Note:</strong> The documentation is still under construction. Contributions are welcome!</div>
 
     <h2>Standard Form</h2>
     <p>Each solver in lpviz has its own internal standard form. The form that is displayed in the frontend is:</p>
-    
-    <div class="equation-block">
-        $$\begin{align}
-        \max_x \quad & c^\top x \\
-        \text{s.t.} \quad & Ax \leq b
-        \end{align}$$
-    </div>
+
+    <div class="equation-block">$$\begin{align} \max_x \quad & c^\top x \\ \text{s.t.} \quad & Ax \leq b \end{align}$$</div>
 
     <p>where:</p>
     <ul>
-        <li>$x \in \mathbb{R}^2$ is the vector of <strong>decision variables</strong></li>
-        <li>$c \in \mathbb{R}^2$ is the vector of <strong>objective coefficients</strong></li>
-        <li>$A \in \mathbb{R}^{m \times 2}$ is the <strong>constraint matrix</strong></li>
-        <li>$b \in \mathbb{R}^m$ is the vector of <strong>right-hand side values</strong></li>
+      <li>
+        $x \in \mathbb{R}^2$ is the vector of
+        <strong>decision variables</strong>
+      </li>
+      <li>
+        $c \in \mathbb{R}^2$ is the vector of
+        <strong>objective coefficients</strong>
+      </li>
+      <li>
+        $A \in \mathbb{R}^{m \times 2}$ is the
+        <strong>constraint matrix</strong>
+      </li>
+      <li>
+        $b \in \mathbb{R}^m$ is the vector of
+        <strong>right-hand side values</strong>
+      </li>
     </ul>
 
-    <div class="info">
-        When using the interactive problem builder, the primal feasible region (the set $\{x \in \mathbb{R}^2 : Ax \leq b\}$) is non-empty and bounded.
-    </div>
+    <div class="info">When using the interactive problem builder, the primal feasible region (the set $\{x \in \mathbb{R}^2 : Ax \leq b\}$) is non-empty and bounded.</div>
 
     <h2>Solvers</h2>
 
     lpviz implements four solvers: IPM, PDHG, Simplex, and Central Path. Click on each solver below for detailed explanations with code references.
 
-    <h3><a href="simplex.html" style="color: #2c3e50; text-decoration: none;">Simplex Algorithm</a></h3>
+    <h3>
+      <a href="simplex.html" style="color: #2c3e50; text-decoration: none">Simplex Algorithm</a>
+    </h3>
     <p>The simplex method implements a two-phase revised simplex algorithm with Bland's anti-cycling rule. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution.</p>
-    
-    <div class="equation-block">
-        $$\begin{align}
-        \text{Phase 1:} \quad & \min \enspace \sum_{i=1}^m t_i \quad \text{s.t.} \quad Ax + t = b, \quad x \geq 0, \quad t \geq 0 \\
-        \text{Phase 2:} \quad & \max \enspace c^\top x \quad\enspace \text{s.t.} \quad Ax = b, \quad x \geq 0
-        \end{align}$$
-    </div>
+
+    <div class="equation-block">$$\begin{align} \text{Phase 1:} \quad & \min \enspace \sum_{i=1}^m t_i \quad \text{s.t.} \quad Ax + t = b, \quad x \geq 0, \quad t \geq 0 \\ \text{Phase 2:} \quad & \max \enspace c^\top x \quad\enspace \text{s.t.} \quad Ax = b, \quad x \geq 0 \end{align}$$</div>
 
     <p>In 3D mode, the z-axis of each iterate of Simplex is set to $c^\top x$.</p>
 
-    <h3><a href="ipm.html" style="color: #2c3e50; text-decoration: none;">Interior Point Method (IPM)</a></h3>
-    <p>IPM implements an infeasible primal-dual interior point algorithm.
-        The core IPM routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax \geq b$.
-        Each iteration involves solving two linear systems differing only in their right-hand sides.</p>
-    
-    <div class="equation-block">
-        $$\begin{bmatrix}
-        A & -I & 0 \\
-        0 & 0 & A^\top \\
-        0 & Y & S
-        \end{bmatrix}
-        \begin{bmatrix}
-        \Delta x \\
-        \Delta s \\
-        \Delta y
-        \end{bmatrix} = \begin{cases}\text{predictor:}&
-        \begin{bmatrix}
-        b - Ax + s \\
-        c - A^\top y \\
-        -s \odot y
-        \end{bmatrix}
-        \\[1em]
-        \text{corrector:}&
-        \begin{bmatrix}
-        0 \\
-        0 \\
-        \sigma \mu \mathbf{1} - \Delta s_{\text{aff}} \odot \Delta y_{\text{aff}}
-        \end{bmatrix}\end{cases}$$
-    </div>
+    <h3>
+      <a href="ipm.html" style="color: #2c3e50; text-decoration: none">Interior Point Method (IPM)</a>
+    </h3>
+    <p>IPM implements an infeasible primal-dual interior point algorithm. The core IPM routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax \geq b$. Each iteration involves solving two linear systems differing only in their right-hand sides.</p>
+
+    <div class="equation-block">$$\begin{bmatrix} A & -I & 0 \\ 0 & 0 & A^\top \\ 0 & Y & S \end{bmatrix} \begin{bmatrix} \Delta x \\ \Delta s \\ \Delta y \end{bmatrix} = \begin{cases}\text{predictor:}& \begin{bmatrix} b - Ax + s \\ c - A^\top y \\ -s \odot y \end{bmatrix} \\[1em] \text{corrector:}& \begin{bmatrix} 0 \\ 0 \\ \sigma \mu \mathbf{1} - \Delta s_{\text{aff}} \odot \Delta y_{\text{aff}} \end{bmatrix}\end{cases}$$</div>
 
     <p>In 3D mode, the z-axis is of each iterate of IPM is set to $c^\top x + \frac{s^\top y}{m}$.</p>
 
-    <h3><a href="pdhg.html" style="color: #2c3e50; text-decoration: none;">Primal-Dual Hybrid Gradient (PDHG)</a></h3>
+    <h3>
+      <a href="pdhg.html" style="color: #2c3e50; text-decoration: none">Primal-Dual Hybrid Gradient (PDHG)</a>
+    </h3>
     <p>PDHG implements a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
-    
-    <div class="equation-block">
-        $$\begin{align}
-        x^{k+1} &= \Pi_{\geq 0}(x^k - \eta(c + A^\top y^k)) \\
-        y^{k+1} &= y^k + \tau(A \tilde{x}^{k+1} - b)
-        \end{align}$$
-    </div>
-    
+
+    <div class="equation-block">$$\begin{align} x^{k+1} &= \Pi_{\geq 0}(x^k - \eta(c + A^\top y^k)) \\ y^{k+1} &= y^k + \tau(A \tilde{x}^{k+1} - b) \end{align}$$</div>
+
     <p>where $\tilde{x}^{k+1} = 2x^{k+1} - x^k$ is the extrapolated primal variable, $\Pi_{\geq 0}$ projects onto the non-negative orthant, and $\eta, \tau$ are step sizes.</p>
 
     <p>In 3D mode, the z-axis of each iterate of PDHG is set to $c^\top x$.</p>
 
     <h4>PDHG Inequality Mode</h4>
     <p>The inequality mode avoids transforming the problem, treating the inequalities directly. It is similar to applying PDHG to the dual problem:</p>
-    
-    <div class="equation-block">
-        $$\begin{align}
-        y^{k+1} &= \Pi_{\geq 0}(y^k + \tau(A x^k - b)) \\
-        x^{k+1} &= x^k - \eta(c + A^\top \tilde{y}^{k+1})
-        \end{align}$$
-    </div>
-    
+
+    <div class="equation-block">$$\begin{align} y^{k+1} &= \Pi_{\geq 0}(y^k + \tau(A x^k - b)) \\ x^{k+1} &= x^k - \eta(c + A^\top \tilde{y}^{k+1}) \end{align}$$</div>
+
     <p>where $\tilde{y}^{k+1} = 2y^{k+1} - y^k$ is the extrapolated dual variable. Due to the inequality constraints in the primal, the dual variables $y$ are now constrained to be non-negative.</p>
 
-    <h3><a href="central-path.html" style="color: #2c3e50; text-decoration: none;">Central Path</a></h3>
+    <h3>
+      <a href="central-path.html" style="color: #2c3e50; text-decoration: none">Central Path</a>
+    </h3>
     <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$. Each point on the path is found using Newton's method with Armijo line search.</p>
-    
-    <div class="equation-block">
-        $$x(\mu) = \arg\min_x \left( c^\top x - \mu \sum_{i=1}^m \log(b_i - a_i^\top x) \right)$$
-    </div>
-    
-    <p></p>In 3D mode, the z-axis is of each iterate of Central Path is set to $c^\top x(\mu) - \mu \sum_{i=1}^m \log(b_i - a_i^\top x(\mu))$.</p>
+
+    <div class="equation-block">$$x(\mu) = \arg\min_x \left( c^\top x - \mu \sum_{i=1}^m \log(b_i - a_i^\top x) \right)$$</div>
+
+    <p>In 3D mode, the z-axis is of each iterate of Central Path is set to $c^\top x(\mu) - \mu \sum_{i=1}^m \log(b_i - a_i^\top x(\mu))$.</p>
 
     <div class="navigation">
-        <a href="../">← Back to lpviz</a> |
-        <a href="simplex.html">Simplex Algorithm</a> |
-        <a href="ipm.html">Interior Point Method</a> |
-        <a href="pdhg.html">PDHG</a> |
-        <a href="central-path.html">Central Path</a>
+      <a href="../">← Back to lpviz</a> | <a href="simplex.html">Simplex Algorithm</a> | <a href="ipm.html">Interior Point Method</a> | <a href="pdhg.html">PDHG</a> |
+      <a href="central-path.html">Central Path</a>
     </div>
-</body>
+  </body>
 </html>
