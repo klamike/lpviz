@@ -1,6 +1,6 @@
-import { state } from "./state";
-import { PointXY } from "../types/arrays";
-import { CanvasManager } from "../ui/canvasManager";
+import { getState, mutate, setState } from "./store";
+import type { PointXY } from "../solvers/utils/blas";
+import { ViewportManager } from "../ui/viewport";
 
 export interface HistoryEntry {
   vertices: PointXY[];
@@ -8,70 +8,69 @@ export interface HistoryEntry {
 }
 
 export function saveToHistory(): void {
-  state.historyStack.push({
-    vertices: JSON.parse(JSON.stringify(state.vertices)),
-    objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
+  const { vertices, objectiveVector } = getState();
+  mutate((draft) => {
+    draft.historyStack.push({
+      vertices: JSON.parse(JSON.stringify(vertices)),
+      objectiveVector: objectiveVector ? { ...objectiveVector } : null,
+    });
   });
 }
 
-export function createUndoRedoHandler(
-  canvasManager: CanvasManager,
-  saveToHistory: () => void,
-  sendPolytope: () => void
-) {
+export function createUndoRedoHandler(canvasManager: ViewportManager, saveToHistory: () => void, sendPolytope: () => void) {
   return function handleUndoRedo(isRedo: boolean) {
-    const sourceStack = isRedo ? state.redoStack : state.historyStack;
-    const targetStack = isRedo ? state.historyStack : state.redoStack;
-    
-    if (sourceStack.length === 0) return;
-    
-    const stateToRestore = sourceStack.pop();
+    const { redoStack, historyStack } = getState();
+    const sourceStackLength = isRedo ? redoStack.length : historyStack.length;
+    if (sourceStackLength === 0) return;
+
+    if (isRedo) saveToHistory();
+
+    const { vertices, objectiveVector } = getState();
+    let stateToRestore: HistoryEntry | null = null;
+    mutate((draft) => {
+      const sourceStack = isRedo ? draft.redoStack : draft.historyStack;
+      const targetStack = isRedo ? draft.historyStack : draft.redoStack;
+      if (sourceStack.length === 0) return;
+
+      const popped = sourceStack.pop();
+      if (!popped) return;
+      stateToRestore = popped;
+
+      if (!isRedo) {
+        targetStack.push({
+          vertices: JSON.parse(JSON.stringify(vertices)),
+          objectiveVector: objectiveVector ? { ...objectiveVector } : null,
+        });
+      }
+    });
+
     if (!stateToRestore) return;
-    
-    if (!isRedo) {
-      targetStack.push({
-        vertices: JSON.parse(JSON.stringify(state.vertices)),
-        objectiveVector: state.objectiveVector ? { ...state.objectiveVector } : null,
-      });
-    } else {
-      saveToHistory();
-    }
-    
-    state.vertices = stateToRestore.vertices;
-    state.objectiveVector = stateToRestore.objectiveVector;
+
+    mutate((draft) => {
+      draft.vertices = stateToRestore!.vertices;
+      draft.objectiveVector = stateToRestore!.objectiveVector;
+    });
     canvasManager.draw();
     sendPolytope();
   };
 }
 
-export function setupKeyboardHandlers(
-  canvasManager: CanvasManager,
-  saveToHistory: () => void,
-  sendPolytope: () => void,
-  handleUndoRedo: (isRedo: boolean) => void
-): void {
+export function setupKeyboardHandlers(canvasManager: ViewportManager, handleUndoRedo: (isRedo: boolean) => void): void {
   // ===== KEYBOARD HANDLERS =====
-  
+
   window.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();
       handleUndoRedo(e.shiftKey);
     }
     if (e.key.toLowerCase() === "s") {
-      state.snapToGrid = !state.snapToGrid;
+      const { snapToGrid } = getState();
+      setState({ snapToGrid: !snapToGrid });
+    }
+    if (e.key.toLowerCase() === "h") {
+      const { objectiveHidden } = getState();
+      setState({ objectiveHidden: !objectiveHidden });
+      canvasManager.draw();
     }
   });
-}
-
-export function clearHistory(): void {
-  state.historyStack = [];
-  state.redoStack = [];
-}
-
-export function hasUndoHistory(): boolean {
-  return state.historyStack.length > 0;
-}
-
-export function hasRedoHistory(): boolean {
-  return state.redoStack.length > 0;
 }
