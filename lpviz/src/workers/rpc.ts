@@ -6,11 +6,13 @@ type PendingResolver<Response> = {
 /**
  * Creates a typed RPC helper for communicating with a Web Worker using incremental message IDs.
  */
+type WorkerSource = URL | Worker;
+
 export function createWorkerRPC<Request extends { id: number }, Response extends { id: number }>(
-  url: URL,
+  workerSource: WorkerSource,
   options?: WorkerOptions,
 ) {
-  const worker = new Worker(url, { type: "module", ...options });
+  const worker = workerSource instanceof Worker ? workerSource : new Worker(workerSource, { type: "module", ...options });
   const pending = new Map<number, PendingResolver<Response>>();
   let nextId = 0;
 

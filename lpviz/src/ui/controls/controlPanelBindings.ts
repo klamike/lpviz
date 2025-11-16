@@ -9,13 +9,12 @@ import { CanvasViewportManager } from "../managers/canvasViewportManager";
 import { InterfaceLayoutManager } from "../managers/interfaceLayoutManager";
 import { SolverWorkerPayload, SolverWorkerRequest, SolverWorkerResponse, SolverWorkerSuccessResponse } from "../../workers/solverWorkerTypes";
 import { hasPolytopeLines } from "../../types/problem";
+import SolverWorker from "../../workers/solverWorker?worker";
 import { createWorkerRPC } from "../../workers/rpc";
 import { bindControls, type ControlBinding } from "./bind";
 import { SOLVER_DEFINITIONS, type SettingsElements } from "../../solvers/registry";
 
-const invokeSolverWorker = createWorkerRPC<SolverWorkerRequest, SolverWorkerResponse>(
-  new URL("../../workers/solverWorker.ts", import.meta.url),
-);
+const invokeSolverWorker = createWorkerRPC<SolverWorkerRequest, SolverWorkerResponse>(new SolverWorker());
 
 async function runSolverWorker(request: SolverWorkerPayload): Promise<SolverWorkerSuccessResponse> {
   const response = await invokeSolverWorker(request);
