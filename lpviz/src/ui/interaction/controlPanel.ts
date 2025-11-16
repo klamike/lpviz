@@ -6,22 +6,10 @@ import { refreshResponsiveLayout } from "../utils";
 import { VRep } from "../../solvers/utils/polytope";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
-import { SolverWorkerPayload, SolverWorkerRequest, SolverWorkerResponse, SolverWorkerSuccessResponse } from "../../solvers/worker/solverWorker";
+import { runSolverWorker } from "../../solvers/worker/client";
 import { hasPolytopeLines } from "../../solvers/utils/polytope";
-import SolverWorker from "../../solvers/worker/solverWorker?worker";
-import { createWorkerRPC } from "../../solvers/worker/rpc";
 import { bindControls, type ControlBinding } from "./bind";
-import { SOLVER_DEFINITIONS, type SettingsElements } from "../../solvers/registry";
-
-const invokeSolverWorker = createWorkerRPC<SolverWorkerRequest, SolverWorkerResponse>(new SolverWorker());
-
-async function runSolverWorker(request: SolverWorkerPayload): Promise<SolverWorkerSuccessResponse> {
-  const response = await invokeSolverWorker(request);
-  if (!response.success) {
-    throw new Error(response.error);
-  }
-  return response;
-}
+import { SOLVER_DEFINITIONS, type SettingsElements } from "../../solvers/utils/registry";
 
 export const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);

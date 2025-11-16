@@ -36,7 +36,7 @@ export type SolverWorkerPayload =
       niter: number;
     };
 
-export type SolverWorkerRequest = SolverWorkerPayload & { id: number };
+type SolverWorkerRequest = SolverWorkerPayload & { id: number };
 
 export type SolverWorkerSuccessResponse =
   | {

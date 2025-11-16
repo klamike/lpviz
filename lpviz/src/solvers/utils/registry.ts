@@ -1,8 +1,8 @@
-import type { State, SolverMode } from "../state/store";
-import type { ResultRenderPayload } from "./worker/solverService";
-import { hasPolytopeLines, hasPolytopeVertices } from "./utils/polytope";
-import type { SolverWorkerPayload, SolverWorkerSuccessResponse } from "./worker/solverWorker";
-import { applyCentralPathResult, applyIPMResult, applyPDHGResult, applySimplexResult } from "./worker/solverService";
+import type { State, SolverMode } from "../../state/store";
+import type { ResultRenderPayload } from "../worker/solverService";
+import { hasPolytopeLines, hasPolytopeVertices } from "./polytope";
+import type { SolverWorkerPayload, SolverWorkerSuccessResponse } from "../worker/solverWorker";
+import { applyCentralPathResult, applyIPMResult, applyPDHGResult, applySimplexResult } from "../worker/solverService";
 
 export type SettingsElements = Record<string, HTMLInputElement>;
 
