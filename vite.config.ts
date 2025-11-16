@@ -30,5 +30,7 @@ export default defineConfig({
     rollupOptions: {
       input: [resolve(rootDir, "index.html"), ...docHtmlInputs],
     },
+    chunkSizeWarningLimit: 1000,
+    emptyOutDir: false,
   },
 });
