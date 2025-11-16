@@ -1,7 +1,7 @@
 import { Matrix, solve } from "ml-matrix";
 import { sprintf } from "sprintf-js";
 import { linesToAb, diag } from "./utils/blas";
-import { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from "../types/arrays";
+import type { Lines, Vertices, VectorM, VectorN, VecN, VecNs } from "./utils/blas";
 import { centroid } from "./utils/polytope";
 
 const MIN_STEP_SIZE = 1e-10;

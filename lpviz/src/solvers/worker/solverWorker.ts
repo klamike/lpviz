@@ -2,7 +2,7 @@ import { centralPath } from "../../solvers/centralPath";
 import { ipm } from "../../solvers/ipm";
 import { pdhg } from "../../solvers/pdhg";
 import { simplex } from "../../solvers/simplex";
-import type { Lines, VecN, Vertices } from "../../types/arrays";
+import type { Lines, VecN, Vertices } from "../utils/blas";
 
 import type { CentralPathResult, IPMResult, PDHGResult, SimplexResult } from "./solverService";
 

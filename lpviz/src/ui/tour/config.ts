@@ -1,4 +1,4 @@
-import type { PointXY } from "../../types/arrays";
+import type { PointXY } from "../../solvers/utils/blas";
 
 export type GuidedStep =
   | { type: "wait"; duration: number }

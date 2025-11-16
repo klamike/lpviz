@@ -1,9 +1,9 @@
 import { getState, mutate, SolverMode } from "./store";
-import { PointXY } from "../types/arrays";
+import type { PointXY } from "../solvers/utils/blas";
 import JSONCrush from "jsoncrush";
 import { updateSliderAndDisplay, updateInputValue, setButtonsEnabled, setElementDisplay, showElement } from "./utils";
-import { CanvasViewportManager } from "../ui/viewport";
-import { InterfaceLayoutManager } from "../ui/layout";
+import { ViewportManager } from "../ui/viewport";
+import { LayoutManager } from "../ui/layout";
 
 export interface ShareSettings {
   alphaMax?: number;
@@ -52,7 +52,7 @@ interface SettingsElements {
   [key: string]: HTMLInputElement;
 }
 
-export function createSharingHandlers(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, settingsElements: SettingsElements, sendPolytope: () => void) {
+export function createSharingHandlers(canvasManager: ViewportManager, uiManager: LayoutManager, settingsElements: SettingsElements, sendPolytope: () => void) {
   function generateShareLink(): string {
     const { vertices, objectiveVector, solverMode } = getState();
     const settings: ShareSettings = {};

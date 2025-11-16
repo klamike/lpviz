@@ -1,7 +1,7 @@
 import { Matrix, solve } from "ml-matrix";
 import { sprintf } from "sprintf-js";
 import { linesToAb, hstack, vstack } from "./utils/blas";
-import { Lines, Vec2N, VecN, Vec2Ns } from "../types/arrays";
+import type { Lines, Vec2N, VecN, Vec2Ns } from "./utils/blas";
 
 const MAX_ITERATIONS = 2 ** 16;
 

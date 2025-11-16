@@ -1,14 +1,14 @@
 import { getState, mutate, setState, setFields, SolverMode, handleStepSizeChange, resetTraceState, prepareAnimationInterval } from "../../state/store";
 import { computeDrawingSnapshot } from "../../state/drawing";
-import type { ResultRenderPayload } from "../../types/resultPayload";
+import type { ResultRenderPayload } from "../../solvers/worker/solverService";
 import { start3DTransition } from "../rendering/math3d";
 import { showElement, hideElement } from "../../state/utils";
 import { adjustFontSize, adjustLogoFontSize, adjustTerminalHeight, calculateMinSidebarWidth } from "../utils";
 import { VRep } from "../../solvers/utils/polytope";
-import { CanvasViewportManager } from "../viewport";
-import { InterfaceLayoutManager } from "../layout";
+import { ViewportManager } from "../viewport";
+import { LayoutManager } from "../layout";
 import { SolverWorkerPayload, SolverWorkerRequest, SolverWorkerResponse, SolverWorkerSuccessResponse } from "../../solvers/worker/solverWorker";
-import { hasPolytopeLines } from "../../types/problem";
+import { hasPolytopeLines } from "../../solvers/utils/polytope";
 import SolverWorker from "../../solvers/worker/solverWorker?worker";
 import { createWorkerRPC } from "../../solvers/worker/rpc";
 import { bindControls, type ControlBinding } from "./bind";
@@ -32,7 +32,7 @@ const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
   return element as T;
 };
 
-export function initializeControlPanel(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, updateResult: (payload: ResultRenderPayload) => void, showAllResults?: () => void) {
+export function initializeControlPanel(canvasManager: ViewportManager, uiManager: LayoutManager, updateResult: (payload: ResultRenderPayload) => void, showAllResults?: () => void) {
   function setupZoomHandlers() {
     uiManager.zoomButton?.addEventListener("click", () => {
       const { vertices } = getState();

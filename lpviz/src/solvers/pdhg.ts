@@ -1,6 +1,6 @@
 import { pdhgEq } from "./pdhg_eq";
 import { pdhgIneq } from "./pdhg_ineq";
-import { Lines, VecN } from "../types/arrays";
+import type { Lines, VecN } from "./utils/blas";
 
 export interface PDHGOptions {
   ineq: boolean;

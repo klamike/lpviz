@@ -1,7 +1,7 @@
 import type { State } from "../state/store";
 import type { SolverMode } from "../state/types";
-import type { ResultRenderPayload } from "../types/resultPayload";
-import { hasPolytopeLines, hasPolytopeVertices } from "../types/problem";
+import type { ResultRenderPayload } from "./worker/solverService";
+import { hasPolytopeLines, hasPolytopeVertices } from "./utils/polytope";
 import type { SolverWorkerPayload, SolverWorkerSuccessResponse } from "./worker/solverWorker";
 import { applyCentralPathResult, applyIPMResult, applyPDHGResult, applySimplexResult } from "./worker/solverService";
 

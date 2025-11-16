@@ -1,5 +1,31 @@
 import { Matrix, AbstractMatrix } from "ml-matrix";
-import { Lines } from "../../types/arrays";
+
+export interface PointXY {
+  x: number;
+  y: number;
+}
+
+export interface PointXYZ {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// solver vector helpers
+export type Vec2 = number[];
+export type Vec3 = number[];
+export type VecM = number[];
+export type VecN = number[];
+export type VecNs = VecN[];
+export type Vec2N = number[];
+export type Vec2Ns = Vec2N[];
+
+export type VectorM = Matrix;
+export type VectorN = Matrix;
+
+export type Vertices = Vec2[];
+export type Line = Vec3;
+export type Lines = Line[];
 
 export const diag = (v: Matrix) => Matrix.diag(v.to1DArray());
 

@@ -1,8 +1,8 @@
 import { getState, mutate, setState, subscribe } from "../../state/store";
 import type { State } from "../../state/store";
 import { computeDrawingSnapshot } from "../../state/drawing";
-import { CanvasViewportManager } from "../viewport";
-import { InterfaceLayoutManager } from "../layout";
+import { ViewportManager } from "../viewport";
+import { LayoutManager } from "../layout";
 import { showElement, setButtonsEnabled } from "../../state/utils";
 import { VRep } from "../../solvers/utils/polytope";
 import { buildGuidedScript, generateObjective, generatePentagon, type GuidedStep } from "./config";
@@ -100,15 +100,15 @@ function createPopupElement({ id, text, gradient, position, maxWidth, onClose, o
   return popup;
 }
 
-function logicalToScreen(canvasManager: CanvasViewportManager, point: { x: number; y: number }) {
+function logicalToScreen(canvasManager: ViewportManager, point: { x: number; y: number }) {
   const rect = canvasManager.canvas.getBoundingClientRect();
   const canvasPoint = canvasManager.toCanvasCoords(point.x, point.y);
   return { x: rect.left + canvasPoint.x, y: rect.top + canvasPoint.y };
 }
 
 export class GuidedExperience {
-  private canvasManager: CanvasViewportManager;
-  private uiManager: InterfaceLayoutManager;
+  private canvasManager: ViewportManager;
+  private uiManager: LayoutManager;
   private sendPolytope: () => void;
   private saveToHistory: () => void;
   private cursor: HTMLElement | null = null;
@@ -116,7 +116,7 @@ export class GuidedExperience {
   private allowNextClick = false;
   private clickBlocker: ((e: Event) => void) | null = null;
 
-  constructor(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, sendPolytope: () => void, saveToHistory: () => void) {
+  constructor(canvasManager: ViewportManager, uiManager: LayoutManager, sendPolytope: () => void, saveToHistory: () => void) {
     this.canvasManager = canvasManager;
     this.uiManager = uiManager;
     this.sendPolytope = sendPolytope;

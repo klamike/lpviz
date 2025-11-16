@@ -1,18 +1,17 @@
 import { getState, mutate, setState } from "../../state/store";
-import { CanvasViewportManager } from "../viewport";
-import { InterfaceLayoutManager } from "../layout";
-import { VRep } from "../../solvers/utils/polytope";
+import { ViewportManager } from "../viewport";
+import { LayoutManager } from "../layout";
+import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize } from "../utils";
 import { showElement } from "../../state/utils";
 import { registerCanvasInteractions } from "./canvas";
 import { saveToHistory, setupKeyboardHandlers, createUndoRedoHandler } from "../../state/history";
-import { initializeControlPanel } from "../controls/controlPanel";
+import { initializeControlPanel } from "./controlPanel";
 import { createSharingHandlers } from "../../state/sharing";
 import { InactivityHelpOverlay } from "../tour/tour";
-import type { ResultRenderPayload, VirtualResultPayload } from "../../types/resultPayload";
-import { hasPolytopeLines } from "../../types/problem";
+import type { ResultRenderPayload, VirtualResultPayload } from "../../solvers/worker/solverService";
 
-export function initializeApplicationInteractions(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, helpPopup?: InactivityHelpOverlay) {
+export function initializeApplicationInteractions(canvasManager: ViewportManager, uiManager: LayoutManager, helpPopup?: InactivityHelpOverlay) {
   const ROTATE_ROW_LIMIT = 20; // FIXME: detect number of rows
   let lastVirtualResult: VirtualResultPayload | null = null;
 

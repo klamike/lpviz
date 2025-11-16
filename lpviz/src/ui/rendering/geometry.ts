@@ -1,4 +1,4 @@
-import { PointXY, Line } from "../../types/arrays";
+import type { PointXY, Line } from "../../solvers/utils/blas";
 
 export interface Bounds {
   minX: number;

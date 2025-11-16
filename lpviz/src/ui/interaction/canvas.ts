@@ -1,13 +1,13 @@
 import { getState, mutate, setState, setFields } from "../../state/store";
 import { computeDrawingSnapshot } from "../../state/drawing";
-import type { Line, PointXY } from "../../types/arrays";
+import type { Line, PointXY } from "../../solvers/utils/blas";
 import { VRep, verticesFromLines } from "../../solvers/utils/polytope";
 import { showElement, setButtonsEnabled } from "../../state/utils";
-import { CanvasViewportManager } from "../viewport";
-import { InterfaceLayoutManager } from "../layout";
+import { ViewportManager } from "../viewport";
+import { LayoutManager } from "../layout";
 import { InactivityHelpOverlay } from "../tour/tour";
 
-export function registerCanvasInteractions(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, saveToHistory: () => void, sendPolytope: () => void, recomputeSolver?: () => void, helpPopup?: InactivityHelpOverlay): void {
+export function registerCanvasInteractions(canvasManager: ViewportManager, uiManager: LayoutManager, saveToHistory: () => void, sendPolytope: () => void, recomputeSolver?: () => void, helpPopup?: InactivityHelpOverlay): void {
   const canvas = canvasManager.canvas;
   let constraintDragContext: Line[] | null = null;
   const setButtonState = (id: string, enabled: boolean) => {

@@ -1,14 +1,14 @@
-import { CanvasViewportManager } from "./ui/viewport";
-import { InterfaceLayoutManager } from "./ui/layout";
-import { initializeApplicationInteractions } from "./ui/interactions/registry";
+import { ViewportManager } from "./ui/viewport";
+import { LayoutManager } from "./ui/layout";
+import { initializeApplicationInteractions } from "./ui/interaction/registry";
 import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./ui/utils";
 import { GuidedExperience, InactivityHelpOverlay, NonconvexHullHintOverlay } from "./ui/tour/tour";
 import JSONCrush from "jsoncrush";
 
 async function initializeApplication() {
   const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
-  const canvasManager = await CanvasViewportManager.create(canvas);
-  const uiManager = new InterfaceLayoutManager();
+  const canvasManager = await ViewportManager.create(canvas);
+  const uiManager = new LayoutManager();
 
   function resizeCanvas() {
     uiManager.checkMobileOrientation();

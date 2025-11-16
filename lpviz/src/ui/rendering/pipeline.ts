@@ -11,9 +11,8 @@ import {
   DoubleSide,
 } from "three";
 import { getState } from "../../state/store";
-import { PointXY } from "../../types/arrays";
-import { VRep } from "../../solvers/utils/polytope";
-import { hasPolytopeLines } from "../../types/problem";
+import type { PointXY } from "../../solvers/utils/blas";
+import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
 import {
   COLORS,

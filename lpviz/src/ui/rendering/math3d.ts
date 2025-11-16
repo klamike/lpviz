@@ -1,8 +1,8 @@
 import { Euler, Matrix4, Vector3 } from "three";
-import { PointXY, PointXYZ } from "../../types/arrays";
+import type { PointXY, PointXYZ } from "../../solvers/utils/blas";
 import { getState, mutate, setFields } from "../../state/store";
-import { CanvasViewportManager } from "../viewport";
-import { InterfaceLayoutManager } from "../layout";
+import { ViewportManager } from "../viewport";
+import { LayoutManager } from "../layout";
 
 const rotationEuler = new Euler();
 const forwardVector = new Vector3();
@@ -41,7 +41,7 @@ function lerpAngle(start: number, end: number, t: number): number {
   return start + (end - start) * t;
 }
 
-export function start3DTransition(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, targetMode: boolean) {
+export function start3DTransition(canvasManager: ViewportManager, uiManager: LayoutManager, targetMode: boolean) {
   const { isTransitioning3D, viewAngle } = getState();
   if (isTransitioning3D) return;
 
@@ -63,7 +63,7 @@ export function start3DTransition(canvasManager: CanvasViewportManager, uiManage
   animate3DTransition(canvasManager, uiManager, targetMode, transitionDuration);
 }
 
-function animate3DTransition(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, targetMode: boolean, transitionDuration: number) {
+function animate3DTransition(canvasManager: ViewportManager, uiManager: LayoutManager, targetMode: boolean, transitionDuration: number) {
   const currentTime = performance.now();
   const snapshot = getState();
   const elapsed = currentTime - snapshot.transitionStartTime;

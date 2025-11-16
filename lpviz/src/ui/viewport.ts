@@ -4,14 +4,14 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGeometry";
 import { UndashedLine2 } from "./rendering/three/UndashedLine2";
 import { getState, setState } from "../state/store";
-import { PointXY, PointXYZ } from "../types/arrays";
+import type { PointXY, PointXYZ } from "../solvers/utils/blas";
 import { transform2DTo3DAndProject, inverseTransform2DProjection } from "./rendering/math3d";
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
 import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./rendering/constants";
 import type { GuidedExperience } from "./tour/tour";
 
-export class CanvasViewportManager {
+export class ViewportManager {
   canvas: HTMLCanvasElement;
   gridSpacing = 20;
   scaleFactor = 1;
@@ -113,7 +113,7 @@ export class CanvasViewportManager {
   }
 
   static async create(canvas: HTMLCanvasElement) {
-    return new CanvasViewportManager(canvas);
+    return new ViewportManager(canvas);
   }
 
   attachGuidedExperience(guidedExperience: GuidedExperience) {

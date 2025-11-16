@@ -1,5 +1,5 @@
-import type { PointXY, PointXYZ, VecNs, Lines } from "../types/arrays";
-import type { PolytopeRepresentation } from "../types/problem";
+import type { PointXY, PointXYZ, VecNs, Lines } from "../solvers/utils/blas";
+import type { PolytopeRepresentation } from "../solvers/utils/polytope";
 import type { HistoryEntry } from "./history";
 import type { InputMode, ObjectiveDirection, SolverMode, TraceEntry } from "./types";
 

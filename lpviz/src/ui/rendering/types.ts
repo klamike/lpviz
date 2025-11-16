@@ -1,6 +1,6 @@
 import { CanvasTexture, Group, LineBasicMaterial, PointsMaterial, Sprite, Vector2, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { PointXY } from "../../types/arrays";
+import type { PointXY } from "../../solvers/utils/blas";
 
 export interface CanvasGroups {
   grid: Group;

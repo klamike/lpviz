@@ -1,6 +1,6 @@
 import { getState, mutate, setState } from "./store";
-import { PointXY } from "../types/arrays";
-import { CanvasViewportManager } from "../ui/viewport";
+import type { PointXY } from "../solvers/utils/blas";
+import { ViewportManager } from "../ui/viewport";
 
 export interface HistoryEntry {
   vertices: PointXY[];
@@ -17,7 +17,7 @@ export function saveToHistory(): void {
   });
 }
 
-export function createUndoRedoHandler(canvasManager: CanvasViewportManager, saveToHistory: () => void, sendPolytope: () => void) {
+export function createUndoRedoHandler(canvasManager: ViewportManager, saveToHistory: () => void, sendPolytope: () => void) {
   return function handleUndoRedo(isRedo: boolean) {
     const { redoStack, historyStack } = getState();
     const sourceStackLength = isRedo ? redoStack.length : historyStack.length;
@@ -55,7 +55,7 @@ export function createUndoRedoHandler(canvasManager: CanvasViewportManager, save
   };
 }
 
-export function setupKeyboardHandlers(canvasManager: CanvasViewportManager, handleUndoRedo: (isRedo: boolean) => void): void {
+export function setupKeyboardHandlers(canvasManager: ViewportManager, handleUndoRedo: (isRedo: boolean) => void): void {
   // ===== KEYBOARD HANDLERS =====
 
   window.addEventListener("keydown", (e) => {

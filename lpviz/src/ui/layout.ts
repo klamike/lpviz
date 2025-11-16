@@ -1,9 +1,9 @@
 import { getState } from "../state/store";
 import { computeDrawingSnapshot } from "../state/drawing";
-import { CanvasViewportManager } from "./viewport";
-import { hasPolytopeLines } from "../types/problem";
+import { ViewportManager } from "./viewport";
+import { hasPolytopeLines } from "../solvers/utils/polytope";
 
-export class InterfaceLayoutManager {
+export class LayoutManager {
   uiContainer!: HTMLElement;
   topTerminal!: HTMLElement;
   objectiveDisplay!: HTMLElement;
@@ -81,8 +81,8 @@ export class InterfaceLayoutManager {
   }
 
   checkMobileOrientation() {
-    const tooSmall = window.innerWidth < InterfaceLayoutManager.MIN_SCREEN_WIDTH;
-    this.smallScreenOverlay.textContent = `The window is not wide enough (${window.innerWidth}px < ${InterfaceLayoutManager.MIN_SCREEN_WIDTH}px) for lpviz.`;
+    const tooSmall = window.innerWidth < LayoutManager.MIN_SCREEN_WIDTH;
+    this.smallScreenOverlay.textContent = `The window is not wide enough (${window.innerWidth}px < ${LayoutManager.MIN_SCREEN_WIDTH}px) for lpviz.`;
     this.smallScreenOverlay.style.display = tooSmall ? "flex" : "none";
   }
 
@@ -95,7 +95,7 @@ export class InterfaceLayoutManager {
     if (element) element.style.display = display;
   }
 
-  updateZoomButtonsState(canvasManager: CanvasViewportManager) {
+  updateZoomButtonsState(canvasManager: ViewportManager) {
     if (canvasManager.scaleFactor === 1 && canvasManager.offset.x === 0 && canvasManager.offset.y === 0) {
       this.zoomButton!.disabled = false;
     } else {
