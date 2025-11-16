@@ -57,6 +57,9 @@ export class ViewportManager {
   private renderPipeline = new CanvasRenderPipeline();
   private orbitControls: OrbitControls;
   private orbitControlsActive = false;
+  private lastOrbitControlsTarget = new Vector3();
+  private currentPerspectiveDistance = 0;
+  private pendingScaleFactorFrom3D: number | null = null;
   private orthoControls: OrbitControls;
   private suppressOrthoControlChange = false;
   private orthographicControlsSuspended = false;
@@ -117,7 +120,7 @@ export class ViewportManager {
     this.orbitControls.enableDamping = true;
     this.orbitControls.dampingFactor = 0.08;
     this.orbitControls.enableRotate = false;
-    this.orbitControls.addEventListener("change", () => this.draw());
+    this.orbitControls.addEventListener("change", this.handleOrbitControlsChange);
 
     this.orthoControls = new OrbitControls(this.orthoCamera, this.canvas);
     this.orthoControls.enableRotate = false;
@@ -131,6 +134,8 @@ export class ViewportManager {
     this.orthoControls.addEventListener("change", this.handleOrthoControlsChange);
     this.orthoControls.target.copy(this.getViewportTarget());
     this.orthoControls.update();
+
+    this.currentPerspectiveDistance = this.getPerspectiveDistance(this.getUnitsPerPixel(), window.innerHeight);
 
     this.initialized = true;
     this.updateDimensions();
@@ -288,7 +293,8 @@ export class ViewportManager {
 
     if (transitioning) {
       this.deactivateOrbitControls();
-      this.positionPerspectiveCamera(state.viewAngle);
+      const distanceOverride = state.transitionDirection === "to2d" ? this.currentPerspectiveDistance : undefined;
+      this.positionPerspectiveCamera(state.viewAngle, this.getUnitsPerPixel(), distanceOverride);
       return;
     }
 
@@ -318,6 +324,38 @@ export class ViewportManager {
     this.setOffsetFromTarget(target);
     this.draw();
   };
+
+  private handleOrbitControlsChange = () => {
+    this.syncOffsetFromOrbitTarget();
+    this.recordOrbitPerspectiveDistance();
+    this.draw();
+  };
+
+  private syncOffsetFromOrbitTarget(force = false) {
+    if (!this.orbitControlsActive && !force) return;
+    const currentTarget = this.orbitControls.target;
+    if (!force && this.lastOrbitControlsTarget.distanceToSquared(currentTarget) < 1e-9) {
+      return;
+    }
+    this.setOffsetFromTarget(currentTarget);
+    this.lastOrbitControlsTarget.copy(currentTarget);
+  }
+
+  private recordOrbitPerspectiveDistance() {
+    if (!this.orbitControlsActive) return;
+    const distance = this.perspectiveCamera.position.distanceTo(this.orbitControls.target);
+    if (Number.isFinite(distance)) {
+      this.currentPerspectiveDistance = distance;
+    }
+  }
+
+  private updatePerspectiveDistanceFromCamera() {
+    const target = this.getViewportTarget();
+    const distance = this.perspectiveCamera.position.distanceTo(target);
+    if (Number.isFinite(distance)) {
+      this.currentPerspectiveDistance = distance;
+    }
+  }
 
   private setOffsetFromTarget(target: Vector3) {
     const unitsPerPixel = this.getUnitsPerPixel();
@@ -507,13 +545,11 @@ export class ViewportManager {
   }
 
   private getFlattenTo2DProgress() {
-    const { isTransitioning3D, transitionStartTime, transitionDuration, is3DMode } = getState();
-    if (!isTransitioning3D || is3DMode) {
+    const { isTransitioning3D, transitionDirection, transitionProgress } = getState();
+    if (!isTransitioning3D || !transitionDirection) {
       return 0;
     }
-    const elapsed = performance.now() - transitionStartTime;
-    const rawProgress = Math.min(Math.max(elapsed / transitionDuration, 0), 1);
-    return easeInOutCubic(rawProgress);
+    return transitionDirection === "to3d" ? 1 - transitionProgress : transitionProgress;
   }
 
   private createStarSprite(position: Vector3, color: number) {
@@ -624,14 +660,27 @@ export class ViewportManager {
     return Math.max(10, (height * unitsPerPixel) / (2 * Math.tan(fov / 2)));
   }
 
-  private positionPerspectiveCamera(viewAngle: PointXYZ, unitsPerPixel = this.getUnitsPerPixel()) {
+  private getUnitsPerPixelFromPerspectiveDistance(distance: number, height = window.innerHeight) {
+    const fov = this.perspectiveCamera.fov * (Math.PI / 180);
+    const safeDistance = Math.max(10, distance);
+    const viewportHeight = 2 * Math.tan(fov / 2) * safeDistance;
+    return viewportHeight / height;
+  }
+
+  private computeScaleFactorFromPerspectiveDistance(distance: number) {
+    const unitsPerPixel = this.getUnitsPerPixelFromPerspectiveDistance(distance);
+    return this.clampScaleFactor(1 / (unitsPerPixel * this.gridSpacing));
+  }
+
+  private positionPerspectiveCamera(viewAngle: PointXYZ, unitsPerPixel = this.getUnitsPerPixel(), distanceOverride?: number) {
     const target = this.getViewportTarget(unitsPerPixel);
-    const distance = this.getPerspectiveDistance(unitsPerPixel, window.innerHeight);
+    const distance = distanceOverride ?? this.getPerspectiveDistance(unitsPerPixel, window.innerHeight);
     const euler = new Euler(-viewAngle.x, -viewAngle.y, -viewAngle.z, "XYZ");
     const direction = new Vector3(0, 0, 1).applyEuler(euler).normalize();
     this.perspectiveCamera.position.copy(target.clone().add(direction.multiplyScalar(distance)));
     this.perspectiveCamera.up.copy(new Vector3(0, 1, 0).applyEuler(euler).normalize());
     this.perspectiveCamera.lookAt(target);
+    this.currentPerspectiveDistance = distance;
     return target;
   }
 
@@ -652,6 +701,7 @@ export class ViewportManager {
   private activateOrbitControls() {
     const target = this.positionPerspectiveCamera(getState().viewAngle);
     this.orbitControls.target.copy(target);
+    this.lastOrbitControlsTarget.copy(target);
     this.orbitControls.enabled = true;
     this.orbitControlsActive = true;
     this.applyOrbitDragMode();
@@ -660,18 +710,32 @@ export class ViewportManager {
 
   private deactivateOrbitControls() {
     if (!this.orbitControlsActive) return;
+    this.syncOffsetFromOrbitTarget(true);
     this.orbitControls.enabled = false;
     this.orbitControlsActive = false;
     this.syncViewAngleToState();
   }
 
   prepareFor3DTransition(targetMode: boolean) {
-    if (!this.orbitControlsActive) return;
-    if (!targetMode) {
-      this.deactivateOrbitControls();
-    } else {
-      this.syncViewAngleToState();
+    if (targetMode) {
+      this.pendingScaleFactorFrom3D = null;
+      if (this.orbitControlsActive) {
+        this.syncViewAngleToState();
+      }
+      return;
     }
+    this.updatePerspectiveDistanceFromCamera();
+    this.pendingScaleFactorFrom3D = this.computeScaleFactorFromPerspectiveDistance(this.currentPerspectiveDistance);
+    this.deactivateOrbitControls();
+  }
+
+  complete3DTransition(targetMode: boolean) {
+    if (targetMode || this.pendingScaleFactorFrom3D === null) {
+      return;
+    }
+    this.scaleFactor = this.pendingScaleFactorFrom3D;
+    this.pendingScaleFactorFrom3D = null;
+    this.applyControlsTargetFromOffset();
   }
 
   private applyOrbitDragMode() {

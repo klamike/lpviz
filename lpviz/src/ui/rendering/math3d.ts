@@ -38,6 +38,8 @@ export function start3DTransition(canvasManager: ViewportManager, uiManager: Lay
     transitionStartTime: performance.now(),
     transition3DStartAngles: startAngles,
     transition3DEndAngles: endAngles,
+    transitionDirection: targetMode ? "to3d" : "to2d",
+    transitionProgress: 0,
     is3DMode: targetMode,
   });
 
@@ -56,6 +58,7 @@ function animate3DTransition(canvasManager: ViewportManager, uiManager: LayoutMa
     draft.viewAngle.x = lerpAngle(draft.transition3DStartAngles.x, draft.transition3DEndAngles.x, easedProgress);
     draft.viewAngle.y = lerpAngle(draft.transition3DStartAngles.y, draft.transition3DEndAngles.y, easedProgress);
     draft.viewAngle.z = lerpAngle(draft.transition3DStartAngles.z, draft.transition3DEndAngles.z, easedProgress);
+    draft.transitionProgress = easedProgress;
   });
 
   if (progress < 1) {
@@ -64,7 +67,8 @@ function animate3DTransition(canvasManager: ViewportManager, uiManager: LayoutMa
   } else {
     mutate((draft) => {
       draft.isTransitioning3D = false;
-
+      draft.transitionDirection = null;
+      draft.transitionProgress = 0;
       if (targetMode) {
         draft.viewAngle.x = -1.15;
         draft.viewAngle.y = 0.4;
@@ -76,6 +80,7 @@ function animate3DTransition(canvasManager: ViewportManager, uiManager: LayoutMa
       }
     });
 
+    canvasManager.complete3DTransition(targetMode);
     canvasManager.draw();
   }
 }

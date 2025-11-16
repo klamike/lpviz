@@ -446,6 +446,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
         return;
       }
       e.preventDefault();
+      e.stopImmediatePropagation();
       const zoomFactor = 1.05;
       const dominantDelta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       if (dominantDelta === 0) return;
@@ -455,7 +456,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       canvasManager.draw();
       uiManager.updateZScaleValue();
     },
-    { passive: false },
+    { passive: false, capture: true },
   );
 
   // ===== CANVAS INTERACTION HANDLERS =====

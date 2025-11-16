@@ -76,6 +76,8 @@ export type State = {
   transitionDuration: number;
   transition3DStartAngles: PointXYZ;
   transition3DEndAngles: PointXYZ;
+  transitionDirection: "to3d" | "to2d" | null;
+  transitionProgress: number;
 
   traceEnabled: boolean;
   totalRotationAngle: number;
@@ -138,6 +140,8 @@ const initialState: State = {
   transitionDuration: DEFAULT_TRANSITION_DURATION,
   transition3DStartAngles: { x: 0, y: 0, z: 0 },
   transition3DEndAngles: { ...DEFAULT_VIEW_ANGLE },
+  transitionDirection: null,
+  transitionProgress: 0,
 
   traceEnabled: false,
   totalRotationAngle: 0,
