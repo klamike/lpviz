@@ -1,3 +1,85 @@
+type FontSizeConfig = {
+  containerId: string;
+  selector: string;
+  baseSize: number;
+  minSize: number;
+  maxSize: number;
+  padding: number;
+  scaleFactor: number;
+  skipCondition?: () => boolean;
+};
+
+// Measure the widest line for the given selector at the base font size.
+const APPROX_CHAR_WIDTH_RATIO = 0.55;
+
+function computeMaxLineWidth(container: HTMLElement, config: FontSizeConfig): number {
+  const texts = container.querySelectorAll(config.selector);
+  let maxCharWidth = 0;
+  texts.forEach((text) => {
+    const content = (text.textContent ?? "").split("\n");
+    for (const line of content) {
+      maxCharWidth = Math.max(maxCharWidth, line.length);
+    }
+  });
+  return maxCharWidth;
+}
+
+function applyFontSize(container: HTMLElement, config: FontSizeConfig, fontSize: number) {
+  const texts = container.querySelectorAll(config.selector);
+  texts.forEach((text) => {
+    (text as HTMLElement).style.fontSize = `${fontSize}px`;
+  });
+}
+
+const fontSizeCache = new Map<string, number>();
+
+export function adjustFontSize(containerId: string = "result", options: { force?: boolean } = {}): void {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const config: FontSizeConfig = {
+    containerId,
+    selector: "div",
+    baseSize: 18,
+    minSize: 10,
+    maxSize: 24,
+    padding: 10,
+    scaleFactor: 0.875,
+    skipCondition: () => !!container.querySelector("#usageTips"),
+  };
+
+  if (config.skipCondition?.()) return;
+
+  if (container.classList.contains("virtualized")) {
+    config.selector = ".iterate-header, .iterate-item, .iterate-footer";
+  }
+
+  const maxLineChars = computeMaxLineWidth(container, config);
+  if (maxLineChars <= 0) return;
+
+  const containerStyle = window.getComputedStyle(container);
+  const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
+  const effectiveWidth = container.clientWidth - paddingLeft - paddingRight;
+  if (effectiveWidth <= 0) return;
+
+  const charWidthPx = config.baseSize * APPROX_CHAR_WIDTH_RATIO;
+  const maxLineWidth = maxLineChars * charWidthPx;
+  const cacheKey = `${maxLineChars}-${Math.round(effectiveWidth)}`;
+  if (!options.force && fontSizeCache.has(cacheKey)) {
+    applyFontSize(container, config, fontSizeCache.get(cacheKey)!);
+    return;
+  }
+
+  const targetWidth = Math.max(1, effectiveWidth - config.padding);
+  const scale = Math.min(4, Math.max(0, targetWidth / maxLineWidth));
+  const newSize = Math.min(config.maxSize, Math.max(config.minSize, config.baseSize * scale * config.scaleFactor));
+
+  fontSizeCache.set(cacheKey, newSize);
+  console.warn(`[lpviz] adjustFontSize triggered for '${containerId}', width now ${effectiveWidth}px, scale ${scale.toFixed(2)}`);
+  applyFontSize(container, config, newSize);
+}
+
 // tries to maximize font size to fit in a container
 function adjustTextSize(config: { containerId: string; selector: string; baseSize: number; minSize: number; maxSize: number; padding: number; scaleFactor: number; skipCondition?: () => boolean }): void {
   const container = document.getElementById(config.containerId) as HTMLElement | null;
@@ -38,34 +120,6 @@ function adjustTextSize(config: { containerId: string; selector: string; baseSiz
   });
 
   document.body.removeChild(measurementDiv);
-}
-
-const containerWidthCache = new Map<string, number>();
-
-export function adjustFontSize(containerId: string = "result"): void {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  const width = container.clientWidth;
-  const previousWidth = containerWidthCache.get(containerId);
-  if (previousWidth === width) {
-    return;
-  }
-
-  containerWidthCache.set(containerId, width);
-  console.warn(`[lpviz] adjustFontSize triggered for '${containerId}', width now ${width}px`);
-
-  const selector = container.classList.contains("virtualized") ? ".iterate-header, .iterate-item, .iterate-footer" : "div";
-  adjustTextSize({
-    containerId,
-    selector,
-    baseSize: 18,
-    minSize: 10,
-    maxSize: 24,
-    padding: 10,
-    scaleFactor: 0.875,
-    skipCondition: () => !!container?.querySelector("#usageTips"),
-  });
 }
 
 export function adjustLogoFontSize(): void {

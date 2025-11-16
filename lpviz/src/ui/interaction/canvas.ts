@@ -65,7 +65,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     });
   };
 
-  function handleDragStart(clientX: number, clientY: number) {
+  function handleDragStart(clientX: number, clientY: number): boolean {
     const logicalCoords = getLogicalFromClient(clientX, clientY);
     const rect = canvas.getBoundingClientRect();
     const localX = clientX - rect.left;
@@ -82,16 +82,17 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
           dragStartPos: { x: clientX, y: clientY },
         });
         canvasManager.disable2DControls();
+        return true;
       }
-      return;
+      return false;
     }
 
     if (state.objectiveVector) {
-      const tip = canvasManager.toCanvasCoords(state.objectiveVector.x, state.objectiveVector.y);
+      const tip = canvasManager.getObjectiveScreenPosition(state.objectiveVector);
       if (Math.hypot(localX - tip.x, localY - tip.y) < 10) {
         setState({ draggingObjective: true });
         canvasManager.disable2DControls();
-        return;
+        return true;
       }
     }
 
@@ -103,7 +104,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
         dragStartPos: { x: clientX, y: clientY },
       });
       canvasManager.disable2DControls();
-      return;
+      return true;
     }
 
     if (state.polytopeComplete && state.vertices.length >= 3) {
@@ -119,10 +120,12 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
         if (length > 1e-6) {
           const lineContext = getState().polytope?.lines;
           if (!lineContext || lineContext.length === 0) {
-            return;
+            return false;
           }
           const line = lineContext[edgeIndex];
-          if (!line) return;
+          if (!line) {
+            return false;
+          }
           const normal: PointXY = { x: line[0], y: line[1] };
           constraintDragContext = lineContext.map(([A, B, C]) => [A, B, C]);
           setState({
@@ -137,10 +140,12 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
             draggingPoint: false,
             draggingPointIndex: null,
           });
+          return true;
         }
-        return;
       }
     }
+
+    return false;
   }
 
   function handleDragMove(clientX: number, clientY: number) {
@@ -327,73 +332,109 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
   // ===== POINTER EVENTS =====
 
-  canvas.addEventListener("mousedown", (e) => {
-    const { is3DMode, isTransitioning3D } = getState();
-    if (is3DMode || isTransitioning3D) {
-      return;
-    }
-    handleDragStart(e.clientX, e.clientY);
-  });
+  canvas.addEventListener(
+    "mousedown",
+    (e) => {
+      const { isTransitioning3D } = getState();
+      if (isTransitioning3D) {
+        return;
+      }
+      const handled = handleDragStart(e.clientX, e.clientY);
+      if (handled) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    },
+    { capture: true },
+  );
 
-  canvas.addEventListener("mousemove", (e) => {
-    const { is3DMode, isTransitioning3D } = getState();
-    if (is3DMode || isTransitioning3D) {
-      return;
-    }
+  canvas.addEventListener(
+    "mousemove",
+    (e) => {
+      const { isTransitioning3D } = getState();
+      if (isTransitioning3D) {
+        return;
+      }
 
-    handleDragMove(e.clientX, e.clientY);
-  });
+      handleDragMove(e.clientX, e.clientY);
+      const interaction = getState();
+      const shouldBlock = interaction.potentialDragPoint || interaction.draggingPoint || interaction.potentialDragConstraint || interaction.draggingConstraint || interaction.draggingObjective;
+      if (shouldBlock) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    },
+    { capture: true },
+  );
 
-  canvas.addEventListener("mouseup", () => {
-    const { is3DMode, isTransitioning3D } = getState();
-    if (is3DMode || isTransitioning3D) {
-      return;
-    }
-    handleDragEnd();
-  });
+  canvas.addEventListener(
+    "mouseup",
+    (e) => {
+      const { isTransitioning3D } = getState();
+      if (isTransitioning3D) {
+        return;
+      }
+      const interaction = getState();
+      handleDragEnd();
+      const shouldBlock = interaction.potentialDragPoint || interaction.draggingPoint || interaction.potentialDragConstraint || interaction.draggingConstraint || interaction.draggingObjective;
+      if (shouldBlock) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    },
+    { capture: true },
+  );
 
   canvas.addEventListener(
     "touchstart",
     (e: TouchEvent) => {
-      const { is3DMode, isTransitioning3D } = getState();
-      if (is3DMode || isTransitioning3D) return;
+      const { isTransitioning3D } = getState();
+      if (isTransitioning3D) return;
       if (e.touches.length === 1) {
         const touch = e.touches[0];
-        handleDragStart(touch.clientX, touch.clientY);
+        const handled = handleDragStart(touch.clientX, touch.clientY);
+        if (handled) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
       }
     },
-    { passive: false },
+    { passive: false, capture: true },
   );
 
   canvas.addEventListener(
     "touchmove",
     (e: TouchEvent) => {
-      const { is3DMode, isTransitioning3D } = getState();
-      if (is3DMode || isTransitioning3D) return;
+      const { isTransitioning3D } = getState();
+      if (isTransitioning3D) return;
       if (e.touches.length === 1) {
-        const interaction = getState();
-        if (interaction.draggingPoint || interaction.draggingObjective) {
-          e.preventDefault();
-        }
         const touch = e.touches[0];
         handleDragMove(touch.clientX, touch.clientY);
+        const interaction = getState();
+        const shouldBlock = interaction.potentialDragPoint || interaction.draggingPoint || interaction.potentialDragConstraint || interaction.draggingConstraint || interaction.draggingObjective;
+        if (shouldBlock) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
       }
     },
-    { passive: false },
+    { passive: false, capture: true },
   );
 
   canvas.addEventListener(
     "touchend",
     (e: TouchEvent) => {
-      const { is3DMode, isTransitioning3D } = getState();
-      if (is3DMode || isTransitioning3D) return;
+      const { isTransitioning3D } = getState();
+      if (isTransitioning3D) return;
       const interaction = getState();
-      if (interaction.draggingPoint || interaction.draggingObjective) {
-        e.preventDefault();
-      }
       handleDragEnd();
+      const shouldBlock = interaction.potentialDragPoint || interaction.draggingPoint || interaction.potentialDragConstraint || interaction.draggingConstraint || interaction.draggingObjective;
+      if (shouldBlock) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
     },
-    { passive: false },
+    { passive: false, capture: true },
   );
 
   canvas.addEventListener(
@@ -495,5 +536,4 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       handleObjectiveSelection(pt);
     }
   });
-
 }

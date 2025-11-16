@@ -1,14 +1,14 @@
-import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial, MOUSE } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial, MOUSE, Plane, Raycaster } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGeometry";
 import { UndashedLine2 } from "./rendering/three/UndashedLine2";
 import { getState, setState } from "../state/store";
 import type { PointXY, PointXYZ } from "../solvers/utils/blas";
-import { easeInOutCubic, transform2DTo3DAndProject, inverseTransform2DProjection } from "./rendering/math3d";
+import { easeInOutCubic, inverseTransform2DProjection } from "./rendering/math3d";
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
 import { CanvasRenderPipeline } from "./rendering/pipeline";
-import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./rendering/constants";
+import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE, OBJECTIVE_Z_OFFSET } from "./rendering/constants";
 import type { Tour } from "./tour/tour";
 
 const ORTHO_MIN_SCALE_FACTOR = 0.05;
@@ -54,17 +54,23 @@ export class ViewportManager {
   private lineResolution = new Vector2(window.innerWidth, window.innerHeight);
   private currentPixelRatio = window.devicePixelRatio || 1;
   private screenToPlaneVec = new Vector2();
-  private planeToScreenVec = new Vector2();
   private renderPipeline = new CanvasRenderPipeline();
   private orbitControls: OrbitControls;
   private orbitControlsActive = false;
   private orthoControls: OrbitControls;
   private suppressOrthoControlChange = false;
   private orthographicControlsSuspended = false;
-  private drawingPanSuspended = false;
+  private raycaster: Raycaster;
+  private pointerNdc = new Vector2();
+  private pointerWorld = new Vector3();
+  private interactionPlane = new Plane(new Vector3(0, 0, 1), 0);
+  private orbitControlsTemporarilyDisabled = false;
+  private interactionPlaneNormal = new Vector3(0, 0, 1);
+  private planeOrigin = new Vector3(0, 0, 0);
 
   private constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    this.raycaster = new Raycaster();
     this.renderer = new WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
@@ -372,15 +378,14 @@ export class ViewportManager {
   disable2DControls() {
     this.orthographicControlsSuspended = true;
     this.orthoControls.enabled = false;
+    this.suspendOrbitControls();
   }
 
   suspend2DPan() {
-    this.drawingPanSuspended = true;
     this.orthoControls.enablePan = false;
   }
 
   resume2DPan() {
-    this.drawingPanSuspended = false;
     if (this.shouldEnableOrthographicControls()) {
       this.orthoControls.enablePan = true;
     }
@@ -391,26 +396,83 @@ export class ViewportManager {
     if (this.shouldEnableOrthographicControls()) {
       this.orthoControls.enabled = true;
     }
+    this.resumeOrbitControls();
+  }
+
+  private suspendOrbitControls() {
+    if (!this.orbitControlsActive || this.orbitControlsTemporarilyDisabled) {
+      return;
+    }
+    this.orbitControls.enabled = false;
+    this.orbitControlsTemporarilyDisabled = true;
+  }
+
+  private resumeOrbitControls() {
+    if (!this.orbitControlsActive || !this.orbitControlsTemporarilyDisabled) {
+      return;
+    }
+    this.orbitControls.enabled = true;
+    this.orbitControlsTemporarilyDisabled = false;
+  }
+
+  private projectScreenToPlane(screenX: number, screenY: number): PointXY | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const { width, height } = rect;
+    if (width === 0 || height === 0) return null;
+    const ndcX = (screenX / width) * 2 - 1;
+    const ndcY = -((screenY / height) * 2 - 1);
+    this.pointerNdc.set(ndcX, ndcY);
+    this.updateInteractionPlane();
+    this.perspectiveCamera.updateMatrixWorld();
+    this.perspectiveCamera.updateProjectionMatrix();
+    this.raycaster.setFromCamera(this.pointerNdc, this.perspectiveCamera);
+    if (this.raycaster.ray.intersectPlane(this.interactionPlane, this.pointerWorld)) {
+      return this.snapPoint({ x: this.pointerWorld.x, y: this.pointerWorld.y });
+    }
+    return null;
+  }
+
+  private updateInteractionPlane() {
+    const { objectiveVector, zScale, is3DMode, isTransitioning3D } = getState();
+    if (objectiveVector && (is3DMode || isTransitioning3D)) {
+      const scale = zScale / 100;
+      this.interactionPlaneNormal.set(objectiveVector.x * scale, objectiveVector.y * scale, -1).normalize();
+    } else {
+      this.interactionPlaneNormal.set(0, 0, 1);
+    }
+    this.interactionPlane.setFromNormalAndCoplanarPoint(this.interactionPlaneNormal, this.planeOrigin);
   }
 
   toLogicalCoords(x: number, y: number): PointXY {
-    const planeCoords = this.screenToPlane(x, y);
     const { is3DMode, isTransitioning3D } = getState();
     if (is3DMode || isTransitioning3D) {
+      const projected = this.projectScreenToPlane(x, y);
+      if (projected) {
+        return projected;
+      }
+      const planeCoords = this.screenToPlane(x, y);
       const angles = this.getRenderViewAngles();
       return this.snapPoint(inverseTransform2DProjection({ x: planeCoords.x, y: planeCoords.y }, angles));
     }
-    return this.snapPoint(this.toPoint(planeCoords));
+    return this.snapPoint(this.toPoint(this.screenToPlane(x, y)));
   }
 
   toCanvasCoords(x: number, y: number, z?: number) {
-    const { is3DMode, isTransitioning3D, focalDistance } = getState();
-    if (is3DMode || isTransitioning3D) {
+    const { is3DMode, isTransitioning3D } = getState();
+    const is3D = is3DMode || isTransitioning3D;
+    let worldZ = 0;
+    if (is3D) {
       const zValue = z ?? this.computeObjectiveValue(x, y);
-      const projected = transform2DTo3DAndProject({ x, y, z: this.scaleZValue(zValue) }, this.getRenderViewAngles(), focalDistance);
-      return this.toPoint(this.planeToScreen(projected.x, projected.y));
+      worldZ = this.scaleZValue(zValue);
+    } else {
+      worldZ = this.getPlanarOffset(z ?? 0);
     }
-    return this.toPoint(this.planeToScreen(x, y));
+    return this.worldToScreenPosition(new Vector3(x, y, worldZ));
+  }
+
+  getObjectiveScreenPosition(target: PointXY) {
+    const baseZ = this.getPlanarOffset(OBJECTIVE_Z_OFFSET);
+    return this.worldToScreenPosition(new Vector3(target.x, target.y, baseZ));
   }
 
   private buildPositionArray(path: number[][], planarOffset = 0) {
@@ -428,6 +490,20 @@ export class ViewportManager {
     const zValue = entry[2] !== undefined ? entry[2] : this.computeObjectiveValue(entry[0], entry[1]);
     const z = this.scaleZValue(zValue) + this.getPlanarOffset(planarOffset);
     return new Vector3(entry[0], entry[1], z);
+  }
+
+  private worldToScreenPosition(position: Vector3): PointXY {
+    const camera = this.activeCamera instanceof PerspectiveCamera ? this.perspectiveCamera : this.orthoCamera;
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const projected = position.clone().project(camera);
+    const rect = this.canvas.getBoundingClientRect();
+    const halfWidth = rect.width / 2;
+    const halfHeight = rect.height / 2;
+    return {
+      x: projected.x * halfWidth + halfWidth,
+      y: -projected.y * halfHeight + halfHeight,
+    };
   }
 
   private getFlattenTo2DProgress() {
@@ -520,13 +596,6 @@ export class ViewportManager {
     this.screenToPlaneVec.x -= this.offset.x;
     this.screenToPlaneVec.y -= this.offset.y;
     return this.screenToPlaneVec;
-  }
-
-  private planeToScreen(worldX: number, worldY: number) {
-    const pixelsPerUnit = this.getPixelsPerUnit();
-    this.planeToScreenVec.set(worldX + this.offset.x, worldY + this.offset.y).multiplyScalar(pixelsPerUnit);
-    this.planeToScreenVec.set(this.centerX + this.planeToScreenVec.x, this.centerY - this.planeToScreenVec.y);
-    return this.planeToScreenVec;
   }
 
   private toPoint(vec: Vector2): PointXY {

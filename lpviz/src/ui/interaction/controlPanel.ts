@@ -19,7 +19,7 @@ export const getRequiredElementById = <T extends HTMLElement>(id: string): T => 
   return element as T;
 };
 
-export function initializeControlPanel(canvasManager: ViewportManager, uiManager: LayoutManager, updateResult: (payload: ResultRenderPayload) => void, showAllResults?: () => void) {
+export function initializeControlPanel(canvasManager: ViewportManager, uiManager: LayoutManager, updateResult: (payload: ResultRenderPayload) => void, showAllResults?: () => void, onSettingsChange?: () => void) {
   function setupZoomHandlers() {
     uiManager.zoomButton?.addEventListener("click", () => {
       const { vertices } = getState();
@@ -119,6 +119,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       getElement: getRequiredElementById,
       resetTrace: resetTraceAndRedrawIfNeeded,
       runSolverWhenActive: (mode) => runSolverWhenActive(mode, computePath),
+      onSettingsChange,
     });
   }
 
@@ -398,7 +399,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
 function calculateMinSidebarWidth(): number {
   const logoElement = document.getElementById("nullStateMessage") as HTMLElement | null;
   const topResultContainer = document.getElementById("topResult") as HTMLElement | null;
-  if (!logoElement || !topResultContainer) return 300;
+  if (!logoElement || !topResultContainer) return 375;
 
   const style = window.getComputedStyle(topResultContainer);
   const measurementDiv = Object.assign(document.createElement("div"), { textContent: logoElement.textContent || "" });
@@ -415,5 +416,5 @@ function calculateMinSidebarWidth(): number {
   const logoWidth = measurementDiv.getBoundingClientRect().width;
   document.body.removeChild(measurementDiv);
 
-  return Math.max(280, Math.min(logoWidth + 60, 400));
+  return Math.max(375, Math.min(logoWidth + 60, 400));
 }

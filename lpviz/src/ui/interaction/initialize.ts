@@ -1,4 +1,4 @@
-import { getState, mutate, setState } from "../../state/store";
+import { getState, mutate, setState, SolverMode } from "../../state/store";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
@@ -148,9 +148,14 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     }
   }
 
+  let lastSolverFontMode: SolverMode | null = null;
+
   function finalizeResultRender() {
     canvasManager.draw();
-    adjustFontSize();
+    const currentMode = getState().solverMode;
+    const forceFont = lastSolverFontMode !== currentMode;
+    lastSolverFontMode = currentMode;
+    adjustFontSize("result", { force: forceFont });
     adjustLogoFontSize();
   }
 
@@ -194,7 +199,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
 
   const { resizeCanvas } = initializeResizeManager(canvasManager, uiManager);
   const handleUndoRedo = createUndoRedoHandler(canvasManager, saveToHistory, sendPolytope);
-  const { computePath, settingsElements } = initializeControlPanel(canvasManager, uiManager, updateResult, refreshFullVirtualResult);
+  const { computePath, settingsElements } = initializeControlPanel(canvasManager, uiManager, updateResult, refreshFullVirtualResult, () => adjustFontSize("result", { force: true }));
   const { loadStateFromObject } = createSharingHandlers(canvasManager, uiManager, settingsElements, sendPolytope);
   registerCanvasInteractions(canvasManager, uiManager, saveToHistory, sendPolytope, computePath, helpPopup);
   setupKeyboardHandlers(canvasManager, handleUndoRedo);
