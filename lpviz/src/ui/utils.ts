@@ -40,9 +40,22 @@ function adjustTextSize(config: { containerId: string; selector: string; baseSiz
   document.body.removeChild(measurementDiv);
 }
 
+const containerWidthCache = new Map<string, number>();
+
 export function adjustFontSize(containerId: string = "result"): void {
   const container = document.getElementById(containerId);
-  const selector = container?.classList.contains("virtualized") ? ".iterate-header, .iterate-item, .iterate-footer" : "div";
+  if (!container) return;
+
+  const width = container.clientWidth;
+  const previousWidth = containerWidthCache.get(containerId);
+  if (previousWidth === width) {
+    return;
+  }
+
+  containerWidthCache.set(containerId, width);
+  console.warn(`[lpviz] adjustFontSize triggered for '${containerId}', width now ${width}px`);
+
+  const selector = container.classList.contains("virtualized") ? ".iterate-header, .iterate-item, .iterate-footer" : "div";
   adjustTextSize({
     containerId,
     selector,

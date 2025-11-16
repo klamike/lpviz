@@ -5,11 +5,14 @@ import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGe
 import { UndashedLine2 } from "./rendering/three/UndashedLine2";
 import { getState, setState } from "../state/store";
 import type { PointXY, PointXYZ } from "../solvers/utils/blas";
-import { transform2DTo3DAndProject, inverseTransform2DProjection } from "./rendering/math3d";
+import { easeInOutCubic, transform2DTo3DAndProject, inverseTransform2DProjection } from "./rendering/math3d";
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
 import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./rendering/constants";
 import type { Tour } from "./tour/tour";
+
+const ORTHO_MIN_SCALE_FACTOR = 0.05;
+const ORTHO_MAX_SCALE_FACTOR = 400;
 
 export class ViewportManager {
   canvas: HTMLCanvasElement;
@@ -55,6 +58,10 @@ export class ViewportManager {
   private renderPipeline = new CanvasRenderPipeline();
   private orbitControls: OrbitControls;
   private orbitControlsActive = false;
+  private orthoControls: OrbitControls;
+  private suppressOrthoControlChange = false;
+  private orthographicControlsSuspended = false;
+  private drawingPanSuspended = false;
 
   private constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -105,6 +112,19 @@ export class ViewportManager {
     this.orbitControls.dampingFactor = 0.08;
     this.orbitControls.enableRotate = false;
     this.orbitControls.addEventListener("change", () => this.draw());
+
+    this.orthoControls = new OrbitControls(this.orthoCamera, this.canvas);
+    this.orthoControls.enableRotate = false;
+    this.orthoControls.enablePan = true;
+    this.orthoControls.enableZoom = true;
+    this.orthoControls.screenSpacePanning = true;
+    this.orthoControls.enableDamping = false;
+    this.orthoControls.mouseButtons.LEFT = MOUSE.PAN;
+    this.orthoControls.mouseButtons.RIGHT = MOUSE.DOLLY;
+    this.orthoControls.mouseButtons.MIDDLE = MOUSE.DOLLY;
+    this.orthoControls.addEventListener("change", this.handleOrthoControlsChange);
+    this.orthoControls.target.copy(this.getViewportTarget());
+    this.orthoControls.update();
 
     this.initialized = true;
     this.updateDimensions();
@@ -198,6 +218,8 @@ export class ViewportManager {
       computeObjectiveValue: this.computeObjectiveValue.bind(this),
       scaleZValue: this.scaleZValue.bind(this),
       getPlanarOffset: this.getPlanarOffset.bind(this),
+      flattenTo2DProgress: this.getFlattenTo2DProgress(),
+      getFinalPlanarOffset: (offset: number) => offset,
       getVertexZ: this.getVertexZ.bind(this),
     };
   }
@@ -245,9 +267,15 @@ export class ViewportManager {
       this.orthoCamera.position.set(targetX, targetY, 10);
       this.orthoCamera.lookAt(new Vector3(targetX, targetY, 0));
       this.orthoCamera.updateProjectionMatrix();
+      this.orthoControls.enabled = this.shouldEnableOrthographicControls();
+      this.suppressOrthoControlChange = true;
+      this.orthoControls.target.set(targetX, targetY, 0);
+      this.orthoControls.update();
+      this.suppressOrthoControlChange = false;
       return;
     }
 
+    this.orthoControls.enabled = false;
     this.activeCamera = this.perspectiveCamera;
     this.perspectiveCamera.aspect = window.innerWidth / window.innerHeight;
     this.perspectiveCamera.updateProjectionMatrix();
@@ -260,6 +288,108 @@ export class ViewportManager {
 
     if (!this.orbitControlsActive) {
       this.activateOrbitControls();
+    }
+  }
+
+  private shouldEnableOrthographicControls() {
+    const { is3DMode, isTransitioning3D } = getState();
+    return !is3DMode && !isTransitioning3D && !this.orthographicControlsSuspended;
+  }
+
+  private handleOrthoControlsChange = () => {
+    if (this.suppressOrthoControlChange) return;
+    const { is3DMode, isTransitioning3D } = getState();
+    if (is3DMode || isTransitioning3D) return;
+
+    const zoomValue = this.orthoCamera.zoom;
+    if (Number.isFinite(zoomValue) && zoomValue !== 1) {
+      this.scaleFactor = this.clampScaleFactor(this.scaleFactor * zoomValue);
+      this.orthoCamera.zoom = 1;
+      this.orthoCamera.updateProjectionMatrix();
+    }
+
+    const target = this.orthoControls.target.clone();
+    this.setOffsetFromTarget(target);
+    this.draw();
+  };
+
+  private setOffsetFromTarget(target: Vector3) {
+    const unitsPerPixel = this.getUnitsPerPixel();
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const centerShiftX = (this.centerX - width / 2) * unitsPerPixel;
+    const centerShiftY = (this.centerY - height / 2) * unitsPerPixel;
+    this.offset.x = -target.x - centerShiftX;
+    this.offset.y = -target.y + centerShiftY;
+  }
+
+  private clampScaleFactor(value: number) {
+    return Math.max(ORTHO_MIN_SCALE_FACTOR, Math.min(ORTHO_MAX_SCALE_FACTOR, value));
+  }
+
+  private applyControlsTargetFromOffset() {
+    const target = this.getViewportTarget();
+    this.suppressOrthoControlChange = true;
+    this.orthoControls.target.copy(target);
+    this.orthoControls.update();
+    this.orthoCamera.zoom = 1;
+    this.orthoCamera.updateProjectionMatrix();
+    this.suppressOrthoControlChange = false;
+  }
+
+  setViewState(scale: number, offsetX: number, offsetY: number) {
+    this.scaleFactor = this.clampScaleFactor(scale);
+    this.offset.x = offsetX;
+    this.offset.y = offsetY;
+    this.applyControlsTargetFromOffset();
+    this.draw();
+  }
+
+  resetView() {
+    this.setViewState(1, 0, 0);
+  }
+
+  zoomToFit(bounds: { minX: number; maxX: number; minY: number; maxY: number }, padding = 50) {
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+    if (width <= 0 || height <= 0) return;
+
+    const sidebarWidth = document.getElementById("sidebar")?.offsetWidth ?? 0;
+    const availWidth = Math.max(100, window.innerWidth - sidebarWidth - 2 * padding);
+    const availHeight = Math.max(100, window.innerHeight - 2 * padding);
+    const scaleX = availWidth / (width * this.gridSpacing);
+    const scaleY = availHeight / (height * this.gridSpacing);
+    const targetScale = Math.min(scaleX, scaleY);
+    const offsetX = -(bounds.minX + bounds.maxX) / 2;
+    const offsetY = -(bounds.minY + bounds.maxY) / 2;
+    this.setViewState(targetScale, offsetX, offsetY);
+  }
+
+  isDefaultView() {
+    return this.scaleFactor === 1 && this.offset.x === 0 && this.offset.y === 0;
+  }
+
+  disable2DControls() {
+    this.orthographicControlsSuspended = true;
+    this.orthoControls.enabled = false;
+  }
+
+  suspend2DPan() {
+    this.drawingPanSuspended = true;
+    this.orthoControls.enablePan = false;
+  }
+
+  resume2DPan() {
+    this.drawingPanSuspended = false;
+    if (this.shouldEnableOrthographicControls()) {
+      this.orthoControls.enablePan = true;
+    }
+  }
+
+  enable2DControls() {
+    this.orthographicControlsSuspended = false;
+    if (this.shouldEnableOrthographicControls()) {
+      this.orthoControls.enabled = true;
     }
   }
 
@@ -298,6 +428,16 @@ export class ViewportManager {
     const zValue = entry[2] !== undefined ? entry[2] : this.computeObjectiveValue(entry[0], entry[1]);
     const z = this.scaleZValue(zValue) + this.getPlanarOffset(planarOffset);
     return new Vector3(entry[0], entry[1], z);
+  }
+
+  private getFlattenTo2DProgress() {
+    const { isTransitioning3D, transitionStartTime, transitionDuration, is3DMode } = getState();
+    if (!isTransitioning3D || is3DMode) {
+      return 0;
+    }
+    const elapsed = performance.now() - transitionStartTime;
+    const rawProgress = Math.min(Math.max(elapsed / transitionDuration, 0), 1);
+    return easeInOutCubic(rawProgress);
   }
 
   private createStarSprite(position: Vector3, color: number) {
@@ -400,18 +540,6 @@ export class ViewportManager {
       point.y = Math.round(point.y);
     }
     return point;
-  }
-
-  setOffsetForAnchor(screenX: number, screenY: number, logicalPoint: PointXY, scale = this.scaleFactor) {
-    const unitsPerPixel = this.getUnitsPerPixel(scale);
-    this.offset.x = (screenX - this.centerX) * unitsPerPixel - logicalPoint.x;
-    this.offset.y = (this.centerY - screenY) * unitsPerPixel - logicalPoint.y;
-  }
-
-  panByScreenDelta(deltaX: number, deltaY: number) {
-    const unitsPerPixel = this.getUnitsPerPixel();
-    this.offset.x += deltaX * unitsPerPixel;
-    this.offset.y -= deltaY * unitsPerPixel;
   }
 
   private getViewportTarget(unitsPerPixel = this.getUnitsPerPixel()) {

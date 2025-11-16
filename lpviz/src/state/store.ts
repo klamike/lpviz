@@ -3,12 +3,20 @@ import type { PolytopeRepresentation } from "../solvers/utils/polytope";
 import type { HistoryEntry } from "./history";
 import { computeDrawingSnapshot } from "./drawing";
 import type { DrawingPhaseSnapshot } from "./drawing";
+import { MAX_TRACE_POINT_SPRITES, TRACE_Z_OFFSET } from "../ui/rendering/constants";
 
 export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
 type InputMode = "visual" | "manual";
 
+interface TraceLineData {
+  positions2D: number[];
+  positions3D: number[];
+  sampledPositions2D: number[];
+  sampledPositions3D: number[];
+}
+
 interface TraceEntry {
-  path: number[][];
+  lineData: TraceLineData;
   angle: number;
 }
 
@@ -191,13 +199,55 @@ export function addTraceToBuffer(iteratesArray: number[][]): void {
   const { traceEnabled } = getState();
   if (!traceEnabled || iteratesArray.length === 0) return;
 
+  const lineData = buildTraceLineData(iteratesArray);
   mutate((draft) => {
     draft.traceBuffer.push({
-      path: [...iteratesArray],
+      lineData,
       angle: draft.totalRotationAngle,
     });
     while (draft.traceBuffer.length > draft.maxTraceCount) draft.traceBuffer.shift();
   });
+}
+
+function buildTraceLineData(path: number[][]): TraceLineData {
+  const { objectiveVector, zScale } = getState();
+  const computeObjective = (x: number, y: number) => (objectiveVector ? objectiveVector.x * x + objectiveVector.y * y : 0);
+  const positions2D: number[] = [];
+  const positions3D: number[] = [];
+  const scaledZValues: number[] = [];
+
+  for (let i = 0; i < path.length; i++) {
+    const entry = path[i];
+    const zValue = entry[2] !== undefined ? entry[2] : computeObjective(entry[0], entry[1]);
+    const scaledZ = (zValue * zScale) / 100;
+    scaledZValues[i] = scaledZ;
+    positions3D.push(entry[0], entry[1], scaledZ);
+    positions2D.push(entry[0], entry[1], scaledZ + TRACE_Z_OFFSET);
+  }
+
+  const sampledPositions2D: number[] = [];
+  const sampledPositions3D: number[] = [];
+  if (path.length === 0) {
+    return { positions2D, positions3D, sampledPositions2D, sampledPositions3D };
+  }
+
+  const step = Math.max(1, Math.ceil(path.length / MAX_TRACE_POINT_SPRITES));
+  for (let i = 0; i < path.length; i += step) {
+    const entry = path[i];
+    const scaledZ = scaledZValues[i];
+    sampledPositions3D.push(entry[0], entry[1], scaledZ);
+    sampledPositions2D.push(entry[0], entry[1], scaledZ + TRACE_Z_OFFSET);
+  }
+
+  const lastIdx = path.length - 1;
+  if (lastIdx % step !== 0) {
+    const entry = path[lastIdx];
+    const scaledZ = scaledZValues[lastIdx];
+    sampledPositions3D.push(entry[0], entry[1], scaledZ);
+    sampledPositions2D.push(entry[0], entry[1], scaledZ + TRACE_Z_OFFSET);
+  }
+
+  return { positions2D, positions3D, sampledPositions2D, sampledPositions3D };
 }
 
 export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {

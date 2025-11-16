@@ -95,7 +95,7 @@ export class LayoutManager {
   }
 
   updateZoomButtonsState(canvasManager: ViewportManager) {
-    if (canvasManager.scaleFactor === 1 && canvasManager.offset.x === 0 && canvasManager.offset.y === 0) {
+    if (canvasManager.isDefaultView()) {
       this.zoomButton!.disabled = false;
     } else {
       this.unzoomButton!.disabled = false;

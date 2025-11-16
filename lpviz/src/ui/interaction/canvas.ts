@@ -9,10 +9,22 @@ import { InactivityHelpOverlay } from "../tour/tour";
 export function registerCanvasInteractions(canvasManager: ViewportManager, uiManager: LayoutManager, saveToHistory: () => void, sendPolytope: () => void, recomputeSolver?: () => void, helpPopup?: InactivityHelpOverlay): void {
   const canvas = canvasManager.canvas;
   let constraintDragContext: Line[] | null = null;
-  const setButtonState = (id: string, enabled: boolean) => {
-    const button = document.getElementById(id) as HTMLButtonElement | null;
-    if (button) button.disabled = !enabled;
+
+  // const setButtonState = (id: string, enabled: boolean) => {
+  //   const button = document.getElementById(id) as HTMLButtonElement | null;
+  //   if (button) button.disabled = !enabled;
+  // };
+
+  const VERTEX_HIT_RADIUS = 12;
+  const updatePanControls = () => {
+    const drawingPhase = getState().snapshot.phase !== "ready_for_solvers";
+    if (drawingPhase) {
+      canvasManager.suspend2DPan();
+    } else {
+      canvasManager.resume2DPan();
+    }
   };
+  updatePanControls();
 
   const getLogicalFromClient = (clientX: number, clientY: number): PointXY => {
     const rect = canvas.getBoundingClientRect();
@@ -34,12 +46,23 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       constraintDragNormal: null,
     });
     constraintDragContext = null;
+    canvasManager.enable2DControls();
+    updatePanControls();
   };
 
   const exceedsDragThreshold = (clientX: number, clientY: number) => {
     const { dragStartPos } = getState();
     if (!dragStartPos) return false;
     return Math.hypot(clientX - dragStartPos.x, clientY - dragStartPos.y) > 5;
+  };
+
+  const findVertexNearLocalPoint = (localX: number, localY: number, rect: DOMRect, vertices: PointXY[]) => {
+    return vertices.findIndex((vertex) => {
+      const canvasPoint = canvasManager.toCanvasCoords(vertex.x, vertex.y);
+      const hitX = canvasPoint.x - rect.left;
+      const hitY = canvasPoint.y - rect.top;
+      return Math.hypot(localX - hitX, localY - hitY) <= VERTEX_HIT_RADIUS;
+    });
   };
 
   function handleDragStart(clientX: number, clientY: number) {
@@ -51,13 +74,14 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     const phaseSnapshot = state.snapshot;
 
     if (phaseSnapshot.phase === "empty" || phaseSnapshot.phase === "sketching_polytope") {
-      const idx = state.vertices.findIndex((v) => VRep.distance(logicalCoords, v) < 0.5);
+      const idx = findVertexNearLocalPoint(localX, localY, rect, state.vertices);
       if (idx !== -1) {
         setState({
           potentialDragPointIndex: idx,
           potentialDragPoint: true,
           dragStartPos: { x: clientX, y: clientY },
         });
+        canvasManager.disable2DControls();
       }
       return;
     }
@@ -66,17 +90,19 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       const tip = canvasManager.toCanvasCoords(state.objectiveVector.x, state.objectiveVector.y);
       if (Math.hypot(localX - tip.x, localY - tip.y) < 10) {
         setState({ draggingObjective: true });
+        canvasManager.disable2DControls();
         return;
       }
     }
 
-    const idx = state.vertices.findIndex((v) => VRep.distance(logicalCoords, v) < 0.5);
+    const idx = findVertexNearLocalPoint(localX, localY, rect, state.vertices);
     if (idx !== -1) {
       setState({
         potentialDragPointIndex: idx,
         potentialDragPoint: true,
         dragStartPos: { x: clientX, y: clientY },
       });
+      canvasManager.disable2DControls();
       return;
     }
 
@@ -115,13 +141,6 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
         return;
       }
     }
-
-    if (state.objectiveVector) {
-      setState({
-        isPanning: true,
-        lastPan: { x: clientX, y: clientY },
-      });
-    }
   }
 
   function handleDragMove(clientX: number, clientY: number) {
@@ -138,6 +157,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
           potentialDragPointIndex: null,
           potentialDragPoint: false,
         });
+        canvasManager.disable2DControls();
         interaction = getState();
       }
     }
@@ -148,6 +168,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
           draggingConstraint: true,
           potentialDragConstraint: false,
         });
+        canvasManager.disable2DControls();
         interaction = getState();
       }
     }
@@ -197,16 +218,6 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       return;
     }
 
-    if (interaction.isPanning && interaction.lastPan) {
-      const dx = clientX - interaction.lastPan.x;
-      const dy = clientY - interaction.lastPan.y;
-      canvasManager.panByScreenDelta(dx, dy);
-      setState({ lastPan: { x: clientX, y: clientY } });
-      canvasManager.draw();
-      setButtonState("unzoomButton", true);
-      return;
-    }
-
     if (helpPopup?.isTouring()) {
       return;
     }
@@ -222,12 +233,6 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
   function handleDragEnd() {
     const interaction = getState();
-
-    if (interaction.isPanning) {
-      setState({ isPanning: false, wasPanning: true });
-      cleanupDragState();
-      return;
-    }
 
     if (interaction.draggingConstraint) {
       saveToHistory();
@@ -317,6 +322,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     uiManager.updateSolverModeButtons();
     uiManager.updateObjectiveDisplay();
     canvasManager.draw();
+    updatePanControls();
   }
 
   // ===== POINTER EVENTS =====
@@ -366,7 +372,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       if (is3DMode || isTransitioning3D) return;
       if (e.touches.length === 1) {
         const interaction = getState();
-        if (interaction.isPanning || interaction.draggingPoint || interaction.draggingObjective) {
+        if (interaction.draggingPoint || interaction.draggingObjective) {
           e.preventDefault();
         }
         const touch = e.touches[0];
@@ -382,10 +388,31 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       const { is3DMode, isTransitioning3D } = getState();
       if (is3DMode || isTransitioning3D) return;
       const interaction = getState();
-      if (interaction.isPanning || interaction.draggingPoint || interaction.draggingObjective) {
+      if (interaction.draggingPoint || interaction.draggingObjective) {
         e.preventDefault();
       }
       handleDragEnd();
+    },
+    { passive: false },
+  );
+
+  canvas.addEventListener(
+    "wheel",
+    (e: WheelEvent) => {
+      const { is3DMode, isTransitioning3D, zScale } = getState();
+      const is3D = is3DMode || isTransitioning3D;
+      if (!is3D || !e.shiftKey || isTransitioning3D) {
+        return;
+      }
+      e.preventDefault();
+      const zoomFactor = 1.05;
+      const dominantDelta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (dominantDelta === 0) return;
+      const effectiveScale = (zScale || 0.1) * (dominantDelta < 0 ? 1 / zoomFactor : zoomFactor);
+      const clampedScale = Math.max(0.01, Math.min(100, effectiveScale));
+      setState({ zScale: clampedScale });
+      canvasManager.draw();
+      uiManager.updateZScaleValue();
     },
     { passive: false },
   );
@@ -447,10 +474,9 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     }
 
     // Ignore clicks that were part of drag operations
-    const { wasPanning, wasDraggingPoint, wasDraggingObjective, wasDraggingConstraint } = getState();
-    if (wasPanning || wasDraggingPoint || wasDraggingObjective || wasDraggingConstraint) {
+    const { wasDraggingPoint, wasDraggingObjective, wasDraggingConstraint } = getState();
+    if (wasDraggingPoint || wasDraggingObjective || wasDraggingConstraint) {
       setState({
-        wasPanning: false,
         wasDraggingPoint: false,
         wasDraggingObjective: false,
         wasDraggingConstraint: false,
@@ -470,40 +496,4 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     }
   });
 
-  // ===== WHEEL EVENT HANDLER =====
-
-  const MAX_SCALE_FACTOR = 400;
-
-  canvas.addEventListener("wheel", (e) => {
-    const { is3DMode, isTransitioning3D, zScale } = getState();
-    const is3D = is3DMode || isTransitioning3D;
-    const zoomFactor = 1.05;
-
-    if (is3D) {
-      if (e.shiftKey && !isTransitioning3D) {
-        e.preventDefault();
-        const dominantDelta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-        if (dominantDelta !== 0) {
-          const delta = (zScale || 0.1) * (dominantDelta < 0 ? 1 / zoomFactor : zoomFactor);
-          setState({ zScale: Math.max(0.01, Math.min(100, delta)) });
-          canvasManager.draw();
-          uiManager.updateZScaleValue();
-        }
-      }
-      return;
-    }
-
-    e.preventDefault();
-
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const newScale = Math.min(MAX_SCALE_FACTOR, Math.max(0.05, e.deltaY < 0 ? canvasManager.scaleFactor * zoomFactor : canvasManager.scaleFactor / zoomFactor));
-
-    const focusPoint = canvasManager.toLogicalCoords(mouseX, mouseY);
-    canvasManager.scaleFactor = newScale;
-    canvasManager.setOffsetForAnchor(mouseX, mouseY, focusPoint);
-    canvasManager.draw();
-  });
 }

@@ -3,7 +3,7 @@ import { getState } from "../../state/store";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
-import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, MAX_TRACE_POINT_SPRITES, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
+import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
 import { CanvasRenderContext } from "./types";
 
 const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {
@@ -16,6 +16,8 @@ const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {
   shape.closePath();
   return shape;
 };
+
+const lerp = (start: number, end: number, t: number) => start + (end - start) * t;
 
 export class CanvasRenderPipeline {
   render(context: CanvasRenderContext): void {
@@ -78,7 +80,7 @@ export class CanvasRenderPipeline {
   }
 
   private renderPolytope(context: CanvasRenderContext) {
-    const { helpers, groups, is3D, skipPreviewDrawing } = context;
+    const { helpers, groups, is3D, skipPreviewDrawing, flattenTo2DProgress, getFinalPlanarOffset } = context;
     helpers.clearGroup(groups.polytopeFill);
     helpers.clearGroup(groups.polytopeOutline);
     helpers.clearGroup(groups.polytopeVertices);
@@ -89,7 +91,12 @@ export class CanvasRenderPipeline {
     }
 
     const vrep = VRep.fromPoints(vertices);
-    const zFn = is3D ? (x: number, y: number) => context.scaleZValue(context.computeObjectiveValue(x, y)) : (x: number, y: number) => context.getVertexZ(x, y);
+    const getObjectiveZValue = (x: number, y: number) => context.scaleZValue(context.computeObjectiveValue(x, y));
+    const mixHeight = (z3D: number, planarZ: number) => {
+      if (!is3D) return planarZ;
+      if (!flattenTo2DProgress) return z3D;
+      return lerp(z3D, planarZ, flattenTo2DProgress);
+    };
 
     if (polytopeComplete && vertices.length >= 3 && inputMode !== "manual") {
       const material = new MeshBasicMaterial({
@@ -106,14 +113,18 @@ export class CanvasRenderPipeline {
 
       let mesh: Mesh;
       if (is3D) {
-        const positions: number[] = [];
-        vertices.forEach((v) => positions.push(v.x, v.y, zFn(v.x, v.y)));
+        const shapePositions: number[] = [];
+        vertices.forEach((v) => {
+          const z3D = getObjectiveZValue(v.x, v.y);
+          const planarZ = getFinalPlanarOffset(0);
+          shapePositions.push(v.x, v.y, mixHeight(z3D, planarZ));
+        });
         const indices: number[] = [];
         for (let i = 1; i < vertices.length - 1; i++) {
           indices.push(0, i, i + 1);
         }
         const geom = new BufferGeometry();
-        geom.setAttribute("position", new Float32BufferAttribute(positions, 3));
+        geom.setAttribute("position", new Float32BufferAttribute(shapePositions, 3));
         geom.setIndex(indices);
         geom.computeVertexNormals();
         mesh = new Mesh(geom, material);
@@ -131,8 +142,10 @@ export class CanvasRenderPipeline {
       if (!polytopeComplete && nextIndex >= vertices.length) break;
       const v = vertices[i];
       const next = vertices[nextIndex];
-      const z1 = zFn(v.x, v.y) + EDGE_Z_OFFSET;
-      const z2 = zFn(next.x, next.y) + EDGE_Z_OFFSET;
+      const z1Base = getObjectiveZValue(v.x, v.y);
+      const z2Base = getObjectiveZValue(next.x, next.y);
+      const z1 = mixHeight(z1Base + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
+      const z2 = mixHeight(z2Base + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
       const positions = [v.x, v.y, z1, next.x, next.y, z2];
       const highlight = inputMode !== "manual" && highlightIndex === i;
       const edgeLine = helpers.createThickLine(positions, {
@@ -146,7 +159,9 @@ export class CanvasRenderPipeline {
 
     const vertexSizePx = VERTEX_POINT_PIXEL_SIZE;
     vertices.forEach((v) => {
-      const position = new Vector3(v.x, v.y, zFn(v.x, v.y) + VERTEX_Z_OFFSET);
+      const baseZ = getObjectiveZValue(v.x, v.y);
+      const z = mixHeight(baseZ + VERTEX_Z_OFFSET, getFinalPlanarOffset(VERTEX_Z_OFFSET));
+      const position = new Vector3(v.x, v.y, z);
       const sprite = helpers.createCircleSpriteWithPixelSize(position, COLORS.vertex, vertexSizePx);
       sprite.renderOrder = RENDER_LAYERS.polytopeVertices;
       groups.polytopeVertices.add(sprite);
@@ -167,8 +182,10 @@ export class CanvasRenderPipeline {
 
     if (!polytopeComplete && vertices.length >= 1 && currentMouse && !skipPreviewDrawing) {
       const last = vertices[vertices.length - 1];
-      const lastZ = context.getVertexZ(last.x, last.y, EDGE_Z_OFFSET);
-      const previewZ = context.getVertexZ(currentMouse.x, currentMouse.y, EDGE_Z_OFFSET);
+      const lastZBase = context.scaleZValue(context.computeObjectiveValue(last.x, last.y));
+      const previewZBase = context.scaleZValue(context.computeObjectiveValue(currentMouse.x, currentMouse.y));
+      const lastZ = mixHeight(lastZBase + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
+      const previewZ = mixHeight(previewZBase + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
       const previewPositions = [last.x, last.y, lastZ, currentMouse.x, currentMouse.y, previewZ];
       const previewLine = helpers.createThickLine(previewPositions, {
         color: 0x000000,
@@ -270,10 +287,11 @@ export class CanvasRenderPipeline {
 
     const sampledPositions: number[] = [];
     traceBuffer.forEach((traceEntry) => {
-      const path = traceEntry.path;
-      if (!path || path.length === 0) return;
-      const positions = helpers.buildPositionArray(path, TRACE_Z_OFFSET);
-      const line = helpers.createThickLine(Array.from(positions), {
+      const lineData = traceEntry.lineData;
+      if (!lineData) return;
+      const positions = is3D ? lineData.positions3D : lineData.positions2D;
+      if (positions.length === 0) return;
+      const line = helpers.createThickLine(positions, {
         color: COLORS.trace,
         width: TRACE_LINE_THICKNESS,
         depthTest: is3D,
@@ -282,15 +300,9 @@ export class CanvasRenderPipeline {
       line.renderOrder = RENDER_LAYERS.traceLine;
       groups.trace.add(line);
 
-      const step = Math.max(1, Math.ceil(path.length / MAX_TRACE_POINT_SPRITES));
-      for (let i = 0; i < path.length; i += step) {
-        const vec = helpers.buildPositionVector(path[i], TRACE_Z_OFFSET);
-        sampledPositions.push(vec.x, vec.y, vec.z);
-      }
-      const lastIdx = path.length - 1;
-      if (lastIdx % step !== 0) {
-        const vec = helpers.buildPositionVector(path[lastIdx], TRACE_Z_OFFSET);
-        sampledPositions.push(vec.x, vec.y, vec.z);
+      const pointPositions = is3D ? lineData.sampledPositions3D : lineData.sampledPositions2D;
+      if (pointPositions.length) {
+        sampledPositions.push(...pointPositions);
       }
     });
 
@@ -314,7 +326,7 @@ export class CanvasRenderPipeline {
   }
 
   private renderIterate(context: CanvasRenderContext) {
-    const { helpers, groups } = context;
+    const { helpers, groups, is3D, flattenTo2DProgress, getFinalPlanarOffset } = context;
     helpers.clearGroup(groups.iterate);
     helpers.clearGroup(groups.overlay);
 
@@ -323,7 +335,29 @@ export class CanvasRenderPipeline {
       return;
     }
 
-    const positions = helpers.buildPositionArray(iteratePath, ITERATE_Z_OFFSET);
+    const planarIterateZ = getFinalPlanarOffset(ITERATE_Z_OFFSET);
+    const blendIterateZ = (entry: number[]) => {
+      const zValue = entry[2] !== undefined ? entry[2] : context.computeObjectiveValue(entry[0], entry[1]);
+      const z3D = context.scaleZValue(zValue);
+      if (!is3D) {
+        return planarIterateZ;
+      }
+      if (!flattenTo2DProgress) {
+        return z3D;
+      }
+      return lerp(z3D, planarIterateZ, flattenTo2DProgress);
+    };
+
+    const positions = new Float32Array(iteratePath.length * 3);
+    for (let i = 0; i < iteratePath.length; i++) {
+      const entry = iteratePath[i];
+      const z = blendIterateZ(entry);
+      positions[i * 3] = entry[0];
+      positions[i * 3 + 1] = entry[1];
+      positions[i * 3 + 2] = z;
+    }
+
+    const buildIteratePosition = (entry: number[]) => new Vector3(entry[0], entry[1], blendIterateZ(entry));
     const iterateLine = helpers.createThickLine(Array.from(positions), {
       color: COLORS.iteratePath,
       width: ITERATE_LINE_THICKNESS,
@@ -350,14 +384,14 @@ export class CanvasRenderPipeline {
     groups.iterate.add(iteratePoints);
 
     if (highlightIteratePathIndex !== null && highlightIteratePathIndex < iteratePath.length) {
-      const highlightPos = helpers.buildPositionVector(iteratePath[highlightIteratePathIndex], ITERATE_Z_OFFSET);
+      const highlightPos = buildIteratePosition(iteratePath[highlightIteratePathIndex]);
       const highlightSize = helpers.getWorldSizeFromPixels(ITERATE_POINT_PIXEL_SIZE * 1.3, highlightPos);
       const highlightSprite = helpers.createCircleSprite(highlightPos, COLORS.iterateHighlight, highlightSize);
       highlightSprite.renderOrder = RENDER_LAYERS.iterateHighlight;
       groups.iterate.add(highlightSprite);
     }
 
-    const lastPos = helpers.buildPositionVector(iteratePath[iteratePath.length - 1], ITERATE_Z_OFFSET);
+    const lastPos = buildIteratePosition(iteratePath[iteratePath.length - 1]);
     const star = helpers.createStarSprite(lastPos, COLORS.iterateHighlight);
     star.renderOrder = RENDER_LAYERS.iterateStar;
     groups.overlay.add(star);

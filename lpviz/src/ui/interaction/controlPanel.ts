@@ -26,32 +26,16 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       const bounds = VRep.fromPoints(vertices).boundingBox();
       if (!bounds) return;
 
-      const width = bounds.maxX - bounds.minX;
-      const height = bounds.maxY - bounds.minY;
-      canvasManager.offset.x = -(bounds.minX + bounds.maxX) / 2;
-      canvasManager.offset.y = -(bounds.minY + bounds.maxY) / 2;
-
-      const padding = 50;
+      canvasManager.zoomToFit(bounds);
       const sidebarWidth = document.getElementById("sidebar")?.offsetWidth ?? 0;
-      const availWidth = window.innerWidth - sidebarWidth - 2 * padding;
-      const availHeight = window.innerHeight - 2 * padding;
-
-      if (width > 0 && height > 0) {
-        canvasManager.scaleFactor = Math.min(availWidth / (width * canvasManager.gridSpacing), availHeight / (height * canvasManager.gridSpacing));
-      }
-
       canvasManager.centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
       canvasManager.centerY = window.innerHeight / 2;
-      canvasManager.draw();
       uiManager.updateZoomButtonsState(canvasManager);
     });
 
     uiManager.unzoomButton?.addEventListener("click", () => {
-      canvasManager.scaleFactor = 1;
-      canvasManager.offset.x = 0;
-      canvasManager.offset.y = 0;
+      canvasManager.resetView();
       setState({ viewAngle: { x: -1.15, y: 0.4, z: 0 } });
-      canvasManager.draw();
       uiManager.updateZoomButtonsState(canvasManager);
     });
   }
