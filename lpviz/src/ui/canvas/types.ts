@@ -1,12 +1,12 @@
-import { CanvasTexture, Group, PointsMaterial, Sprite, Vector2, Vector3 } from "three";
+import { CanvasTexture, Group, LineBasicMaterial, PointsMaterial, Sprite, Vector2, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { PointXY } from "../../types/arrays";
 
 export interface CanvasGroups {
   grid: Group;
-  polygonFill: Group;
-  polygonOutline: Group;
-  polygonVertices: Group;
+  polytopeFill: Group;
+  polytopeOutline: Group;
+  polytopeVertices: Group;
   constraint: Group;
   objective: Group;
   trace: Group;
@@ -33,6 +33,7 @@ export interface CanvasRenderHelpers {
   getWorldSizeFromPixels(pixels: number, worldPosition?: Vector3): number;
   getCircleTexture(): CanvasTexture;
   getPointMaterial(options: PointMaterialOptions): PointsMaterial;
+  getLineBasicMaterial(options: LineBasicMaterialOptions): LineBasicMaterial;
 }
 
 export interface PointMaterialOptions {
@@ -44,6 +45,14 @@ export interface PointMaterialOptions {
   transparent?: boolean;
   opacity?: number;
   alphaTest?: number;
+}
+
+export interface LineBasicMaterialOptions {
+  color: number;
+  transparent?: boolean;
+  opacity?: number;
+  depthTest?: boolean;
+  depthWrite?: boolean;
 }
 
 export interface CanvasRenderContext {
@@ -64,6 +73,3 @@ export interface CanvasRenderContext {
   getVertexZ(x: number, y: number, extra?: number): number;
 }
 
-export interface CanvasLayerRenderer {
-  render(context: CanvasRenderContext): void;
-}

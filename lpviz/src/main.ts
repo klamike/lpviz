@@ -1,14 +1,14 @@
-import { CanvasManager } from "./ui/canvasManager";
-import { UIManager } from "./ui/uiManager";
-import { setupEventHandlers } from "./ui/eventHandlers";
-import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./utils/uiHelpers";
-import { GuidedTour, HelpPopup } from "./ui/guidedTour";
+import { CanvasViewportManager } from "./ui/managers/canvasViewportManager";
+import { InterfaceLayoutManager } from "./ui/managers/interfaceLayoutManager";
+import { initializeApplicationInteractions } from "./ui/interactions/applicationEventRegistry";
+import { adjustLogoFontSize, adjustFontSize, adjustTerminalHeight } from "./ui/utils";
+import { GuidedExperience, InactivityHelpOverlay, NonconvexHullHintOverlay } from "./ui/overlays/guidedExperience";
 import JSONCrush from "jsoncrush";
 
 async function initializeApplication() {
   const canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
-  const canvasManager = await CanvasManager.create(canvas);
-  const uiManager = new UIManager();
+  const canvasManager = await CanvasViewportManager.create(canvas);
+  const uiManager = new InterfaceLayoutManager();
 
   function resizeCanvas() {
     uiManager.checkMobileOrientation();
@@ -24,10 +24,8 @@ async function initializeApplication() {
     adjustFontSize();
     adjustLogoFontSize();
     adjustTerminalHeight();
-    
-    if (resizeTimeout) {
-      clearTimeout(resizeTimeout);
-    }
+
+    if (resizeTimeout) clearTimeout(resizeTimeout);
     resizeTimeout = window.setTimeout(() => {
       resizeCanvas();
       resizeTimeout = null;
@@ -35,20 +33,16 @@ async function initializeApplication() {
   }
 
   window.addEventListener("resize", throttledResize);
-  
-  const guidedTour = new GuidedTour(
-    canvasManager, 
-    uiManager,
-    () => {}, 
-    () => {}
-  );
-  const helpPopup = new HelpPopup(guidedTour);
 
-  const handlers = setupEventHandlers(canvasManager, uiManager, helpPopup);
+  const guidedTour = new GuidedExperience(canvasManager, uiManager, () => {}, () => {});
+  const helpPopup = new InactivityHelpOverlay(guidedTour);
+  new NonconvexHullHintOverlay(guidedTour);
+
+  const handlers = initializeApplicationInteractions(canvasManager, uiManager, helpPopup);
 
   guidedTour.setSendPolytope(handlers.sendPolytope);
   guidedTour.setSaveToHistory(handlers.saveToHistory);
-  canvasManager.setTourComponents(guidedTour);
+  canvasManager.attachGuidedExperience(guidedTour);
   uiManager.synchronizeUIWithState();
   resizeCanvas();
 
@@ -67,7 +61,7 @@ async function initializeApplication() {
       console.error("Failed to load shared state", err);
     }
   }
-  
+
   if (params.has("demo")) {
     guidedTour.startGuidedTour();
   }

@@ -4,6 +4,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 const DEFAULT_BOUNDING_EXTENT = 1e9;
 
 export class AlwaysVisibleLineGeometry extends LineGeometry {
+  // Avoid computing bounding volumes; effectively ignored in frustum culling
   override computeBoundingBox() {
     if (this.boundingBox === null) {
       this.boundingBox = new Box3();

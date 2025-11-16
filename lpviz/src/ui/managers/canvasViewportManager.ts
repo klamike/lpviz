@@ -1,43 +1,16 @@
-import {
-  WebGLRenderer,
-  Scene,
-  PerspectiveCamera,
-  OrthographicCamera,
-  Group,
-  Vector3,
-  Vector2,
-  Sprite,
-  SpriteMaterial,
-  CanvasTexture,
-  Euler,
-  NearestFilter,
-  PointsMaterial,
-  Material,
-} from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { AlwaysVisibleLineGeometry } from "../three/AlwaysVisibleLineGeometry";
-import { UndashedLine2 } from "../three/UndashedLine2";
-import { getObjectiveState, getViewState, getInteractionState } from "../state/state";
-import { PointXY } from "../types/arrays";
-import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../utils/math3d";
-import {
-  CanvasRenderContext,
-  CanvasRenderHelpers,
-  PointMaterialOptions,
-  ThickLineOptions,
-} from "./canvas/types";
-import {
-  GridRenderer,
-  PolygonRenderer,
-  ConstraintRenderer,
-  ObjectiveRenderer,
-  TraceRenderer,
-  IterateRenderer,
-} from "./canvas/renderers";
-import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./canvas/constants";
-import type { GuidedTour } from "./guidedTour";
+import { AlwaysVisibleLineGeometry } from "../../three/AlwaysVisibleLineGeometry";
+import { UndashedLine2 } from "../../three/UndashedLine2";
+import { getState } from "../../state/store";
+import { PointXY } from "../../types/arrays";
+import { transform2DTo3DAndProject, inverseTransform2DProjection } from "../../utils/math3d";
+import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "../canvas/types";
+import { CanvasRenderPipeline } from "../canvas/canvasRenderPipeline";
+import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "../canvas/constants";
+import type { GuidedExperience } from "../overlays/guidedExperience";
 
-export class CanvasManager {
+export class CanvasViewportManager {
   canvas: HTMLCanvasElement;
   gridSpacing = 20;
   scaleFactor = 1;
@@ -56,20 +29,21 @@ export class CanvasManager {
   private perspectiveCamera: PerspectiveCamera;
   private activeCamera: PerspectiveCamera | OrthographicCamera;
   private gridGroup: Group;
-  private polygonFillGroup: Group;
-  private polygonOutlineGroup: Group;
-  private polygonVertexGroup: Group;
+  private polytopeFillGroup: Group;
+  private polytopeOutlineGroup: Group;
+  private polytopeVertexGroup: Group;
   private constraintGroup: Group;
   private objectiveGroup: Group;
   private traceGroup: Group;
   private iterateGroup: Group;
   private overlayGroup: Group;
   private renderScheduled = false;
-  private guidedTour: GuidedTour | null = null;
+  private guidedExperience: GuidedExperience | null = null;
   private initialized = false;
   private starTextures = new Map<number, CanvasTexture>();
   private circleTextures = new Map<string, CanvasTexture>();
   private lineMaterialCache = new Map<string, LineMaterial>();
+  private lineBasicMaterialCache = new Map<string, LineBasicMaterial>();
   private pointsMaterialCache = new Map<string, PointsMaterial>();
   private spriteMaterialCache = new Map<string, SpriteMaterial>();
   private cachedMaterials = new Set<Material>();
@@ -77,12 +51,7 @@ export class CanvasManager {
   private currentPixelRatio = window.devicePixelRatio || 1;
   private screenToPlaneVec = new Vector2();
   private planeToScreenVec = new Vector2();
-  private gridRenderer = new GridRenderer();
-  private polygonRenderer = new PolygonRenderer();
-  private constraintRenderer = new ConstraintRenderer();
-  private objectiveRenderer = new ObjectiveRenderer();
-  private traceRenderer = new TraceRenderer();
-  private iterateRenderer = new IterateRenderer();
+  private renderPipeline = new CanvasRenderPipeline();
 
   private constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -105,9 +74,9 @@ export class CanvasManager {
     this.traceScene = new Scene();
     this.overlayScene = new Scene();
     this.gridGroup = new Group();
-    this.polygonFillGroup = new Group();
-    this.polygonOutlineGroup = new Group();
-    this.polygonVertexGroup = new Group();
+    this.polytopeFillGroup = new Group();
+    this.polytopeOutlineGroup = new Group();
+    this.polytopeVertexGroup = new Group();
     this.constraintGroup = new Group();
     this.objectiveGroup = new Group();
     this.traceGroup = new Group();
@@ -115,11 +84,11 @@ export class CanvasManager {
     this.overlayGroup = new Group();
 
     this.backgroundScene.add(this.gridGroup);
-    this.transparentScene.add(this.polygonFillGroup);
-    this.foregroundScene.add(this.polygonOutlineGroup);
+    this.transparentScene.add(this.polytopeFillGroup);
+    this.foregroundScene.add(this.polytopeOutlineGroup);
     this.foregroundScene.add(this.constraintGroup);
     this.foregroundScene.add(this.objectiveGroup);
-    this.vertexScene.add(this.polygonVertexGroup);
+    this.vertexScene.add(this.polytopeVertexGroup);
     this.traceScene.add(this.traceGroup);
     this.traceScene.add(this.iterateGroup);
     this.overlayScene.add(this.overlayGroup);
@@ -135,15 +104,15 @@ export class CanvasManager {
   }
 
   static async create(canvas: HTMLCanvasElement) {
-    return new CanvasManager(canvas);
+    return new CanvasViewportManager(canvas);
   }
 
-  setTourComponents(guidedTour: GuidedTour) {
-    this.guidedTour = guidedTour;
+  attachGuidedExperience(guidedExperience: GuidedExperience) {
+    this.guidedExperience = guidedExperience;
   }
 
   private shouldSkipPreviewDrawing(): boolean {
-    return this.guidedTour?.isTouring() ?? false;
+    return this.guidedExperience?.isTouring() ?? false;
   }
 
   private handleResize = () => {
@@ -161,17 +130,14 @@ export class CanvasManager {
     this.lineResolution.set(width, height);
 
     const sidebarWidth = document.getElementById("sidebar")?.offsetWidth || 0;
-    this.centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
-    this.centerY = window.innerHeight / 2;
+    this.centerX = sidebarWidth + (width - sidebarWidth) / 2;
+    this.centerY = height / 2;
   }
 
   draw() {
-    if (!this.initialized || this.renderScheduled) {
-      return;
-    }
+    if (!this.initialized || this.renderScheduled) return;
 
     this.syncRendererPixelRatio();
-
     this.renderScheduled = true;
     window.requestAnimationFrame(() => {
       this.renderScheduled = false;
@@ -181,25 +147,17 @@ export class CanvasManager {
 
   private renderFrame() {
     if (!this.initialized) return;
-    const viewState = getViewState();
-    const is3D = viewState.is3DMode || viewState.isTransitioning3D;
+    const { is3DMode, isTransitioning3D } = getState();
+    const is3D = is3DMode || isTransitioning3D;
     this.updateCamera();
     const context = this.buildRenderContext(is3D);
-    this.gridRenderer.render(context);
-    this.polygonRenderer.render(context);
-    this.constraintRenderer.render(context);
-    this.objectiveRenderer.render(context);
-    this.traceRenderer.render(context);
-    this.iterateRenderer.render(context);
+    this.renderPipeline.render(context);
 
     this.renderer.autoClear = true;
     this.renderer.render(this.backgroundScene, this.activeCamera);
     this.renderer.autoClear = false;
-    this.renderer.render(this.transparentScene, this.activeCamera);
-    this.renderer.render(this.foregroundScene, this.activeCamera);
-    this.renderer.render(this.vertexScene, this.activeCamera);
-    this.renderer.render(this.traceScene, this.activeCamera);
-    this.renderer.render(this.overlayScene, this.activeCamera);
+    [this.transparentScene, this.foregroundScene, this.vertexScene, 
+     this.traceScene, this.overlayScene].forEach(scene => this.renderer.render(scene, this.activeCamera));
     this.renderer.autoClear = true;
   }
 
@@ -208,9 +166,9 @@ export class CanvasManager {
       is3D,
       groups: {
         grid: this.gridGroup,
-        polygonFill: this.polygonFillGroup,
-        polygonOutline: this.polygonOutlineGroup,
-        polygonVertices: this.polygonVertexGroup,
+        polytopeFill: this.polytopeFillGroup,
+        polytopeOutline: this.polytopeOutlineGroup,
+        polytopeVertices: this.polytopeVertexGroup,
         overlay: this.overlayGroup,
         constraint: this.constraintGroup,
         objective: this.objectiveGroup,
@@ -245,12 +203,13 @@ export class CanvasManager {
       getWorldSizeFromPixels: this.getWorldSizeFromPixels.bind(this),
       getCircleTexture: this.getCircleTexture.bind(this),
       getPointMaterial: this.getPointMaterial.bind(this),
+      getLineBasicMaterial: this.getLineBasicMaterial.bind(this),
     };
   }
 
   private updateCamera() {
-    const viewState = getViewState();
-    const is3D = viewState.is3DMode || viewState.isTransitioning3D;
+    const { is3DMode, isTransitioning3D, viewAngle } = getState();
+    const is3D = is3DMode || isTransitioning3D;
     this.activeCamera = is3D ? this.perspectiveCamera : this.orthoCamera;
 
     const unitsPerPixel = this.getUnitsPerPixel();
@@ -259,10 +218,8 @@ export class CanvasManager {
     const halfWidth = (width * unitsPerPixel) / 2;
     const halfHeight = (height * unitsPerPixel) / 2;
 
-    const pixelOffsetX = this.centerX - width / 2;
-    const pixelOffsetY = this.centerY - height / 2;
-    const centerShiftX = pixelOffsetX * unitsPerPixel;
-    const centerShiftY = pixelOffsetY * unitsPerPixel;
+    const centerShiftX = (this.centerX - width / 2) * unitsPerPixel;
+    const centerShiftY = (this.centerY - height / 2) * unitsPerPixel;
 
     const targetX = -this.offset.x - centerShiftX;
     const targetY = -this.offset.y + centerShiftY;
@@ -280,45 +237,32 @@ export class CanvasManager {
       this.perspectiveCamera.updateProjectionMatrix();
 
       const target = new Vector3(targetX, targetY, 0);
-      const desiredWorldHeight = height * unitsPerPixel;
       const fov = this.perspectiveCamera.fov * (Math.PI / 180);
-      const baseDistance = Math.max(10, desiredWorldHeight / (2 * Math.tan(fov / 2)));
-      const camEuler = new Euler(-viewState.viewAngle.x, -viewState.viewAngle.y, -viewState.viewAngle.z, "XYZ");
+      const baseDistance = Math.max(10, (height * unitsPerPixel) / (2 * Math.tan(fov / 2)));
+      const camEuler = new Euler(-viewAngle.x, -viewAngle.y, -viewAngle.z, "XYZ");
       const direction = new Vector3(0, 0, 1).applyEuler(camEuler).normalize();
-      const position = target.clone().add(direction.multiplyScalar(baseDistance));
-      this.perspectiveCamera.position.copy(position);
-      const up = new Vector3(0, 1, 0).applyEuler(camEuler).normalize();
-      this.perspectiveCamera.up.copy(up);
+      this.perspectiveCamera.position.copy(target.clone().add(direction.multiplyScalar(baseDistance)));
+      this.perspectiveCamera.up.copy(new Vector3(0, 1, 0).applyEuler(camEuler).normalize());
       this.perspectiveCamera.lookAt(target);
     }
   }
 
   toLogicalCoords(x: number, y: number): PointXY {
     const planeCoords = this.screenToPlane(x, y);
-    const viewState = getViewState();
-    if (viewState.is3DMode || viewState.isTransitioning3D) {
-      const logical = inverseTransform2DProjection(
-        { x: planeCoords.x, y: planeCoords.y },
-        viewState.viewAngle,
-      );
-      return this.snapPoint(logical);
+    const { is3DMode, isTransitioning3D, viewAngle } = getState();
+    if (is3DMode || isTransitioning3D) {
+      return this.snapPoint(inverseTransform2DProjection({ x: planeCoords.x, y: planeCoords.y }, viewAngle));
     }
-
     return this.snapPoint(this.toPoint(planeCoords));
   }
 
   toCanvasCoords(x: number, y: number, z?: number) {
-    const viewState = getViewState();
-    if (viewState.is3DMode || viewState.isTransitioning3D) {
+    const { is3DMode, isTransitioning3D, viewAngle, focalDistance } = getState();
+    if (is3DMode || isTransitioning3D) {
       const zValue = z ?? this.computeObjectiveValue(x, y);
-      const projected = transform2DTo3DAndProject(
-        { x, y, z: this.scaleZValue(zValue) },
-        viewState.viewAngle,
-        viewState.focalDistance
-      );
+      const projected = transform2DTo3DAndProject({ x, y, z: this.scaleZValue(zValue) }, viewAngle, focalDistance);
       return this.toPoint(this.planeToScreen(projected.x, projected.y));
     }
-
     return this.toPoint(this.planeToScreen(x, y));
   }
 
@@ -334,10 +278,7 @@ export class CanvasManager {
   }
 
   private buildPositionVector(entry: number[], planarOffset = 0) {
-    const zValue =
-      entry[2] !== undefined
-        ? entry[2]
-        : this.computeObjectiveValue(entry[0], entry[1]);
+    const zValue = entry[2] !== undefined ? entry[2] : this.computeObjectiveValue(entry[0], entry[1]);
     const z = this.scaleZValue(zValue) + this.getPlanarOffset(planarOffset);
     return new Vector3(entry[0], entry[1], z);
   }
@@ -371,33 +312,24 @@ export class CanvasManager {
 
     const size = 64;
     const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = canvas.height = size;
     const ctx = canvas.getContext("2d")!;
-
     ctx.fillStyle = "rgba(255, 255, 255, 1)";
     ctx.beginPath();
-    const spikes = 5;
-    const outerRadius = size / 2;
-    const innerRadius = size / 4;
-    let rot = (Math.PI / 2) * 3;
-    let x = size / 2;
-    let y = size / 2;
+
+    const center = size / 2;
+    const [outer, inner, spikes] = [size / 2, size / 4, 5];
     const step = Math.PI / spikes;
+    let angle = (Math.PI / 2) * 3;
 
-    ctx.moveTo(size / 2, size / 2 - outerRadius / 1.5);
+    ctx.moveTo(center, center - outer / 1.5);
     for (let i = 0; i < spikes; i++) {
-      x = size / 2 + Math.cos(rot) * outerRadius;
-      y = size / 2 + Math.sin(rot) * outerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
-
-      x = size / 2 + Math.cos(rot) * innerRadius;
-      y = size / 2 + Math.sin(rot) * innerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
+      ctx.lineTo(center + Math.cos(angle) * outer, center + Math.sin(angle) * outer);
+      angle += step;
+      ctx.lineTo(center + Math.cos(angle) * inner, center + Math.sin(angle) * inner);
+      angle += step;
     }
-    ctx.lineTo(size / 2, size / 2 - outerRadius / 1.5);
+    ctx.closePath();
     ctx.fill();
 
     texture = new CanvasTexture(canvas);
@@ -427,9 +359,7 @@ export class CanvasManager {
 
   private screenToPlane(screenX: number, screenY: number) {
     const unitsPerPixel = this.getUnitsPerPixel();
-    this.screenToPlaneVec
-      .set(screenX - this.centerX, this.centerY - screenY)
-      .multiplyScalar(unitsPerPixel);
+    this.screenToPlaneVec.set(screenX - this.centerX, this.centerY - screenY).multiplyScalar(unitsPerPixel);
     this.screenToPlaneVec.x -= this.offset.x;
     this.screenToPlaneVec.y -= this.offset.y;
     return this.screenToPlaneVec;
@@ -438,10 +368,7 @@ export class CanvasManager {
   private planeToScreen(worldX: number, worldY: number) {
     const pixelsPerUnit = this.getPixelsPerUnit();
     this.planeToScreenVec.set(worldX + this.offset.x, worldY + this.offset.y).multiplyScalar(pixelsPerUnit);
-    this.planeToScreenVec.set(
-      this.centerX + this.planeToScreenVec.x,
-      this.centerY - this.planeToScreenVec.y
-    );
+    this.planeToScreenVec.set(this.centerX + this.planeToScreenVec.x, this.centerY - this.planeToScreenVec.y);
     return this.planeToScreenVec;
   }
 
@@ -450,7 +377,8 @@ export class CanvasManager {
   }
 
   private snapPoint(point: PointXY) {
-    if (getInteractionState().snapToGrid) {
+    const { snapToGrid } = getState();
+    if (snapToGrid) {
       point.x = Math.round(point.x);
       point.y = Math.round(point.y);
     }
@@ -477,14 +405,10 @@ export class CanvasManager {
 
   private syncRendererPixelRatio(width?: number, height?: number) {
     const ratio = this.getDynamicPixelRatio();
-    if (ratio === this.currentPixelRatio) {
-      return;
-    }
+    if (ratio === this.currentPixelRatio) return;
     this.currentPixelRatio = ratio;
     this.renderer.setPixelRatio(ratio);
-    const targetWidth = width ?? window.innerWidth;
-    const targetHeight = height ?? window.innerHeight;
-    this.renderer.setSize(targetWidth, targetHeight, false);
+    this.renderer.setSize(width ?? window.innerWidth, height ?? window.innerHeight, false);
   }
 
   private clearGroup(group: Group) {
@@ -493,43 +417,35 @@ export class CanvasManager {
         geometry?: { dispose?: () => void };
         material?: { dispose?: () => void } | Array<{ dispose?: () => void }>;
       };
-      const geometry = mesh.geometry;
-      if (geometry && typeof geometry.dispose === "function") {
-        geometry.dispose();
-      }
-      const material = mesh.material;
-      if (Array.isArray(material)) {
-        material.forEach((mat) => this.disposeMaterial(mat));
+      if (mesh.geometry?.dispose) mesh.geometry.dispose();
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach((mat) => this.disposeMaterial(mat));
       } else {
-        this.disposeMaterial(material);
+        this.disposeMaterial(mesh.material);
       }
     });
     group.clear();
   }
 
   private disposeMaterial(material?: { dispose?: () => void }) {
-    if (!material || typeof material.dispose !== "function") {
-      return;
-    }
-    if (this.cachedMaterials.has(material as Material)) {
-      return;
-    }
+    if (material?.dispose && !this.cachedMaterials.has(material as Material)) {
     material.dispose();
+    }
   }
 
   private computeObjectiveValue(x: number, y: number) {
-    const objective = getObjectiveState();
-    if (!objective.objectiveVector) return 0;
-    return objective.objectiveVector.x * x + objective.objectiveVector.y * y;
+    const { objectiveVector } = getState();
+    if (!objectiveVector) return 0;
+    return objectiveVector.x * x + objectiveVector.y * y;
   }
 
   private scaleZValue(value: number) {
-    return (value * getViewState().zScale) / 100;
+    return (value * getState().zScale) / 100;
   }
 
   private getPlanarOffset(offset: number) {
-    const viewState = getViewState();
-    return viewState.is3DMode || viewState.isTransitioning3D ? 0 : offset;
+    const { is3DMode, isTransitioning3D } = getState();
+    return is3DMode || isTransitioning3D ? 0 : offset;
   }
 
   private getVertexZ(x: number, y: number, extra = 0) {
@@ -541,12 +457,8 @@ export class CanvasManager {
     this.cachedMaterials.add(material);
   }
 
-  private getLineMaterialKey({ color, width, depthTest, depthWrite }: Omit<ThickLineOptions, "renderOrder">) {
-    return [color, width, depthTest ?? true, depthWrite ?? true].join(":");
-  }
-
   private getLineMaterial(options: Omit<ThickLineOptions, "renderOrder">) {
-    const key = this.getLineMaterialKey(options);
+    const key = `${options.color}:${options.width}:${options.depthTest ?? true}:${options.depthWrite ?? true}`;
     let material = this.lineMaterialCache.get(key);
     if (!material) {
       material = new LineMaterial({
@@ -566,17 +478,31 @@ export class CanvasManager {
     return material;
   }
 
+  private getLineBasicMaterial(options: LineBasicMaterialOptions) {
+    const key = `${options.color}:${options.transparent ?? false}:${options.opacity ?? 1}:${options.depthTest ?? true}:${options.depthWrite ?? true}`;
+    let material = this.lineBasicMaterialCache.get(key);
+    if (!material) {
+      material = new LineBasicMaterial({
+        color: options.color,
+        transparent: options.transparent ?? false,
+        opacity: options.opacity ?? 1,
+        depthTest: options.depthTest ?? true,
+        depthWrite: options.depthWrite ?? true,
+      });
+      this.lineBasicMaterialCache.set(key, material);
+      this.registerCachedMaterial(material);
+    } else {
+      material.color.set(options.color);
+      material.transparent = options.transparent ?? false;
+      material.opacity = options.opacity ?? 1;
+      material.depthTest = options.depthTest ?? true;
+      material.depthWrite = options.depthWrite ?? true;
+    }
+    return material;
+  }
+
   private getPointMaterial(options: PointMaterialOptions) {
-    const key = [
-      options.color,
-      options.size,
-      options.sizeAttenuation,
-      options.depthTest,
-      options.depthWrite,
-      options.transparent ?? false,
-      options.opacity ?? 1,
-      options.alphaTest ?? 0,
-    ].join(":");
+    const key = [options.color, options.size, options.sizeAttenuation, options.depthTest, options.depthWrite, options.transparent ?? false, options.opacity ?? 1, options.alphaTest ?? 0].join(":");
     let material = this.pointsMaterialCache.get(key);
     const texture = this.getCircleTexture();
     if (!material) {
@@ -601,10 +527,10 @@ export class CanvasManager {
     return material;
   }
 
-  private getCircleSpriteMaterial(color: number) {
-    const key = `circle:${color}`;
+  private getSpriteMaterial(type: 'circle' | 'star', color: number) {
+    const key = `${type}:${color}`;
     let material = this.spriteMaterialCache.get(key);
-    const texture = this.getCircleTexture();
+    const texture = type === 'star' ? this.getStarTexture(color) : this.getCircleTexture();
     if (!material) {
       material = new SpriteMaterial({
         map: texture,
@@ -623,26 +549,12 @@ export class CanvasManager {
     return material;
   }
 
+  private getCircleSpriteMaterial(color: number) {
+    return this.getSpriteMaterial('circle', color);
+  }
+
   private getStarSpriteMaterial(color: number) {
-    const key = `star:${color}`;
-    let material = this.spriteMaterialCache.get(key);
-    const texture = this.getStarTexture(color);
-    if (!material) {
-      material = new SpriteMaterial({
-        map: texture,
-        transparent: false,
-        alphaTest: 0.5,
-        depthTest: false,
-        depthWrite: false,
-      });
-      material.color.set(color);
-      this.spriteMaterialCache.set(key, material);
-      this.registerCachedMaterial(material);
-    } else if (material.map !== texture) {
-      material.map = texture;
-      material.needsUpdate = true;
-    }
-    return material;
+    return this.getSpriteMaterial('star', color);
   }
 
   private createThickLine(
@@ -659,11 +571,16 @@ export class CanvasManager {
       depthTest?: boolean;
       depthWrite?: boolean;
       renderOrder?: number;
-    }
+    },
   ) {
     const geometry = new AlwaysVisibleLineGeometry();
     geometry.setPositions(positions);
-    const material = this.getLineMaterial({ color, width, depthTest, depthWrite });
+    const material = this.getLineMaterial({
+      color,
+      width,
+      depthTest,
+      depthWrite,
+    });
     const line = new UndashedLine2(geometry, material);
     line.renderOrder = renderOrder;
     line.frustumCulled = false;
@@ -671,27 +588,27 @@ export class CanvasManager {
   }
 
   private getCircleTexture() {
-    const deviceRatio = Math.max(1, Math.round((window.devicePixelRatio || 1)));
+    const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
     const scaleBucket = Math.min(4, Math.max(1, Math.round(this.scaleFactor)));
     const cacheKey = `circle-${deviceRatio}-${scaleBucket}`;
     let texture = this.circleTextures.get(cacheKey);
     if (texture) return texture;
+
     const size = 64 * deviceRatio * scaleBucket;
     const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = canvas.height = size;
     const ctx = canvas.getContext("2d")!;
+    const radius = size / 2;
+
     ctx.fillStyle = "rgba(255, 255, 255, 1)";
     ctx.beginPath();
-    const radius = size / 2;
     ctx.arc(radius, radius, radius, 0, Math.PI * 2);
     ctx.fill();
+
     texture = new CanvasTexture(canvas);
-    texture.minFilter = NearestFilter;
-    texture.magFilter = NearestFilter;
+    texture.minFilter = texture.magFilter = NearestFilter;
     texture.needsUpdate = true;
     this.circleTextures.set(cacheKey, texture);
     return texture;
   }
-
 }

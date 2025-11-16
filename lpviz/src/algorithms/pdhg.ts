@@ -1,6 +1,6 @@
-import { pdhgEq } from './pdhg_eq';
-import { pdhgIneq } from './pdhg_ineq';
-import { Lines, VecN } from '../types/arrays';
+import { pdhgEq } from "./pdhg_eq";
+import { pdhgIneq } from "./pdhg_ineq";
+import { Lines, VecN } from "../types/arrays";
 
 export interface PDHGOptions {
   ineq: boolean;
@@ -12,20 +12,7 @@ export interface PDHGOptions {
 }
 
 export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
-  const {
-    ineq = false,
-    maxit = 1000,
-    eta = 0.25,
-    tau = 0.25,
-    verbose = false,
-    tol = 1e-4,
-  } = options;
-
+  const { ineq = false, maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4 } = options;
   const solverOptions = { maxit, eta, tau, verbose, tol };
-
-  if (ineq) {
-    return pdhgIneq(lines, objective, solverOptions);
-  } else {
-    return pdhgEq(lines, objective, solverOptions);
-  }
+  return ineq ? pdhgIneq(lines, objective, solverOptions) : pdhgEq(lines, objective, solverOptions);
 }

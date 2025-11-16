@@ -1,23 +1,9 @@
-import {
-  getGeometryState,
-  getObjectiveState,
-  getSolverState,
-  mutateGeometryState,
-  mutateObjectiveState,
-  mutateSolverState,
-  SolverMode,
-} from "./state";
+import { getState, mutate, SolverMode } from "./store";
 import { PointXY } from "../types/arrays";
 import JSONCrush from "jsoncrush";
-import { 
-  updateSliderAndDisplay, 
-  updateInputValue, 
-  setButtonsEnabled, 
-  setElementDisplay, 
-  showElement,
-} from "../utils/uiHelpers";
-import { CanvasManager } from "../ui/canvasManager";
-import { UIManager } from "../ui/uiManager";
+import { updateSliderAndDisplay, updateInputValue, setButtonsEnabled, setElementDisplay, showElement } from "./utils";
+import { CanvasViewportManager } from "../ui/managers/canvasViewportManager";
+import { InterfaceLayoutManager } from "../ui/managers/interfaceLayoutManager";
 
 export interface ShareSettings {
   alphaMax?: number;
@@ -38,77 +24,40 @@ export interface ShareState {
   settings: ShareSettings;
 }
 
-const COMPACT_KEYS = {
-  vertices: 'v',
-  objective: 'o',
-  solverMode: 's',
-  settings: 'g',
+const KEYS: Record<string, string> = {
+  vertices: "v", objective: "o", solverMode: "s", settings: "g",
+  x: "x", y: "y",
+  alphaMax: "a", maxitIPM: "i", pdhgEta: "e", pdhgTau: "t",
+  maxitPDHG: "p", pdhgIneqMode: "m", centralPathIter: "c",
+  objectiveAngleStep: "r", objectiveRotationSpeed: "q",
+};
 
-  x: 'x',
-  y: 'y',
-  
-  alphaMax: 'a',
-  maxitIPM: 'i',
-  pdhgEta: 'e',
-  pdhgTau: 't',
-  maxitPDHG: 'p',
-  pdhgIneqMode: 'm',
-  centralPathIter: 'c',
-  objectiveAngleStep: 'r',
-  objectiveRotationSpeed: 'q'
-} as const;
+const REVERSE_KEYS = Object.fromEntries(Object.entries(KEYS).map(([k, v]) => [v, k]));
 
-const FULL_KEYS = Object.fromEntries(
-  Object.entries(COMPACT_KEYS).map(([full, compact]) => [compact, full])
-) as Record<string, string>;
-
-function compactObject<T>(obj: T): T {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj !== "object") return obj;
-  if (Array.isArray(obj)) {
-    return obj.map((item) => compactObject(item)) as unknown as T;
-  }
+function transformObject<T>(obj: T, keyMap: Record<string, string>): T {
+  if (obj === null || obj === undefined || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map((item) => transformObject(item, keyMap)) as unknown as T;
 
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    const compactKey = COMPACT_KEYS[key as keyof typeof COMPACT_KEYS] || key;
-    result[compactKey] = compactObject(value);
+    result[keyMap[key] || key] = transformObject(value, keyMap);
   }
   return result as T;
 }
 
-function expandObject<T>(obj: T): T {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj !== "object") return obj;
-  if (Array.isArray(obj)) {
-    return obj.map((item) => expandObject(item)) as unknown as T;
-  }
-
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    const fullKey = FULL_KEYS[key] || key;
-    result[fullKey] = expandObject(value);
-  }
-  return result as T;
-}
+const compactObject = <T>(obj: T) => transformObject(obj, KEYS);
+const expandObject = <T>(obj: T) => transformObject(obj, REVERSE_KEYS);
 
 interface SettingsElements {
   [key: string]: HTMLInputElement;
 }
 
-export function createSharingHandlers(
-  canvasManager: CanvasManager,
-  uiManager: UIManager,
-  settingsElements: SettingsElements,
-  sendPolytope: () => void
-) {
+export function createSharingHandlers(canvasManager: CanvasViewportManager, uiManager: InterfaceLayoutManager, settingsElements: SettingsElements, sendPolytope: () => void) {
   function generateShareLink(): string {
-    const geometryState = getGeometryState();
-    const objectiveState = getObjectiveState();
-    const solverState = getSolverState();
+    const { vertices, objectiveVector, solverMode } = getState();
     const settings: ShareSettings = {};
-    
-    switch (solverState.solverMode) {
+
+    switch (solverMode) {
       case "ipm":
         settings.alphaMax = parseFloat(settingsElements.alphaMaxSlider.value);
         settings.maxitIPM = parseInt(settingsElements.maxitInput.value, 10);
@@ -125,14 +74,14 @@ export function createSharingHandlers(
     }
     settings.objectiveAngleStep = parseFloat(settingsElements.objectiveAngleStepSlider.value);
     settings.objectiveRotationSpeed = parseFloat(settingsElements.objectiveRotationSpeedSlider.value);
-    
+
     const data: ShareState = {
-      vertices: geometryState.vertices,
-      objective: objectiveState.objectiveVector,
-      solverMode: solverState.solverMode,
-      settings
+      vertices,
+      objective: objectiveVector,
+      solverMode,
+      settings,
     };
-    
+
     // Compact the data before serializing
     const compactData = compactObject(data);
     const json = JSON.stringify(compactData);
@@ -143,88 +92,93 @@ export function createSharingHandlers(
 
   function loadStateFromObject(obj: ShareState): void {
     if (!obj) return;
-    
+
     const expandedObj = expandObject(obj) as ShareState;
-    
+
     if (Array.isArray(expandedObj.vertices)) {
-      const mappedVertices = expandedObj.vertices.map((v: PointXY) => ({ x: v.x, y: v.y }));
-      mutateGeometryState((draft) => {
+      const mappedVertices = expandedObj.vertices.map((v: PointXY) => ({
+        x: v.x,
+        y: v.y,
+      }));
+      mutate((draft) => {
         draft.vertices = mappedVertices;
-        draft.polygonComplete = mappedVertices.length > 2;
+        draft.polytopeComplete = mappedVertices.length > 2;
       });
     }
-    
+
     if (expandedObj.objective) {
-      mutateObjectiveState((draft) => {
-        draft.objectiveVector = { x: expandedObj.objective!.x, y: expandedObj.objective!.y };
+      mutate((draft) => {
+        draft.objectiveVector = {
+          x: expandedObj.objective!.x,
+          y: expandedObj.objective!.y,
+        };
       });
     }
-    
+
     if (expandedObj.solverMode) {
-      mutateSolverState((draft) => {
+      mutate((draft) => {
         draft.solverMode = expandedObj.solverMode as SolverMode;
       });
     }
-    
-    const geometryState = getGeometryState();
-    const objectiveState = getObjectiveState();
-    const solverState = getSolverState();
-    
+
+    const { polytopeComplete, objectiveVector: objective, solverMode } = getState();
     const settings = expandedObj.settings || {};
 
-    const settingsConfig = [
-      { key: 'alphaMax', type: 'slider', id: 'alphaMaxSlider', displayId: 'alphaMaxValue', decimals: 3 },
-      { key: 'maxitIPM', type: 'input', id: 'maxitInput' },
-      { key: 'pdhgEta', type: 'slider', id: 'pdhgEtaSlider', displayId: 'pdhgEtaValue', decimals: 3 },
-      { key: 'pdhgTau', type: 'slider', id: 'pdhgTauSlider', displayId: 'pdhgTauValue', decimals: 3 },
-      { key: 'maxitPDHG', type: 'input', id: 'maxitInputPDHG' },
-      { key: 'pdhgIneqMode', type: 'input', id: 'pdhgIneqMode' },
-      { key: 'centralPathIter', type: 'slider', id: 'centralPathIterSlider', displayId: 'centralPathIterValue', decimals: 0 },
-      { key: 'objectiveAngleStep', type: 'slider', id: 'objectiveAngleStepSlider', displayId: 'objectiveAngleStepValue', decimals: 2 },
-      { key: 'objectiveRotationSpeed', type: 'slider', id: 'objectiveRotationSpeedSlider', displayId: 'objectiveRotationSpeedValue', decimals: 1 },
+    const sliders: Array<[keyof ShareSettings, string, string, number]> = [
+      ["alphaMax", "alphaMaxSlider", "alphaMaxValue", 3],
+      ["pdhgEta", "pdhgEtaSlider", "pdhgEtaValue", 3],
+      ["pdhgTau", "pdhgTauSlider", "pdhgTauValue", 3],
+      ["centralPathIter", "centralPathIterSlider", "centralPathIterValue", 0],
+      ["objectiveAngleStep", "objectiveAngleStepSlider", "objectiveAngleStepValue", 2],
+      ["objectiveRotationSpeed", "objectiveRotationSpeedSlider", "objectiveRotationSpeedValue", 1],
     ];
-    
-    settingsConfig.forEach(config => {
-      const value = settings[config.key as keyof ShareSettings];
-      if (value !== undefined) {
-        if (config.type === 'slider') {
-          updateSliderAndDisplay(config.id, config.displayId!, value as number, config.decimals!);
-        } else {
-          updateInputValue(config.id, value);
-        }
-      }
+
+    const inputs: Array<[keyof ShareSettings, string]> = [
+      ["maxitIPM", "maxitInput"],
+      ["maxitPDHG", "maxitInputPDHG"],
+      ["pdhgIneqMode", "pdhgIneqMode"],
+    ];
+
+    sliders.forEach(([key, id, displayId, decimals]) => {
+      const value = settings[key];
+      if (value !== undefined) updateSliderAndDisplay(id, displayId, value as number, decimals);
     });
-    
+
+    inputs.forEach(([key, id]) => {
+      const value = settings[key];
+      if (value !== undefined) updateInputValue(id, value);
+    });
+
     uiManager.hideNullStateMessage();
 
-    if (geometryState.polygonComplete && objectiveState.objectiveVector) {
+    if (polytopeComplete && objective) {
       showElement("maximize");
-      
+
       setButtonsEnabled({
-        "iteratePathButton": solverState.solverMode !== "central",
-        "ipmButton": solverState.solverMode !== "ipm",
-        "simplexButton": solverState.solverMode !== "simplex",
-        "pdhgButton": solverState.solverMode !== "pdhg",
-        "traceButton": true,
-        "zoomButton": true
+        iteratePathButton: solverMode !== "central",
+        ipmButton: solverMode !== "ipm",
+        simplexButton: solverMode !== "simplex",
+        pdhgButton: solverMode !== "pdhg",
+        traceButton: true,
+        zoomButton: true,
       });
       uiManager.updateSolverModeButtons();
     } else {
       setButtonsEnabled({
-        "traceButton": false
+        traceButton: false,
       });
       uiManager.updateSolverModeButtons();
     }
 
-    setElementDisplay("ipmSettings", solverState.solverMode === "ipm" ? "block" : "none");
-    setElementDisplay("pdhgSettings", solverState.solverMode === "pdhg" ? "block" : "none");
-    setElementDisplay("centralPathSettings", solverState.solverMode === "central" ? "block" : "none");
+    setElementDisplay("ipmSettings", solverMode === "ipm" ? "block" : "none");
+    setElementDisplay("pdhgSettings", solverMode === "pdhg" ? "block" : "none");
+    setElementDisplay("centralPathSettings", solverMode === "central" ? "block" : "none");
 
     uiManager.updateObjectiveDisplay();
     uiManager.updateSolverModeButtons();
     canvasManager.draw();
 
-    if (geometryState.polygonComplete) {
+    if (polytopeComplete) {
       sendPolytope();
     }
   }

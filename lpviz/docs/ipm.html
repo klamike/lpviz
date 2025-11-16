@@ -1,260 +1,317 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Interior Point Method - lpviz Documentation</title>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
     </script>
-    <link rel="stylesheet" href="docs.css">
-</head>
-<body>
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body>
     <div class="navigation">
-        <strong>lpviz Documentation</strong> | 
-        <a href="./">← Back to Documentation</a> |
-        <a href="../">← Back to lpviz</a>
+      <strong>lpviz Documentation</strong> | <a href="./">← Back to Documentation</a> |
+      <a href="../">← Back to lpviz</a>
     </div>
 
     <h1>Interior Point Method (IPM)</h1>
 
-    <div class="info">
-        <strong>Overview:</strong> The Interior Point Method is a polynomial-time algorithm that solves linear programs by following a path through the interior of the feasible region. lpviz implements an infeasible primal-dual predictor-corrector algorithm.
-    </div>
+    <div class="info"><strong>Overview:</strong> The Interior Point Method is a polynomial-time algorithm that solves linear programs by following a path through the interior of the feasible region. lpviz implements an infeasible primal-dual predictor-corrector algorithm.</div>
 
     <h2>Problem Transformation</h2>
 
     <p>The IPM in lpviz converts the user's problem from the frontend form:</p>
-    
-    <div class="equation-block">
-        $$\begin{align}
-        \max_x \quad & c^\top x \\
-        \text{s.t.} \quad & Ax \leq b
-        \end{align}$$
-    </div>
+
+    <div class="equation-block">$$\begin{align} \max_x \quad & c^\top x \\ \text{s.t.} \quad & Ax \leq b \end{align}$$</div>
 
     <p>Into the standard form required by the interior point method:</p>
-    
-    <div class="equation-block">
-        $$\begin{align}
-        \min_x \quad & c^\top x \\
-        \text{s.t.} \quad & Ax \geq b
-        \end{align}$$
-    </div>
+
+    <div class="equation-block">$$\begin{align} \min_x \quad & c^\top x \\ \text{s.t.} \quad & Ax \geq b \end{align}$$</div>
 
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Problem Conversion <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L29-L34" target="_blank">lines 29-34</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> { A, b } = <span class="code-function">linesToAb</span>(lines);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">c</span> = Matrix.columnVector(objective);</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Aneg</span> = A.mul(-1);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">bneg</span> = b.mul(-1);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">cneg</span> = c.mul(-1);</div>
+      <div class="code-section">
+        <h4>
+          Code: Problem Conversion
+          <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L29-L34" target="_blank">lines 29-34</a></span>
+        </h4>
+        <div class="code-line"><span class="code-keyword">const</span> { A, b } = <span class="code-function">linesToAb</span>(lines);</div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">c</span> = Matrix.columnVector(objective);
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Transform maximization to minimization and inequalities:</p>
-            $$Ax \leq b \quad \Rightarrow \quad -Ax \geq -b$$
-            $$\max c^\top x \quad \Rightarrow \quad \min (-c)^\top x$$
-            <p>This puts the problem in the form that IPM expects.</p>
+        <div class="code-line"></div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">Aneg</span> = A.mul(-1);
         </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">bneg</span> = b.mul(-1);
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">cneg</span> = c.mul(-1);
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>Transform maximization to minimization and inequalities:</p>
+        $$Ax \leq b \quad \Rightarrow \quad -Ax \geq -b$$ $$\max c^\top x \quad \Rightarrow \quad \min (-c)^\top x$$
+        <p>This puts the problem in the form that IPM expects.</p>
+      </div>
     </div>
 
     <h2>Primal-Dual Formulation</h2>
 
     <p>IPM works with the primal-dual pair simultaneously:</p>
 
-    <div class="equation-block">
-        $$\begin{align}
-        \text{Primal:} \quad & \min_x \quad c^\top x \quad \text{s.t.} \quad Ax \geq b \\
-        \text{Dual:} \quad & \max_{y,s} \quad b^\top y \quad \text{s.t.} \quad A^\top y + s = c, \quad s \geq 0, \quad y \geq 0
-        \end{align}$$
-    </div>
+    <div class="equation-block">$$\begin{align} \text{Primal:} \quad & \min_x \quad c^\top x \quad \text{s.t.} \quad Ax \geq b \\ \text{Dual:} \quad & \max_{y,s} \quad b^\top y \quad \text{s.t.} \quad A^\top y + s = c, \quad s \geq 0, \quad y \geq 0 \end{align}$$</div>
 
     <p>The algorithm maintains slack variables $s$ such that $Ax - s = b$ and seeks to satisfy the KKT conditions:</p>
 
-    <div class="equation-block">
-        $$\begin{align}
-        Ax - s &= b \quad \text{(primal feasibility)} \\
-        A^\top y - c &= 0 \quad \text{(dual feasibility)} \\
-        s_i y_i &= 0, \quad i = 1,\ldots,m \quad \text{(complementarity)} \\
-        s, y &\geq 0 \quad \text{(non-negativity)}
-        \end{align}$$
-    </div>
+    <div class="equation-block">$$\begin{align} Ax - s &= b \quad \text{(primal feasibility)} \\ A^\top y - c &= 0 \quad \text{(dual feasibility)} \\ s_i y_i &= 0, \quad i = 1,\ldots,m \quad \text{(complementarity)} \\ s, y &\geq 0 \quad \text{(non-negativity)} \end{align}$$</div>
 
     <h2>Newton System</h2>
 
     <div class="algorithm-box">
-        <h3>KKT System Assembly</h3>
-        <p>The core of IPM is solving a sequence of Newton systems derived from the KKT conditions.</p>
+      <h3>KKT System Assembly</h3>
+      <p>The core of IPM is solving a sequence of Newton systems derived from the KKT conditions.</p>
     </div>
 
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: KKT Matrix Assembly <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L105-L120" target="_blank">lines 105-120</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">Y</span> = <span class="code-function">diag</span>(y);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">S</span> = <span class="code-function">diag</span>(s);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">K</span> = Matrix.zeros(m + n + m, n + m + m);</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-comment">// Block [A  -I  0]</span></div>
-            <div class="code-line"><span class="code-keyword">for</span> (let i = 0; i &lt; m; ++i) {</div>
-            <div class="code-line code-indent-1"><span class="code-keyword">for</span> (let j = 0; j &lt; n; ++j) K.set(i, j, A.get(i, j));</div>
-            <div class="code-line code-indent-1">K.set(i, n + i, -1);</div>
-            <div class="code-line">}</div>
-            <div class="code-line"><span class="code-comment">// Block [0  0  A^T]</span></div>
-            <div class="code-line"><span class="code-comment">// Block [0  Y  S]</span></div>
+      <div class="code-section">
+        <h4>
+          Code: KKT Matrix Assembly
+          <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L105-L120" target="_blank">lines 105-120</a></span>
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">Y</span> = <span class="code-function">diag</span>(y);
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>The Newton system matrix is:</p>
-            $$K = \begin{bmatrix}
-            A & -I & 0 \\
-            0 & 0 & A^\top \\
-            0 & Y & S
-            \end{bmatrix}$$
-            <p>where $Y = \text{diag}(y)$ and $S = \text{diag}(s)$. This is the Jacobian of the KKT system.</p>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">S</span> = <span class="code-function">diag</span>(s);
         </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">K</span> = Matrix.zeros(m + n + m, n + m + m);
+        </div>
+        <div class="code-line"></div>
+        <div class="code-line">
+          <span class="code-comment">// Block [A -I 0]</span>
+        </div>
+        <div class="code-line"><span class="code-keyword">for</span> (let i = 0; i &lt; m; ++i) {</div>
+        <div class="code-line code-indent-1"><span class="code-keyword">for</span> (let j = 0; j &lt; n; ++j) K.set(i, j, A.get(i, j));</div>
+        <div class="code-line code-indent-1">K.set(i, n + i, -1);</div>
+        <div class="code-line">}</div>
+        <div class="code-line">
+          <span class="code-comment">// Block [0 0 A^T]</span>
+        </div>
+        <div class="code-line">
+          <span class="code-comment">// Block [0 Y S]</span>
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>The Newton system matrix is:</p>
+        $$K = \begin{bmatrix} A & -I & 0 \\ 0 & 0 & A^\top \\ 0 & Y & S \end{bmatrix}$$
+        <p>where $Y = \text{diag}(y)$ and $S = \text{diag}(s)$. This is the Jacobian of the KKT system.</p>
+      </div>
     </div>
 
     <h2>Predictor-Corrector Algorithm</h2>
 
     <div class="predictor-corrector-box">
-        <h3>Two-Step Approach</h3>
-        <p>The algorithm uses a predictor-corrector strategy to maintain good convergence while staying in the feasible region.</p>
+      <h3>Two-Step Approach</h3>
+      <p>The algorithm uses a predictor-corrector strategy to maintain good convergence while staying in the feasible region.</p>
     </div>
 
     <h3>Step 1: Predictor (Affine Scaling)</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Predictor Direction <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L123-L132" target="_blank">lines 123-132</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">rhsAff</span> = <span class="code-function">vstack</span>([</div>
-            <div class="code-line code-indent-1">r_p,                    <span class="code-comment">// b - Ax + s</span></div>
-            <div class="code-line code-indent-1">r_d,                    <span class="code-comment">// c - A^T y</span></div>
-            <div class="code-line code-indent-1">Matrix.mul(Matrix.mul(s, -1), y)  <span class="code-comment">// -s * y</span></div>
-            <div class="code-line">]);</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-variable">deltaAff</span> = <span class="code-function">solve</span>(K, rhsAff);</div>
+      <div class="code-section">
+        <h4>
+          Code: Predictor Direction
+          <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L123-L132" target="_blank">lines 123-132</a></span>
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">rhsAff</span> = <span class="code-function">vstack</span>([
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>The predictor step solves:</p>
-            $$K \begin{bmatrix} \Delta x_{\text{aff}} \\ \Delta s_{\text{aff}} \\ \Delta y_{\text{aff}} \end{bmatrix} = \begin{bmatrix} b - Ax + s \\ c - A^\top y \\ -s \odot y \end{bmatrix}$$
-            <p>This is the pure Newton direction toward the KKT point, ignoring the non-negativity constraints.</p>
+        <div class="code-line code-indent-1">r_p, <span class="code-comment">// b - Ax + s</span></div>
+        <div class="code-line code-indent-1">r_d, <span class="code-comment">// c - A^T y</span></div>
+        <div class="code-line code-indent-1">
+          Matrix.mul(Matrix.mul(s, -1), y)
+          <span class="code-comment">// -s * y</span>
         </div>
+        <div class="code-line">]);</div>
+        <div class="code-line"></div>
+        <div class="code-line"><span class="code-variable">deltaAff</span> = <span class="code-function">solve</span>(K, rhsAff);</div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>The predictor step solves:</p>
+        $$K \begin{bmatrix} \Delta x_{\text{aff}} \\ \Delta s_{\text{aff}} \\ \Delta y_{\text{aff}} \end{bmatrix} = \begin{bmatrix} b - Ax + s \\ c - A^\top y \\ -s \odot y \end{bmatrix}$$
+        <p>This is the pure Newton direction toward the KKT point, ignoring the non-negativity constraints.</p>
+      </div>
     </div>
 
     <h3>Step 2: Step Size Computation</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Step Size Calculation <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L134-L139" target="_blank">lines 134-139</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">alphaP</span> = <span class="code-function">alphaStep</span>(s, dsAff);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">alphaD</span> = <span class="code-function">alphaStep</span>(y, dyAff);</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">sds</span> = Matrix.add(s, Matrix.mul(dsAff, alphaP));</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">sdy</span> = Matrix.add(y, Matrix.mul(dyAff, alphaD));</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">muAff</span> = sds.dot(sdy) / m;</div>
+      <div class="code-section">
+        <h4>
+          Code: Step Size Calculation
+          <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L134-L139" target="_blank">lines 134-139</a></span>
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">alphaP</span> = <span class="code-function">alphaStep</span>(s, dsAff);
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Compute maximum step sizes maintaining positivity:</p>
-            $$\alpha_P = \max\{\alpha : s + \alpha \Delta s_{\text{aff}} \geq 0\}$$
-            $$\alpha_D = \max\{\alpha : y + \alpha \Delta y_{\text{aff}} \geq 0\}$$
-            <p>The affine scaling barrier parameter:</p>
-            $$\mu_{\text{aff}} = \frac{(s + \alpha_P \Delta s_{\text{aff}})^\top (y + \alpha_D \Delta y_{\text{aff}})}{m}$$
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">alphaD</span> = <span class="code-function">alphaStep</span>(y, dyAff);
         </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">sds</span> = Matrix.add(s, Matrix.mul(dsAff, alphaP));
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">sdy</span> = Matrix.add(y, Matrix.mul(dyAff, alphaD));
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">muAff</span> = sds.dot(sdy) / m;
+        </div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>Compute maximum step sizes maintaining positivity:</p>
+        $$\alpha_P = \max\{\alpha : s + \alpha \Delta s_{\text{aff}} \geq 0\}$$ $$\alpha_D = \max\{\alpha : y + \alpha \Delta y_{\text{aff}} \geq 0\}$$
+        <p>The affine scaling barrier parameter:</p>
+        $$\mu_{\text{aff}} = \frac{(s + \alpha_P \Delta s_{\text{aff}})^\top (y + \alpha_D \Delta y_{\text{aff}})}{m}$$
+      </div>
     </div>
 
     <h3>Step 3: Corrector Direction</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Corrector Step <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L142-L163" target="_blank">lines 142-163</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">sigma</span> = Math.max(1e-8, Math.min(1 - 1e-8, </div>
-            <div class="code-line code-indent-1">(muAff / mu) ** 3));</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">rhsCor</span> = <span class="code-function">vstack</span>([</div>
-            <div class="code-line code-indent-1">Matrix.zeros(m, 1),</div>
-            <div class="code-line code-indent-1">Matrix.zeros(n, 1),</div>
-            <div class="code-line code-indent-1">Matrix.mul(Matrix.sub(Matrix.mul(dsAff, dyAff), </div>
-            <div class="code-line code-indent-2">sigma * mu), -1)</div>
-            <div class="code-line">]);</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-variable">deltaCor</span> = <span class="code-function">solve</span>(K, rhsCor);</div>
+      <div class="code-section">
+        <h4>
+          Code: Corrector Step
+          <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L142-L163" target="_blank">lines 142-163</a></span>
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">sigma</span> = Math.max(1e-8, Math.min(1 - 1e-8,
         </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>The centering parameter:</p>
-            $$\sigma = \left(\frac{\mu_{\text{aff}}}{\mu}\right)^3$$
-            <p>The corrector system:</p>
-            $$K \begin{bmatrix} \Delta x_{\text{cor}} \\ \Delta s_{\text{cor}} \\ \Delta y_{\text{cor}} \end{bmatrix} = \begin{bmatrix} 0 \\ 0 \\ \sigma \mu \mathbf{1} - \Delta s_{\text{aff}} \odot \Delta y_{\text{aff}} \end{bmatrix}$$
-            <p>This adds a centering component to prevent the iterates from approaching the boundary too aggressively.</p>
+        <div class="code-line code-indent-1">(muAff / mu) ** 3));</div>
+        <div class="code-line"></div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">rhsCor</span> = <span class="code-function">vstack</span>([
         </div>
+        <div class="code-line code-indent-1">Matrix.zeros(m, 1),</div>
+        <div class="code-line code-indent-1">Matrix.zeros(n, 1),</div>
+        <div class="code-line code-indent-1">Matrix.mul(Matrix.sub(Matrix.mul(dsAff, dyAff),</div>
+        <div class="code-line code-indent-2">sigma * mu), -1)</div>
+        <div class="code-line">]);</div>
+        <div class="code-line"></div>
+        <div class="code-line"><span class="code-variable">deltaCor</span> = <span class="code-function">solve</span>(K, rhsCor);</div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>The centering parameter:</p>
+        $$\sigma = \left(\frac{\mu_{\text{aff}}}{\mu}\right)^3$$
+        <p>The corrector system:</p>
+        $$K \begin{bmatrix} \Delta x_{\text{cor}} \\ \Delta s_{\text{cor}} \\ \Delta y_{\text{cor}} \end{bmatrix} = \begin{bmatrix} 0 \\ 0 \\ \sigma \mu \mathbf{1} - \Delta s_{\text{aff}} \odot \Delta y_{\text{aff}} \end{bmatrix}$$
+        <p>This adds a centering component to prevent the iterates from approaching the boundary too aggressively.</p>
+      </div>
     </div>
 
     <h3>Step 4: Combined Direction and Update</h3>
-    
+
     <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Final Update <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L165-L171" target="_blank">lines 165-171</a></span></h4>
-            <div class="code-line"><span class="code-variable">stepP</span> = alphaMax * <span class="code-function">alphaStep</span>(s, ds);</div>
-            <div class="code-line"><span class="code-variable">stepD</span> = alphaMax * <span class="code-function">alphaStep</span>(y, dy);</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-variable">x</span> = Matrix.add(x, Matrix.mul(dx, stepP));</div>
-            <div class="code-line"><span class="code-variable">s</span> = Matrix.add(s, Matrix.mul(ds, stepP));</div>
-            <div class="code-line"><span class="code-variable">y</span> = Matrix.add(y, Matrix.mul(dy, stepD));</div>
-        </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>The final search direction combines predictor and corrector:</p>
-            $$\Delta x = \Delta x_{\text{aff}} + \Delta x_{\text{cor}}$$
-            $$\Delta s = \Delta s_{\text{aff}} + \Delta s_{\text{cor}}$$
-            $$\Delta y = \Delta y_{\text{aff}} + \Delta y_{\text{cor}}$$
-            <p>The update with safety factor $\alpha_{\max} &lt; 1$:</p>
-            $$(x^{k+1}, s^{k+1}, y^{k+1}) = (x^k, s^k, y^k) + \alpha (\Delta x, \Delta s, \Delta y)$$
-            <p>Note that this $\alpha_{\max}$ is configurable in the frontend using the slider.</p>
-        </div>
+      <div class="code-section">
+        <h4>
+          Code: Final Update
+          <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L165-L171" target="_blank">lines 165-171</a></span>
+        </h4>
+        <div class="code-line"><span class="code-variable">stepP</span> = alphaMax * <span class="code-function">alphaStep</span>(s, ds);</div>
+        <div class="code-line"><span class="code-variable">stepD</span> = alphaMax * <span class="code-function">alphaStep</span>(y, dy);</div>
+        <div class="code-line"></div>
+        <div class="code-line"><span class="code-variable">x</span> = Matrix.add(x, Matrix.mul(dx, stepP));</div>
+        <div class="code-line"><span class="code-variable">s</span> = Matrix.add(s, Matrix.mul(ds, stepP));</div>
+        <div class="code-line"><span class="code-variable">y</span> = Matrix.add(y, Matrix.mul(dy, stepD));</div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>The final search direction combines predictor and corrector:</p>
+        $$\Delta x = \Delta x_{\text{aff}} + \Delta x_{\text{cor}}$$ $$\Delta s = \Delta s_{\text{aff}} + \Delta s_{\text{cor}}$$ $$\Delta y = \Delta y_{\text{aff}} + \Delta y_{\text{cor}}$$
+        <p>The update with safety factor $\alpha_{\max} &lt; 1$:</p>
+        $$(x^{k+1}, s^{k+1}, y^{k+1}) = (x^k, s^k, y^k) + \alpha (\Delta x, \Delta s, \Delta y)$$
+        <p>Note that this $\alpha_{\max}$ is configurable in the frontend using the slider.</p>
+      </div>
     </div>
 
     <h2>Convergence Criteria</h2>
-    
-    <div class="code-math-container">
-        <div class="code-section">
-            <h4>Code: Convergence Check <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L95-L101" target="_blank">lines 95-101</a></span></h4>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">r_p</span> = Matrix.sub(b, Matrix.sub(A.mmul(x), s));</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">r_d</span> = Matrix.sub(c, A.transpose().mmul(y));</div>
-            <div class="code-line"><span class="code-keyword">const</span> <span class="code-variable">gap</span> = Math.abs(pObj - b.dot(y)) / </div>
-            <div class="code-line code-indent-1">(1 + Math.abs(pObj));</div>
-            <div class="code-line"></div>
-            <div class="code-line"><span class="code-keyword">if</span> (r_p.max() &lt;= eps_p && r_d.max() &lt;= eps_d </div>
-            <div class="code-line code-indent-2">&& gap &lt;= eps_opt) {</div>
-            <div class="code-line code-indent-1">converged = true;</div>
-        </div>
-        <div class="math-section">
-            <h4>Mathematical Interpretation</h4>
-            <p>Three convergence criteria must be satisfied:</p>
-            <p><strong>Primal feasibility:</strong> $\|b - Ax + s\|_\infty \leq \epsilon_p$</p>
-            <p><strong>Dual feasibility:</strong> $\|c - A^\top y\|_\infty \leq \epsilon_d$</p>
-            <p><strong>Optimality gap:</strong> $\frac{|c^\top x - b^\top y|}{1 + |c^\top x|} \leq \epsilon_{\text{opt}}$</p>
 
-            lpviz uses $10^{-6}$ for all of the tolerances.
+    <div class="code-math-container">
+      <div class="code-section">
+        <h4>
+          Code: Convergence Check
+          <span class="line-ref"><a href="https://github.com/klamike/lpviz/blob/main/lpviz/src/algorithms/ipm.ts#L95-L101" target="_blank">lines 95-101</a></span>
+        </h4>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">r_p</span> = Matrix.sub(b, Matrix.sub(A.mmul(x), s));
         </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">r_d</span> = Matrix.sub(c, A.transpose().mmul(y));
+        </div>
+        <div class="code-line">
+          <span class="code-keyword">const</span>
+          <span class="code-variable">gap</span> = Math.abs(pObj - b.dot(y)) /
+        </div>
+        <div class="code-line code-indent-1">(1 + Math.abs(pObj));</div>
+        <div class="code-line"></div>
+        <div class="code-line"><span class="code-keyword">if</span> (r_p.max() &lt;= eps_p && r_d.max() &lt;= eps_d</div>
+        <div class="code-line code-indent-2">&& gap &lt;= eps_opt) {</div>
+        <div class="code-line code-indent-1">converged = true;</div>
+      </div>
+      <div class="math-section">
+        <h4>Mathematical Interpretation</h4>
+        <p>Three convergence criteria must be satisfied:</p>
+        <p><strong>Primal feasibility:</strong> $\|b - Ax + s\|_\infty \leq \epsilon_p$</p>
+        <p><strong>Dual feasibility:</strong> $\|c - A^\top y\|_\infty \leq \epsilon_d$</p>
+        <p><strong>Optimality gap:</strong> $\frac{|c^\top x - b^\top y|}{1 + |c^\top x|} \leq \epsilon_{\text{opt}}$</p>
+
+        lpviz uses $10^{-6}$ for all of the tolerances.
+      </div>
     </div>
 
     <div class="navigation">
-        <a href="./">← Back to Documentation</a> |
-        <a href="../">← Back to lpviz</a>
+      <a href="./">← Back to Documentation</a> |
+      <a href="../">← Back to lpviz</a>
     </div>
-</body>
+  </body>
 </html>

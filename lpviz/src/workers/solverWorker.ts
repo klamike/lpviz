@@ -1,31 +1,77 @@
-import { fetchCentralPath, fetchIPM, fetchPDHG, fetchSimplex } from "../services/apiClient";
+import { centralPath } from "../algorithms/centralPath";
+import { ipm } from "../algorithms/ipm";
+import { pdhg } from "../algorithms/pdhg";
+import { simplex } from "../algorithms/simplex";
+import type { Lines, VecN, Vertices } from "../types/arrays";
 import { SolverWorkerRequest, SolverWorkerResponse, SolverWorkerSuccessResponse } from "./solverWorkerTypes";
+
+const DEFAULT_TOLERANCE = 1e-5;
+
+interface BaseSolverOptions {
+  tol: number;
+  verbose: boolean;
+}
+
+const DEFAULT_BASE_OPTIONS: BaseSolverOptions = {
+  tol: DEFAULT_TOLERANCE,
+  verbose: false,
+};
+
+async function wrapSolverCall<T>(solverName: string, solverFunction: () => T | Promise<T>): Promise<T> {
+  try {
+    return await solverFunction();
+  } catch (error) {
+    console.error(`Error in ${solverName} solver:`, error);
+    throw error;
+  }
+}
+
+async function runCentralPath(vertices: Vertices, lines: Lines, objective: VecN, niter: number) {
+  return wrapSolverCall("Central Path", () => {
+    const options = { ...DEFAULT_BASE_OPTIONS, niter };
+    return centralPath(vertices, lines, objective, options);
+  });
+}
+
+async function runSimplex(lines: Lines, objective: VecN) {
+  return wrapSolverCall("Simplex", () => {
+    const options = { tol: DEFAULT_TOLERANCE, verbose: false };
+    return simplex(lines, objective, options);
+  });
+}
+
+async function runIPM(lines: Lines, objective: VecN, alphamax: number, maxit: number) {
+  return wrapSolverCall("IPM", () => {
+    const options = { ...DEFAULT_BASE_OPTIONS, eps_p: DEFAULT_TOLERANCE, eps_d: DEFAULT_TOLERANCE, eps_opt: DEFAULT_TOLERANCE, alphaMax: alphamax, maxit };
+    return ipm(lines, objective, options);
+  });
+}
+
+async function runPDHG(lines: Lines, objective: VecN, ineq: boolean, maxit: number, eta: number, tau: number) {
+  return wrapSolverCall("PDHG", () => {
+    const options = { ...DEFAULT_BASE_OPTIONS, ineq, maxit, eta, tau };
+    return pdhg(lines, objective, options);
+  });
+}
 
 const ctx = self as unknown as Worker;
 
 async function executeSolver(data: SolverWorkerRequest): Promise<SolverWorkerSuccessResponse> {
-  switch (data.solver) {
-    case "ipm": {
-      const result = await fetchIPM(data.lines, data.objective, data.alphaMax, data.maxit);
-      return { id: data.id, solver: "ipm", success: true, result };
+  const { id } = data;
+  if (data.solver === "ipm") {
+    return { id, solver: "ipm", success: true, result: await runIPM(data.lines, data.objective, data.alphaMax, data.maxit) };
+  }
+  if (data.solver === "simplex") {
+    return { id, solver: "simplex", success: true, result: await runSimplex(data.lines, data.objective) };
+  }
+  if (data.solver === "pdhg") {
+    return { id, solver: "pdhg", success: true, result: await runPDHG(data.lines, data.objective, data.ineq, data.maxit, data.eta, data.tau) };
+  }
+  if (data.solver === "central") {
+    return { id, solver: "central", success: true, result: await runCentralPath(data.vertices, data.lines, data.objective, data.niter) };
     }
-    case "simplex": {
-      const result = await fetchSimplex(data.lines, data.objective);
-      return { id: data.id, solver: "simplex", success: true, result };
-    }
-    case "pdhg": {
-      const result = await fetchPDHG(data.lines, data.objective, data.ineq, data.maxit, data.eta, data.tau);
-      return { id: data.id, solver: "pdhg", success: true, result };
-    }
-    case "central": {
-      const result = await fetchCentralPath(data.vertices, data.lines, data.objective, data.niter);
-      return { id: data.id, solver: "central", success: true, result };
-    }
-    default: {
       const exhaustive: never = data;
       throw new Error(`Unsupported solver: ${JSON.stringify(exhaustive)}`);
-    }
-  }
 }
 
 ctx.addEventListener("message", async (event: MessageEvent<SolverWorkerRequest>) => {
@@ -33,14 +79,12 @@ ctx.addEventListener("message", async (event: MessageEvent<SolverWorkerRequest>)
   if (!data) return;
 
   try {
-    const response = await executeSolver(data);
-    ctx.postMessage(response);
+    ctx.postMessage(await executeSolver(data));
   } catch (error) {
-    const response: SolverWorkerResponse = {
+    ctx.postMessage({
       id: data.id,
       success: false,
       error: error instanceof Error ? error.message : String(error),
-    };
-    ctx.postMessage(response);
+    });
   }
 });

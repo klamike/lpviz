@@ -1,14 +1,6 @@
-import {
-  getGeometryState,
-  getObjectiveState,
-  getHistoryState,
-  mutateGeometryState,
-  mutateObjectiveState,
-  mutateHistoryState,
-  mutateInteractionState,
-} from "./state";
+import { getState, mutate, setState } from "./store";
 import { PointXY } from "../types/arrays";
-import { CanvasManager } from "../ui/canvasManager";
+import { CanvasViewportManager } from "../ui/managers/canvasViewportManager";
 
 export interface HistoryEntry {
   vertices: PointXY[];
@@ -16,56 +8,46 @@ export interface HistoryEntry {
 }
 
 export function saveToHistory(): void {
-  const geometry = getGeometryState();
-  const objective = getObjectiveState();
-  mutateHistoryState((draft) => {
+  const { vertices, objectiveVector } = getState();
+  mutate((draft) => {
     draft.historyStack.push({
-      vertices: JSON.parse(JSON.stringify(geometry.vertices)),
-      objectiveVector: objective.objectiveVector ? { ...objective.objectiveVector } : null,
+      vertices: JSON.parse(JSON.stringify(vertices)),
+      objectiveVector: objectiveVector ? { ...objectiveVector } : null,
     });
   });
 }
 
-export function createUndoRedoHandler(
-  canvasManager: CanvasManager,
-  saveToHistory: () => void,
-  sendPolytope: () => void
-) {
+export function createUndoRedoHandler(canvasManager: CanvasViewportManager, saveToHistory: () => void, sendPolytope: () => void) {
   return function handleUndoRedo(isRedo: boolean) {
-    const historySnapshot = getHistoryState();
-    const sourceStackLength = isRedo ? historySnapshot.redoStack.length : historySnapshot.historyStack.length;
+    const { redoStack, historyStack } = getState();
+    const sourceStackLength = isRedo ? redoStack.length : historyStack.length;
     if (sourceStackLength === 0) return;
-    
-    if (isRedo) {
-      saveToHistory();
-    }
-    
-    const geometrySnapshot = getGeometryState();
-    const objectiveSnapshot = getObjectiveState();
+
+    if (isRedo) saveToHistory();
+
+    const { vertices, objectiveVector } = getState();
     let stateToRestore: HistoryEntry | null = null;
-    mutateHistoryState((draft) => {
+    mutate((draft) => {
       const sourceStack = isRedo ? draft.redoStack : draft.historyStack;
       const targetStack = isRedo ? draft.historyStack : draft.redoStack;
       if (sourceStack.length === 0) return;
-      
+
       const popped = sourceStack.pop();
       if (!popped) return;
       stateToRestore = popped;
-      
+
       if (!isRedo) {
         targetStack.push({
-          vertices: JSON.parse(JSON.stringify(geometrySnapshot.vertices)),
-          objectiveVector: objectiveSnapshot.objectiveVector ? { ...objectiveSnapshot.objectiveVector } : null,
+          vertices: JSON.parse(JSON.stringify(vertices)),
+          objectiveVector: objectiveVector ? { ...objectiveVector } : null,
         });
       }
     });
-    
+
     if (!stateToRestore) return;
-    
-    mutateGeometryState((draft) => {
+
+    mutate((draft) => {
       draft.vertices = stateToRestore!.vertices;
-    });
-    mutateObjectiveState((draft) => {
       draft.objectiveVector = stateToRestore!.objectiveVector;
     });
     canvasManager.draw();
@@ -73,18 +55,22 @@ export function createUndoRedoHandler(
   };
 }
 
-export function setupKeyboardHandlers(handleUndoRedo: (isRedo: boolean) => void): void {
+export function setupKeyboardHandlers(canvasManager: CanvasViewportManager, handleUndoRedo: (isRedo: boolean) => void): void {
   // ===== KEYBOARD HANDLERS =====
-  
+
   window.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();
       handleUndoRedo(e.shiftKey);
     }
     if (e.key.toLowerCase() === "s") {
-      mutateInteractionState((draft) => {
-        draft.snapToGrid = !draft.snapToGrid;
-      });
+      const { snapToGrid } = getState();
+      setState({ snapToGrid: !snapToGrid });
+    }
+    if (e.key.toLowerCase() === "h") {
+      const { objectiveHidden } = getState();
+      setState({ objectiveHidden: !objectiveHidden });
+      canvasManager.draw();
     }
   });
 }

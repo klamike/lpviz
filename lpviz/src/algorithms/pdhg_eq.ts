@@ -1,7 +1,7 @@
-import { Matrix } from 'ml-matrix';
-import { sprintf } from 'sprintf-js';
-import { hstack, linesToAb, projectNonNegative, vstack } from '../utils/blas';
-import { Lines, VecN, Vec2N, Vec2Ns, VectorM, VectorN } from '../types/arrays';
+import { Matrix } from "ml-matrix";
+import { sprintf } from "sprintf-js";
+import { hstack, linesToAb, projectNonNegative, vstack } from "../utils/blas";
+import { Lines, VecN, Vec2N, Vec2Ns, VectorM, VectorN } from "../types/arrays";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
 
@@ -13,19 +13,12 @@ export interface PDHGEqOptions {
   verbose: boolean;
 }
 
-// ε = ||Ax - b||/(1 + ||b||) + ||[A^T y + c]_-||/(1 + ||c||) + |c^T x + b^T y|/(1 + |c^T x| + |b^T y|)
 function pdhgEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM) {
-  const Ax = A.mmul(xk);
-  const primalFeasibility = Matrix.sub(Ax, b).norm() / (1 + b.norm());
-
-  const ATy = A.transpose().mmul(yk);
-  const negATy_minus_c = Matrix.sub(ATy.mul(-1), c);
-  const dualFeasibility = projectNonNegative(negATy_minus_c).norm() / (1 + c.norm());
-
+  const primalFeasibility = Matrix.sub(A.mmul(xk), b).norm() / (1 + b.norm());
+  const dualFeasibility = projectNonNegative(Matrix.sub(A.transpose().mmul(yk).mul(-1), c)).norm() / (1 + c.norm());
   const cTx = c.dot(xk);
   const bTy = b.dot(yk);
   const dualityGap = Math.abs(cTx + bTy) / (1 + Math.abs(cTx) + Math.abs(bTy));
-
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
@@ -42,8 +35,7 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
   let epsilonK = pdhgEpsilon(A, b, c, xk, yk);
   const logs = [];
 
-  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s",
-    'Iter', 'x', 'y', ' Obj', 'Infeas', 'eps');
+  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s", "Iter", "x", "y", " Obj", "Infeas", "eps");
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
@@ -56,14 +48,7 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
 
     const pObj = -c.dot(xk);
     const pFeas = Matrix.sub(A.mmul(xk), b).max();
-    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
-      k,
-      xk.get(0, 0),
-      -yk.get(0, 0),
-      pObj,
-      pFeas,
-      epsilonK
-    );
+    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e", k, xk.get(0, 0), -yk.get(0, 0), pObj, pFeas, epsilonK);
 
     if (verbose) console.log(logMsg);
     logs.push(logMsg);
@@ -84,40 +69,23 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
     epsilonK = pdhgEpsilon(A, b, c, xk, yk);
   }
 
-  const endTime = performance.now();
-  const tsolve = (endTime - startTime).toFixed(2);
-
-  let finalLogMsg: string;
-  if (epsilonK <= tol) {
-    finalLogMsg = `Converged to primal-dual optimal solution in ${tsolve}ms`;
-  } else {
-    finalLogMsg = `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
-  }
+  const tsolve = (performance.now() - startTime).toFixed(2);
+  const finalLogMsg = epsilonK <= tol 
+    ? `Converged to primal-dual optimal solution in ${tsolve}ms`
+    : `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
   if (verbose) console.log(finalLogMsg);
   logs.push(finalLogMsg);
 
   return {
     iterations: iterates,
     logs: logs,
-    eps
+    eps,
   };
 }
 
-// min c^T x s.t. Ax = b, x ≥ 0
 export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
-  const {
-    maxit = 1000,
-    eta = 0.25,
-    tau = 0.25,
-    verbose = false,
-    tol = 1e-4,
-  } = options;
-
-  if (maxit > MAX_ITERATIONS_LIMIT) {
-    throw new Error("maxit > 2^16 not allowed");
-  }
-
-  const solverOptions = { maxit, eta, tau, verbose, tol };
+  const { maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4 } = options;
+  if (maxit > MAX_ITERATIONS_LIMIT) throw new Error("maxit > 2^16 not allowed");
 
   const { A, b } = linesToAb(lines);
   const c = Matrix.columnVector(objective);
@@ -129,8 +97,8 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
 
   // ĉ = [-c; c; 0_m]
   const c_hat = vstack([Matrix.mul(c, -1), c, Matrix.zeros(A.rows, 1)]);
-  const { iterations: chi_iterates, logs, eps } = pdhgStandardForm(A_hat, b, c_hat, solverOptions);
-  
+  const { iterations: chi_iterates, logs, eps } = pdhgStandardForm(A_hat, b, c_hat, { maxit, eta, tau, verbose, tol });
+
   // x = x^+ - x^-
   const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
     const x_plus = Matrix.columnVector(chi_k.slice(0, n_orig));
@@ -141,6 +109,6 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
   return {
     iterations: x_iterates,
     logs,
-    eps
+    eps,
   };
 }

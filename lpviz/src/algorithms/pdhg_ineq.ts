@@ -1,7 +1,7 @@
-import { Matrix } from 'ml-matrix';
-import { sprintf } from 'sprintf-js';
-import { linesToAb, projectNonNegative } from '../utils/blas';
-import { Lines, VecN, Vec2Ns, VectorM, VectorN } from '../types/arrays';
+import { Matrix } from "ml-matrix";
+import { sprintf } from "sprintf-js";
+import { linesToAb, projectNonNegative } from "../utils/blas";
+import { Lines, VecN, Vec2Ns, VectorM, VectorN } from "../types/arrays";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
 
@@ -13,33 +13,19 @@ export interface PDHGIneqOptions {
   verbose: boolean;
 }
 
-// ε = ||[Ax - b]_+||/(1 + ||b||) + ||[-y]_+||/(1 + ||c||) + |b^T y + c^T x|/(1 + |c^T x| + |b^T y|)
 function pdhgIneqEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM) {
-  const Ax = A.mmul(xk);
-  const primalFeasibility = projectNonNegative(Matrix.sub(Ax, b)).norm() / (1 + b.norm());
+  const primalFeasibility = projectNonNegative(Matrix.sub(A.mmul(xk), b)).norm() / (1 + b.norm());
   const dualFeasibility = projectNonNegative(yk.mul(-1)).norm() / (1 + c.norm());
-  yk.mul(-1) // put it back
-
+  yk.mul(-1); // put it back
   const cTx = c.dot(xk);
   const bTy = b.dot(yk);
   const dualityGap = Math.abs(bTy + cTx) / (1 + Math.abs(cTx) + Math.abs(bTy));
-
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
-// min c^T x s.t. Ax ≤ b, x ≥ 0
 export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions) {
-  const {
-    maxit = 1000,
-    eta = 0.25,
-    tau = 0.25,
-    verbose = false,
-    tol = 1e-4,
-  } = options;
-
-  if (maxit > MAX_ITERATIONS_LIMIT) {
-    throw new Error("maxit > 2^16 not allowed");
-  }
+  const { maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4 } = options;
+  if (maxit > MAX_ITERATIONS_LIMIT) throw new Error("maxit > 2^16 not allowed");
 
   const { A, b } = linesToAb(lines);
   const c = Matrix.mul(Matrix.columnVector(objective), -1);
@@ -54,8 +40,7 @@ export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions
   let epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk);
   const logs = [];
 
-  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s",
-    'Iter', 'x', 'y', ' Obj', 'Infeas', 'eps');
+  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s", "Iter", "x", "y", " Obj", "Infeas", "eps");
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
@@ -66,18 +51,7 @@ export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions
   while (k <= maxit && epsilonK > tol) {
     iterates.push(xk.to1DArray());
 
-    const pObj = c.dot(xk);
-    const pFeasVal = projectNonNegative(Matrix.sub(A.mmul(xk), b)).max();
-
-    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
-      k,
-      xk.get(0, 0),
-      xk.rows > 1 ? xk.get(1, 0) : 0.0,
-      pObj,
-      pFeasVal,
-      epsilonK
-    );
-
+    const logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e", k, xk.get(0, 0), xk.rows > 1 ? xk.get(1, 0) : 0.0, c.dot(xk), projectNonNegative(Matrix.sub(A.mmul(xk), b)).max(), epsilonK);
     if (verbose) console.log(logMsg);
     logs.push(logMsg);
 
@@ -98,21 +72,16 @@ export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions
     epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk);
   }
 
-  const endTime = performance.now();
-  const tsolve = parseFloat((endTime - startTime).toFixed(2));
-
-  let finalLogMsg: string;
-  if (epsilonK <= tol) {
-    finalLogMsg = `Converged to primal-dual optimal solution in ${tsolve}ms`;
-  } else {
-    finalLogMsg = `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
-  }
+  const tsolve = parseFloat((performance.now() - startTime).toFixed(2));
+  const finalLogMsg = epsilonK <= tol
+    ? `Converged to primal-dual optimal solution in ${tsolve}ms`
+    : `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
   if (verbose) console.log(finalLogMsg);
   logs.push(finalLogMsg);
 
   return {
     iterations: iterates,
     logs: logs,
-    eps
+    eps,
   };
 }

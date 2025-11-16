@@ -1,10 +1,5 @@
 import { Lines, VecN, Vertices } from "../types/arrays";
-import type {
-  CentralPathResult,
-  IPMResult,
-  PDHGResult,
-  SimplexResult,
-} from "../services/solverService";
+import type { CentralPathResult, IPMResult, PDHGResult, SimplexResult } from "./solverService";
 
 export type SolverModeWorker = "central" | "ipm" | "simplex" | "pdhg";
 
