@@ -187,7 +187,9 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
 
   const tour = new Tour(canvasManager, uiManager);
   const helpPopup = new InactivityHelpOverlay(tour);
-  new NonconvexHullHintOverlay();
+  const nonconvexHullHintOverlay = new NonconvexHullHintOverlay();
+  const cleanupNonconvexOverlay = () => nonconvexHullHintOverlay.destroy();
+  window.addEventListener("beforeunload", cleanupNonconvexOverlay);
   helpPopup.startTimer();
 
   const { resizeCanvas } = initializeResizeManager(canvasManager, uiManager);
