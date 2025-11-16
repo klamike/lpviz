@@ -6,8 +6,6 @@ import type { Lines, VecN, Vertices } from "../utils/blas";
 
 import type { CentralPathResult, IPMResult, PDHGResult, SimplexResult } from "./solverService";
 
-export type SolverModeWorker = "central" | "ipm" | "simplex" | "pdhg";
-
 export type SolverWorkerPayload =
   | {
       solver: "ipm";
@@ -66,7 +64,7 @@ export type SolverWorkerSuccessResponse =
       result: CentralPathResult;
     };
 
-export type SolverWorkerErrorResponse = {
+type SolverWorkerErrorResponse = {
   id: number;
   success: false;
   error: string;

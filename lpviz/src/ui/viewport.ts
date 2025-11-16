@@ -9,7 +9,7 @@ import { transform2DTo3DAndProject, inverseTransform2DProjection } from "./rende
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
 import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./rendering/constants";
-import type { GuidedExperience } from "./tour/tour";
+import type { Tour } from "./tour/tour";
 
 export class ViewportManager {
   canvas: HTMLCanvasElement;
@@ -39,7 +39,7 @@ export class ViewportManager {
   private iterateGroup: Group;
   private overlayGroup: Group;
   private renderScheduled = false;
-  private guidedExperience: GuidedExperience | null = null;
+  private tour: Tour | null = null;
   private initialized = false;
   private starTextures = new Map<number, CanvasTexture>();
   private circleTextures = new Map<string, CanvasTexture>();
@@ -116,12 +116,12 @@ export class ViewportManager {
     return new ViewportManager(canvas);
   }
 
-  attachGuidedExperience(guidedExperience: GuidedExperience) {
-    this.guidedExperience = guidedExperience;
+  attachTour(tour: Tour) {
+    this.tour = tour;
   }
 
   private shouldSkipPreviewDrawing(): boolean {
-    return this.guidedExperience?.isTouring() ?? false;
+    return this.tour?.isTouring() ?? false;
   }
 
   private handleResize = () => {
@@ -301,7 +301,7 @@ export class ViewportManager {
   }
 
   private createStarSprite(position: Vector3, color: number) {
-    const material = this.getStarSpriteMaterial(color);
+    const material = this.getSpriteMaterial("star", color);
     const sprite = new Sprite(material);
     sprite.position.copy(position);
     const starSize = this.getWorldSizeFromPixels(STAR_POINT_PIXEL_SIZE, position);
@@ -311,7 +311,7 @@ export class ViewportManager {
   }
 
   private createCircleSprite(position: Vector3, color: number, size: number) {
-    const material = this.getCircleSpriteMaterial(color);
+    const material = this.getSpriteMaterial("circle", color);
     const sprite = new Sprite(material);
     sprite.position.copy(position);
     sprite.scale.set(size, size, size);
@@ -636,14 +636,6 @@ export class ViewportManager {
       material.needsUpdate = true;
     }
     return material;
-  }
-
-  private getCircleSpriteMaterial(color: number) {
-    return this.getSpriteMaterial("circle", color);
-  }
-
-  private getStarSpriteMaterial(color: number) {
-    return this.getSpriteMaterial("star", color);
   }
 
   private createThickLine(

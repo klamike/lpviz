@@ -1,25 +1,3 @@
-export function setButtonState(id: string, enabled: boolean): void {
-  const button = document.getElementById(id) as HTMLButtonElement | null;
-  if (button) button.disabled = !enabled;
-}
-
-export function getElementChecked(elementId: string): boolean {
-  const element = document.getElementById(elementId) as HTMLInputElement;
-  return element?.checked || false;
-}
-
-export function setupHoverHighlight(elements: NodeListOf<Element>, onMouseEnter: (index: number) => void, onMouseLeave: () => void): void {
-  elements.forEach((item) => {
-    item.addEventListener("mouseenter", () => {
-      const index = parseInt(item.getAttribute("data-index") || "0");
-      onMouseEnter(index);
-    });
-    item.addEventListener("mouseleave", () => {
-      onMouseLeave();
-    });
-  });
-}
-
 // tries to maximize font size to fit in a container
 function adjustTextSize(config: { containerId: string; selector: string; baseSize: number; minSize: number; maxSize: number; padding: number; scaleFactor: number; skipCondition?: () => boolean }): void {
   const container = document.getElementById(config.containerId) as HTMLElement | null;
@@ -93,34 +71,15 @@ export function adjustLogoFontSize(): void {
   });
 }
 
-export function adjustTerminalHeight(): void {
-  const terminalContainer = document.getElementById("terminal-container2") as HTMLElement | null;
-  const sidebar = document.getElementById("sidebar") as HTMLElement | null;
-  if (!terminalContainer || !sidebar) return;
+export function refreshResponsiveLayout(options: { includeTerminal?: boolean } = {}): void {
+  adjustFontSize();
+  adjustLogoFontSize();
+  if (options.includeTerminal) {
+    const terminalContainer = document.getElementById("terminal-container2") as HTMLElement | null;
+    const sidebar = document.getElementById("sidebar") as HTMLElement | null;
+    if (!terminalContainer || !sidebar) return;
 
-  const height = Math.max(120, Math.min(300, sidebar.offsetWidth * 0.4));
-  terminalContainer.style.minHeight = `${height}px`;
-}
-
-export function calculateMinSidebarWidth(): number {
-  const logoElement = document.getElementById("nullStateMessage") as HTMLElement | null;
-  const topResultContainer = document.getElementById("topResult") as HTMLElement | null;
-  if (!logoElement || !topResultContainer) return 300;
-
-  const style = window.getComputedStyle(topResultContainer);
-  const measurementDiv = Object.assign(document.createElement("div"), { textContent: logoElement.textContent || "" });
-  Object.assign(measurementDiv.style, {
-    position: "absolute",
-    visibility: "hidden",
-    fontFamily: style.fontFamily,
-    fontWeight: style.fontWeight,
-    fontStyle: style.fontStyle,
-    whiteSpace: "pre-wrap",
-    fontSize: "12px",
-  });
-  document.body.appendChild(measurementDiv);
-  const logoWidth = measurementDiv.getBoundingClientRect().width;
-  document.body.removeChild(measurementDiv);
-
-  return Math.max(280, Math.min(logoWidth + 60, 400));
+    const height = Math.max(120, Math.min(300, sidebar.offsetWidth * 0.4));
+    terminalContainer.style.minHeight = `${height}px`;
+  }
 }

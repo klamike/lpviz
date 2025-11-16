@@ -1,5 +1,4 @@
-import type { State } from "../state/store";
-import type { SolverMode } from "../state/types";
+import type { State, SolverMode } from "../state/store";
 import type { ResultRenderPayload } from "./worker/solverService";
 import { hasPolytopeLines, hasPolytopeVertices } from "./utils/polytope";
 import type { SolverWorkerPayload, SolverWorkerSuccessResponse } from "./worker/solverWorker";
@@ -7,7 +6,7 @@ import { applyCentralPathResult, applyIPMResult, applyPDHGResult, applySimplexRe
 
 export type SettingsElements = Record<string, HTMLInputElement>;
 
-export interface SolverDefinition {
+interface SolverDefinition {
   mode: SolverMode;
   buttonId: string;
   settingsPanelId?: string;

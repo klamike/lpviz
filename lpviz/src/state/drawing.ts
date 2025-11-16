@@ -1,13 +1,14 @@
 import type { State } from "./store";
 
-export type DrawingPhase = "empty" | "sketching_polytope" | "awaiting_objective" | "objective_preview" | "ready_for_solvers";
+type DrawingPhase = "empty" | "sketching_polytope" | "awaiting_objective" | "objective_preview" | "ready_for_solvers";
 
-export type DrawingInteractionMode = "idle" | "dragging_vertex" | "dragging_objective" | "panning";
+type DrawingInteractionMode = "idle" | "dragging_vertex" | "dragging_objective" | "panning";
 
 export interface DrawingPhaseSnapshot {
   phase: DrawingPhase;
   interactionMode: DrawingInteractionMode;
   objectiveDefined: boolean;
+  isTouring: boolean;
 }
 
 export function computeDrawingSnapshot(state: State): DrawingPhaseSnapshot {
@@ -39,5 +40,6 @@ export function computeDrawingSnapshot(state: State): DrawingPhaseSnapshot {
     phase,
     interactionMode,
     objectiveDefined,
+    isTouring: state.guidedTourActive,
   };
 }

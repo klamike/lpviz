@@ -5,7 +5,7 @@ import type { Lines, VecN, Vec2Ns, VectorM, VectorN } from "./utils/blas";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
 
-export interface PDHGIneqOptions {
+interface PDHGIneqOptions {
   maxit: number;
   eta: number;
   tau: number;

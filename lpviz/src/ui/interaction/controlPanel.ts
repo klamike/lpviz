@@ -1,9 +1,8 @@
-import { getState, mutate, setState, setFields, SolverMode, handleStepSizeChange, resetTraceState, prepareAnimationInterval } from "../../state/store";
-import { computeDrawingSnapshot } from "../../state/drawing";
+import { getState, mutate, setState, SolverMode, handleStepSizeChange, resetTraceState, prepareAnimationInterval } from "../../state/store";
 import type { ResultRenderPayload } from "../../solvers/worker/solverService";
 import { start3DTransition } from "../rendering/math3d";
-import { showElement, hideElement } from "../../state/utils";
-import { adjustFontSize, adjustLogoFontSize, adjustTerminalHeight, calculateMinSidebarWidth } from "../utils";
+import { setElementDisplay } from "../../state/utils";
+import { refreshResponsiveLayout } from "../utils";
 import { VRep } from "../../solvers/utils/polytope";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
@@ -24,7 +23,7 @@ async function runSolverWorker(request: SolverWorkerPayload): Promise<SolverWork
   return response;
 }
 
-const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
+export const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
   if (!element) {
     throw new Error(`Element with id "${id}" not found`);
@@ -101,12 +100,6 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     }
   };
 
-  const refreshResponsiveLayout = () => {
-    adjustFontSize();
-    adjustLogoFontSize();
-    adjustTerminalHeight();
-  };
-
   function setupSolverModeHandlers() {
     const solverButtons = SOLVER_DEFINITIONS.map((definition) => ({
       ...definition,
@@ -123,8 +116,8 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
         solverButtons.forEach((btn) => {
           if (btn.element) btn.element.disabled = btn.element === element;
         });
-        settingsPanels.forEach(hideElement);
-        if (settingsPanelId) showElement(settingsPanelId);
+        settingsPanels.forEach((panelId) => setElementDisplay(panelId, "none"));
+        if (settingsPanelId) setElementDisplay(settingsPanelId, "block");
       });
     });
   }
@@ -172,7 +165,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       const { objectiveVector, animationIntervalId } = getState();
       const hadObjective = Boolean(objectiveVector);
 
-      setFields({
+      setState({
         rotateObjectiveMode: true,
         animationIntervalId: null,
         objectiveVector: objectiveVector || { x: 1, y: 0 },
@@ -188,7 +181,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     });
 
     stopRotateButton.addEventListener("click", () => {
-      setFields({ rotateObjectiveMode: false, totalRotationAngle: 0 });
+      setState({ rotateObjectiveMode: false, totalRotationAngle: 0 });
       rotationSettings.style.display = "none";
       uiManager.updateSolverModeButtons();
       showAllResults?.();
@@ -221,7 +214,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
 
       const intervalTime = parseInt(replaySpeedSlider.value, 10) || 500;
       const iteratesToAnimate = [...solverSnapshot.originalIteratePath];
-      setFields({
+      setState({
         iteratePath: [],
         highlightIteratePathIndex: null,
         animationIntervalId: null,
@@ -253,7 +246,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
   async function computePath() {
     prepareAnimationInterval();
     const state = getState();
-    const phaseSnapshot = computeDrawingSnapshot(state);
+    const phaseSnapshot = state.snapshot;
     const { polytope, objectiveVector, solverMode } = state;
     if (phaseSnapshot.phase !== "ready_for_solvers" || !objectiveVector || !hasPolytopeLines(polytope)) {
       return;
@@ -294,7 +287,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       return;
     }
 
-    const phaseSnapshot = computeDrawingSnapshot(state);
+    const phaseSnapshot = state.snapshot;
     const { rotateObjectiveMode, objectiveVector } = state;
     if (!rotateObjectiveMode || !phaseSnapshot.objectiveDefined || !objectiveVector) return;
 
@@ -318,7 +311,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     canvasManager.draw();
 
     const updatedState = getState();
-    const updatedPhase = computeDrawingSnapshot(updatedState);
+    const updatedPhase = updatedState.snapshot;
     const hasComputedLines = hasPolytopeLines(updatedState.polytope);
     if (updatedPhase.phase === "ready_for_solvers" && hasComputedLines) {
       try {
@@ -428,4 +421,27 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
   setupResultHover();
 
   return { computePath, settingsElements };
+}
+
+function calculateMinSidebarWidth(): number {
+  const logoElement = document.getElementById("nullStateMessage") as HTMLElement | null;
+  const topResultContainer = document.getElementById("topResult") as HTMLElement | null;
+  if (!logoElement || !topResultContainer) return 300;
+
+  const style = window.getComputedStyle(topResultContainer);
+  const measurementDiv = Object.assign(document.createElement("div"), { textContent: logoElement.textContent || "" });
+  Object.assign(measurementDiv.style, {
+    position: "absolute",
+    visibility: "hidden",
+    fontFamily: style.fontFamily,
+    fontWeight: style.fontWeight,
+    fontStyle: style.fontStyle,
+    whiteSpace: "pre-wrap",
+    fontSize: "12px",
+  });
+  document.body.appendChild(measurementDiv);
+  const logoWidth = measurementDiv.getBoundingClientRect().width;
+  document.body.removeChild(measurementDiv);
+
+  return Math.max(280, Math.min(logoWidth + 60, 400));
 }

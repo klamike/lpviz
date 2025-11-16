@@ -2,16 +2,22 @@ import { getState, mutate, setState } from "../../state/store";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
-import { setupHoverHighlight, adjustFontSize, adjustLogoFontSize } from "../utils";
-import { showElement } from "../../state/utils";
+import { adjustFontSize, adjustLogoFontSize } from "../utils";
+import { setElementDisplay } from "../../state/utils";
 import { registerCanvasInteractions } from "./canvas";
 import { saveToHistory, setupKeyboardHandlers, createUndoRedoHandler } from "../../state/history";
 import { initializeControlPanel } from "./controlPanel";
 import { createSharingHandlers } from "../../state/sharing";
-import { InactivityHelpOverlay } from "../tour/tour";
+import JSONCrush from "jsoncrush";
+import { initializeResizeManager } from "../resize";
+import { Tour as Tour, InactivityHelpOverlay } from "../tour/tour";
+import { NonconvexHullHintOverlay } from "../../solvers/utils/polytope";
 import type { ResultRenderPayload, VirtualResultPayload } from "../../solvers/worker/solverService";
 
-export function initializeApplicationInteractions(canvasManager: ViewportManager, uiManager: LayoutManager, helpPopup?: InactivityHelpOverlay) {
+export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchParams) {
+  const canvasManager = await ViewportManager.create(canvas);
+  const uiManager = new LayoutManager();
+
   const ROTATE_ROW_LIMIT = 20; // FIXME: detect number of rows
   let lastVirtualResult: VirtualResultPayload | null = null;
 
@@ -43,7 +49,7 @@ export function initializeApplicationInteractions(canvasManager: ViewportManager
         const inequalityElements = document.querySelectorAll(".inequality-item");
         setupHoverHighlight(
           inequalityElements,
-          (index) => {
+          (index: number) => {
             setState({ highlightIndex: index });
             canvasManager.draw();
           },
@@ -54,7 +60,7 @@ export function initializeApplicationInteractions(canvasManager: ViewportManager
         );
 
         if (result.lines.length > 0) {
-          showElement("subjectTo");
+          setElementDisplay("subjectTo", "block");
         }
         mutate((draft) => {
           draft.polytope = result;
@@ -110,6 +116,18 @@ export function initializeApplicationInteractions(canvasManager: ViewportManager
     }
   }
 
+  function setupHoverHighlight(elements: NodeListOf<Element>, onMouseEnter: (index: number) => void, onMouseLeave: () => void): void {
+    elements.forEach((item) => {
+      item.addEventListener("mouseenter", () => {
+        const index = parseInt(item.getAttribute("data-index") || "0");
+        onMouseEnter(index);
+      });
+      item.addEventListener("mouseleave", () => {
+        onMouseLeave();
+      });
+    });
+  }
+
   function renderHtmlResult(html: string) {
     const resultDiv = document.getElementById("result") as HTMLElement;
     resultDiv.classList.remove("virtualized");
@@ -118,7 +136,7 @@ export function initializeApplicationInteractions(canvasManager: ViewportManager
     const iterateElements = resultDiv.querySelectorAll(".iterate-header, .iterate-item, .iterate-footer");
     setupHoverHighlight(
       iterateElements,
-      (index) => setHighlight(index),
+      (index: number) => setHighlight(index),
       () => setHighlight(null),
     );
   }
@@ -148,19 +166,45 @@ export function initializeApplicationInteractions(canvasManager: ViewportManager
     finalizeResultRender();
   }
 
-  // Create and setup all handler modules
+  const maybeLoadState = (params: URLSearchParams) => {
+    if (!params.has("s")) return;
+    try {
+      const crushed = decodeURIComponent(params.get("s") ?? "");
+      const jsonString = JSONCrush.uncrush(crushed);
+      const data = JSON.parse(jsonString);
+      loadStateFromObject(data);
+      history.replaceState(null, "", window.location.pathname);
+      helpPopup.resetTimer();
+    } catch (err) {
+      console.error("Failed to load shared state", err);
+    }
+  };
+
+  const maybeStartDemo = (params: URLSearchParams) => {
+    if (!params.has("demo")) return;
+    tour.startTour();
+  };
+
+  const tour = new Tour(canvasManager, uiManager);
+  const helpPopup = new InactivityHelpOverlay(tour);
+  new NonconvexHullHintOverlay();
+  helpPopup.startTimer();
+
+  const { resizeCanvas } = initializeResizeManager(canvasManager, uiManager);
   const handleUndoRedo = createUndoRedoHandler(canvasManager, saveToHistory, sendPolytope);
   const { computePath, settingsElements } = initializeControlPanel(canvasManager, uiManager, updateResult, refreshFullVirtualResult);
-  const { loadStateFromObject, generateShareLink } = createSharingHandlers(canvasManager, uiManager, settingsElements, sendPolytope);
-
-  // Setup all event listeners
+  const { loadStateFromObject } = createSharingHandlers(canvasManager, uiManager, settingsElements, sendPolytope);
   registerCanvasInteractions(canvasManager, uiManager, saveToHistory, sendPolytope, computePath, helpPopup);
   setupKeyboardHandlers(canvasManager, handleUndoRedo);
 
-  return {
-    loadStateFromObject,
-    generateShareLink,
-    sendPolytope,
-    saveToHistory,
-  };
+  tour.setSendPolytope(sendPolytope);
+  tour.setSaveToHistory(saveToHistory);
+  canvasManager.attachTour(tour);
+  uiManager.synchronize();
+  resizeCanvas();
+
+  maybeLoadState(params);
+  maybeStartDemo(params);
+  uiManager.synchronize();
+  canvas.focus();
 }

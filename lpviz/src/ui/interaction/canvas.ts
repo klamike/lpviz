@@ -1,8 +1,7 @@
-import { getState, mutate, setState, setFields } from "../../state/store";
-import { computeDrawingSnapshot } from "../../state/drawing";
+import { getState, mutate, setState } from "../../state/store";
 import type { Line, PointXY } from "../../solvers/utils/blas";
 import { VRep, verticesFromLines } from "../../solvers/utils/polytope";
-import { showElement, setButtonsEnabled } from "../../state/utils";
+import { setButtonsEnabled, setElementDisplay } from "../../state/utils";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
 import { InactivityHelpOverlay } from "../tour/tour";
@@ -23,7 +22,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
   };
 
   const cleanupDragState = () => {
-    setFields({
+    setState({
       potentialDragPointIndex: null,
       potentialDragPoint: false,
       draggingPoint: false,
@@ -49,12 +48,12 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     const localX = clientX - rect.left;
     const localY = clientY - rect.top;
     const state = getState();
-    const phaseSnapshot = computeDrawingSnapshot(state);
+    const phaseSnapshot = state.snapshot;
 
     if (phaseSnapshot.phase === "empty" || phaseSnapshot.phase === "sketching_polytope") {
       const idx = state.vertices.findIndex((v) => VRep.distance(logicalCoords, v) < 0.5);
       if (idx !== -1) {
-        setFields({
+        setState({
           potentialDragPointIndex: idx,
           potentialDragPoint: true,
           dragStartPos: { x: clientX, y: clientY },
@@ -73,7 +72,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
     const idx = state.vertices.findIndex((v) => VRep.distance(logicalCoords, v) < 0.5);
     if (idx !== -1) {
-      setFields({
+      setState({
         potentialDragPointIndex: idx,
         potentialDragPoint: true,
         dragStartPos: { x: clientX, y: clientY },
@@ -100,7 +99,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
           if (!line) return;
           const normal: PointXY = { x: line[0], y: line[1] };
           constraintDragContext = lineContext.map(([A, B, C]) => [A, B, C]);
-          setFields({
+          setState({
             potentialDragConstraint: true,
             draggingConstraintIndex: edgeIndex,
             constraintDragStart: logicalCoords,
@@ -118,7 +117,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     }
 
     if (state.objectiveVector) {
-      setFields({
+      setState({
         isPanning: true,
         lastPan: { x: clientX, y: clientY },
       });
@@ -128,12 +127,12 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
   function handleDragMove(clientX: number, clientY: number) {
     const logicalCoords = getLogicalFromClient(clientX, clientY);
     let interaction = getState();
-    const phaseSnapshot = computeDrawingSnapshot(getState());
+    const phaseSnapshot = interaction.snapshot;
 
     if (interaction.potentialDragPoint && !interaction.draggingPoint) {
       if (exceedsDragThreshold(clientX, clientY)) {
         const dragIndex = interaction.potentialDragPointIndex;
-        setFields({
+        setState({
           draggingPointIndex: dragIndex,
           draggingPoint: true,
           potentialDragPointIndex: null,
@@ -145,7 +144,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
     if (interaction.potentialDragConstraint && !interaction.draggingConstraint) {
       if (exceedsDragThreshold(clientX, clientY)) {
-        setFields({
+        setState({
           draggingConstraint: true,
           potentialDragConstraint: false,
         });
@@ -181,7 +180,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
           draft.vertices = updatedVertices.map(([x, y]) => ({ x, y }));
         });
         constraintDragContext = updatedLines;
-        setFields({ constraintDragStart: logicalCoords });
+        setState({ constraintDragStart: logicalCoords });
         sendPolytope();
         recomputeSolver?.();
         canvasManager.draw();
@@ -225,14 +224,14 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     const interaction = getState();
 
     if (interaction.isPanning) {
-      setFields({ isPanning: false, wasPanning: true });
+      setState({ isPanning: false, wasPanning: true });
       cleanupDragState();
       return;
     }
 
     if (interaction.draggingConstraint) {
       saveToHistory();
-      setFields({
+      setState({
         draggingConstraintIndex: null,
         draggingConstraint: false,
         wasDraggingConstraint: true,
@@ -242,7 +241,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
     if (interaction.draggingPoint) {
       saveToHistory();
-      setFields({
+      setState({
         draggingPointIndex: null,
         draggingPoint: false,
         wasDraggingPoint: true,
@@ -252,7 +251,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
     if (interaction.draggingObjective) {
       saveToHistory();
-      setFields({
+      setState({
         draggingObjective: false,
         wasDraggingObjective: true,
       });
@@ -268,7 +267,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     if (vertices.length >= 3) {
       // Check if clicking near first vertex to close polytope
       if (VRep.distance(pt, vertices[0]) < 0.5) {
-        setFields({
+        setState({
           polytopeComplete: true,
           interiorPoint: VRep.fromPoints(vertices).centroidPoint(),
         });
@@ -279,7 +278,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
       // Check if clicking inside polytope to close it
       if (polytope.contains(pt)) {
-        setFields({ polytopeComplete: true, interiorPoint: { x: pt.x, y: pt.y } });
+        setState({ polytopeComplete: true, interiorPoint: { x: pt.x, y: pt.y } });
         canvasManager.draw();
         sendPolytope();
         return;
@@ -306,7 +305,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     saveToHistory();
     const { currentObjective } = getState();
     setState({ objectiveVector: currentObjective || pt });
-    showElement("maximize");
+    setElementDisplay("maximize", "block");
     setButtonsEnabled({
       ipmButton: true,
       simplexButton: true,
@@ -410,7 +409,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       const hull = polytope.computeConvexHull();
       if (hull.length >= 3) {
         saveToHistory();
-        setFields({
+        setState({
           vertices: hull,
           interiorPoint: VRep.fromPoints(hull).centroidPoint(),
         });
@@ -450,7 +449,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     // Ignore clicks that were part of drag operations
     const { wasPanning, wasDraggingPoint, wasDraggingObjective, wasDraggingConstraint } = getState();
     if (wasPanning || wasDraggingPoint || wasDraggingObjective || wasDraggingConstraint) {
-      setFields({
+      setState({
         wasPanning: false,
         wasDraggingPoint: false,
         wasDraggingObjective: false,
@@ -461,7 +460,8 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
     const pt = getLogicalFromClient(e.clientX, e.clientY);
 
-    const phaseSnapshot = computeDrawingSnapshot(getState());
+    const state = getState();
+    const phaseSnapshot = state.snapshot;
 
     if (phaseSnapshot.phase === "empty" || phaseSnapshot.phase === "sketching_polytope") {
       handlePolytopeConstruction(pt);

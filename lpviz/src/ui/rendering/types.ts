@@ -2,7 +2,7 @@ import { CanvasTexture, Group, LineBasicMaterial, PointsMaterial, Sprite, Vector
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import type { PointXY } from "../../solvers/utils/blas";
 
-export interface CanvasGroups {
+interface CanvasGroups {
   grid: Group;
   polytopeFill: Group;
   polytopeOutline: Group;

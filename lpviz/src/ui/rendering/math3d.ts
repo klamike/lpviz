@@ -1,6 +1,6 @@
 import { Euler, Matrix4, Vector3 } from "three";
 import type { PointXY, PointXYZ } from "../../solvers/utils/blas";
-import { getState, mutate, setFields } from "../../state/store";
+import { getState, mutate, setState } from "../../state/store";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
 
@@ -50,7 +50,7 @@ export function start3DTransition(canvasManager: ViewportManager, uiManager: Lay
 
   canvasManager.prepareFor3DTransition(targetMode);
 
-  setFields({
+  setState({
     isTransitioning3D: true,
     transitionStartTime: performance.now(),
     transition3DStartAngles: startAngles,
