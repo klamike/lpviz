@@ -483,9 +483,13 @@ export function registerCanvasInteractions(canvasManager: CanvasViewportManager,
     if (is3D) {
       if (e.shiftKey && !isTransitioning3D) {
         e.preventDefault();
-        const delta = (zScale || 0.1) * (e.deltaY < 0 ? 1 / zoomFactor : zoomFactor);
-        setState({ zScale: Math.max(0.01, Math.min(100, delta)) });
-        canvasManager.draw();
+        const dominantDelta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        if (dominantDelta !== 0) {
+          const delta = (zScale || 0.1) * (dominantDelta < 0 ? 1 / zoomFactor : zoomFactor);
+          setState({ zScale: Math.max(0.01, Math.min(100, delta)) });
+          canvasManager.draw();
+          uiManager.updateZScaleValue();
+        }
       }
       return;
     }
