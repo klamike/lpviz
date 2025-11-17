@@ -14,6 +14,7 @@ type BindHandlers = {
   getElement: <T extends HTMLElement>(id: string) => T;
   resetTrace: () => void;
   runSolverWhenActive: (mode: SolverMode) => void;
+  onSettingsChange?: () => void;
 };
 
 export function bindControls(configs: ControlBinding[], handlers: BindHandlers): Record<string, HTMLInputElement> {
@@ -33,6 +34,7 @@ export function bindControls(configs: ControlBinding[], handlers: BindHandlers):
       if (affectsTrace) handlers.resetTrace();
       if (config.onChange) config.onChange();
       else if (config.solver) handlers.runSolverWhenActive(config.solver);
+      handlers.onSettingsChange?.();
     });
 
     acc[config.id] = element;

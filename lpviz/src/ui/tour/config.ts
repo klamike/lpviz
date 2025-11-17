@@ -1,9 +1,9 @@
 import type { PointXY } from "../../solvers/utils/blas";
 
-export type GuidedStep = { type: "wait"; duration: number } | { type: "draw-vertex"; point: PointXY } | { type: "close-polytope"; point: PointXY } | { type: "set-objective"; point: PointXY } | { type: "click-button"; id: string };
+export type TourStep = { type: "wait"; duration: number } | { type: "draw-vertex"; point: PointXY } | { type: "close-polytope"; point: PointXY } | { type: "set-objective"; point: PointXY } | { type: "click-button"; id: string };
 
-export function buildGuidedScript(vertices: PointXY[], objective: PointXY): GuidedStep[] {
-  const steps: GuidedStep[] = [{ type: "wait", duration: 500 }];
+export function buildTour(vertices: PointXY[], objective: PointXY): TourStep[] {
+  const steps: TourStep[] = [{ type: "wait", duration: 500 }];
   vertices.forEach((point) => steps.push({ type: "draw-vertex", point }));
   steps.push({ type: "close-polytope", point: { x: 0, y: 0 } });
   steps.push({ type: "wait", duration: 1000 });

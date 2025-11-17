@@ -1,30 +1,17 @@
-import { getState, mutate, setState, setFields, SolverMode, handleStepSizeChange, resetTraceState, prepareAnimationInterval } from "../../state/store";
-import { computeDrawingSnapshot } from "../../state/drawing";
+import { getState, mutate, setState, SolverMode, handleStepSizeChange, resetTraceState, prepareAnimationInterval } from "../../state/store";
 import type { ResultRenderPayload } from "../../solvers/worker/solverService";
 import { start3DTransition } from "../rendering/math3d";
-import { showElement, hideElement } from "../../state/utils";
-import { adjustFontSize, adjustLogoFontSize, adjustTerminalHeight, calculateMinSidebarWidth } from "../utils";
+import { setElementDisplay } from "../../state/utils";
+import { refreshResponsiveLayout } from "../utils";
 import { VRep } from "../../solvers/utils/polytope";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
-import { SolverWorkerPayload, SolverWorkerRequest, SolverWorkerResponse, SolverWorkerSuccessResponse } from "../../solvers/worker/solverWorker";
+import { runSolverWorker } from "../../solvers/worker/client";
 import { hasPolytopeLines } from "../../solvers/utils/polytope";
-import SolverWorker from "../../solvers/worker/solverWorker?worker";
-import { createWorkerRPC } from "../../solvers/worker/rpc";
 import { bindControls, type ControlBinding } from "./bind";
-import { SOLVER_DEFINITIONS, type SettingsElements } from "../../solvers/registry";
+import { SOLVER_DEFINITIONS, type SettingsElements } from "../../solvers/utils/registry";
 
-const invokeSolverWorker = createWorkerRPC<SolverWorkerRequest, SolverWorkerResponse>(new SolverWorker());
-
-async function runSolverWorker(request: SolverWorkerPayload): Promise<SolverWorkerSuccessResponse> {
-  const response = await invokeSolverWorker(request);
-  if (!response.success) {
-    throw new Error(response.error);
-  }
-  return response;
-}
-
-const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
+export const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
   if (!element) {
     throw new Error(`Element with id "${id}" not found`);
@@ -32,39 +19,23 @@ const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
   return element as T;
 };
 
-export function initializeControlPanel(canvasManager: ViewportManager, uiManager: LayoutManager, updateResult: (payload: ResultRenderPayload) => void, showAllResults?: () => void) {
+export function initializeControlPanel(canvasManager: ViewportManager, uiManager: LayoutManager, updateResult: (payload: ResultRenderPayload) => void, showAllResults?: () => void, onSettingsChange?: () => void) {
   function setupZoomHandlers() {
     uiManager.zoomButton?.addEventListener("click", () => {
       const { vertices } = getState();
       const bounds = VRep.fromPoints(vertices).boundingBox();
       if (!bounds) return;
 
-      const width = bounds.maxX - bounds.minX;
-      const height = bounds.maxY - bounds.minY;
-      canvasManager.offset.x = -(bounds.minX + bounds.maxX) / 2;
-      canvasManager.offset.y = -(bounds.minY + bounds.maxY) / 2;
-
-      const padding = 50;
+      canvasManager.zoomToFit(bounds);
       const sidebarWidth = document.getElementById("sidebar")?.offsetWidth ?? 0;
-      const availWidth = window.innerWidth - sidebarWidth - 2 * padding;
-      const availHeight = window.innerHeight - 2 * padding;
-
-      if (width > 0 && height > 0) {
-        canvasManager.scaleFactor = Math.min(availWidth / (width * canvasManager.gridSpacing), availHeight / (height * canvasManager.gridSpacing));
-      }
-
       canvasManager.centerX = sidebarWidth + (window.innerWidth - sidebarWidth) / 2;
       canvasManager.centerY = window.innerHeight / 2;
-      canvasManager.draw();
       uiManager.updateZoomButtonsState(canvasManager);
     });
 
     uiManager.unzoomButton?.addEventListener("click", () => {
-      canvasManager.scaleFactor = 1;
-      canvasManager.offset.x = 0;
-      canvasManager.offset.y = 0;
+      canvasManager.resetView();
       setState({ viewAngle: { x: -1.15, y: 0.4, z: 0 } });
-      canvasManager.draw();
       uiManager.updateZoomButtonsState(canvasManager);
     });
   }
@@ -101,12 +72,6 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     }
   };
 
-  const refreshResponsiveLayout = () => {
-    adjustFontSize();
-    adjustLogoFontSize();
-    adjustTerminalHeight();
-  };
-
   function setupSolverModeHandlers() {
     const solverButtons = SOLVER_DEFINITIONS.map((definition) => ({
       ...definition,
@@ -123,8 +88,8 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
         solverButtons.forEach((btn) => {
           if (btn.element) btn.element.disabled = btn.element === element;
         });
-        settingsPanels.forEach(hideElement);
-        if (settingsPanelId) showElement(settingsPanelId);
+        settingsPanels.forEach((panelId) => setElementDisplay(panelId, "none"));
+        if (settingsPanelId) setElementDisplay(settingsPanelId, "block");
       });
     });
   }
@@ -154,6 +119,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       getElement: getRequiredElementById,
       resetTrace: resetTraceAndRedrawIfNeeded,
       runSolverWhenActive: (mode) => runSolverWhenActive(mode, computePath),
+      onSettingsChange,
     });
   }
 
@@ -172,7 +138,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       const { objectiveVector, animationIntervalId } = getState();
       const hadObjective = Boolean(objectiveVector);
 
-      setFields({
+      setState({
         rotateObjectiveMode: true,
         animationIntervalId: null,
         objectiveVector: objectiveVector || { x: 1, y: 0 },
@@ -188,7 +154,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     });
 
     stopRotateButton.addEventListener("click", () => {
-      setFields({ rotateObjectiveMode: false, totalRotationAngle: 0 });
+      setState({ rotateObjectiveMode: false, totalRotationAngle: 0 });
       rotationSettings.style.display = "none";
       uiManager.updateSolverModeButtons();
       showAllResults?.();
@@ -221,7 +187,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
 
       const intervalTime = parseInt(replaySpeedSlider.value, 10) || 500;
       const iteratesToAnimate = [...solverSnapshot.originalIteratePath];
-      setFields({
+      setState({
         iteratePath: [],
         highlightIteratePathIndex: null,
         animationIntervalId: null,
@@ -253,7 +219,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
   async function computePath() {
     prepareAnimationInterval();
     const state = getState();
-    const phaseSnapshot = computeDrawingSnapshot(state);
+    const phaseSnapshot = state.snapshot;
     const { polytope, objectiveVector, solverMode } = state;
     if (phaseSnapshot.phase !== "ready_for_solvers" || !objectiveVector || !hasPolytopeLines(polytope)) {
       return;
@@ -294,7 +260,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       return;
     }
 
-    const phaseSnapshot = computeDrawingSnapshot(state);
+    const phaseSnapshot = state.snapshot;
     const { rotateObjectiveMode, objectiveVector } = state;
     if (!rotateObjectiveMode || !phaseSnapshot.objectiveDefined || !objectiveVector) return;
 
@@ -318,7 +284,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     canvasManager.draw();
 
     const updatedState = getState();
-    const updatedPhase = computeDrawingSnapshot(updatedState);
+    const updatedPhase = updatedState.snapshot;
     const hasComputedLines = hasPolytopeLines(updatedState.polytope);
     if (updatedPhase.phase === "ready_for_solvers" && hasComputedLines) {
       try {
@@ -428,4 +394,27 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
   setupResultHover();
 
   return { computePath, settingsElements };
+}
+
+function calculateMinSidebarWidth(): number {
+  const logoElement = document.getElementById("nullStateMessage") as HTMLElement | null;
+  const topResultContainer = document.getElementById("topResult") as HTMLElement | null;
+  if (!logoElement || !topResultContainer) return 375;
+
+  const style = window.getComputedStyle(topResultContainer);
+  const measurementDiv = Object.assign(document.createElement("div"), { textContent: logoElement.textContent || "" });
+  Object.assign(measurementDiv.style, {
+    position: "absolute",
+    visibility: "hidden",
+    fontFamily: style.fontFamily,
+    fontWeight: style.fontWeight,
+    fontStyle: style.fontStyle,
+    whiteSpace: "pre-wrap",
+    fontSize: "12px",
+  });
+  document.body.appendChild(measurementDiv);
+  const logoWidth = measurementDiv.getBoundingClientRect().width;
+  document.body.removeChild(measurementDiv);
+
+  return Math.max(375, Math.min(logoWidth + 60, 400));
 }

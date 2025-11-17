@@ -1,5 +1,4 @@
 import { getState } from "../state/store";
-import { computeDrawingSnapshot } from "../state/drawing";
 import { ViewportManager } from "./viewport";
 import { hasPolytopeLines } from "../solvers/utils/polytope";
 
@@ -96,7 +95,7 @@ export class LayoutManager {
   }
 
   updateZoomButtonsState(canvasManager: ViewportManager) {
-    if (canvasManager.scaleFactor === 1 && canvasManager.offset.x === 0 && canvasManager.offset.y === 0) {
+    if (canvasManager.isDefaultView()) {
       this.zoomButton!.disabled = false;
     } else {
       this.unzoomButton!.disabled = false;
@@ -122,7 +121,7 @@ export class LayoutManager {
 
   updateSolverModeButtons() {
     const state = getState();
-    const phaseSnapshot = computeDrawingSnapshot(state);
+    const phaseSnapshot = state.snapshot;
     const hasComputedLines = hasPolytopeLines(state.polytope);
     const hasSolution = state.originalIteratePath?.length > 0;
     const hasObjective = phaseSnapshot.objectiveDefined;
@@ -172,14 +171,13 @@ export class LayoutManager {
     this.zScaleSlider.value = String(zScale);
   }
 
-  synchronizeUIWithState() {
+  synchronize() {
     this.update3DButtonState();
     this.updateZScaleValue();
     this.updateObjectiveDisplay();
     this.updateSolverModeButtons();
     const state = getState();
-    const phaseSnapshot = computeDrawingSnapshot(state);
-    if (state.vertices.length > 0 || phaseSnapshot.objectiveDefined) {
+    if (state.snapshot.objectiveDefined) {
       this.hideNullStateMessage();
     }
     this.checkMobileOrientation();

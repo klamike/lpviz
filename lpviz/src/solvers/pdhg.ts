@@ -2,7 +2,7 @@ import { pdhgEq } from "./pdhg_eq";
 import { pdhgIneq } from "./pdhg_ineq";
 import type { Lines, VecN } from "./utils/blas";
 
-export interface PDHGOptions {
+interface PDHGOptions {
   ineq: boolean;
   maxit: number;
   eta: number;

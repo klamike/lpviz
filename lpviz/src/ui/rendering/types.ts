@@ -2,7 +2,7 @@ import { CanvasTexture, Group, LineBasicMaterial, PointsMaterial, Sprite, Vector
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import type { PointXY } from "../../solvers/utils/blas";
 
-export interface CanvasGroups {
+interface CanvasGroups {
   grid: Group;
   polytopeFill: Group;
   polytopeOutline: Group;
@@ -70,5 +70,7 @@ export interface CanvasRenderContext {
   computeObjectiveValue(x: number, y: number): number;
   scaleZValue(value: number): number;
   getPlanarOffset(offset: number): number;
+  flattenTo2DProgress: number;
+  getFinalPlanarOffset(offset: number): number;
   getVertexZ(x: number, y: number, extra?: number): number;
 }

@@ -13,12 +13,12 @@ const DEFAULT_MAX_NEWTON_ITERATIONS = 2000;
 const BARRIER_PARAM_START = 3.0; // 10^3 = 1000
 const BARRIER_PARAM_END = -5.0; // 10^-5 = 0.00001
 
-export interface CentralPathOptions {
+interface CentralPathOptions {
   niter: number;
   verbose: boolean;
 }
 
-export interface CentralPathXkOptions {
+interface CentralPathXkOptions {
   maxit: number;
   epsilon: number;
   verbose: boolean;

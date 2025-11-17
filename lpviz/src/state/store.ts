@@ -1,9 +1,22 @@
-import type { PointXY, PointXYZ, VecNs, Lines } from "../solvers/utils/blas";
+import type { PointXY, PointXYZ, VecNs } from "../solvers/utils/blas";
 import type { PolytopeRepresentation } from "../solvers/utils/polytope";
 import type { HistoryEntry } from "./history";
-import type { InputMode, ObjectiveDirection, SolverMode, TraceEntry } from "./types";
+import { computeDrawingSnapshot } from "./drawing";
+import type { DrawingPhaseSnapshot } from "./drawing";
+import { MAX_TRACE_POINT_SPRITES } from "../ui/rendering/constants";
 
-export type { SolverMode, InputMode, ObjectiveDirection, TraceEntry } from "./types";
+export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
+type InputMode = "visual" | "manual";
+
+interface TraceLineData {
+  positions: number[];
+  sampledIndices: number[];
+}
+
+interface TraceEntry {
+  lineData: TraceLineData;
+  angle: number;
+}
 
 const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
 const DEFAULT_TRANSITION_DURATION = 500;
@@ -16,18 +29,15 @@ export type State = {
   polytopeComplete: boolean;
   interiorPoint: PointXY | null;
   polytope: PolytopeRepresentation | null;
-  analyticCenter: PointXY | null;
 
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
-  objectiveDirection: ObjectiveDirection;
   objectiveHidden: boolean;
 
   solverMode: SolverMode;
   iteratePath: VecNs;
   iteratePathComputed: boolean;
   highlightIteratePathIndex: number | null;
-  isIteratePathComputing: boolean;
   rotateObjectiveMode: boolean;
   animationIntervalId: number | null;
   originalIteratePath: VecNs;
@@ -58,27 +68,23 @@ export type State = {
   is3DMode: boolean;
   viewAngle: PointXYZ;
   focalDistance: number;
-  isRotatingCamera: boolean;
-  lastRotationMouse: { x: number; y: number };
   zScale: number;
   isTransitioning3D: boolean;
   transitionStartTime: number;
   transitionDuration: number;
   transition3DStartAngles: PointXYZ;
   transition3DEndAngles: PointXYZ;
+  transitionDirection: "to3d" | "to2d" | null;
+  transitionProgress: number;
 
   traceEnabled: boolean;
-  currentTracePath: VecNs;
   totalRotationAngle: number;
-  rotationCount: number;
   traceBuffer: TraceEntry[];
   maxTraceCount: number;
-  lastDrawnTraceIndex: number;
 
   inputMode: InputMode;
-  manualConstraints: string[];
-  manualObjective: string | null;
-  parsedConstraints: Lines;
+  tourActive: boolean;
+  snapshot: DrawingPhaseSnapshot;
 };
 
 const initialState: State = {
@@ -87,18 +93,15 @@ const initialState: State = {
   polytopeComplete: false,
   interiorPoint: null,
   polytope: null,
-  analyticCenter: null,
 
   objectiveVector: null,
   currentObjective: null,
-  objectiveDirection: "max",
   objectiveHidden: false,
 
   solverMode: "central",
   iteratePath: [],
   iteratePathComputed: false,
   highlightIteratePathIndex: null,
-  isIteratePathComputing: false,
   rotateObjectiveMode: false,
   animationIntervalId: null,
   originalIteratePath: [],
@@ -129,31 +132,33 @@ const initialState: State = {
   is3DMode: false,
   viewAngle: { ...DEFAULT_VIEW_ANGLE },
   focalDistance: DEFAULT_FOCAL_DISTANCE,
-  isRotatingCamera: false,
-  lastRotationMouse: { x: 0, y: 0 },
   zScale: DEFAULT_Z_SCALE,
   isTransitioning3D: false,
   transitionStartTime: 0,
   transitionDuration: DEFAULT_TRANSITION_DURATION,
   transition3DStartAngles: { x: 0, y: 0, z: 0 },
   transition3DEndAngles: { ...DEFAULT_VIEW_ANGLE },
+  transitionDirection: null,
+  transitionProgress: 0,
 
   traceEnabled: false,
-  currentTracePath: [],
   totalRotationAngle: 0,
-  rotationCount: 0,
   traceBuffer: [],
   maxTraceCount: 0,
-  lastDrawnTraceIndex: -1,
 
   inputMode: "visual",
-  manualConstraints: [],
-  manualObjective: null,
-  parsedConstraints: [],
+  tourActive: false,
+  snapshot: {} as DrawingPhaseSnapshot,
 };
+
+initialState.snapshot = computeDrawingSnapshot(initialState);
 
 let state: State = initialState;
 const listeners = new Set<(snapshot: State) => void>();
+
+function refreshSnapshot() {
+  state.snapshot = computeDrawingSnapshot(state);
+}
 
 function notifyListeners() {
   listeners.forEach((listener) => listener(state));
@@ -165,16 +170,13 @@ export function getState(): State {
 
 export function setState(patch: Partial<State>): void {
   Object.assign(state, patch);
-  notifyListeners();
-}
-
-export function setFields(updates: Partial<State>): void {
-  Object.assign(state, updates);
+  refreshSnapshot();
   notifyListeners();
 }
 
 export function mutate(mutator: (draft: State) => void): void {
   mutator(state);
+  refreshSnapshot();
   notifyListeners();
 }
 
@@ -199,16 +201,40 @@ export function addTraceToBuffer(iteratesArray: number[][]): void {
   const { traceEnabled } = getState();
   if (!traceEnabled || iteratesArray.length === 0) return;
 
+  const lineData = buildTraceLineData(iteratesArray);
   mutate((draft) => {
     draft.traceBuffer.push({
-      path: [...iteratesArray],
+      lineData,
       angle: draft.totalRotationAngle,
     });
     while (draft.traceBuffer.length > draft.maxTraceCount) draft.traceBuffer.shift();
-    if (draft.totalRotationAngle >= 2 * Math.PI) {
-      draft.rotationCount = Math.floor(draft.totalRotationAngle / (2 * Math.PI));
-    }
   });
+}
+
+function buildTraceLineData(path: number[][]): TraceLineData {
+  const { objectiveVector } = getState();
+  const computeObjective = (x: number, y: number) => (objectiveVector ? objectiveVector.x * x + objectiveVector.y * y : 0);
+  const positions: number[] = [];
+  const sampledIndices: number[] = [];
+
+  for (let i = 0; i < path.length; i++) {
+    const entry = path[i];
+    const zValue = entry[2] !== undefined ? entry[2] : computeObjective(entry[0], entry[1]);
+    positions.push(entry[0], entry[1], zValue);
+  }
+
+  if (path.length > 0) {
+    const step = Math.max(1, Math.ceil(path.length / MAX_TRACE_POINT_SPRITES));
+    for (let i = 0; i < path.length; i += step) {
+      sampledIndices.push(i);
+    }
+    const lastIdx = path.length - 1;
+    if (sampledIndices[sampledIndices.length - 1] !== lastIdx) {
+      sampledIndices.push(lastIdx);
+    }
+  }
+
+  return { positions, sampledIndices };
 }
 
 export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {
@@ -221,7 +247,7 @@ export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {
 
 export function resetTraceState(): void {
   if (!getState().traceEnabled) return;
-  setFields({ traceBuffer: [], totalRotationAngle: 0, rotationCount: 0 });
+  setState({ traceBuffer: [], totalRotationAngle: 0 });
 }
 
 export function handleStepSizeChange(): void {

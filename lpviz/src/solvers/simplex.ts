@@ -5,7 +5,7 @@ import type { Lines, Vec2N, VecN, Vec2Ns } from "./utils/blas";
 
 const MAX_ITERATIONS = 2 ** 16;
 
-export interface SimplexOptions {
+interface SimplexOptions {
   tol: number;
   verbose: boolean;
 }
@@ -19,7 +19,7 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   const c_objective = Matrix.columnVector(objective);
 
   // Γ = diag(sign(b))
-  const gamma = b.to1DArray().map((bi) => (bi < 0 ? -1 : 1));
+  const gamma = b.to1DArray().map((bi: number) => (bi < 0 ? -1 : 1));
   const Gamma = Matrix.diag(gamma);
   const b1 = Gamma.mmul(b); // Γ b
 

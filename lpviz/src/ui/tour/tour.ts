@@ -1,14 +1,11 @@
-import { getState, mutate, setState, subscribe } from "../../state/store";
-import type { State } from "../../state/store";
-import { computeDrawingSnapshot } from "../../state/drawing";
+import { getState, mutate, setState } from "../../state/store";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
-import { showElement, setButtonsEnabled } from "../../state/utils";
-import { VRep } from "../../solvers/utils/polytope";
-import { buildGuidedScript, generateObjective, generatePentagon, type GuidedStep } from "./config";
+import { setButtonsEnabled, setElementDisplay } from "../../state/utils";
+import { buildTour, generateObjective, generatePentagon, type TourStep } from "./config";
 
 const CURSOR_TRANSITION_MS = 700;
-const POPUP_ANIMATION_MS = 300;
+export const POPUP_ANIMATION_MS = 300;
 
 const DEFAULT_BUTTON_STATES = {
   ipmButton: false,
@@ -31,13 +28,13 @@ type PopupOptions = {
 
 const delay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function createPopupElement({ id, text, gradient, position, maxWidth, onClose, onClick }: PopupOptions): HTMLElement {
+export function createPopupElement({ id, text, gradient, position, maxWidth, onClose, onClick }: PopupOptions): HTMLElement {
   const popup = document.createElement("div");
   popup.id = id;
   popup.innerHTML = `
-    <div class="guided-popup__content">
-      <div class="guided-popup__text">${text}</div>
-      <button class="guided-popup__close" aria-label="Close">×</button>
+    <div class="tour-popup__content">
+      <div class="tour-popup__text">${text}</div>
+      <button class="tour-popup__close" aria-label="Close">×</button>
     </div>
   `;
 
@@ -61,7 +58,7 @@ function createPopupElement({ id, text, gradient, position, maxWidth, onClose, o
     maxWidth: maxWidth ?? "min(320px, calc(100% - 40px))",
   });
 
-  const content = popup.querySelector(".guided-popup__content") as HTMLElement;
+  const content = popup.querySelector(".tour-popup__content") as HTMLElement;
   Object.assign(content.style, {
     display: "flex",
     alignItems: "center",
@@ -70,7 +67,7 @@ function createPopupElement({ id, text, gradient, position, maxWidth, onClose, o
     gap: "12px",
   });
 
-  const closeBtn = popup.querySelector(".guided-popup__close") as HTMLElement;
+  const closeBtn = popup.querySelector(".tour-popup__close") as HTMLElement;
   Object.assign(closeBtn.style, {
     background: "rgba(255,255,255,0.2)",
     border: "none",
@@ -106,7 +103,7 @@ function logicalToScreen(canvasManager: ViewportManager, point: { x: number; y: 
   return { x: rect.left + canvasPoint.x, y: rect.top + canvasPoint.y };
 }
 
-export class GuidedExperience {
+export class Tour {
   private canvasManager: ViewportManager;
   private uiManager: LayoutManager;
   private sendPolytope: () => void;
@@ -116,7 +113,7 @@ export class GuidedExperience {
   private allowNextClick = false;
   private clickBlocker: ((e: Event) => void) | null = null;
 
-  constructor(canvasManager: ViewportManager, uiManager: LayoutManager, sendPolytope: () => void, saveToHistory: () => void) {
+  constructor(canvasManager: ViewportManager, uiManager: LayoutManager, sendPolytope: () => void = () => {}, saveToHistory: () => void = () => {}) {
     this.canvasManager = canvasManager;
     this.uiManager = uiManager;
     this.sendPolytope = sendPolytope;
@@ -139,18 +136,19 @@ export class GuidedExperience {
     this.running = false;
     this.removeCursor();
     this.toggleClickBlocker(false);
-    setState({ currentMouse: null, currentObjective: null });
+    setState({ currentMouse: null, currentObjective: null, tourActive: false });
     this.canvasManager.draw();
   }
 
-  public async startGuidedTour() {
+  public async startTour() {
     if (this.running) return;
     this.running = true;
+    setState({ tourActive: true });
     this.toggleClickBlocker(true);
     this.resetWorkspace();
     this.createCursor();
 
-    const script = buildGuidedScript(generatePentagon(), generateObjective());
+    const script = buildTour(generatePentagon(), generateObjective());
     try {
       for (const step of script) {
         if (!this.running) break;
@@ -179,7 +177,7 @@ export class GuidedExperience {
     this.canvasManager.draw();
   }
 
-  private async runStep(step: GuidedStep) {
+  private async runStep(step: TourStep) {
     if (step.type === "wait") {
       await delay(step.duration);
       return;
@@ -204,7 +202,7 @@ export class GuidedExperience {
         mutate((draft) => {
           draft.objectiveVector = step.point;
         });
-        showElement("maximize");
+        setElementDisplay("maximize", "block");
         setButtonsEnabled({
           ipmButton: true,
           simplexButton: true,
@@ -261,7 +259,7 @@ export class GuidedExperience {
   private createCursor() {
     if (this.cursor) return;
     const cursor = document.createElement("div");
-    cursor.id = "guidedTourCursor";
+    cursor.id = "tourCursor";
     cursor.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="#4A90E2" stroke="#fff" stroke-width="1.5"/></svg>`;
     Object.assign(cursor.style, {
       position: "fixed",
@@ -312,7 +310,7 @@ export class GuidedExperience {
           return;
         }
         const target = event.target as HTMLElement;
-        if (target?.id === "guidedTourCursor" || target?.closest("#helpPopup")) return;
+        if (target?.id === "tourCursor" || target?.closest("#helpPopup")) return;
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
@@ -330,24 +328,25 @@ export class InactivityHelpOverlay {
   private timer: number | null = null;
   private checker: number | null = null;
   private hasShown = false;
-  private guidedTour: GuidedExperience;
+  private tour: Tour;
 
-  constructor(guidedTour: GuidedExperience) {
-    this.guidedTour = guidedTour;
+  constructor(tour: Tour) {
+    this.tour = tour;
   }
 
   public startTimer() {
     if (this.hasShown || this.timer) return;
     this.timer = window.setTimeout(() => {
-      const phase = computeDrawingSnapshot(getState()).phase;
-      if ((phase === "awaiting_objective" || phase === "objective_preview") && !this.guidedTour.isTouring()) {
+      const state = getState();
+      const phase = state.snapshot.phase;
+      if ((phase === "awaiting_objective" || phase === "objective_preview") && !this.tour.isTouring()) {
         this.hasShown = true;
         this.showPopup();
       }
     }, 15000);
 
     this.checker = window.setInterval(() => {
-      if (computeDrawingSnapshot(getState()).objectiveDefined) {
+      if (getState().snapshot.objectiveDefined) {
         this.stopTimer();
       }
     }, 300);
@@ -376,7 +375,7 @@ export class InactivityHelpOverlay {
       onClose: () => this.hidePopup(),
       onClick: () => {
         this.hidePopup();
-        this.guidedTour.startGuidedTour();
+        this.tour.startTour();
       },
     });
     document.body.appendChild(this.popup);
@@ -394,77 +393,6 @@ export class InactivityHelpOverlay {
   }
 
   public isTouring() {
-    return this.guidedTour.isTouring();
-  }
-}
-
-export class NonconvexHullHintOverlay {
-  private popup: HTMLElement | null = null;
-  private timer: number | null = null;
-  private unsubscribe: (() => void) | null = null;
-  private hintShown = false;
-  private guidedTour: GuidedExperience;
-
-  constructor(guidedTour: GuidedExperience) {
-    this.guidedTour = guidedTour;
-    this.handleState(getState());
-    this.unsubscribe = subscribe((state) => this.handleState(state as State));
-  }
-
-  private handleState(state: State) {
-    const polytope = VRep.fromPoints(state.vertices);
-    const nonconvex = state.polytopeComplete && state.vertices.length >= 3 && !polytope.isConvex();
-    if (nonconvex && !this.hintShown) {
-      this.startTimer();
-    } else if (!nonconvex) {
-      this.reset();
-    }
-  }
-
-  private startTimer() {
-    if (this.timer || this.popup || this.hintShown) return;
-    this.timer = window.setTimeout(() => {
-      this.timer = null;
-      if (!this.guidedTour.isTouring()) {
-        this.hintShown = true;
-        this.showPopup();
-      }
-    }, 4000);
-  }
-
-  private reset() {
-    this.hintShown = false;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    this.hidePopup();
-  }
-
-  private showPopup() {
-    if (this.popup) return;
-    this.popup = createPopupElement({
-      id: "nonconvexHint",
-      text: "Tip: double-click inside the polytope to replace it with its convex hull.",
-      gradient: "linear-gradient(135deg,#ff9966 0%,#ff5e62 100%)",
-      position: { bottom: "20px", left: "20px" },
-      onClose: () => this.hidePopup(),
-    });
-    document.body.appendChild(this.popup);
-    requestAnimationFrame(() => {
-      if (this.popup) Object.assign(this.popup.style, { transform: "translateY(0)", opacity: "1" });
-    });
-  }
-
-  private hidePopup() {
-    if (!this.popup) return;
-    const popup = this.popup;
-    Object.assign(popup.style, { transform: "translateY(100px)", opacity: "0" });
-    setTimeout(() => popup.remove(), POPUP_ANIMATION_MS);
-    this.popup = null;
-  }
-
-  public destroy() {
-    this.reset();
-    if (this.unsubscribe) this.unsubscribe();
-    this.unsubscribe = null;
+    return this.tour.isTouring();
   }
 }

@@ -12,8 +12,8 @@ export interface PointXYZ {
 }
 
 // solver vector helpers
-export type Vec2 = number[];
-export type Vec3 = number[];
+type Vec2 = number[];
+type Vec3 = number[];
 export type VecM = number[];
 export type VecN = number[];
 export type VecNs = VecN[];

@@ -20,6 +20,5 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist-ts"
   },
-  "include": ["lpviz/src/**/*"],
-  "typeRoots": ["lpviz/src/types"]
+  "include": ["lpviz/src/**/*"]
 }
