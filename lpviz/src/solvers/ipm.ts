@@ -9,7 +9,7 @@ const SIGMA_MIN = 1e-8;
 const SIGMA_MAX = 1 - 1e-8;
 const SIGMA_POWER = 3;
 
-export interface IPMOptions {
+interface IPMOptions {
   eps_p: number;
   eps_d: number;
   eps_opt: number;

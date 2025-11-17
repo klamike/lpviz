@@ -1,4 +1,7 @@
 import type { PointXY, Lines, Vertices } from "./blas";
+import type { State } from "../../state/store";
+import { getState, subscribe } from "../../state/store";
+import { createPopupElement, POPUP_ANIMATION_MS } from "../../ui/tour/tour";
 
 type NonEmptyArray<T> = [T, ...T[]];
 
@@ -8,14 +11,8 @@ export interface PolytopeRepresentation {
   vertices: Vertices;
 }
 
-export type NonEmptyLines = NonEmptyArray<Lines[number]>;
-export type NonEmptyVertices = NonEmptyArray<Vertices[number]>;
-
-export const EMPTY_POLYTOPE: PolytopeRepresentation = {
-  inequalities: [],
-  lines: [],
-  vertices: [],
-};
+type NonEmptyLines = NonEmptyArray<Lines[number]>;
+type NonEmptyVertices = NonEmptyArray<Vertices[number]>;
 
 export function hasPolytopeLines(polytope: PolytopeRepresentation | null | undefined): polytope is PolytopeRepresentation & {
   lines: NonEmptyLines;
@@ -29,7 +26,7 @@ export function hasPolytopeVertices(polytope: PolytopeRepresentation | null | un
   return Boolean(polytope && polytope.vertices.length > 0);
 }
 
-export interface BoundingBox {
+interface BoundingBox {
   minX: number;
   maxX: number;
   minY: number;
@@ -324,7 +321,7 @@ function polytope_edges(points: Vertices, tol = 1e-6): PolytopeEdges {
   return { inequalities, lines };
 }
 
-export function polytope(points: Vertices): PolytopeRepresentation {
+function polytope(points: Vertices): PolytopeRepresentation {
   if (points.length > 256) {
     throw new Error("points.length > 256 not allowed");
   }
@@ -337,4 +334,76 @@ export function polytope(points: Vertices): PolytopeRepresentation {
     vertices,
     lines,
   };
+}
+
+export class NonconvexHullHintOverlay {
+  private popup: HTMLElement | null = null;
+  private timer: number | null = null;
+  private unsubscribe: (() => void) | null = null;
+  private hintShown = false;
+
+  constructor() {
+    this.handleState(getState());
+    this.unsubscribe = subscribe((state) => this.handleState(state as State));
+  }
+
+  private handleState(state: State) {
+    const polytope = VRep.fromPoints(state.vertices);
+    const nonconvex = state.polytopeComplete && state.vertices.length >= 3 && !polytope.isConvex();
+    const snapshot = state.snapshot;
+    if (!nonconvex || snapshot.isTouring) {
+      this.reset();
+      return;
+    }
+    if (!this.hintShown) {
+      this.startTimer();
+    }
+  }
+
+  private startTimer() {
+    if (this.timer || this.popup || this.hintShown) return;
+    this.timer = window.setTimeout(() => {
+      this.timer = null;
+      if (!getState().snapshot.isTouring) {
+        this.hintShown = true;
+        this.showPopup();
+      }
+    }, 4000);
+  }
+
+  private reset() {
+    this.hintShown = false;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.hidePopup();
+  }
+
+  private showPopup() {
+    if (this.popup) return;
+    this.popup = createPopupElement({
+      id: "nonconvexHint",
+      text: "Tip: double-click inside the polytope to replace it with its convex hull.",
+      gradient: "linear-gradient(135deg,#ff9966 0%,#ff5e62 100%)",
+      position: { bottom: "20px", left: "20px" },
+      onClose: () => this.hidePopup(),
+    });
+    document.body.appendChild(this.popup);
+    requestAnimationFrame(() => {
+      if (this.popup) Object.assign(this.popup.style, { transform: "translateY(0)", opacity: "1" });
+    });
+  }
+
+  private hidePopup() {
+    if (!this.popup) return;
+    const popup = this.popup;
+    Object.assign(popup.style, { transform: "translateY(100px)", opacity: "0" });
+    setTimeout(() => popup.remove(), POPUP_ANIMATION_MS);
+    this.popup = null;
+  }
+
+  public destroy() {
+    this.reset();
+    if (this.unsubscribe) this.unsubscribe();
+    this.unsubscribe = null;
+  }
 }

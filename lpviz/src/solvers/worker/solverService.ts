@@ -7,7 +7,7 @@ export interface VirtualResultPayload {
   footer?: string;
 }
 
-export interface HtmlResultPayload {
+interface HtmlResultPayload {
   type: "html";
   html: string;
 }
@@ -117,12 +117,12 @@ function updateIteratesAndRender({ iterations, logs, updateResult, zFrom, payloa
   updateResult(buildIteratePayload(logs, payloadOptions));
 }
 
-export function generateSimplexHTML(phase1logs: string[], phase2logs: string[]): string {
+function generateSimplexHTML(phase1logs: string[], phase2logs: string[]): string {
   const parts = [`<div class="iterate-header">Phase 1\n${phase1logs[0]}</div>`, ...phase1logs.slice(1, -1).map((log) => `<div class="iterate-item-nohover">${log}</div>`), `<div class="iterate-footer">${phase1logs[phase1logs.length - 1]}</div>`, `<div class="iterate-header">Phase 2\n${phase2logs[0]}</div>`, ...phase2logs.slice(1, -1).map((log, i) => `<div class="iterate-item" data-index="${i}">${log}</div>`), `<div class="iterate-footer">${phase2logs[phase2logs.length - 1]}</div>`];
   return parts.join("");
 }
 
-export function getObjectiveVector(): [number, number] {
+function getObjectiveVector(): [number, number] {
   const { objectiveVector } = getState();
   if (!objectiveVector) throw new Error("Objective vector is not set");
   return [objectiveVector.x, objectiveVector.y];

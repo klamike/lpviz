@@ -1,11 +1,11 @@
 import { getState, mutate, SolverMode } from "./store";
 import type { PointXY } from "../solvers/utils/blas";
 import JSONCrush from "jsoncrush";
-import { updateSliderAndDisplay, updateInputValue, setButtonsEnabled, setElementDisplay, showElement } from "./utils";
+import { setButtonsEnabled, setElementDisplay } from "./utils";
 import { ViewportManager } from "../ui/viewport";
 import { LayoutManager } from "../ui/layout";
 
-export interface ShareSettings {
+interface ShareSettings {
   alphaMax?: number;
   maxitIPM?: number;
   pdhgEta?: number;
@@ -17,7 +17,7 @@ export interface ShareSettings {
   objectiveRotationSpeed?: number;
 }
 
-export interface ShareState {
+interface ShareState {
   vertices: { x: number; y: number }[];
   objective: { x: number; y: number } | null;
   solverMode: string;
@@ -162,7 +162,7 @@ export function createSharingHandlers(canvasManager: ViewportManager, uiManager:
     uiManager.hideNullStateMessage();
 
     if (polytopeComplete && objective) {
-      showElement("maximize");
+      setElementDisplay("maximize", "block");
 
       setButtonsEnabled({
         iteratePathButton: solverMode !== "central",
@@ -203,5 +203,21 @@ export function createSharingHandlers(canvasManager: ViewportManager, uiManager:
 
   setupShareButton();
 
-  return { loadStateFromObject, generateShareLink };
+  return { loadStateFromObject };
+}
+
+function updateSliderAndDisplay(sliderId: string, displayId: string, value: number, decimalPlaces: number): void {
+  const slider = document.getElementById(sliderId) as HTMLInputElement;
+  const display = document.getElementById(displayId) as HTMLElement;
+  if (slider && display) {
+    slider.value = value.toString();
+    display.textContent = value.toFixed(decimalPlaces);
+  }
+}
+
+function updateInputValue(inputId: string, value: number | boolean): void {
+  const input = document.getElementById(inputId) as HTMLInputElement;
+  if (!input) return;
+  if (typeof value === "boolean") input.checked = value;
+  else input.value = value.toString();
 }

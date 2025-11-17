@@ -1,23 +1,88 @@
-export function setButtonState(id: string, enabled: boolean): void {
-  const button = document.getElementById(id) as HTMLButtonElement | null;
-  if (button) button.disabled = !enabled;
-}
+type FontSizeConfig = {
+  containerId: string;
+  selector: string;
+  baseSize: number;
+  minSize: number;
+  maxSize: number;
+  padding: number;
+  scaleFactor: number;
+  skipCondition?: () => boolean;
+};
 
-export function getElementChecked(elementId: string): boolean {
-  const element = document.getElementById(elementId) as HTMLInputElement;
-  return element?.checked || false;
-}
+// Measure the widest line for the given selector at the base font size.
+const APPROX_CHAR_WIDTH_RATIO = 0.55;
 
-export function setupHoverHighlight(elements: NodeListOf<Element>, onMouseEnter: (index: number) => void, onMouseLeave: () => void): void {
-  elements.forEach((item) => {
-    item.addEventListener("mouseenter", () => {
-      const index = parseInt(item.getAttribute("data-index") || "0");
-      onMouseEnter(index);
-    });
-    item.addEventListener("mouseleave", () => {
-      onMouseLeave();
-    });
+function computeMaxLineWidth(container: HTMLElement, config: FontSizeConfig): number {
+  const texts = container.querySelectorAll(config.selector);
+  let maxCharWidth = 0;
+  texts.forEach((text) => {
+    const content = (text.textContent ?? "").split("\n");
+    for (const line of content) {
+      maxCharWidth = Math.max(maxCharWidth, line.length);
+    }
   });
+  return maxCharWidth;
+}
+
+function applyFontSize(container: HTMLElement, config: FontSizeConfig, fontSize: number) {
+  const texts = container.querySelectorAll(config.selector);
+  texts.forEach((text) => {
+    (text as HTMLElement).style.fontSize = `${fontSize}px`;
+  });
+}
+
+const fontSizeCache = new Map<string, number>();
+
+export function adjustFontSize(containerId: string = "result", options: { force?: boolean } = {}): void {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const config: FontSizeConfig = {
+    containerId,
+    selector: "div",
+    baseSize: 18,
+    minSize: 10,
+    maxSize: 24,
+    padding: 10,
+    scaleFactor: 0.875,
+    skipCondition: () => !!container.querySelector("#usageTips"),
+  };
+
+  if (config.skipCondition?.()) return;
+
+  if (container.classList.contains("virtualized")) {
+    config.selector = ".iterate-header, .iterate-item, .iterate-footer";
+  }
+
+  let maxLineChars = computeMaxLineWidth(container, config);
+  const datasetMax = parseInt(container.dataset.virtualMaxChars || "", 10);
+  if (Number.isFinite(datasetMax)) {
+    maxLineChars = Math.max(maxLineChars, datasetMax);
+  }
+  if (maxLineChars <= 0) return;
+
+  const containerStyle = window.getComputedStyle(container);
+  const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
+  const effectiveWidth = container.clientWidth - paddingLeft - paddingRight;
+  if (effectiveWidth <= 0) return;
+
+  const charWidthPx = config.baseSize * APPROX_CHAR_WIDTH_RATIO;
+  const maxLineWidth = maxLineChars * charWidthPx;
+  const cacheKey = `${maxLineChars}-${Math.round(effectiveWidth)}`;
+  if (!options.force && fontSizeCache.has(cacheKey)) {
+    applyFontSize(container, config, fontSizeCache.get(cacheKey)!);
+    return;
+  }
+
+  const targetWidth = Math.max(1, effectiveWidth - config.padding);
+  const scale = Math.min(4, Math.max(0, targetWidth / maxLineWidth));
+  const newSize = Math.min(config.maxSize, Math.max(config.minSize, config.baseSize * scale * config.scaleFactor));
+
+  fontSizeCache.set(cacheKey, newSize);
+  // console.warn(`[lpviz] adjustFontSize triggered for '${containerId}', width now ${effectiveWidth}px, scale ${scale.toFixed(2)}`);
+  applyFontSize(container, config, newSize);
+  container.style.setProperty("--virtual-font-size", `${newSize}px`);
 }
 
 // tries to maximize font size to fit in a container
@@ -62,21 +127,6 @@ function adjustTextSize(config: { containerId: string; selector: string; baseSiz
   document.body.removeChild(measurementDiv);
 }
 
-export function adjustFontSize(containerId: string = "result"): void {
-  const container = document.getElementById(containerId);
-  const selector = container?.classList.contains("virtualized") ? ".iterate-header, .iterate-item, .iterate-footer" : "div";
-  adjustTextSize({
-    containerId,
-    selector,
-    baseSize: 18,
-    minSize: 10,
-    maxSize: 24,
-    padding: 10,
-    scaleFactor: 0.875,
-    skipCondition: () => !!container?.querySelector("#usageTips"),
-  });
-}
-
 export function adjustLogoFontSize(): void {
   adjustTextSize({
     containerId: "topResult",
@@ -93,34 +143,15 @@ export function adjustLogoFontSize(): void {
   });
 }
 
-export function adjustTerminalHeight(): void {
-  const terminalContainer = document.getElementById("terminal-container2") as HTMLElement | null;
-  const sidebar = document.getElementById("sidebar") as HTMLElement | null;
-  if (!terminalContainer || !sidebar) return;
+export function refreshResponsiveLayout(options: { includeTerminal?: boolean } = {}): void {
+  adjustFontSize();
+  adjustLogoFontSize();
+  if (options.includeTerminal) {
+    const terminalContainer = document.getElementById("terminal-container2") as HTMLElement | null;
+    const sidebar = document.getElementById("sidebar") as HTMLElement | null;
+    if (!terminalContainer || !sidebar) return;
 
-  const height = Math.max(120, Math.min(300, sidebar.offsetWidth * 0.4));
-  terminalContainer.style.minHeight = `${height}px`;
-}
-
-export function calculateMinSidebarWidth(): number {
-  const logoElement = document.getElementById("nullStateMessage") as HTMLElement | null;
-  const topResultContainer = document.getElementById("topResult") as HTMLElement | null;
-  if (!logoElement || !topResultContainer) return 300;
-
-  const style = window.getComputedStyle(topResultContainer);
-  const measurementDiv = Object.assign(document.createElement("div"), { textContent: logoElement.textContent || "" });
-  Object.assign(measurementDiv.style, {
-    position: "absolute",
-    visibility: "hidden",
-    fontFamily: style.fontFamily,
-    fontWeight: style.fontWeight,
-    fontStyle: style.fontStyle,
-    whiteSpace: "pre-wrap",
-    fontSize: "12px",
-  });
-  document.body.appendChild(measurementDiv);
-  const logoWidth = measurementDiv.getBoundingClientRect().width;
-  document.body.removeChild(measurementDiv);
-
-  return Math.max(280, Math.min(logoWidth + 60, 400));
+    const height = Math.max(120, Math.min(300, sidebar.offsetWidth * 0.4));
+    terminalContainer.style.minHeight = `${height}px`;
+  }
 }
