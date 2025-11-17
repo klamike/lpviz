@@ -40,6 +40,6 @@ export function computeDrawingSnapshot(state: State): DrawingPhaseSnapshot {
     phase,
     interactionMode,
     objectiveDefined,
-    isTouring: state.guidedTourActive,
+    isTouring: state.tourActive,
   };
 }

@@ -83,7 +83,7 @@ export type State = {
   maxTraceCount: number;
 
   inputMode: InputMode;
-  guidedTourActive: boolean;
+  tourActive: boolean;
   snapshot: DrawingPhaseSnapshot;
 };
 
@@ -147,7 +147,7 @@ const initialState: State = {
   maxTraceCount: 0,
 
   inputMode: "visual",
-  guidedTourActive: false,
+  tourActive: false,
   snapshot: {} as DrawingPhaseSnapshot,
 };
 

@@ -136,14 +136,14 @@ export class Tour {
     this.running = false;
     this.removeCursor();
     this.toggleClickBlocker(false);
-    setState({ currentMouse: null, currentObjective: null, guidedTourActive: false });
+    setState({ currentMouse: null, currentObjective: null, tourActive: false });
     this.canvasManager.draw();
   }
 
   public async startTour() {
     if (this.running) return;
     this.running = true;
-    setState({ guidedTourActive: true });
+    setState({ tourActive: true });
     this.toggleClickBlocker(true);
     this.resetWorkspace();
     this.createCursor();
