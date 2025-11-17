@@ -391,6 +391,7 @@ canvas {
 
 #zScaleSlider {
   -webkit-appearance: slider-vertical;
+  writing-mode: bt-lr; /* ensures Chromium/WebKit treat it as a vertical slider */
   width: 6px;
   height: 80px;
   background: #ddd;
@@ -415,6 +416,7 @@ canvas {
   border-radius: 2px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background 0.2s ease;
+  margin-left: -7px; /* center thumb on the 6px track */
 }
 
 #zScaleSlider::-webkit-slider-thumb:hover,
@@ -442,6 +444,7 @@ canvas {
   border-radius: 2px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background 0.2s ease;
+  margin-left: -7px;
 }
 
 #zScaleSlider::-moz-range-thumb:hover,
@@ -479,7 +482,7 @@ canvas {
   border-radius: 2px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background 0.2s ease;
-  margin-left: 0;
+  margin-left: -7px;
 }
 
 #zScaleSlider::-ms-thumb:hover,
@@ -492,9 +495,9 @@ canvas {
 }
 
 /* ================================
-    Slider style
+    Horizontal slider style
     ================================ */
-input[type="range"] {
+input[type="range"]:not(#zScaleSlider) {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -507,14 +510,14 @@ input[type="range"] {
   outline: none;
 }
 
-input[type="range"]::-webkit-slider-runnable-track {
+input[type="range"]:not(#zScaleSlider)::-webkit-slider-runnable-track {
   height: 6px;
   background: #ddd;
   border: 1px solid #333;
   border-radius: 4px;
 }
 
-input[type="range"]::-webkit-slider-thumb {
+input[type="range"]:not(#zScaleSlider)::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 10px;
   height: 20px;
@@ -526,23 +529,23 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -7px;
 }
 
-input[type="range"]:hover::-webkit-slider-thumb,
-input[type="range"]:focus::-webkit-slider-thumb {
+input[type="range"]:not(#zScaleSlider):hover::-webkit-slider-thumb,
+input[type="range"]:not(#zScaleSlider):focus::-webkit-slider-thumb {
   background: #f0f0f0;
 }
 
-input[type="range"]:active::-webkit-slider-thumb {
+input[type="range"]:not(#zScaleSlider):active::-webkit-slider-thumb {
   background: #e0e0e0;
 }
 
-input[type="range"]::-moz-range-track {
+input[type="range"]:not(#zScaleSlider)::-moz-range-track {
   height: 6px;
   background: #ddd;
   border: 1px solid #333;
   border-radius: 4px;
 }
 
-input[type="range"]::-moz-range-thumb {
+input[type="range"]:not(#zScaleSlider)::-moz-range-thumb {
   width: 10px;
   height: 20px;
   background: #fafafa;
@@ -552,16 +555,16 @@ input[type="range"]::-moz-range-thumb {
   transition: background 0.2s ease;
 }
 
-input[type="range"]:hover::-moz-range-thumb,
-input[type="range"]:focus::-moz-range-thumb {
+input[type="range"]:not(#zScaleSlider):hover::-moz-range-thumb,
+input[type="range"]:not(#zScaleSlider):focus::-moz-range-thumb {
   background: #f0f0f0;
 }
 
-input[type="range"]:active::-moz-range-thumb {
+input[type="range"]:not(#zScaleSlider):active::-moz-range-thumb {
   background: #e0e0e0;
 }
 
-input[type="range"]::-ms-track {
+input[type="range"]:not(#zScaleSlider)::-ms-track {
   width: 100%;
   height: 6px;
   background: transparent;
@@ -569,17 +572,17 @@ input[type="range"]::-ms-track {
   color: transparent;
 }
 
-input[type="range"]::-ms-fill-lower {
+input[type="range"]:not(#zScaleSlider)::-ms-fill-lower {
   background: #ddd;
   border-radius: 4px;
 }
 
-input[type="range"]::-ms-fill-upper {
+input[type="range"]:not(#zScaleSlider)::-ms-fill-upper {
   background: #ddd;
   border-radius: 4px;
 }
 
-input[type="range"]::-ms-thumb {
+input[type="range"]:not(#zScaleSlider)::-ms-thumb {
   width: 10px;
   height: 20px;
   background: #fafafa;
@@ -590,12 +593,12 @@ input[type="range"]::-ms-thumb {
   margin-top: 0;
 }
 
-input[type="range"]:hover::-ms-thumb,
-input[type="range"]:focus::-ms-thumb {
+input[type="range"]:not(#zScaleSlider):hover::-ms-thumb,
+input[type="range"]:not(#zScaleSlider):focus::-ms-thumb {
   background: #f0f0f0;
 }
 
-input[type="range"]:active::-ms-thumb {
+input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   background: #e0e0e0;
 }
 

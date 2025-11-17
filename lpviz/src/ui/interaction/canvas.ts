@@ -462,8 +462,10 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
   // ===== CANVAS INTERACTION HANDLERS =====
 
   canvas.addEventListener("dblclick", (e) => {
-    const { is3DMode, isTransitioning3D } = getState();
-    const is3D = is3DMode || isTransitioning3D;
+    const { isTransitioning3D } = getState();
+    if (isTransitioning3D) {
+      return;
+    }
     if (helpPopup?.isTouring()) {
       return;
     }
@@ -486,10 +488,6 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       }
     }
 
-    if (is3D) {
-      return;
-    }
-
     const edgeIndex = polytope.findEdgeNearPoint(logicalMouse);
     if (edgeIndex !== null) {
       const v1 = vertices[edgeIndex];
@@ -509,8 +507,8 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
   });
 
   canvas.addEventListener("click", (e) => {
-    const { is3DMode, isTransitioning3D } = getState();
-    if (is3DMode || isTransitioning3D) {
+    const initialState = getState();
+    if (initialState.isTransitioning3D) {
       return;
     }
     if (helpPopup?.isTouring()) {
@@ -518,7 +516,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     }
 
     // Ignore clicks that were part of drag operations
-    const { wasDraggingPoint, wasDraggingObjective, wasDraggingConstraint } = getState();
+    const { wasDraggingPoint, wasDraggingObjective, wasDraggingConstraint } = initialState;
     if (wasDraggingPoint || wasDraggingObjective || wasDraggingConstraint) {
       setState({
         wasDraggingPoint: false,
@@ -528,14 +526,19 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       return;
     }
 
-    const pt = getLogicalFromClient(e.clientX, e.clientY);
-
     const state = getState();
     const phaseSnapshot = state.snapshot;
+    const drawingPhase = phaseSnapshot.phase === "empty" || phaseSnapshot.phase === "sketching_polytope";
+    const objectivePhase = phaseSnapshot.phase === "awaiting_objective" || phaseSnapshot.phase === "objective_preview";
+    if (state.is3DMode && !drawingPhase && !objectivePhase) {
+      return;
+    }
 
-    if (phaseSnapshot.phase === "empty" || phaseSnapshot.phase === "sketching_polytope") {
+    const pt = getLogicalFromClient(e.clientX, e.clientY);
+
+    if (drawingPhase) {
       handlePolytopeConstruction(pt);
-    } else if (phaseSnapshot.phase === "awaiting_objective" || phaseSnapshot.phase === "objective_preview") {
+    } else if (objectivePhase) {
       handleObjectiveSelection(pt);
     }
   });
