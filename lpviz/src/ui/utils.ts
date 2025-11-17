@@ -54,7 +54,11 @@ export function adjustFontSize(containerId: string = "result", options: { force?
     config.selector = ".iterate-header, .iterate-item, .iterate-footer";
   }
 
-  const maxLineChars = computeMaxLineWidth(container, config);
+  let maxLineChars = computeMaxLineWidth(container, config);
+  const datasetMax = parseInt(container.dataset.virtualMaxChars || "", 10);
+  if (Number.isFinite(datasetMax)) {
+    maxLineChars = Math.max(maxLineChars, datasetMax);
+  }
   if (maxLineChars <= 0) return;
 
   const containerStyle = window.getComputedStyle(container);
@@ -78,6 +82,7 @@ export function adjustFontSize(containerId: string = "result", options: { force?
   fontSizeCache.set(cacheKey, newSize);
   console.warn(`[lpviz] adjustFontSize triggered for '${containerId}', width now ${effectiveWidth}px, scale ${scale.toFixed(2)}`);
   applyFontSize(container, config, newSize);
+  container.style.setProperty("--virtual-font-size", `${newSize}px`);
 }
 
 // tries to maximize font size to fit in a container

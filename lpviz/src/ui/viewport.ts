@@ -5,7 +5,7 @@ import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGe
 import { UndashedLine2 } from "./rendering/three/UndashedLine2";
 import { getState, setState } from "../state/store";
 import type { PointXY, PointXYZ } from "../solvers/utils/blas";
-import { easeInOutCubic, inverseTransform2DProjection } from "./rendering/math3d";
+import { inverseTransform2DProjection } from "./rendering/math3d";
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
 import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE, OBJECTIVE_Z_OFFSET } from "./rendering/constants";
@@ -13,6 +13,10 @@ import type { Tour } from "./tour/tour";
 
 const ORTHO_MIN_SCALE_FACTOR = 0.05;
 const ORTHO_MAX_SCALE_FACTOR = 400;
+const MIN_3D_DRAG_BOUND = 60;
+const MAX_3D_DRAG_BOUND = 5000;
+const VIEW_DRAG_BOUND_MULTIPLIER = 6;
+const MAX_3D_PLANE_SLOPE = 2;
 
 export class ViewportManager {
   canvas: HTMLCanvasElement;
@@ -465,7 +469,7 @@ export class ViewportManager {
     this.perspectiveCamera.updateProjectionMatrix();
     this.raycaster.setFromCamera(this.pointerNdc, this.perspectiveCamera);
     if (this.raycaster.ray.intersectPlane(this.interactionPlane, this.pointerWorld)) {
-      return this.snapPoint({ x: this.pointerWorld.x, y: this.pointerWorld.y });
+      return { x: this.pointerWorld.x, y: this.pointerWorld.y };
     }
     return null;
   }
@@ -484,15 +488,48 @@ export class ViewportManager {
   toLogicalCoords(x: number, y: number): PointXY {
     const { is3DMode, isTransitioning3D } = getState();
     if (is3DMode || isTransitioning3D) {
-      const projected = this.projectScreenToPlane(x, y);
-      if (projected) {
-        return projected;
+      let point = this.projectScreenToPlane(x, y);
+      if (!point) {
+        const planeCoords = this.screenToPlane(x, y);
+        const angles = this.getRenderViewAngles();
+        point = inverseTransform2DProjection({ x: planeCoords.x, y: planeCoords.y }, angles);
       }
-      const planeCoords = this.screenToPlane(x, y);
-      const angles = this.getRenderViewAngles();
-      return this.snapPoint(inverseTransform2DProjection({ x: planeCoords.x, y: planeCoords.y }, angles));
+      return this.snapPoint(this.clamp3DInteractionPoint(point));
     }
     return this.snapPoint(this.toPoint(this.screenToPlane(x, y)));
+  }
+
+  private clamp3DInteractionPoint(point: PointXY): PointXY {
+    const state = getState();
+    if (!(state.draggingPoint || state.draggingConstraint || state.draggingObjective)) {
+      return point;
+    }
+    if (!(state.is3DMode || state.isTransitioning3D)) {
+      return point;
+    }
+
+    const unitsPerPixel = this.getUnitsPerPixel();
+    const viewSpan = Math.max(window.innerWidth, window.innerHeight) * unitsPerPixel;
+    const viewBound = Math.max(MIN_3D_DRAG_BOUND, viewSpan * VIEW_DRAG_BOUND_MULTIPLIER);
+    const slopeScaler = Math.max(state.zScale, 0.001);
+    const slopeBound = (MAX_3D_PLANE_SLOPE * 100) / slopeScaler;
+    const bound = Math.min(MAX_3D_DRAG_BOUND, Math.min(viewBound, slopeBound));
+    if (!Number.isFinite(bound) || bound <= 0) {
+      return point;
+    }
+
+    const center = this.getViewportTarget(unitsPerPixel);
+    const minX = center.x - bound;
+    const maxX = center.x + bound;
+    const minY = center.y - bound;
+    const maxY = center.y + bound;
+
+    const clampedX = Math.max(minX, Math.min(maxX, point.x));
+    const clampedY = Math.max(minY, Math.min(maxY, point.y));
+    if (clampedX === point.x && clampedY === point.y) {
+      return point;
+    }
+    return { x: clampedX, y: clampedY };
   }
 
   toCanvasCoords(x: number, y: number, z?: number) {

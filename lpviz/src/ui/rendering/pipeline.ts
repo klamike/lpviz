@@ -3,7 +3,7 @@ import { getState } from "../../state/store";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
-import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
+import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
 import { CanvasRenderContext } from "./types";
 
 const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {
@@ -289,7 +289,7 @@ export class CanvasRenderPipeline {
     traceBuffer.forEach((traceEntry) => {
       const lineData = traceEntry.lineData;
       if (!lineData) return;
-      const positions = is3D ? lineData.positions3D : lineData.positions2D;
+      const positions = this.buildTraceLinePositions(lineData.positions, context, is3D);
       if (positions.length === 0) return;
       const line = helpers.createThickLine(positions, {
         color: COLORS.trace,
@@ -300,7 +300,7 @@ export class CanvasRenderPipeline {
       line.renderOrder = RENDER_LAYERS.traceLine;
       groups.trace.add(line);
 
-      const pointPositions = is3D ? lineData.sampledPositions3D : lineData.sampledPositions2D;
+      const pointPositions = this.buildTraceSamplePositions(positions, lineData.sampledIndices);
       if (pointPositions.length) {
         sampledPositions.push(...pointPositions);
       }
@@ -323,6 +323,33 @@ export class CanvasRenderPipeline {
       pointMesh.renderOrder = RENDER_LAYERS.tracePoints;
       groups.trace.add(pointMesh);
     }
+  }
+
+  private buildTraceLinePositions(rawPositions: number[], context: CanvasRenderContext, is3D: boolean): number[] {
+    if (rawPositions.length === 0) {
+      return [];
+    }
+    const positions = new Array<number>(rawPositions.length);
+    for (let i = 0; i < rawPositions.length; i += 3) {
+      positions[i] = rawPositions[i];
+      positions[i + 1] = rawPositions[i + 1];
+      const scaledZ = context.scaleZValue(rawPositions[i + 2]);
+      positions[i + 2] = is3D ? scaledZ : scaledZ + TRACE_Z_OFFSET;
+    }
+    return positions;
+  }
+
+  private buildTraceSamplePositions(linePositions: number[], sampledIndices: number[]): number[] {
+    if (linePositions.length === 0 || sampledIndices.length === 0) {
+      return [];
+    }
+    const samples: number[] = [];
+    for (let i = 0; i < sampledIndices.length; i++) {
+      const baseIndex = sampledIndices[i] * 3;
+      if (baseIndex + 2 >= linePositions.length) continue;
+      samples.push(linePositions[baseIndex], linePositions[baseIndex + 1], linePositions[baseIndex + 2]);
+    }
+    return samples;
   }
 
   private renderIterate(context: CanvasRenderContext) {

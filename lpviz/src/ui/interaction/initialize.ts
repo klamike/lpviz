@@ -13,6 +13,7 @@ import { initializeResizeManager } from "../resize";
 import { Tour as Tour, InactivityHelpOverlay } from "../tour/tour";
 import { NonconvexHullHintOverlay } from "../../solvers/utils/polytope";
 import type { ResultRenderPayload, VirtualResultPayload } from "../../solvers/worker/solverService";
+import { Virtualizer, elementScroll, observeElementOffset, observeElementRect } from "@tanstack/virtual-core";
 
 export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchParams) {
   const canvasManager = await ViewportManager.create(canvas);
@@ -20,6 +21,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
 
   const ROTATE_ROW_LIMIT = 20; // FIXME: detect number of rows
   let lastVirtualResult: VirtualResultPayload | null = null;
+  let activeVirtualizer: VirtualizedRowsController | null = null;
 
   const setHighlight = (index: number | null) => {
     setState({ highlightIteratePathIndex: index });
@@ -84,6 +86,12 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     resultDiv.classList.add("virtualized");
     resultDiv.innerHTML = "";
     setHighlight(null);
+    activeVirtualizer?.destroy();
+    activeVirtualizer = null;
+
+    const rowsForLayout = limitRows ? payload.rows.slice(0, ROTATE_ROW_LIMIT) : payload.rows;
+    const maxLineChars = computeMaxChars([payload.header || "", ...(payload.footer ? [payload.footer] : []), ...rowsForLayout]);
+    resultDiv.dataset.virtualMaxChars = String(maxLineChars);
 
     const createElement = (className: string, text: string) => {
       const el = document.createElement("div");
@@ -96,20 +104,20 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
 
     const bodyEl = document.createElement("div");
     bodyEl.className = "iterate-scroll";
-    const rowsToRender = limitRows ? payload.rows.slice(0, ROTATE_ROW_LIMIT) : payload.rows;
+    const rowsToRender = rowsForLayout;
 
     if (rowsToRender.length === 0) {
       bodyEl.appendChild(createElement("iterate-item-nohover", "No iterations available."));
+      resultDiv.appendChild(bodyEl);
     } else {
-      rowsToRender.forEach((text, index) => {
-        const rowEl = createElement("iterate-item", text);
-        rowEl.dataset.index = String(index);
-        rowEl.addEventListener("mouseenter", () => setHighlight(index));
-        rowEl.addEventListener("mouseleave", () => setHighlight(null));
-        bodyEl.appendChild(rowEl);
+      resultDiv.appendChild(bodyEl);
+      activeVirtualizer = createIterateVirtualizer({
+        container: bodyEl,
+        rows: rowsToRender,
+        onHover: (index) => setHighlight(index),
+        onLeave: () => setHighlight(null),
       });
     }
-    resultDiv.appendChild(bodyEl);
 
     if (payload.footer) {
       resultDiv.appendChild(createElement("iterate-footer", payload.footer));
@@ -131,6 +139,9 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   function renderHtmlResult(html: string) {
     const resultDiv = document.getElementById("result") as HTMLElement;
     resultDiv.classList.remove("virtualized");
+    activeVirtualizer?.destroy();
+    activeVirtualizer = null;
+    delete resultDiv.dataset.virtualMaxChars;
     resultDiv.innerHTML = html;
 
     const iterateElements = resultDiv.querySelectorAll(".iterate-header, .iterate-item, .iterate-footer");
@@ -157,6 +168,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     lastSolverFontMode = currentMode;
     adjustFontSize("result", { force: forceFont });
     adjustLogoFontSize();
+    activeVirtualizer?.refresh();
   }
 
   function updateResult(payload: ResultRenderPayload) {
@@ -214,4 +226,99 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   maybeStartDemo(params);
   uiManager.synchronize();
   canvas.focus();
+}
+
+type VirtualizedRowsController = {
+  destroy(): void;
+  refresh(): void;
+};
+
+type VirtualizedRowsOptions = {
+  container: HTMLElement;
+  rows: string[];
+  onHover: (index: number) => void;
+  onLeave: () => void;
+};
+
+const ESTIMATED_ROW_HEIGHT = 22;
+
+function createIterateVirtualizer({ container, rows, onHover, onLeave }: VirtualizedRowsOptions): VirtualizedRowsController {
+  const wrapper = document.createElement("div");
+  wrapper.style.display = "flex";
+  wrapper.style.flexDirection = "column";
+  wrapper.style.width = "100%";
+  const topSpacer = document.createElement("div");
+  const rowsContainer = document.createElement("div");
+  rowsContainer.style.display = "flex";
+  rowsContainer.style.flexDirection = "column";
+  const bottomSpacer = document.createElement("div");
+  wrapper.append(topSpacer, rowsContainer, bottomSpacer);
+  container.appendChild(wrapper);
+
+  const renderRows = () => {
+    const virtualItems = virtualizer.getVirtualItems();
+    const totalSize = virtualizer.getTotalSize();
+    rowsContainer.innerHTML = "";
+    if (virtualItems.length === 0) {
+      topSpacer.style.height = "0px";
+      bottomSpacer.style.height = "0px";
+      return;
+    }
+    const paddingTop = virtualItems[0]?.start ?? 0;
+    const paddingBottom = Math.max(totalSize - (virtualItems[virtualItems.length - 1]?.end ?? totalSize), 0);
+    topSpacer.style.height = `${paddingTop}px`;
+    bottomSpacer.style.height = `${paddingBottom}px`;
+
+    virtualItems.forEach((item) => {
+      const rowEl = document.createElement("div");
+      rowEl.className = "iterate-item";
+      rowEl.dataset.index = String(item.index);
+      rowEl.textContent = rows[item.index];
+      rowEl.addEventListener("mouseenter", () => onHover(item.index));
+      rowEl.addEventListener("mouseleave", () => onLeave());
+      rowsContainer.appendChild(rowEl);
+    });
+  };
+
+  const virtualizer = new Virtualizer<HTMLElement, HTMLDivElement>({
+    count: rows.length,
+    getScrollElement: () => container,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    overscan: 25,
+    scrollToFn: elementScroll,
+    observeElementRect,
+    observeElementOffset,
+    onChange: () => renderRows(),
+  });
+
+  const cleanupMount = virtualizer._didMount();
+  virtualizer._willUpdate();
+  renderRows();
+
+  return {
+    destroy() {
+      cleanupMount?.();
+      virtualizer.measureElement(null);
+      wrapper.remove();
+      onLeave();
+    },
+    refresh() {
+      virtualizer._willUpdate();
+      renderRows();
+    },
+  };
+}
+
+function computeMaxChars(lines: string[]): number {
+  let maxChars = 0;
+  lines.forEach((text) => {
+    if (!text) return;
+    const segments = text.split("\n");
+    for (const seg of segments) {
+      if (seg.length > maxChars) {
+        maxChars = seg.length;
+      }
+    }
+  });
+  return maxChars;
 }

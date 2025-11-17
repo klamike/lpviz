@@ -257,6 +257,13 @@ canvas {
   overflow-y: auto;
 }
 
+#result.virtualized .iterate-header,
+#result.virtualized .iterate-item,
+#result.virtualized .iterate-item-nohover,
+#result.virtualized .iterate-footer {
+  font-size: var(--virtual-font-size, 18px);
+}
+
 /* -------------------------------
     GitHub Icon
     ------------------------------- */
