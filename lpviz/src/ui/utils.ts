@@ -80,7 +80,7 @@ export function adjustFontSize(containerId: string = "result", options: { force?
   const newSize = Math.min(config.maxSize, Math.max(config.minSize, config.baseSize * scale * config.scaleFactor));
 
   fontSizeCache.set(cacheKey, newSize);
-  console.warn(`[lpviz] adjustFontSize triggered for '${containerId}', width now ${effectiveWidth}px, scale ${scale.toFixed(2)}`);
+  // console.warn(`[lpviz] adjustFontSize triggered for '${containerId}', width now ${effectiveWidth}px, scale ${scale.toFixed(2)}`);
   applyFontSize(container, config, newSize);
   container.style.setProperty("--virtual-font-size", `${newSize}px`);
 }
