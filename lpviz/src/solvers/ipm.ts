@@ -78,7 +78,7 @@ function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
   if (verbose) console.log(banner);
   solution.log.push(banner);
 
-  while (niter <= maxit) {
+  while (++niter <= maxit) {
     // r_p = b - (Ax - s)
     const r_p = Matrix.sub(b, Matrix.sub(A.mmul(x), s));
     // r_d = c - A^T y
@@ -169,13 +169,13 @@ function pushIter(d: IPMSolutionData, x: VectorN, s: VectorM, y: VectorM, mu: nu
 }
 
 function logIter(d: IPMSolutionData, verbose: boolean, x: VectorN, mu: number, pObj: number, pRes: number) {
-  const msg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n", d.x.length, x.get(0, 0), x.get(1, 0), -pObj, pRes, mu);
+  const msg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n", d.x.length+1, x.get(0, 0), x.get(1, 0), -pObj, pRes, mu);
   if (verbose) console.log(msg);
   d.log.push(msg);
 }
 
 function logFinal(d: IPMSolutionData, verbose: boolean, converged: boolean, tSolve: number) {
-  const msg = converged ? `Converged to primal-dual optimal solution in ${tSolve} ms\n` : `Did not converge after ${d.x.length - 1} iterations in ${tSolve} ms\n`;
+  const msg = converged ? `Converged to primal-dual optimal solution in ${tSolve} ms\n` : `Did not converge after ${d.x.length} iterations in ${tSolve} ms\n`;
   if (verbose) console.log(msg);
   d.log.push(msg);
 }
