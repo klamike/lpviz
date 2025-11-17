@@ -56,12 +56,10 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     return Math.hypot(clientX - dragStartPos.x, clientY - dragStartPos.y) > 5;
   };
 
-  const findVertexNearLocalPoint = (localX: number, localY: number, rect: DOMRect, vertices: PointXY[]) => {
+  const findVertexNearLocalPoint = (localX: number, localY: number, vertices: PointXY[]) => {
     return vertices.findIndex((vertex) => {
       const canvasPoint = canvasManager.toCanvasCoords(vertex.x, vertex.y);
-      const hitX = canvasPoint.x - rect.left;
-      const hitY = canvasPoint.y - rect.top;
-      return Math.hypot(localX - hitX, localY - hitY) <= VERTEX_HIT_RADIUS;
+      return Math.hypot(localX - canvasPoint.x, localY - canvasPoint.y) <= VERTEX_HIT_RADIUS;
     });
   };
 
@@ -74,7 +72,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
     const phaseSnapshot = state.snapshot;
 
     if (phaseSnapshot.phase === "empty" || phaseSnapshot.phase === "sketching_polytope") {
-      const idx = findVertexNearLocalPoint(localX, localY, rect, state.vertices);
+      const idx = findVertexNearLocalPoint(localX, localY, state.vertices);
       if (idx !== -1) {
         setState({
           potentialDragPointIndex: idx,
@@ -96,7 +94,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       }
     }
 
-    const idx = findVertexNearLocalPoint(localX, localY, rect, state.vertices);
+    const idx = findVertexNearLocalPoint(localX, localY, state.vertices);
     if (idx !== -1) {
       setState({
         potentialDragPointIndex: idx,
