@@ -463,9 +463,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
 
   canvas.addEventListener("dblclick", (e) => {
     const { is3DMode, isTransitioning3D } = getState();
-    if (is3DMode || isTransitioning3D) {
-      return;
-    }
+    const is3D = is3DMode || isTransitioning3D;
     if (helpPopup?.isTouring()) {
       return;
     }
@@ -486,6 +484,10 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
         sendPolytope();
         return;
       }
+    }
+
+    if (is3D) {
+      return;
     }
 
     const edgeIndex = polytope.findEdgeNearPoint(logicalMouse);

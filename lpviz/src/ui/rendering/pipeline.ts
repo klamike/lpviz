@@ -98,9 +98,11 @@ export class CanvasRenderPipeline {
       return lerp(z3D, planarZ, flattenTo2DProgress);
     };
 
+    const isNonconvex = !vrep.isConvex();
+
     if (polytopeComplete && vertices.length >= 3 && inputMode !== "manual") {
       const material = new MeshBasicMaterial({
-        color: COLORS.polytopeFill,
+        color: isNonconvex ? COLORS.polytopeHighlight : COLORS.polytopeFill,
         transparent: true,
         opacity: 0.6,
         side: DoubleSide,
@@ -111,25 +113,19 @@ export class CanvasRenderPipeline {
         polygonOffsetUnits: 1,
       });
 
-      let mesh: Mesh;
+      const shapeGeometry = new ShapeGeometry(buildShapeFromVertices(vertices));
       if (is3D) {
-        const shapePositions: number[] = [];
-        vertices.forEach((v) => {
-          const z3D = getObjectiveZValue(v.x, v.y);
-          const planarZ = getFinalPlanarOffset(0);
-          shapePositions.push(v.x, v.y, mixHeight(z3D, planarZ));
-        });
-        const indices: number[] = [];
-        for (let i = 1; i < vertices.length - 1; i++) {
-          indices.push(0, i, i + 1);
+        const positions = shapeGeometry.getAttribute("position") as Float32BufferAttribute;
+        const planarZ = getFinalPlanarOffset(0);
+        for (let i = 0; i < positions.count; i++) {
+          const x = positions.getX(i);
+          const y = positions.getY(i);
+          const z3D = getObjectiveZValue(x, y);
+          positions.setZ(i, mixHeight(z3D, planarZ));
         }
-        const geom = new BufferGeometry();
-        geom.setAttribute("position", new Float32BufferAttribute(shapePositions, 3));
-        geom.setIndex(indices);
-        geom.computeVertexNormals();
-        mesh = new Mesh(geom, material);
-      } else {
-        mesh = new Mesh(new ShapeGeometry(buildShapeFromVertices(vertices)), material);
+      }
+      const mesh = new Mesh(shapeGeometry, material);
+      if (!is3D) {
         mesh.position.z = context.getPlanarOffset(VERTEX_Z_OFFSET / 2);
       }
       mesh.renderOrder = RENDER_LAYERS.polyEdges - 1;
@@ -166,19 +162,6 @@ export class CanvasRenderPipeline {
       sprite.renderOrder = RENDER_LAYERS.polytopeVertices;
       groups.polytopeVertices.add(sprite);
     });
-
-    if (!vrep.isConvex()) {
-      const geometry = new ShapeGeometry(buildShapeFromVertices(vertices));
-      const material = new MeshBasicMaterial({
-        color: COLORS.polytopeHighlight,
-        transparent: true,
-        opacity: 0.35,
-        side: DoubleSide,
-        depthWrite: false,
-        depthTest: false,
-      });
-      groups.polytopeOutline.add(new Mesh(geometry, material));
-    }
 
     if (!polytopeComplete && vertices.length >= 1 && currentMouse && !skipPreviewDrawing) {
       const last = vertices[vertices.length - 1];
