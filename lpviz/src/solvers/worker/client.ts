@@ -43,7 +43,8 @@ function scheduleDispatch() {
 }
 
 function dropOverflow() {
-  while (pending.size + requestQueue.length > MAX_WORKER_QUEUE) {
+  const allowedQueueLength = Math.max(1, MAX_WORKER_QUEUE - pending.size);
+  while (requestQueue.length > allowedQueueLength) {
     const dropped = requestQueue.shift();
     if (!dropped) break;
     dropped.reject(new Error("Solver request dropped due to queue overflow"));
