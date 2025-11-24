@@ -1,34 +1,8 @@
-import {
-  BufferGeometry,
-  DoubleSide,
-  Float32BufferAttribute,
-  LineSegments,
-  Mesh,
-  MeshBasicMaterial,
-  Points,
-  Shape,
-  ShapeGeometry,
-  Vector3,
-} from "three";
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, LineSegments, Mesh, MeshBasicMaterial, Points, Shape, ShapeGeometry, Vector3 } from "three";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { getState } from "../../state/store";
-import {
-  COLORS,
-  EDGE_Z_OFFSET,
-  GRID_MARGIN,
-  ITERATE_LINE_THICKNESS,
-  ITERATE_POINT_PIXEL_SIZE,
-  ITERATE_Z_OFFSET,
-  OBJECTIVE_Z_OFFSET,
-  POLY_LINE_THICKNESS,
-  RENDER_LAYERS,
-  TRACE_LINE_THICKNESS,
-  TRACE_POINT_PIXEL_SIZE,
-  TRACE_Z_OFFSET,
-  VERTEX_POINT_PIXEL_SIZE,
-  VERTEX_Z_OFFSET,
-} from "./constants";
+import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_OPACITY, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
 import { Bounds, buildArrowHeadSegments, clipLineToBounds } from "./geometry";
 import { CanvasRenderContext } from "./types";
 
@@ -43,8 +17,7 @@ const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {
   return shape;
 };
 
-const lerp = (start: number, end: number, t: number) =>
-  start + (end - start) * t;
+const lerp = (start: number, end: number, t: number) => start + (end - start) * t;
 
 export class CanvasRenderPipeline {
   render(context: CanvasRenderContext): void {
@@ -67,10 +40,7 @@ export class CanvasRenderPipeline {
       maxX = maxY = extent;
     } else {
       const tl = toLogicalCoords(-GRID_MARGIN, -GRID_MARGIN);
-      const br = toLogicalCoords(
-        window.innerWidth + GRID_MARGIN,
-        window.innerHeight + GRID_MARGIN
-      );
+      const br = toLogicalCoords(window.innerWidth + GRID_MARGIN, window.innerHeight + GRID_MARGIN);
       minX = Math.min(tl.x, br.x) - 5;
       maxX = Math.max(tl.x, br.x) + 5;
       minY = Math.min(tl.y, br.y) - 5;
@@ -87,10 +57,7 @@ export class CanvasRenderPipeline {
 
     if (gridPositions.length) {
       const geom = new BufferGeometry();
-      geom.setAttribute(
-        "position",
-        new Float32BufferAttribute(gridPositions, 3)
-      );
+      geom.setAttribute("position", new Float32BufferAttribute(gridPositions, 3));
       const material = helpers.getLineBasicMaterial({
         color: COLORS.grid,
         transparent: false,
@@ -101,10 +68,7 @@ export class CanvasRenderPipeline {
       groups.grid.add(new LineSegments(geom, material));
     }
 
-    const axisPositions = new Float32BufferAttribute(
-      [0, minY, 0, 0, maxY, 0, minX, 0, 0, maxX, 0, 0],
-      3
-    );
+    const axisPositions = new Float32BufferAttribute([0, minY, 0, 0, maxY, 0, minX, 0, 0, maxX, 0, 0], 3);
     const axisGeom = new BufferGeometry();
     axisGeom.setAttribute("position", axisPositions);
     const axisMaterial = helpers.getLineBasicMaterial({
@@ -116,32 +80,18 @@ export class CanvasRenderPipeline {
   }
 
   private renderPolytope(context: CanvasRenderContext) {
-    const {
-      helpers,
-      groups,
-      is3D,
-      skipPreviewDrawing,
-      flattenTo2DProgress,
-      getFinalPlanarOffset,
-    } = context;
+    const { helpers, groups, is3D, skipPreviewDrawing, flattenTo2DProgress, getFinalPlanarOffset } = context;
     helpers.clearGroup(groups.polytopeFill);
     helpers.clearGroup(groups.polytopeOutline);
     helpers.clearGroup(groups.polytopeVertices);
 
-    const {
-      vertices,
-      polytopeComplete,
-      inputMode,
-      highlightIndex,
-      currentMouse,
-    } = getState();
+    const { vertices, polytopeComplete, inputMode, highlightIndex, currentMouse } = getState();
     if (vertices.length === 0) {
       return;
     }
 
     const vrep = VRep.fromPoints(vertices);
-    const getObjectiveZValue = (x: number, y: number) =>
-      context.scaleZValue(context.computeObjectiveValue(x, y));
+    const getObjectiveZValue = (x: number, y: number) => context.scaleZValue(context.computeObjectiveValue(x, y));
     const mixHeight = (z3D: number, planarZ: number) => {
       if (!is3D) return planarZ;
       if (!flattenTo2DProgress) return z3D;
@@ -165,9 +115,7 @@ export class CanvasRenderPipeline {
 
       const shapeGeometry = new ShapeGeometry(buildShapeFromVertices(vertices));
       if (is3D) {
-        const positions = shapeGeometry.getAttribute(
-          "position"
-        ) as Float32BufferAttribute;
+        const positions = shapeGeometry.getAttribute("position") as Float32BufferAttribute;
         const planarZ = getFinalPlanarOffset(0);
         for (let i = 0; i < positions.count; i++) {
           const x = positions.getX(i);
@@ -184,9 +132,7 @@ export class CanvasRenderPipeline {
       groups.polytopeFill.add(mesh);
     }
 
-    const edgeCount = polytopeComplete
-      ? vertices.length
-      : Math.max(0, vertices.length - 1);
+    const edgeCount = polytopeComplete ? vertices.length : Math.max(0, vertices.length - 1);
     for (let i = 0; i < edgeCount; i++) {
       const nextIndex = (i + 1) % vertices.length;
       if (!polytopeComplete && nextIndex >= vertices.length) break;
@@ -194,14 +140,8 @@ export class CanvasRenderPipeline {
       const next = vertices[nextIndex];
       const z1Base = getObjectiveZValue(v.x, v.y);
       const z2Base = getObjectiveZValue(next.x, next.y);
-      const z1 = mixHeight(
-        z1Base + EDGE_Z_OFFSET,
-        getFinalPlanarOffset(EDGE_Z_OFFSET)
-      );
-      const z2 = mixHeight(
-        z2Base + EDGE_Z_OFFSET,
-        getFinalPlanarOffset(EDGE_Z_OFFSET)
-      );
+      const z1 = mixHeight(z1Base + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
+      const z2 = mixHeight(z2Base + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
       const positions = [v.x, v.y, z1, next.x, next.y, z2];
       const highlight = inputMode !== "manual" && highlightIndex === i;
       const edgeLine = helpers.createThickLine(positions, {
@@ -216,49 +156,20 @@ export class CanvasRenderPipeline {
     const vertexSizePx = VERTEX_POINT_PIXEL_SIZE;
     vertices.forEach((v) => {
       const baseZ = getObjectiveZValue(v.x, v.y);
-      const z = mixHeight(
-        baseZ + VERTEX_Z_OFFSET,
-        getFinalPlanarOffset(VERTEX_Z_OFFSET)
-      );
+      const z = mixHeight(baseZ + VERTEX_Z_OFFSET, getFinalPlanarOffset(VERTEX_Z_OFFSET));
       const position = new Vector3(v.x, v.y, z);
-      const sprite = helpers.createCircleSpriteWithPixelSize(
-        position,
-        COLORS.vertex,
-        vertexSizePx
-      );
+      const sprite = helpers.createCircleSpriteWithPixelSize(position, COLORS.vertex, vertexSizePx);
       sprite.renderOrder = RENDER_LAYERS.polytopeVertices;
       groups.polytopeVertices.add(sprite);
     });
 
-    if (
-      !polytopeComplete &&
-      vertices.length >= 1 &&
-      currentMouse &&
-      !skipPreviewDrawing
-    ) {
+    if (!polytopeComplete && vertices.length >= 1 && currentMouse && !skipPreviewDrawing) {
       const last = vertices[vertices.length - 1];
-      const lastZBase = context.scaleZValue(
-        context.computeObjectiveValue(last.x, last.y)
-      );
-      const previewZBase = context.scaleZValue(
-        context.computeObjectiveValue(currentMouse.x, currentMouse.y)
-      );
-      const lastZ = mixHeight(
-        lastZBase + EDGE_Z_OFFSET,
-        getFinalPlanarOffset(EDGE_Z_OFFSET)
-      );
-      const previewZ = mixHeight(
-        previewZBase + EDGE_Z_OFFSET,
-        getFinalPlanarOffset(EDGE_Z_OFFSET)
-      );
-      const previewPositions = [
-        last.x,
-        last.y,
-        lastZ,
-        currentMouse.x,
-        currentMouse.y,
-        previewZ,
-      ];
+      const lastZBase = context.scaleZValue(context.computeObjectiveValue(last.x, last.y));
+      const previewZBase = context.scaleZValue(context.computeObjectiveValue(currentMouse.x, currentMouse.y));
+      const lastZ = mixHeight(lastZBase + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
+      const previewZ = mixHeight(previewZBase + EDGE_Z_OFFSET, getFinalPlanarOffset(EDGE_Z_OFFSET));
+      const previewPositions = [last.x, last.y, lastZ, currentMouse.x, currentMouse.y, previewZ];
       const previewLine = helpers.createThickLine(previewPositions, {
         color: 0x000000,
         width: POLY_LINE_THICKNESS,
@@ -296,15 +207,12 @@ export class CanvasRenderPipeline {
       if (!segment) return;
       const [start, end] = segment;
       const highlighted = highlightIndex === index;
-      const lineObj = helpers.createThickLine(
-        [start.x, start.y, 0, end.x, end.y, 0],
-        {
-          color: highlighted ? COLORS.polytopeHighlight : 0x646464,
-          width: POLY_LINE_THICKNESS,
-          depthTest: is3D,
-          depthWrite: is3D,
-        }
-      );
+      const lineObj = helpers.createThickLine([start.x, start.y, 0, end.x, end.y, 0], {
+        color: highlighted ? COLORS.polytopeHighlight : 0x646464,
+        width: POLY_LINE_THICKNESS,
+        depthTest: is3D,
+        depthWrite: is3D,
+      });
       groups.constraint.add(lineObj);
     });
   }
@@ -313,21 +221,12 @@ export class CanvasRenderPipeline {
     const { helpers, groups, is3D, skipPreviewDrawing } = context;
     helpers.clearGroup(groups.objective);
 
-    const {
-      objectiveHidden,
-      objectiveVector,
-      currentObjective,
-      polytopeComplete,
-    } = getState();
+    const { objectiveHidden, objectiveVector, currentObjective, polytopeComplete } = getState();
     if (objectiveHidden) {
       return;
     }
 
-    const target =
-      objectiveVector ||
-      (polytopeComplete && currentObjective && !skipPreviewDrawing
-        ? currentObjective
-        : null);
+    const target = objectiveVector || (polytopeComplete && currentObjective && !skipPreviewDrawing ? currentObjective : null);
     if (!target) return;
 
     const length = Math.hypot(target.x, target.y);
@@ -337,16 +236,13 @@ export class CanvasRenderPipeline {
     const baseZ = context.getPlanarOffset(OBJECTIVE_Z_OFFSET);
     const arrowColor = COLORS.objective;
     const shaftEnd = { x: target.x, y: target.y };
-    const shaftLine = helpers.createThickLine(
-      [0, 0, baseZ, shaftEnd.x, shaftEnd.y, baseZ],
-      {
-        color: arrowColor,
-        width: ITERATE_LINE_THICKNESS,
-        depthTest: is3D,
-        depthWrite: is3D,
-        renderOrder: RENDER_LAYERS.objective,
-      }
-    );
+    const shaftLine = helpers.createThickLine([0, 0, baseZ, shaftEnd.x, shaftEnd.y, baseZ], {
+      color: arrowColor,
+      width: ITERATE_LINE_THICKNESS,
+      depthTest: is3D,
+      depthWrite: is3D,
+      renderOrder: RENDER_LAYERS.objective,
+    });
     groups.objective.add(shaftLine);
 
     const headLength = helpers.getWorldSizeFromPixels(16);
@@ -377,11 +273,7 @@ export class CanvasRenderPipeline {
     traceBuffer.forEach((traceEntry) => {
       const lineData = traceEntry.lineData;
       if (!lineData) return;
-      const positions = this.buildTraceLinePositions(
-        lineData.positions,
-        context,
-        is3D
-      );
+      const positions = this.buildTraceLinePositions(lineData.positions, context, is3D);
       if (positions.length === 0) return;
       const line = helpers.createThickLine(positions, {
         color: COLORS.trace,
@@ -389,15 +281,12 @@ export class CanvasRenderPipeline {
         depthTest: is3D,
         depthWrite: false,
         transparent: true,
-        opacity: 0.25,
+        opacity: TRACE_LINE_OPACITY,
       });
       line.renderOrder = RENDER_LAYERS.traceLine;
       groups.traceLines.add(line);
 
-      const pointPositions = this.buildTraceSamplePositions(
-        positions,
-        lineData.sampledIndices
-      );
+      const pointPositions = this.buildTraceSamplePositions(positions, lineData.sampledIndices);
       if (pointPositions.length) {
         sampledPositions.push(...pointPositions);
       }
@@ -405,10 +294,7 @@ export class CanvasRenderPipeline {
 
     if (sampledPositions.length) {
       const pointGeometry = new BufferGeometry();
-      pointGeometry.setAttribute(
-        "position",
-        new Float32BufferAttribute(sampledPositions, 3)
-      );
+      pointGeometry.setAttribute("position", new Float32BufferAttribute(sampledPositions, 3));
       const material = helpers.getPointMaterial({
         color: COLORS.trace,
         size: TRACE_POINT_PIXEL_SIZE,
@@ -425,11 +311,7 @@ export class CanvasRenderPipeline {
     }
   }
 
-  private buildTraceLinePositions(
-    rawPositions: number[],
-    context: CanvasRenderContext,
-    is3D: boolean
-  ): number[] {
+  private buildTraceLinePositions(rawPositions: number[], context: CanvasRenderContext, is3D: boolean): number[] {
     if (rawPositions.length === 0) {
       return [];
     }
@@ -443,10 +325,7 @@ export class CanvasRenderPipeline {
     return positions;
   }
 
-  private buildTraceSamplePositions(
-    linePositions: number[],
-    sampledIndices: number[]
-  ): number[] {
+  private buildTraceSamplePositions(linePositions: number[], sampledIndices: number[]): number[] {
     if (linePositions.length === 0 || sampledIndices.length === 0) {
       return [];
     }
@@ -454,18 +333,13 @@ export class CanvasRenderPipeline {
     for (let i = 0; i < sampledIndices.length; i++) {
       const baseIndex = sampledIndices[i] * 3;
       if (baseIndex + 2 >= linePositions.length) continue;
-      samples.push(
-        linePositions[baseIndex],
-        linePositions[baseIndex + 1],
-        linePositions[baseIndex + 2]
-      );
+      samples.push(linePositions[baseIndex], linePositions[baseIndex + 1], linePositions[baseIndex + 2]);
     }
     return samples;
   }
 
   private renderIterate(context: CanvasRenderContext) {
-    const { helpers, groups, is3D, flattenTo2DProgress, getFinalPlanarOffset } =
-      context;
+    const { helpers, groups, is3D, flattenTo2DProgress, getFinalPlanarOffset } = context;
     helpers.clearGroup(groups.iterate);
     helpers.clearGroup(groups.overlay);
 
@@ -476,10 +350,7 @@ export class CanvasRenderPipeline {
 
     const planarIterateZ = getFinalPlanarOffset(ITERATE_Z_OFFSET);
     const blendIterateZ = (entry: number[]) => {
-      const zValue =
-        entry[2] !== undefined
-          ? entry[2]
-          : context.computeObjectiveValue(entry[0], entry[1]);
+      const zValue = entry[2] !== undefined ? entry[2] : context.computeObjectiveValue(entry[0], entry[1]);
       const z3D = context.scaleZValue(zValue);
       if (!is3D) {
         return planarIterateZ;
@@ -499,8 +370,7 @@ export class CanvasRenderPipeline {
       positions[i * 3 + 2] = z;
     }
 
-    const buildIteratePosition = (entry: number[]) =>
-      new Vector3(entry[0], entry[1], blendIterateZ(entry));
+    const buildIteratePosition = (entry: number[]) => new Vector3(entry[0], entry[1], blendIterateZ(entry));
     const iterateLine = helpers.createThickLine(Array.from(positions), {
       color: COLORS.iteratePath,
       width: ITERATE_LINE_THICKNESS,
@@ -511,10 +381,7 @@ export class CanvasRenderPipeline {
     groups.iterate.add(iterateLine);
 
     const pointsGeometry = new BufferGeometry();
-    pointsGeometry.setAttribute(
-      "position",
-      new Float32BufferAttribute(positions, 3)
-    );
+    pointsGeometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
     const material = helpers.getPointMaterial({
       color: COLORS.iteratePath,
       size: ITERATE_POINT_PIXEL_SIZE,
@@ -529,22 +396,10 @@ export class CanvasRenderPipeline {
     iteratePoints.renderOrder = RENDER_LAYERS.iteratePoints;
     groups.iterate.add(iteratePoints);
 
-    if (
-      highlightIteratePathIndex !== null &&
-      highlightIteratePathIndex < iteratePath.length
-    ) {
-      const highlightPos = buildIteratePosition(
-        iteratePath[highlightIteratePathIndex]
-      );
-      const highlightSize = helpers.getWorldSizeFromPixels(
-        ITERATE_POINT_PIXEL_SIZE * 1.3,
-        highlightPos
-      );
-      const highlightSprite = helpers.createCircleSprite(
-        highlightPos,
-        COLORS.iterateHighlight,
-        highlightSize
-      );
+    if (highlightIteratePathIndex !== null && highlightIteratePathIndex < iteratePath.length) {
+      const highlightPos = buildIteratePosition(iteratePath[highlightIteratePathIndex]);
+      const highlightSize = helpers.getWorldSizeFromPixels(ITERATE_POINT_PIXEL_SIZE * 1.3, highlightPos);
+      const highlightSprite = helpers.createCircleSprite(highlightPos, COLORS.iterateHighlight, highlightSize);
       highlightSprite.renderOrder = RENDER_LAYERS.iterateHighlight;
       groups.iterate.add(highlightSprite);
     }
