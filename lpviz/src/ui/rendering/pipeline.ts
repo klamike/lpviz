@@ -1,9 +1,9 @@
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, LineSegments, Mesh, MeshBasicMaterial, Points, Shape, ShapeGeometry, Vector3 } from "three";
+import { BufferGeometry, Float32BufferAttribute, LineSegments, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3, Points, DoubleSide } from "three";
+import { getState } from "../../state/store";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
-import { getState } from "../../state/store";
+import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
 import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_OPACITY, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
-import { Bounds, buildArrowHeadSegments, clipLineToBounds } from "./geometry";
 import { CanvasRenderContext } from "./types";
 
 const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {

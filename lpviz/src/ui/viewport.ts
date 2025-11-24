@@ -1,9 +1,9 @@
-import { CanvasTexture, Euler, Group, LineBasicMaterial, Material, MOUSE, NearestFilter, OrthographicCamera, PerspectiveCamera, Plane, PointsMaterial, Raycaster, Scene, Sprite, SpriteMaterial, Vector2, Vector3, WebGLRenderer } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial, MOUSE, Plane, Raycaster } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { PointXY, PointXYZ } from "../solvers/utils/blas";
 import { getState, setState } from "../state/store";
-import { OBJECTIVE_Z_OFFSET, RENDER_LAYERS, STAR_POINT_PIXEL_SIZE } from "./rendering/constants";
+import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE, OBJECTIVE_Z_OFFSET } from "./rendering/constants";
 import { inverseTransform2DProjection } from "./rendering/math3d";
 import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGeometry";
