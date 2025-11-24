@@ -16,6 +16,8 @@
     "noUnusedParameters": true,
     "noImplicitThis": true,
     "useDefineForClassFields": true,
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist-ts"

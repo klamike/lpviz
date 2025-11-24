@@ -1,9 +1,9 @@
 import type { PointXY, PointXYZ, VecNs } from "../solvers/utils/blas";
 import type { PolytopeRepresentation } from "../solvers/utils/polytope";
-import type { HistoryEntry } from "./history";
-import { computeDrawingSnapshot } from "./drawing";
-import type { DrawingPhaseSnapshot } from "./drawing";
 import { MAX_TRACE_POINT_SPRITES } from "../ui/rendering/constants";
+import type { DrawingPhaseSnapshot } from "./drawing";
+import { computeDrawingSnapshot } from "./drawing";
+import type { HistoryEntry } from "./history";
 
 export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
 type InputMode = "visual" | "manual";
@@ -82,6 +82,16 @@ export type State = {
   traceBuffer: TraceEntry[];
   maxTraceCount: number;
 
+  ipmAlphaMax: number;
+  ipmMaxIterations: number;
+  pdhgEta: number;
+  pdhgTau: number;
+  pdhgMaxIterations: number;
+  pdhgIneqMode: boolean;
+  centralPathSteps: number;
+  objectiveAngleStep: number;
+  objectiveRotationSpeed: number;
+
   inputMode: InputMode;
   tourActive: boolean;
   snapshot: DrawingPhaseSnapshot;
@@ -146,6 +156,16 @@ const initialState: State = {
   traceBuffer: [],
   maxTraceCount: 0,
 
+  ipmAlphaMax: 0.1,
+  ipmMaxIterations: 1000,
+  pdhgEta: 0.25,
+  pdhgTau: 0.25,
+  pdhgMaxIterations: 1000,
+  pdhgIneqMode: true,
+  centralPathSteps: 75,
+  objectiveAngleStep: 0.1,
+  objectiveRotationSpeed: 1,
+
   inputMode: "visual",
   tourActive: false,
   snapshot: {} as DrawingPhaseSnapshot,
@@ -187,7 +207,9 @@ export function subscribe(listener: (snapshot: State) => void): () => void {
 
 export function prepareAnimationInterval(): void {
   const { animationIntervalId } = getState();
-  if (animationIntervalId !== null) (clearInterval(animationIntervalId), setState({ animationIntervalId: null }));
+  if (animationIntervalId !== null)
+    (clearInterval(animationIntervalId),
+      setState({ animationIntervalId: null }));
 }
 
 export function updateIteratePaths(iteratesArray: number[][]): void {
@@ -207,19 +229,22 @@ export function addTraceToBuffer(iteratesArray: number[][]): void {
       lineData,
       angle: draft.totalRotationAngle,
     });
-    while (draft.traceBuffer.length > draft.maxTraceCount) draft.traceBuffer.shift();
+    while (draft.traceBuffer.length > draft.maxTraceCount)
+      draft.traceBuffer.shift();
   });
 }
 
 function buildTraceLineData(path: number[][]): TraceLineData {
   const { objectiveVector } = getState();
-  const computeObjective = (x: number, y: number) => (objectiveVector ? objectiveVector.x * x + objectiveVector.y * y : 0);
+  const computeObjective = (x: number, y: number) =>
+    objectiveVector ? objectiveVector.x * x + objectiveVector.y * y : 0;
   const positions: number[] = [];
   const sampledIndices: number[] = [];
 
   for (let i = 0; i < path.length; i++) {
     const entry = path[i];
-    const zValue = entry[2] !== undefined ? entry[2] : computeObjective(entry[0], entry[1]);
+    const zValue =
+      entry[2] !== undefined ? entry[2] : computeObjective(entry[0], entry[1]);
     positions.push(entry[0], entry[1], zValue);
   }
 
@@ -253,7 +278,9 @@ export function resetTraceState(): void {
 export function handleStepSizeChange(): void {
   if (!getState().traceEnabled) return;
 
-  const objectiveAngleStepSlider = document.getElementById("objectiveAngleStepSlider") as HTMLInputElement;
+  const objectiveAngleStepSlider = document.getElementById(
+    "objectiveAngleStepSlider"
+  ) as HTMLInputElement;
   const angleStep = parseFloat(objectiveAngleStepSlider?.value || "0.1");
   const newMaxTracesPerRotation = Math.ceil((2 * Math.PI) / angleStep);
 

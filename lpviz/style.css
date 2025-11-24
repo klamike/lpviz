@@ -22,6 +22,26 @@ body {
   font-size: 1rem;
 }
 
+.migration-banner {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #0f172a;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin: 12px 0;
+  text-align: left;
+}
+
+.migration-banner__title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.migration-banner__body {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 #objectiveDisplay,
 #inequalities {
   font-size: 1.2rem;
@@ -109,6 +129,11 @@ canvas {
 #sidebar button {
   margin-top: 10px;
   padding: 5px 10px;
+}
+
+#sidebar .button-group button.active {
+  background: #111;
+  color: #fff;
 }
 
 #sidebarHandle {
