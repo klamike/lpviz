@@ -278,7 +278,7 @@ export class CanvasRenderPipeline {
         color: COLORS.trace,
         width: TRACE_LINE_THICKNESS,
         depthTest: is3D,
-        depthWrite: false,
+        depthWrite: is3D,
       });
       const material = line.material as any;
       material.transparent = true;
