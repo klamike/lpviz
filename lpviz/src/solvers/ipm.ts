@@ -169,7 +169,7 @@ function pushIter(d: IPMSolutionData, x: VectorN, s: VectorM, y: VectorM, mu: nu
 }
 
 function logIter(d: IPMSolutionData, verbose: boolean, x: VectorN, mu: number, pObj: number, pRes: number) {
-  const msg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n", d.x.length+1, x.get(0, 0), x.get(1, 0), -pObj, pRes, mu);
+  const msg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n", d.x.length + 1, x.get(0, 0), x.get(1, 0), -pObj, pRes, mu);
   if (verbose) console.log(msg);
   d.log.push(msg);
 }
