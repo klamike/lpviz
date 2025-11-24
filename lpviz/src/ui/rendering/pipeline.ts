@@ -279,7 +279,7 @@ export class CanvasRenderPipeline {
         color: COLORS.trace,
         width: TRACE_LINE_THICKNESS,
         depthTest: is3D,
-        depthWrite: false,
+        depthWrite: is3D,
         transparent: true,
         opacity: TRACE_LINE_OPACITY,
       });
@@ -299,7 +299,7 @@ export class CanvasRenderPipeline {
         color: COLORS.trace,
         size: TRACE_POINT_PIXEL_SIZE,
         sizeAttenuation: false,
-        depthWrite: is3D,
+        depthWrite: false,
         depthTest: false,
         transparent: false,
         opacity: 1,
