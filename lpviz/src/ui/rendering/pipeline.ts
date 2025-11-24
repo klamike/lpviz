@@ -261,7 +261,6 @@ export class CanvasRenderPipeline {
 
   private renderTrace(context: CanvasRenderContext) {
     const { helpers, groups, is3D } = context;
-    helpers.clearGroup(groups.traceLines);
     helpers.clearGroup(groups.trace);
 
     const { traceEnabled, traceBuffer } = getState();
@@ -286,7 +285,7 @@ export class CanvasRenderPipeline {
       material.opacity = TRACE_LINE_OPACITY;
       material.needsUpdate = true;
       line.renderOrder = RENDER_LAYERS.traceLine;
-      groups.traceLines.add(line);
+      groups.trace.add(line);
 
       const pointPositions = this.buildTraceSamplePositions(positions, lineData.sampledIndices);
       if (pointPositions.length) {
