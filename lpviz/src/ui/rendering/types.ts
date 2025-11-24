@@ -1,4 +1,12 @@
-import { CanvasTexture, Group, LineBasicMaterial, PointsMaterial, Sprite, Vector2, Vector3 } from "three";
+import {
+  CanvasTexture,
+  Group,
+  LineBasicMaterial,
+  PointsMaterial,
+  Sprite,
+  Vector2,
+  Vector3,
+} from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import type { PointXY } from "../../solvers/utils/blas";
 
@@ -9,6 +17,7 @@ interface CanvasGroups {
   polytopeVertices: Group;
   constraint: Group;
   objective: Group;
+  traceLines: Group;
   trace: Group;
   iterate: Group;
   overlay: Group;
@@ -20,12 +29,22 @@ export interface ThickLineOptions {
   depthTest?: boolean;
   depthWrite?: boolean;
   renderOrder?: number;
+  transparent?: boolean;
+  opacity?: number;
+  dashed?: boolean;
+  dashScale?: number;
+  dashSize?: number;
+  gapSize?: number;
 }
 
 export interface CanvasRenderHelpers {
   clearGroup(group: Group): void;
   createThickLine(positions: number[], options: ThickLineOptions): Line2;
-  createCircleSpriteWithPixelSize(position: Vector3, color: number, pixelSize: number): Sprite;
+  createCircleSpriteWithPixelSize(
+    position: Vector3,
+    color: number,
+    pixelSize: number
+  ): Sprite;
   createCircleSprite(position: Vector3, color: number, size: number): Sprite;
   createStarSprite(position: Vector3, color: number): Sprite;
   buildPositionArray(path: number[][], planarOffset?: number): Float32Array;

@@ -1,14 +1,44 @@
-import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial, MOUSE, Plane, Raycaster } from "three";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import {
+  CanvasTexture,
+  Euler,
+  Group,
+  LineBasicMaterial,
+  Material,
+  MOUSE,
+  NearestFilter,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Plane,
+  PointsMaterial,
+  Raycaster,
+  Scene,
+  Sprite,
+  SpriteMaterial,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import type { PointXY, PointXYZ } from "../solvers/utils/blas";
+import { getState, setState } from "../state/store";
+import {
+  OBJECTIVE_Z_OFFSET,
+  RENDER_LAYERS,
+  STAR_POINT_PIXEL_SIZE,
+} from "./rendering/constants";
+import { inverseTransform2DProjection } from "./rendering/math3d";
+import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGeometry";
 import { UndashedLine2 } from "./rendering/three/UndashedLine2";
-import { getState, setState } from "../state/store";
-import type { PointXY, PointXYZ } from "../solvers/utils/blas";
-import { inverseTransform2DProjection } from "./rendering/math3d";
-import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
-import { CanvasRenderPipeline } from "./rendering/pipeline";
-import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE, OBJECTIVE_Z_OFFSET } from "./rendering/constants";
+import {
+  CanvasRenderContext,
+  CanvasRenderHelpers,
+  LineBasicMaterialOptions,
+  PointMaterialOptions,
+  ThickLineOptions,
+} from "./rendering/types";
 import type { Tour } from "./tour/tour";
 
 const ORTHO_MIN_SCALE_FACTOR = 0.05;
@@ -31,6 +61,7 @@ export class ViewportManager {
   private transparentScene: Scene;
   private foregroundScene: Scene;
   private vertexScene: Scene;
+  private traceLineScene: Scene;
   private traceScene: Scene;
   private overlayScene: Scene;
   private orthoCamera: OrthographicCamera;
@@ -42,6 +73,7 @@ export class ViewportManager {
   private polytopeVertexGroup: Group;
   private constraintGroup: Group;
   private objectiveGroup: Group;
+  private traceLineGroup: Group;
   private traceGroup: Group;
   private iterateGroup: Group;
   private overlayGroup: Group;
@@ -94,6 +126,7 @@ export class ViewportManager {
     this.transparentScene = new Scene();
     this.foregroundScene = new Scene();
     this.vertexScene = new Scene();
+    this.traceLineScene = new Scene();
     this.traceScene = new Scene();
     this.overlayScene = new Scene();
     this.gridGroup = new Group();
@@ -102,6 +135,7 @@ export class ViewportManager {
     this.polytopeVertexGroup = new Group();
     this.constraintGroup = new Group();
     this.objectiveGroup = new Group();
+    this.traceLineGroup = new Group();
     this.traceGroup = new Group();
     this.iterateGroup = new Group();
     this.overlayGroup = new Group();
@@ -112,19 +146,28 @@ export class ViewportManager {
     this.foregroundScene.add(this.constraintGroup);
     this.foregroundScene.add(this.objectiveGroup);
     this.vertexScene.add(this.polytopeVertexGroup);
+    this.traceLineScene.add(this.traceLineGroup);
     this.traceScene.add(this.traceGroup);
     this.traceScene.add(this.iterateGroup);
     this.overlayScene.add(this.overlayGroup);
 
     this.orthoCamera = new OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
-    this.perspectiveCamera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
+    this.perspectiveCamera = new PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      10000
+    );
     this.activeCamera = this.orthoCamera;
     this.orbitControls = new OrbitControls(this.perspectiveCamera, this.canvas);
     this.orbitControls.enabled = false;
     this.orbitControls.enableDamping = true;
     this.orbitControls.dampingFactor = 0.08;
     this.orbitControls.enableRotate = false;
-    this.orbitControls.addEventListener("change", this.handleOrbitControlsChange);
+    this.orbitControls.addEventListener(
+      "change",
+      this.handleOrbitControlsChange
+    );
 
     this.orthoControls = new OrbitControls(this.orthoCamera, this.canvas);
     this.orthoControls.enableRotate = false;
@@ -135,11 +178,17 @@ export class ViewportManager {
     this.orthoControls.mouseButtons.LEFT = MOUSE.PAN;
     this.orthoControls.mouseButtons.RIGHT = MOUSE.DOLLY;
     this.orthoControls.mouseButtons.MIDDLE = MOUSE.DOLLY;
-    this.orthoControls.addEventListener("change", this.handleOrthoControlsChange);
+    this.orthoControls.addEventListener(
+      "change",
+      this.handleOrthoControlsChange
+    );
     this.orthoControls.target.copy(this.getViewportTarget());
     this.orthoControls.update();
 
-    this.currentPerspectiveDistance = this.getPerspectiveDistance(this.getUnitsPerPixel(), window.innerHeight);
+    this.currentPerspectiveDistance = this.getPerspectiveDistance(
+      this.getUnitsPerPixel(),
+      window.innerHeight
+    );
 
     this.initialized = true;
     this.updateDimensions();
@@ -203,7 +252,14 @@ export class ViewportManager {
     this.renderer.autoClear = true;
     this.renderer.render(this.backgroundScene, this.activeCamera);
     this.renderer.autoClear = false;
-    [this.transparentScene, this.foregroundScene, this.vertexScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
+    [
+      this.transparentScene,
+      this.foregroundScene,
+      this.traceLineScene,
+      this.vertexScene,
+      this.traceScene,
+      this.overlayScene,
+    ].forEach((scene) => this.renderer.render(scene, this.activeCamera));
     this.renderer.autoClear = true;
   }
 
@@ -218,6 +274,7 @@ export class ViewportManager {
         overlay: this.overlayGroup,
         constraint: this.constraintGroup,
         objective: this.objectiveGroup,
+        traceLines: this.traceLineGroup,
         trace: this.traceGroup,
         iterate: this.iterateGroup,
       },
@@ -243,7 +300,8 @@ export class ViewportManager {
     return {
       clearGroup: this.clearGroup.bind(this),
       createThickLine: this.createThickLine.bind(this),
-      createCircleSpriteWithPixelSize: this.createCircleSpriteWithPixelSize.bind(this),
+      createCircleSpriteWithPixelSize:
+        this.createCircleSpriteWithPixelSize.bind(this),
       createCircleSprite: this.createCircleSprite.bind(this),
       createStarSprite: this.createStarSprite.bind(this),
       buildPositionArray: this.buildPositionArray.bind(this),
@@ -297,8 +355,15 @@ export class ViewportManager {
 
     if (transitioning) {
       this.deactivateOrbitControls();
-      const distanceOverride = state.transitionDirection === "to2d" ? this.currentPerspectiveDistance : undefined;
-      this.positionPerspectiveCamera(state.viewAngle, this.getUnitsPerPixel(), distanceOverride);
+      const distanceOverride =
+        state.transitionDirection === "to2d"
+          ? this.currentPerspectiveDistance
+          : undefined;
+      this.positionPerspectiveCamera(
+        state.viewAngle,
+        this.getUnitsPerPixel(),
+        distanceOverride
+      );
       return;
     }
 
@@ -309,7 +374,9 @@ export class ViewportManager {
 
   private shouldEnableOrthographicControls() {
     const { is3DMode, isTransitioning3D } = getState();
-    return !is3DMode && !isTransitioning3D && !this.orthographicControlsSuspended;
+    return (
+      !is3DMode && !isTransitioning3D && !this.orthographicControlsSuspended
+    );
   }
 
   private handleOrthoControlsChange = () => {
@@ -338,7 +405,10 @@ export class ViewportManager {
   private syncOffsetFromOrbitTarget(force = false) {
     if (!this.orbitControlsActive && !force) return;
     const currentTarget = this.orbitControls.target;
-    if (!force && this.lastOrbitControlsTarget.distanceToSquared(currentTarget) < 1e-9) {
+    if (
+      !force &&
+      this.lastOrbitControlsTarget.distanceToSquared(currentTarget) < 1e-9
+    ) {
       return;
     }
     this.setOffsetFromTarget(currentTarget);
@@ -347,7 +417,9 @@ export class ViewportManager {
 
   private recordOrbitPerspectiveDistance() {
     if (!this.orbitControlsActive) return;
-    const distance = this.perspectiveCamera.position.distanceTo(this.orbitControls.target);
+    const distance = this.perspectiveCamera.position.distanceTo(
+      this.orbitControls.target
+    );
     if (Number.isFinite(distance)) {
       this.currentPerspectiveDistance = distance;
     }
@@ -372,7 +444,10 @@ export class ViewportManager {
   }
 
   private clampScaleFactor(value: number) {
-    return Math.max(ORTHO_MIN_SCALE_FACTOR, Math.min(ORTHO_MAX_SCALE_FACTOR, value));
+    return Math.max(
+      ORTHO_MIN_SCALE_FACTOR,
+      Math.min(ORTHO_MAX_SCALE_FACTOR, value)
+    );
   }
 
   private applyControlsTargetFromOffset() {
@@ -397,13 +472,19 @@ export class ViewportManager {
     this.setViewState(1, 0, 0);
   }
 
-  zoomToFit(bounds: { minX: number; maxX: number; minY: number; maxY: number }, padding = 50) {
+  zoomToFit(
+    bounds: { minX: number; maxX: number; minY: number; maxY: number },
+    padding = 50
+  ) {
     const width = bounds.maxX - bounds.minX;
     const height = bounds.maxY - bounds.minY;
     if (width <= 0 || height <= 0) return;
 
     const sidebarWidth = document.getElementById("sidebar")?.offsetWidth ?? 0;
-    const availWidth = Math.max(100, window.innerWidth - sidebarWidth - 2 * padding);
+    const availWidth = Math.max(
+      100,
+      window.innerWidth - sidebarWidth - 2 * padding
+    );
     const availHeight = Math.max(100, window.innerHeight - 2 * padding);
     const scaleX = availWidth / (width * this.gridSpacing);
     const scaleY = availHeight / (height * this.gridSpacing);
@@ -457,7 +538,10 @@ export class ViewportManager {
     this.orbitControlsTemporarilyDisabled = false;
   }
 
-  private projectScreenToPlane(screenX: number, screenY: number): PointXY | null {
+  private projectScreenToPlane(
+    screenX: number,
+    screenY: number
+  ): PointXY | null {
     const rect = this.canvas.getBoundingClientRect();
     const { width, height } = rect;
     if (width === 0 || height === 0) return null;
@@ -468,7 +552,12 @@ export class ViewportManager {
     this.perspectiveCamera.updateMatrixWorld();
     this.perspectiveCamera.updateProjectionMatrix();
     this.raycaster.setFromCamera(this.pointerNdc, this.perspectiveCamera);
-    if (this.raycaster.ray.intersectPlane(this.interactionPlane, this.pointerWorld)) {
+    if (
+      this.raycaster.ray.intersectPlane(
+        this.interactionPlane,
+        this.pointerWorld
+      )
+    ) {
       return { x: this.pointerWorld.x, y: this.pointerWorld.y };
     }
     return null;
@@ -478,11 +567,16 @@ export class ViewportManager {
     const { objectiveVector, zScale, is3DMode, isTransitioning3D } = getState();
     if (objectiveVector && (is3DMode || isTransitioning3D)) {
       const scale = zScale / 100;
-      this.interactionPlaneNormal.set(objectiveVector.x * scale, objectiveVector.y * scale, -1).normalize();
+      this.interactionPlaneNormal
+        .set(objectiveVector.x * scale, objectiveVector.y * scale, -1)
+        .normalize();
     } else {
       this.interactionPlaneNormal.set(0, 0, 1);
     }
-    this.interactionPlane.setFromNormalAndCoplanarPoint(this.interactionPlaneNormal, this.planeOrigin);
+    this.interactionPlane.setFromNormalAndCoplanarPoint(
+      this.interactionPlaneNormal,
+      this.planeOrigin
+    );
   }
 
   toLogicalCoords(x: number, y: number): PointXY {
@@ -492,7 +586,10 @@ export class ViewportManager {
       if (!point) {
         const planeCoords = this.screenToPlane(x, y);
         const angles = this.getRenderViewAngles();
-        point = inverseTransform2DProjection({ x: planeCoords.x, y: planeCoords.y }, angles);
+        point = inverseTransform2DProjection(
+          { x: planeCoords.x, y: planeCoords.y },
+          angles
+        );
       }
       return this.snapPoint(this.clamp3DInteractionPoint(point));
     }
@@ -501,7 +598,13 @@ export class ViewportManager {
 
   private clamp3DInteractionPoint(point: PointXY): PointXY {
     const state = getState();
-    if (!(state.draggingPoint || state.draggingConstraint || state.draggingObjective)) {
+    if (
+      !(
+        state.draggingPoint ||
+        state.draggingConstraint ||
+        state.draggingObjective
+      )
+    ) {
       return point;
     }
     if (!(state.is3DMode || state.isTransitioning3D)) {
@@ -509,8 +612,12 @@ export class ViewportManager {
     }
 
     const unitsPerPixel = this.getUnitsPerPixel();
-    const viewSpan = Math.max(window.innerWidth, window.innerHeight) * unitsPerPixel;
-    const viewBound = Math.max(MIN_3D_DRAG_BOUND, viewSpan * VIEW_DRAG_BOUND_MULTIPLIER);
+    const viewSpan =
+      Math.max(window.innerWidth, window.innerHeight) * unitsPerPixel;
+    const viewBound = Math.max(
+      MIN_3D_DRAG_BOUND,
+      viewSpan * VIEW_DRAG_BOUND_MULTIPLIER
+    );
     const slopeScaler = Math.max(state.zScale, 0.001);
     const slopeBound = (MAX_3D_PLANE_SLOPE * 100) / slopeScaler;
     const bound = Math.min(MAX_3D_DRAG_BOUND, Math.min(viewBound, slopeBound));
@@ -562,13 +669,19 @@ export class ViewportManager {
   }
 
   private buildPositionVector(entry: number[], planarOffset = 0) {
-    const zValue = entry[2] !== undefined ? entry[2] : this.computeObjectiveValue(entry[0], entry[1]);
+    const zValue =
+      entry[2] !== undefined
+        ? entry[2]
+        : this.computeObjectiveValue(entry[0], entry[1]);
     const z = this.scaleZValue(zValue) + this.getPlanarOffset(planarOffset);
     return new Vector3(entry[0], entry[1], z);
   }
 
   private worldToScreenPosition(position: Vector3): PointXY {
-    const camera = this.activeCamera instanceof PerspectiveCamera ? this.perspectiveCamera : this.orthoCamera;
+    const camera =
+      this.activeCamera instanceof PerspectiveCamera
+        ? this.perspectiveCamera
+        : this.orthoCamera;
     camera.updateMatrixWorld();
     camera.updateProjectionMatrix();
     const projected = position.clone().project(camera);
@@ -582,18 +695,24 @@ export class ViewportManager {
   }
 
   private getFlattenTo2DProgress() {
-    const { isTransitioning3D, transitionDirection, transitionProgress } = getState();
+    const { isTransitioning3D, transitionDirection, transitionProgress } =
+      getState();
     if (!isTransitioning3D || !transitionDirection) {
       return 0;
     }
-    return transitionDirection === "to3d" ? 1 - transitionProgress : transitionProgress;
+    return transitionDirection === "to3d"
+      ? 1 - transitionProgress
+      : transitionProgress;
   }
 
   private createStarSprite(position: Vector3, color: number) {
     const material = this.getSpriteMaterial("star", color);
     const sprite = new Sprite(material);
     sprite.position.copy(position);
-    const starSize = this.getWorldSizeFromPixels(STAR_POINT_PIXEL_SIZE, position);
+    const starSize = this.getWorldSizeFromPixels(
+      STAR_POINT_PIXEL_SIZE,
+      position
+    );
     sprite.scale.set(starSize, starSize, starSize);
     sprite.renderOrder = RENDER_LAYERS.iterateStar;
     return sprite;
@@ -607,7 +726,11 @@ export class ViewportManager {
     return sprite;
   }
 
-  private createCircleSpriteWithPixelSize(position: Vector3, color: number, pixelSize: number) {
+  private createCircleSpriteWithPixelSize(
+    position: Vector3,
+    color: number,
+    pixelSize: number
+  ) {
     const worldSize = this.getWorldSizeFromPixels(pixelSize, position);
     return this.createCircleSprite(position, color, worldSize);
   }
@@ -630,9 +753,15 @@ export class ViewportManager {
 
     ctx.moveTo(center, center - outer / 1.5);
     for (let i = 0; i < spikes; i++) {
-      ctx.lineTo(center + Math.cos(angle) * outer, center + Math.sin(angle) * outer);
+      ctx.lineTo(
+        center + Math.cos(angle) * outer,
+        center + Math.sin(angle) * outer
+      );
       angle += step;
-      ctx.lineTo(center + Math.cos(angle) * inner, center + Math.sin(angle) * inner);
+      ctx.lineTo(
+        center + Math.cos(angle) * inner,
+        center + Math.sin(angle) * inner
+      );
       angle += step;
     }
     ctx.closePath();
@@ -665,7 +794,9 @@ export class ViewportManager {
 
   private screenToPlane(screenX: number, screenY: number) {
     const unitsPerPixel = this.getUnitsPerPixel();
-    this.screenToPlaneVec.set(screenX - this.centerX, this.centerY - screenY).multiplyScalar(unitsPerPixel);
+    this.screenToPlaneVec
+      .set(screenX - this.centerX, this.centerY - screenY)
+      .multiplyScalar(unitsPerPixel);
     this.screenToPlaneVec.x -= this.offset.x;
     this.screenToPlaneVec.y -= this.offset.y;
     return this.screenToPlaneVec;
@@ -689,7 +820,11 @@ export class ViewportManager {
     const height = window.innerHeight;
     const centerShiftX = (this.centerX - width / 2) * unitsPerPixel;
     const centerShiftY = (this.centerY - height / 2) * unitsPerPixel;
-    return new Vector3(-this.offset.x - centerShiftX, -this.offset.y + centerShiftY, 0);
+    return new Vector3(
+      -this.offset.x - centerShiftX,
+      -this.offset.y + centerShiftY,
+      0
+    );
   }
 
   private getPerspectiveDistance(unitsPerPixel: number, height: number) {
@@ -697,7 +832,10 @@ export class ViewportManager {
     return Math.max(10, (height * unitsPerPixel) / (2 * Math.tan(fov / 2)));
   }
 
-  private getUnitsPerPixelFromPerspectiveDistance(distance: number, height = window.innerHeight) {
+  private getUnitsPerPixelFromPerspectiveDistance(
+    distance: number,
+    height = window.innerHeight
+  ) {
     const fov = this.perspectiveCamera.fov * (Math.PI / 180);
     const safeDistance = Math.max(10, distance);
     const viewportHeight = 2 * Math.tan(fov / 2) * safeDistance;
@@ -705,17 +843,28 @@ export class ViewportManager {
   }
 
   private computeScaleFactorFromPerspectiveDistance(distance: number) {
-    const unitsPerPixel = this.getUnitsPerPixelFromPerspectiveDistance(distance);
+    const unitsPerPixel =
+      this.getUnitsPerPixelFromPerspectiveDistance(distance);
     return this.clampScaleFactor(1 / (unitsPerPixel * this.gridSpacing));
   }
 
-  private positionPerspectiveCamera(viewAngle: PointXYZ, unitsPerPixel = this.getUnitsPerPixel(), distanceOverride?: number) {
+  private positionPerspectiveCamera(
+    viewAngle: PointXYZ,
+    unitsPerPixel = this.getUnitsPerPixel(),
+    distanceOverride?: number
+  ) {
     const target = this.getViewportTarget(unitsPerPixel);
-    const distance = distanceOverride ?? this.getPerspectiveDistance(unitsPerPixel, window.innerHeight);
+    const distance =
+      distanceOverride ??
+      this.getPerspectiveDistance(unitsPerPixel, window.innerHeight);
     const euler = new Euler(-viewAngle.x, -viewAngle.y, -viewAngle.z, "XYZ");
     const direction = new Vector3(0, 0, 1).applyEuler(euler).normalize();
-    this.perspectiveCamera.position.copy(target.clone().add(direction.multiplyScalar(distance)));
-    this.perspectiveCamera.up.copy(new Vector3(0, 1, 0).applyEuler(euler).normalize());
+    this.perspectiveCamera.position.copy(
+      target.clone().add(direction.multiplyScalar(distance))
+    );
+    this.perspectiveCamera.up.copy(
+      new Vector3(0, 1, 0).applyEuler(euler).normalize()
+    );
     this.perspectiveCamera.lookAt(target);
     this.currentPerspectiveDistance = distance;
     return target;
@@ -727,7 +876,9 @@ export class ViewportManager {
   }
 
   private getRenderViewAngles() {
-    return this.orbitControlsActive ? this.getOrbitViewAngles() : getState().viewAngle;
+    return this.orbitControlsActive
+      ? this.getOrbitViewAngles()
+      : getState().viewAngle;
   }
 
   private syncViewAngleToState() {
@@ -762,7 +913,10 @@ export class ViewportManager {
       return;
     }
     this.updatePerspectiveDistanceFromCamera();
-    this.pendingScaleFactorFrom3D = this.computeScaleFactorFromPerspectiveDistance(this.currentPerspectiveDistance);
+    this.pendingScaleFactorFrom3D =
+      this.computeScaleFactorFromPerspectiveDistance(
+        this.currentPerspectiveDistance
+      );
     this.deactivateOrbitControls();
   }
 
@@ -795,7 +949,11 @@ export class ViewportManager {
     if (ratio === this.currentPixelRatio) return;
     this.currentPixelRatio = ratio;
     this.renderer.setPixelRatio(ratio);
-    this.renderer.setSize(width ?? window.innerWidth, height ?? window.innerHeight, false);
+    this.renderer.setSize(
+      width ?? window.innerWidth,
+      height ?? window.innerHeight,
+      false
+    );
   }
 
   private clearGroup(group: Group) {
@@ -845,22 +1003,42 @@ export class ViewportManager {
   }
 
   private getLineMaterial(options: Omit<ThickLineOptions, "renderOrder">) {
-    const key = `${options.color}:${options.width}:${options.depthTest ?? true}:${options.depthWrite ?? true}`;
+    const key = [
+      options.color,
+      options.width,
+      options.depthTest ?? true,
+      options.depthWrite ?? true,
+      options.transparent ?? false,
+      options.opacity ?? 1,
+      options.dashed ?? false,
+    ].join(":");
     let material = this.lineMaterialCache.get(key);
     if (!material) {
       material = new LineMaterial({
         color: options.color,
         linewidth: options.width,
-        transparent: false,
-        opacity: 1,
+        transparent: options.transparent ?? false,
+        opacity: options.opacity ?? 1,
         depthTest: options.depthTest ?? true,
         depthWrite: options.depthWrite ?? true,
+        dashed: options.dashed ?? false,
+        dashScale: options.dashScale ?? 1,
+        dashSize: options.dashSize ?? 1,
+        gapSize: options.gapSize ?? 1,
       });
       this.lineMaterialCache.set(key, material);
       this.registerCachedMaterial(material);
+    } else {
+      material.color.set(options.color);
+      material.transparent = options.transparent ?? false;
+      material.opacity = options.opacity ?? 1;
+      material.depthTest = options.depthTest ?? true;
+      material.depthWrite = options.depthWrite ?? true;
+      material.dashed = options.dashed ?? false;
+      material.dashScale = options.dashScale ?? 1;
+      material.dashSize = options.dashSize ?? 1;
+      material.gapSize = options.gapSize ?? 1;
     }
-    material.depthTest = options.depthTest ?? true;
-    material.depthWrite = options.depthWrite ?? true;
     material.resolution.copy(this.lineResolution);
     return material;
   }
@@ -889,7 +1067,16 @@ export class ViewportManager {
   }
 
   private getPointMaterial(options: PointMaterialOptions) {
-    const key = [options.color, options.size, options.sizeAttenuation, options.depthTest, options.depthWrite, options.transparent ?? false, options.opacity ?? 1, options.alphaTest ?? 0].join(":");
+    const key = [
+      options.color,
+      options.size,
+      options.sizeAttenuation,
+      options.depthTest,
+      options.depthWrite,
+      options.transparent ?? false,
+      options.opacity ?? 1,
+      options.alphaTest ?? 0,
+    ].join(":");
     let material = this.pointsMaterialCache.get(key);
     const texture = this.getCircleTexture();
     if (!material) {
@@ -917,7 +1104,8 @@ export class ViewportManager {
   private getSpriteMaterial(type: "circle" | "star", color: number) {
     const key = `${type}:${color}`;
     let material = this.spriteMaterialCache.get(key);
-    const texture = type === "star" ? this.getStarTexture(color) : this.getCircleTexture();
+    const texture =
+      type === "star" ? this.getStarTexture(color) : this.getCircleTexture();
     if (!material) {
       material = new SpriteMaterial({
         map: texture,
@@ -936,22 +1124,15 @@ export class ViewportManager {
     return material;
   }
 
-  private createThickLine(
-    positions: number[],
-    {
+  private createThickLine(positions: number[], options: ThickLineOptions) {
+    const {
       color,
       width,
       depthTest = true,
       depthWrite = true,
       renderOrder = 0,
-    }: {
-      color: number;
-      width: number;
-      depthTest?: boolean;
-      depthWrite?: boolean;
-      renderOrder?: number;
-    },
-  ) {
+      dashed = false,
+    } = options;
     const geometry = new AlwaysVisibleLineGeometry();
     geometry.setPositions(positions);
     const material = this.getLineMaterial({
@@ -959,8 +1140,19 @@ export class ViewportManager {
       width,
       depthTest,
       depthWrite,
+      dashed,
+      dashScale: options.dashScale,
+      dashSize: options.dashSize,
+      gapSize: options.gapSize,
+      transparent: options.transparent,
+      opacity: options.opacity,
     });
-    const line = new UndashedLine2(geometry, material);
+    const line = dashed
+      ? new Line2(geometry, material)
+      : new UndashedLine2(geometry, material);
+    if (dashed) {
+      line.computeLineDistances();
+    }
     line.renderOrder = renderOrder;
     line.frustumCulled = false;
     return line;
