@@ -31,7 +31,6 @@ export class ViewportManager {
   private transparentScene: Scene;
   private foregroundScene: Scene;
   private vertexScene: Scene;
-  private traceLineScene: Scene;
   private traceScene: Scene;
   private overlayScene: Scene;
   private orthoCamera: OrthographicCamera;
@@ -43,7 +42,6 @@ export class ViewportManager {
   private polytopeVertexGroup: Group;
   private constraintGroup: Group;
   private objectiveGroup: Group;
-  private traceLineGroup: Group;
   private traceGroup: Group;
   private iterateGroup: Group;
   private overlayGroup: Group;
@@ -96,7 +94,6 @@ export class ViewportManager {
     this.transparentScene = new Scene();
     this.foregroundScene = new Scene();
     this.vertexScene = new Scene();
-    this.traceLineScene = new Scene();
     this.traceScene = new Scene();
     this.overlayScene = new Scene();
     this.gridGroup = new Group();
@@ -105,7 +102,6 @@ export class ViewportManager {
     this.polytopeVertexGroup = new Group();
     this.constraintGroup = new Group();
     this.objectiveGroup = new Group();
-    this.traceLineGroup = new Group();
     this.traceGroup = new Group();
     this.iterateGroup = new Group();
     this.overlayGroup = new Group();
@@ -116,7 +112,6 @@ export class ViewportManager {
     this.foregroundScene.add(this.constraintGroup);
     this.foregroundScene.add(this.objectiveGroup);
     this.vertexScene.add(this.polytopeVertexGroup);
-    this.traceLineScene.add(this.traceLineGroup);
     this.traceScene.add(this.traceGroup);
     this.traceScene.add(this.iterateGroup);
     this.overlayScene.add(this.overlayGroup);
@@ -851,14 +846,14 @@ export class ViewportManager {
   }
 
   private getLineMaterial(options: Omit<ThickLineOptions, "renderOrder">) {
-    const key = [options.color, options.width, options.depthTest ?? true, options.depthWrite ?? true, options.transparent ?? false, options.opacity ?? 1].join(":");
+    const key = `${options.color}:${options.width}:${options.depthTest ?? true}:${options.depthWrite ?? true}`;
     let material = this.lineMaterialCache.get(key);
     if (!material) {
       material = new LineMaterial({
         color: options.color,
         linewidth: options.width,
-        transparent: options.transparent ?? false,
-        opacity: options.opacity ?? 1,
+        transparent: false,
+        opacity: 1,
         depthTest: options.depthTest ?? true,
         depthWrite: options.depthWrite ?? true,
       });
@@ -866,8 +861,6 @@ export class ViewportManager {
       this.registerCachedMaterial(material);
     } else {
       material.color.set(options.color);
-      material.transparent = options.transparent ?? false;
-      material.opacity = options.opacity ?? 1;
       material.depthTest = options.depthTest ?? true;
       material.depthWrite = options.depthWrite ?? true;
     }
@@ -955,8 +948,6 @@ export class ViewportManager {
       width,
       depthTest,
       depthWrite,
-      transparent: options.transparent,
-      opacity: options.opacity,
     });
     const line = new UndashedLine2(geometry, material);
     line.renderOrder = renderOrder;

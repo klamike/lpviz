@@ -9,7 +9,6 @@ interface CanvasGroups {
   polytopeVertices: Group;
   constraint: Group;
   objective: Group;
-  traceLines: Group;
   trace: Group;
   iterate: Group;
   overlay: Group;
@@ -21,8 +20,6 @@ export interface ThickLineOptions {
   depthTest?: boolean;
   depthWrite?: boolean;
   renderOrder?: number;
-  transparent?: boolean;
-  opacity?: number;
 }
 
 export interface CanvasRenderHelpers {
