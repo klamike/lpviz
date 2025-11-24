@@ -280,10 +280,9 @@ export class CanvasRenderPipeline {
         depthTest: is3D,
         depthWrite: is3D,
       });
-      const material = line.material as any;
-      material.transparent = true;
-      material.opacity = TRACE_LINE_OPACITY;
-      material.needsUpdate = true;
+      line.material.transparent = true;
+      line.material.opacity = TRACE_LINE_OPACITY;
+      line.material.needsUpdate = true;
       line.renderOrder = RENDER_LAYERS.traceLine;
       groups.trace.add(line);
 
