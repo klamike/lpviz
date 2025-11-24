@@ -208,7 +208,7 @@ export class ViewportManager {
     this.renderer.autoClear = true;
     this.renderer.render(this.backgroundScene, this.activeCamera);
     this.renderer.autoClear = false;
-    [this.transparentScene, this.foregroundScene, this.traceLineScene, this.vertexScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
+    [this.transparentScene, this.foregroundScene, this.vertexScene, this.traceLineScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
     this.renderer.autoClear = true;
   }
 
