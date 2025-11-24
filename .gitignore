@@ -2,6 +2,9 @@
 bun.lock
 bun.lockb
 
+# Editor settings
+.vscode/settings.json
+
 # Logs
 logs
 *.log

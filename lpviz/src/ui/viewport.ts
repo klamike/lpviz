@@ -1,14 +1,14 @@
 import { WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, Group, Vector3, Vector2, Sprite, SpriteMaterial, CanvasTexture, Euler, NearestFilter, PointsMaterial, Material, LineBasicMaterial, MOUSE, Plane, Raycaster } from "three";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import type { PointXY, PointXYZ } from "../solvers/utils/blas";
+import { getState, setState } from "../state/store";
+import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE, OBJECTIVE_Z_OFFSET } from "./rendering/constants";
+import { inverseTransform2DProjection } from "./rendering/math3d";
+import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGeometry";
 import { UndashedLine2 } from "./rendering/three/UndashedLine2";
-import { getState, setState } from "../state/store";
-import type { PointXY, PointXYZ } from "../solvers/utils/blas";
-import { inverseTransform2DProjection } from "./rendering/math3d";
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
-import { CanvasRenderPipeline } from "./rendering/pipeline";
-import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE, OBJECTIVE_Z_OFFSET } from "./rendering/constants";
 import type { Tour } from "./tour/tour";
 
 const ORTHO_MIN_SCALE_FACTOR = 0.05;
@@ -31,6 +31,7 @@ export class ViewportManager {
   private transparentScene: Scene;
   private foregroundScene: Scene;
   private vertexScene: Scene;
+  private traceLineScene: Scene;
   private traceScene: Scene;
   private overlayScene: Scene;
   private orthoCamera: OrthographicCamera;
@@ -42,6 +43,7 @@ export class ViewportManager {
   private polytopeVertexGroup: Group;
   private constraintGroup: Group;
   private objectiveGroup: Group;
+  private traceLineGroup: Group;
   private traceGroup: Group;
   private iterateGroup: Group;
   private overlayGroup: Group;
@@ -94,6 +96,7 @@ export class ViewportManager {
     this.transparentScene = new Scene();
     this.foregroundScene = new Scene();
     this.vertexScene = new Scene();
+    this.traceLineScene = new Scene();
     this.traceScene = new Scene();
     this.overlayScene = new Scene();
     this.gridGroup = new Group();
@@ -102,6 +105,7 @@ export class ViewportManager {
     this.polytopeVertexGroup = new Group();
     this.constraintGroup = new Group();
     this.objectiveGroup = new Group();
+    this.traceLineGroup = new Group();
     this.traceGroup = new Group();
     this.iterateGroup = new Group();
     this.overlayGroup = new Group();
@@ -112,6 +116,7 @@ export class ViewportManager {
     this.foregroundScene.add(this.constraintGroup);
     this.foregroundScene.add(this.objectiveGroup);
     this.vertexScene.add(this.polytopeVertexGroup);
+    this.traceLineScene.add(this.traceLineGroup);
     this.traceScene.add(this.traceGroup);
     this.traceScene.add(this.iterateGroup);
     this.overlayScene.add(this.overlayGroup);
@@ -203,7 +208,7 @@ export class ViewportManager {
     this.renderer.autoClear = true;
     this.renderer.render(this.backgroundScene, this.activeCamera);
     this.renderer.autoClear = false;
-    [this.transparentScene, this.foregroundScene, this.vertexScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
+    [this.transparentScene, this.foregroundScene, this.vertexScene, this.traceLineScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
     this.renderer.autoClear = true;
   }
 
@@ -218,6 +223,7 @@ export class ViewportManager {
         overlay: this.overlayGroup,
         constraint: this.constraintGroup,
         objective: this.objectiveGroup,
+        traceLines: this.traceLineGroup,
         trace: this.traceGroup,
         iterate: this.iterateGroup,
       },
@@ -858,9 +864,11 @@ export class ViewportManager {
       });
       this.lineMaterialCache.set(key, material);
       this.registerCachedMaterial(material);
+    } else {
+      material.color.set(options.color);
+      material.depthTest = options.depthTest ?? true;
+      material.depthWrite = options.depthWrite ?? true;
     }
-    material.depthTest = options.depthTest ?? true;
-    material.depthWrite = options.depthWrite ?? true;
     material.resolution.copy(this.lineResolution);
     return material;
   }
@@ -936,22 +944,8 @@ export class ViewportManager {
     return material;
   }
 
-  private createThickLine(
-    positions: number[],
-    {
-      color,
-      width,
-      depthTest = true,
-      depthWrite = true,
-      renderOrder = 0,
-    }: {
-      color: number;
-      width: number;
-      depthTest?: boolean;
-      depthWrite?: boolean;
-      renderOrder?: number;
-    },
-  ) {
+  private createThickLine(positions: number[], options: ThickLineOptions) {
+    const { color, width, depthTest = true, depthWrite = true, renderOrder = 0 } = options;
     const geometry = new AlwaysVisibleLineGeometry();
     geometry.setPositions(positions);
     const material = this.getLineMaterial({

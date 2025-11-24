@@ -27,6 +27,7 @@ export const VERTEX_POINT_PIXEL_SIZE = 10;
 
 export const POLY_LINE_THICKNESS = 2;
 export const TRACE_LINE_THICKNESS = 2;
+export const TRACE_LINE_OPACITY = 0.4;
 export const ITERATE_LINE_THICKNESS = 3;
 
 export const RENDER_LAYERS = {
