@@ -31,6 +31,7 @@ export class ViewportManager {
   private transparentScene: Scene;
   private foregroundScene: Scene;
   private vertexScene: Scene;
+  private traceLineScene: Scene;
   private traceScene: Scene;
   private overlayScene: Scene;
   private orthoCamera: OrthographicCamera;
@@ -42,6 +43,7 @@ export class ViewportManager {
   private polytopeVertexGroup: Group;
   private constraintGroup: Group;
   private objectiveGroup: Group;
+  private traceLineGroup: Group;
   private traceGroup: Group;
   private iterateGroup: Group;
   private overlayGroup: Group;
@@ -94,6 +96,7 @@ export class ViewportManager {
     this.transparentScene = new Scene();
     this.foregroundScene = new Scene();
     this.vertexScene = new Scene();
+    this.traceLineScene = new Scene();
     this.traceScene = new Scene();
     this.overlayScene = new Scene();
     this.gridGroup = new Group();
@@ -102,6 +105,7 @@ export class ViewportManager {
     this.polytopeVertexGroup = new Group();
     this.constraintGroup = new Group();
     this.objectiveGroup = new Group();
+    this.traceLineGroup = new Group();
     this.traceGroup = new Group();
     this.iterateGroup = new Group();
     this.overlayGroup = new Group();
@@ -112,6 +116,7 @@ export class ViewportManager {
     this.foregroundScene.add(this.constraintGroup);
     this.foregroundScene.add(this.objectiveGroup);
     this.vertexScene.add(this.polytopeVertexGroup);
+    this.traceLineScene.add(this.traceLineGroup);
     this.traceScene.add(this.traceGroup);
     this.traceScene.add(this.iterateGroup);
     this.overlayScene.add(this.overlayGroup);
@@ -203,7 +208,7 @@ export class ViewportManager {
     this.renderer.autoClear = true;
     this.renderer.render(this.backgroundScene, this.activeCamera);
     this.renderer.autoClear = false;
-    [this.transparentScene, this.foregroundScene, this.vertexScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
+    [this.transparentScene, this.foregroundScene, this.vertexScene, this.traceLineScene, this.traceScene, this.overlayScene].forEach((scene) => this.renderer.render(scene, this.activeCamera));
     this.renderer.autoClear = true;
   }
 
@@ -218,6 +223,7 @@ export class ViewportManager {
         overlay: this.overlayGroup,
         constraint: this.constraintGroup,
         objective: this.objectiveGroup,
+        traceLines: this.traceLineGroup,
         trace: this.traceGroup,
         iterate: this.iterateGroup,
       },
