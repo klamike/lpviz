@@ -9,6 +9,7 @@ interface CanvasGroups {
   polytopeVertices: Group;
   constraint: Group;
   objective: Group;
+  traceLines: Group;
   trace: Group;
   iterate: Group;
   overlay: Group;

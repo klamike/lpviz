@@ -3,7 +3,7 @@ import { getState } from "../../state/store";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
-import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
+import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_OPACITY, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
 import { CanvasRenderContext } from "./types";
 
 const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {
@@ -261,6 +261,7 @@ export class CanvasRenderPipeline {
 
   private renderTrace(context: CanvasRenderContext) {
     const { helpers, groups, is3D } = context;
+    helpers.clearGroup(groups.traceLines);
     helpers.clearGroup(groups.trace);
 
     const { traceEnabled, traceBuffer } = getState();
@@ -280,8 +281,11 @@ export class CanvasRenderPipeline {
         depthTest: is3D,
         depthWrite: is3D,
       });
+      line.material.transparent = true;
+      line.material.opacity = TRACE_LINE_OPACITY;
+      line.material.needsUpdate = true;
       line.renderOrder = RENDER_LAYERS.traceLine;
-      groups.trace.add(line);
+      groups.traceLines.add(line);
 
       const pointPositions = this.buildTraceSamplePositions(positions, lineData.sampledIndices);
       if (pointPositions.length) {
