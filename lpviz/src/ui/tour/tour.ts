@@ -1,20 +1,13 @@
-import { getState, mutate, setState } from "../../state/store";
+import { getState, mutate, setState, subscribe } from "../../state/store";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
 import { setButtonsEnabled, setElementDisplay } from "../../state/utils";
 import { buildTour, generateObjective, generatePentagon, type TourStep } from "./config";
+import type { State } from "../../state/store";
+import { DEFAULT_BUTTON_STATES } from "../rendering/constants";
 
 const CURSOR_TRANSITION_MS = 700;
 export const POPUP_ANIMATION_MS = 300;
-
-const DEFAULT_BUTTON_STATES = {
-  ipmButton: false,
-  simplexButton: false,
-  pdhgButton: false,
-  iteratePathButton: false,
-  traceButton: false,
-  zoomButton: true,
-};
 
 type PopupOptions = {
   id: string;
@@ -326,36 +319,34 @@ export class Tour {
 export class InactivityHelpOverlay {
   private popup: HTMLElement | null = null;
   private timer: number | null = null;
-  private checker: number | null = null;
   private hasShown = false;
   private tour: Tour;
+  private unsubscribe: (() => void) | null = null;
+  private lastPhase: State["snapshot"]["phase"] | null = null;
 
   constructor(tour: Tour) {
     this.tour = tour;
+    this.handleStateChange(getState());
+    this.unsubscribe = subscribe((state) => this.handleStateChange(state));
   }
 
   public startTimer() {
     if (this.hasShown || this.timer) return;
+    const snapshot = getState().snapshot;
+    // const eligiblePhase = snapshot.phase === "awaiting_objective" || snapshot.phase === "objective_preview";
+    if (snapshot.objectiveDefined || snapshot.isTouring) return;
     this.timer = window.setTimeout(() => {
-      const state = getState();
-      const phase = state.snapshot.phase;
-      if ((phase === "awaiting_objective" || phase === "objective_preview") && !this.tour.isTouring()) {
+      this.timer = null;
+      if (!this.tour.isTouring()) {
         this.hasShown = true;
         this.showPopup();
       }
-    }, 15000);
-
-    this.checker = window.setInterval(() => {
-      if (getState().snapshot.objectiveDefined) {
-        this.stopTimer();
-      }
-    }, 300);
+    }, 5000);
   }
 
   public stopTimer() {
     if (this.timer) clearTimeout(this.timer);
-    if (this.checker) clearInterval(this.checker);
-    this.timer = this.checker = null;
+    this.timer = null;
     this.hidePopup();
   }
 
@@ -363,6 +354,29 @@ export class InactivityHelpOverlay {
     this.stopTimer();
     this.hasShown = false;
     this.startTimer();
+  }
+
+  public destroy() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+    }
+    this.stopTimer();
+  }
+
+  private handleStateChange(state: State) {
+    const { phase, objectiveDefined, isTouring } = state.snapshot;
+    if (objectiveDefined || isTouring) {
+      this.stopTimer();
+      this.lastPhase = phase;
+      return;
+    }
+
+    if (this.lastPhase !== phase) {
+      this.stopTimer();
+    }
+    this.startTimer();
+    this.lastPhase = phase;
   }
 
   private showPopup() {
