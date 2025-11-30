@@ -1,3 +1,5 @@
+import type { PointXYZ } from "../../solvers/utils/blas";
+
 export const COLORS = {
   grid: 0xe0e0e0,
   axis: 0x707070,
@@ -42,4 +44,20 @@ export const RENDER_LAYERS = {
   iteratePoints: 22,
   iterateStar: 24,
   iterateHighlight: 26,
+};
+
+export const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
+export const DEFAULT_TRANSITION_DURATION = 500;
+export const DEFAULT_FOCAL_DISTANCE = 1000;
+export const DEFAULT_Z_SCALE = 0.1;
+
+export const DEFAULT_BOUNDING_EXTENT = 1e9;
+
+export const DEFAULT_BUTTON_STATES = {
+  ipmButton: false,
+  simplexButton: false,
+  pdhgButton: false,
+  iteratePathButton: false,
+  traceButton: false,
+  zoomButton: true,
 };
