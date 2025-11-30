@@ -244,13 +244,10 @@ const ESTIMATED_ROW_HEIGHT = 22;
 
 function createIterateVirtualizer({ container, rows, onHover, onLeave }: VirtualizedRowsOptions): VirtualizedRowsController {
   const wrapper = document.createElement("div");
-  wrapper.style.display = "flex";
-  wrapper.style.flexDirection = "column";
-  wrapper.style.width = "100%";
+  wrapper.className = "iterate-virtual-wrapper";
   const topSpacer = document.createElement("div");
   const rowsContainer = document.createElement("div");
-  rowsContainer.style.display = "flex";
-  rowsContainer.style.flexDirection = "column";
+  rowsContainer.className = "iterate-rows";
   const bottomSpacer = document.createElement("div");
   wrapper.append(topSpacer, rowsContainer, bottomSpacer);
   container.appendChild(wrapper);

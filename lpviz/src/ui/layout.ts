@@ -67,6 +67,7 @@ export class LayoutManager {
     } else {
       this.smallScreenOverlay = this.createSmallScreenOverlay();
     }
+    this.smallScreenOverlay.classList.add("is-hidden");
   }
 
   private createSmallScreenOverlay(): HTMLElement {
@@ -74,7 +75,6 @@ export class LayoutManager {
       id: "smallScreenOverlay",
       className: "small-screen-overlay",
     });
-    overlay.style.display = "none";
     document.body.appendChild(overlay);
     return overlay;
   }
@@ -82,7 +82,8 @@ export class LayoutManager {
   checkMobileOrientation() {
     const tooSmall = window.innerWidth < LayoutManager.MIN_SCREEN_WIDTH;
     this.smallScreenOverlay.textContent = `The window is not wide enough (${window.innerWidth}px < ${LayoutManager.MIN_SCREEN_WIDTH}px) for lpviz.`;
-    this.smallScreenOverlay.style.display = tooSmall ? "flex" : "none";
+    this.smallScreenOverlay.classList.toggle("is-hidden", !tooSmall);
+    this.smallScreenOverlay.classList.toggle("is-flex", tooSmall);
   }
 
   hideNullStateMessage() {
@@ -91,7 +92,11 @@ export class LayoutManager {
 
   private setElementDisplay(id: string, display: string): void {
     const element = document.getElementById(id);
-    if (element) element.style.display = display;
+    if (!element) return;
+
+    element.style.removeProperty("display");
+    element.classList.toggle("is-hidden", display === "none");
+    element.classList.toggle("is-block", display === "block");
   }
 
   updateZoomButtonsState(canvasManager: ViewportManager) {
@@ -110,11 +115,10 @@ export class LayoutManager {
       const b = round(objectiveVector.y);
       const bTerm = b >= 0 ? `+ ${b}y` : `- ${-b}y`;
 
-      this.objectiveDisplay.classList.add("objective-item");
+      this.objectiveDisplay.classList.add("objective-item", "objective-active");
       this.objectiveDisplay.innerHTML = `${a}x ${bTerm}`;
-      this.objectiveDisplay.style.color = "#eee";
     } else {
-      this.objectiveDisplay.classList.remove("objective-item");
+      this.objectiveDisplay.classList.remove("objective-item", "objective-active");
       this.objectiveDisplay.innerHTML = "";
     }
   }
@@ -160,9 +164,8 @@ export class LayoutManager {
     const btn = this.toggle3DButton;
 
     btn.textContent = is3DMode ? "2D" : "3D";
-    btn.style.backgroundColor = is3DMode ? "#4CAF50" : "";
-    btn.style.color = is3DMode ? "white" : "";
-    this.zScaleSliderContainer.style.display = is3DMode ? "flex" : "none";
+    btn.classList.toggle("button-active", is3DMode);
+    this.zScaleSliderContainer.classList.toggle("is-hidden", !is3DMode);
   }
 
   updateZScaleValue() {

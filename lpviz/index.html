@@ -21,8 +21,8 @@
   <body>
     <header>
       <div id="sidebar">
-        <div id="sidebarContent" style="overflow-y: auto">
-          <div class="header controlPanel" style="padding-top: 13px; margin-top: 0px; margin-bottom: 0px">
+        <div id="sidebarContent">
+          <div class="header controlPanel">
             <h1>lpviz</h1>
             <a href="https://github.com/klamike/lpviz" target="_blank" aria-label="GitHub Repository for lpviz">
               <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 98 96" role="img" aria-labelledby="githubTitle">
@@ -31,7 +31,7 @@
             </a>
           </div>
           <div id="uiContainer">
-            <div id="terminal-container2" style="display: block; color: #eee; margin-top: 15px; padding: 10px 20px; padding-right: 0px">
+            <div id="terminal-container2">
               <div id="topResult">
                 <div id="nullStateMessage">
   ___                                   
@@ -51,7 +51,7 @@
               </div>
               <div id="terminal-window"></div>
               <div class="scanlines"></div>
-              <div class="scanlines" style="--delay: -8s"></div>
+              <div class="scanlines scanlines--delay-8"></div>
             </div>
             <div class="controlPanel">
               <div class="button-group">
@@ -61,7 +61,7 @@
                 <button id="iteratePathButton" disabled>Central Path</button>
               </div>
 
-              <div id="ipmSettings" class="settings-section" style="display: none">
+              <div id="ipmSettings" class="settings-section">
                 <label for="alphaMaxSlider">
                   αmax (maximum step size ratio):
                   <span id="alphaMaxValue">0.1</span>
@@ -72,7 +72,7 @@
                 <input type="number" id="maxitInput" value="1000" min="1" step="1" autocomplete="off" />
               </div>
 
-              <div id="pdhgSettings" class="settings-section" style="display: none">
+              <div id="pdhgSettings" class="settings-section">
                 <label for="pdhgEtaSlider">
                   η (primal step size factor):
                   <span id="pdhgEtaValue">0.250</span>
@@ -91,13 +91,13 @@
                 <input type="checkbox" id="pdhgIneqMode" checked />
               </div>
 
-              <div id="centralPathSettings" class="settings-section" style="display: block">
+              <div id="centralPathSettings" class="settings-section is-block">
                 <label for="centralPathIterSlider"> N (number of steps): <span id="centralPathIterValue">75</span> </label>
                 <input type="range" id="centralPathIterSlider" min="2" max="100" step="1" value="75" autocomplete="off" />
               </div>
             </div>
 
-            <div class="controlPanel" style="margin-top: 5px; margin-bottom: 20px">
+            <div class="controlPanel controlPanel--compact">
               <div class="button-group">
                 <button id="traceButton" disabled>Solve</button>
                 <button id="animateButton" disabled>Animate</button>
@@ -106,31 +106,31 @@
                 <button id="startRotateObjectiveButton" disabled>Rotate Objective</button>
                 <button id="stopRotateObjectiveButton" disabled>Stop Rotation</button>
               </div>
-              <div id="objectiveRotationSettings" style="display: none; margin-top: 1em">
-                <div style="display: flex; gap: 1em; align-items: flex-start">
-                  <div style="flex: 1">
-                    <label for="objectiveAngleStepSlider" style="display: block; text-align: center; margin-bottom: 0.5em">
+              <div id="objectiveRotationSettings" class="objective-rotation is-hidden">
+                <div class="rotation-layout">
+                  <div class="rotation-column">
+                    <label for="objectiveAngleStepSlider" class="label-centered">
                       Angle Step:
-                      <span style="white-space: nowrap"><span id="objectiveAngleStepValue">0.10</span> rad</span>
+                      <span class="nowrap"><span id="objectiveAngleStepValue">0.10</span> rad</span>
                     </label>
-                    <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1" autocomplete="off" style="width: 100%" />
+                    <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1" autocomplete="off" />
                   </div>
-                  <div style="flex: 1">
-                    <label for="objectiveRotationSpeedSlider" style="display: block; text-align: center; margin-bottom: 0.5em">
+                  <div class="rotation-column">
+                    <label for="objectiveRotationSpeedSlider" class="label-centered">
                       Rotation Speed:
                       <span id="objectiveRotationSpeedValue">1.0</span>x
                     </label>
-                    <input type="range" id="objectiveRotationSpeedSlider" min="0.2" max="3" step="0.1" value="1" autocomplete="off" style="width: 100%" />
+                    <input type="range" id="objectiveRotationSpeedSlider" min="0.2" max="3" step="0.1" value="1" autocomplete="off" />
                   </div>
-                  <div style="display: flex; flex-direction: column; align-items: center">
-                    <label for="traceCheckbox" style="display: block; text-align: center; margin-bottom: 0.5em">Trace</label>
+                  <div class="rotation-checkbox">
+                    <label for="traceCheckbox" class="label-centered">Trace</label>
                     <input type="checkbox" id="traceCheckbox" />
                   </div>
                 </div>
               </div>
             </div>
-            <label style="display: none" for="replaySpeedSlider">Speed:</label>
-            <input style="display: none" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1" autocomplete="off" />
+            <label class="is-hidden" for="replaySpeedSlider">Speed:</label>
+            <input class="is-hidden" type="range" id="replaySpeedSlider" min="1" max="100" value="10" step="1" autocomplete="off" />
             <div id="terminal-container">
               <div id="result">
                 <div id="usageTips">
@@ -149,7 +149,7 @@
               </div>
               <div id="terminal-window"></div>
               <div class="scanlines"></div>
-              <div class="scanlines" style="--delay: -12s"></div>
+              <div class="scanlines scanlines--delay-12"></div>
             </div>
           </div>
         </div>
@@ -184,10 +184,10 @@
             <path d="M21.62,6.22l-5-4a1,1,0,0,0-1.05-.12A1,1,0,0,0,15,3V4.19a9.79,9.79,0,0,0-7,7.65,1,1,0,0,0,.62,1.09A1,1,0,0,0,9,13a1,1,0,0,0,.83-.45C11,10.78,13.58,10.24,15,10.07V11a1,1,0,0,0,.57.9,1,1,0,0,0,1.05-.12l5-4a1,1,0,0,0,0-1.56Z"></path>
           </svg>
         </button>
-        <div id="zScaleSliderContainer" style="display: none; margin-top: 10px; text-align: center">
-          <label for="zScaleSlider" style="display: block; font-size: 10px; color: #333; margin-bottom: 5px">Scale</label>
+        <div id="zScaleSliderContainer" class="is-hidden">
+          <label for="zScaleSlider">Scale</label>
           <input type="range" id="zScaleSlider" min="0.01" max="10" step="0.01" value="0.1" orient="vertical" title="Adjust Z-axis scale" />
-          <div id="zScaleValue" style="font-size: 9px; color: #666; margin-top: 5px">0.10</div>
+          <div id="zScaleValue">0.10</div>
         </div>
       </div>
       <div id="sidebarHandle"></div>

@@ -22,6 +22,22 @@ body {
   font-size: 1rem;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
+.is-block {
+  display: block !important;
+}
+
+.is-flex {
+  display: flex !important;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
 #objectiveDisplay,
 #inequalities {
   font-size: 1.2rem;
@@ -84,7 +100,8 @@ canvas {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
 }
 
@@ -133,6 +150,10 @@ canvas {
 
 #terminal-container2 {
   height: auto;
+  display: block;
+  color: #eee;
+  margin-top: 15px;
+  padding: 10px 0 10px 20px;
 }
 
 #terminal-container2,
@@ -169,6 +190,14 @@ canvas {
   animation: pulse 5s linear infinite;
   pointer-events: none;
   overflow: hidden;
+}
+
+.scanlines--delay-8 {
+  --delay: -8s;
+}
+
+.scanlines--delay-12 {
+  --delay: -12s;
 }
 
 #result,
@@ -245,11 +274,26 @@ canvas {
   padding-top: 5px;
 }
 
+.objective-active {
+  color: #eee;
+}
+
 #result.virtualized {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   height: 100%;
+}
+
+.iterate-virtual-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.iterate-rows {
+  display: flex;
+  flex-direction: column;
 }
 
 #result.virtualized .iterate-scroll {
@@ -302,8 +346,8 @@ canvas {
     background-color 0.2s ease;
 }
 
-#sidebar button:hover:not(:disabled),
-#zoomControls button:hover:not(:disabled) {
+#sidebar button:hover:not(:disabled):not(.button-active),
+#zoomControls button:hover:not(:disabled):not(.button-active) {
   background-color: #f0f0f0;
   transform: translateY(-2px);
   box-shadow:
@@ -351,13 +395,10 @@ canvas {
   margin-top: 0;
 }
 
-#zoomControls button:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-#zoomControls button:hover:not(:disabled),
-#zoomControls button:active:not(:disabled),
+#zoomControls button:hover:not(:disabled):not(.button-active),
+#zoomControls button:active:not(:disabled):not(.button-active),
 #zoomControls button:disabled {
+  background-color: #fafafa;
   transform: none;
   box-shadow: none;
 }
@@ -374,6 +415,18 @@ canvas {
   justify-content: center;
 }
 
+#toggle3DButton.button-active {
+  background-color: #4CAF50;
+  color: white;
+}
+
+#toggle3DButton.button-active:hover {
+  background-color: #4CAF50;
+  color: white;
+  box-shadow: none;
+  transform: none;
+}
+
 /* ================================
     Z-Scale Vertical Slider
     ================================ */
@@ -385,6 +438,21 @@ canvas {
   background-color: rgba(250, 250, 250, 0.9);
   border: 1px solid #333;
   border-radius: 4px;
+  margin-top: 10px;
+  text-align: center;
+}
+
+#zScaleSliderContainer label {
+  display: block;
+  font-size: 10px;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+#zScaleValue {
+  font-size: 9px;
+  color: #666;
+  margin-top: 5px;
 }
 
 #zScaleSlider {
@@ -640,6 +708,17 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   margin: 15px 0;
 }
 
+.controlPanel.header {
+  padding-top: 13px;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.controlPanel.controlPanel--compact {
+  margin-top: 5px;
+  margin-bottom: 20px;
+}
+
 .controlPanel .button-group {
   display: flex;
   flex-wrap: wrap;
@@ -649,7 +728,14 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
 }
 
 .controlPanel .settings-section {
+  display: none;
   margin-top: 1.5em;
+}
+
+.controlPanel .label-centered {
+  display: block;
+  text-align: center;
+  margin-bottom: 0.5em;
 }
 
 .controlPanel label {
@@ -670,6 +756,26 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   margin-top: 10px;
   margin-bottom: 10px;
   width: 100%;
+}
+
+.objective-rotation {
+  margin-top: 1em;
+}
+
+.objective-rotation .rotation-layout {
+  display: flex;
+  gap: 1em;
+  align-items: flex-start;
+}
+
+.objective-rotation .rotation-column {
+  flex: 1;
+}
+
+.objective-rotation .rotation-checkbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* ================================
