@@ -1,7 +1,6 @@
 import { Box3, Sphere } from "three";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-
-const DEFAULT_BOUNDING_EXTENT = 1e9;
+import { DEFAULT_BOUNDING_EXTENT } from "../constants";
 
 export class AlwaysVisibleLineGeometry extends LineGeometry {
   // Avoid computing bounding volumes; effectively ignored in frustum culling

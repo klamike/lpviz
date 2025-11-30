@@ -3,7 +3,13 @@ import type { PolytopeRepresentation } from "../solvers/utils/polytope";
 import type { HistoryEntry } from "./history";
 import { computeDrawingSnapshot } from "./drawing";
 import type { DrawingPhaseSnapshot } from "./drawing";
-import { MAX_TRACE_POINT_SPRITES } from "../ui/rendering/constants";
+import {
+  DEFAULT_FOCAL_DISTANCE,
+  DEFAULT_TRANSITION_DURATION,
+  DEFAULT_VIEW_ANGLE,
+  DEFAULT_Z_SCALE,
+  MAX_TRACE_POINT_SPRITES,
+} from "../ui/rendering/constants";
 
 export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
 type InputMode = "visual" | "manual";
@@ -16,11 +22,6 @@ interface TraceLineData {
 interface TraceEntry {
   lineData: TraceLineData;
 }
-
-const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
-const DEFAULT_TRANSITION_DURATION = 500;
-const DEFAULT_FOCAL_DISTANCE = 1000;
-const DEFAULT_Z_SCALE = 0.1;
 
 export type State = {
   vertices: PointXY[];
