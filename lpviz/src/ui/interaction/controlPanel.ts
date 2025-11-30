@@ -10,6 +10,7 @@ import { runSolverWorker } from "../../solvers/worker/client";
 import { hasPolytopeLines } from "../../solvers/utils/polytope";
 import { bindControls, type ControlBinding } from "./bind";
 import { SOLVER_DEFINITIONS, type SettingsElements } from "../../solvers/utils/registry";
+import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "../rendering/constants";
 
 export const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
@@ -35,7 +36,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
 
     uiManager.unzoomButton?.addEventListener("click", () => {
       canvasManager.resetView();
-      setState({ viewAngle: { x: -1.15, y: 0.4, z: 0 } });
+      setState({ viewAngle: { ...DEFAULT_VIEW_ANGLE } });
       uiManager.updateZoomButtonsState(canvasManager);
     });
   }
@@ -48,7 +49,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     });
 
     uiManager.zScaleSlider?.addEventListener("input", () => {
-      const newScale = parseFloat(uiManager.zScaleSlider?.value || "0.1");
+      const newScale = parseFloat(uiManager.zScaleSlider?.value || DEFAULT_Z_SCALE.toString());
       setState({ zScale: newScale });
       uiManager.updateZScaleValue();
       const { is3DMode, isTransitioning3D } = getState();
