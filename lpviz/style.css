@@ -368,8 +368,6 @@ canvas {
 }
 
 #shareButton {
-  width: 45px;
-  height: 45px;
   padding: 10px;
   display: flex;
   align-items: center;
@@ -390,8 +388,9 @@ canvas {
 }
 
 #zScaleSlider {
-  -webkit-appearance: slider-vertical;
-  writing-mode: bt-lr; /* ensures Chromium/WebKit treat it as a vertical slider */
+  -webkit-appearance: none;
+  appearance: none;
+  writing-mode: bt-lr;
   width: 6px;
   height: 80px;
   background: #ddd;
@@ -401,6 +400,8 @@ canvas {
 }
 
 #zScaleSlider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  appearance: none;
   width: 6px;
   background: #ddd;
   border: 1px solid #333;
@@ -409,6 +410,7 @@ canvas {
 
 #zScaleSlider::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   width: 20px;
   height: 10px;
   background: #fafafa;
@@ -416,7 +418,7 @@ canvas {
   border-radius: 2px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background 0.2s ease;
-  margin-left: -7px; /* center thumb on the 6px track */
+  margin-left: -7px;
 }
 
 #zScaleSlider::-webkit-slider-thumb:hover,
@@ -492,6 +494,30 @@ canvas {
 
 #zScaleSlider::-ms-thumb:active {
   background: #e0e0e0;
+}
+
+@supports not (-moz-appearance: none) {
+  @media screen and (-webkit-min-device-pixel-ratio: 0) {
+    #zScaleSlider {
+      width: 80px;
+      height: 80px;
+      transform: rotate(90deg);
+      transform-origin: center;
+      writing-mode: horizontal-tb;
+      background: transparent;
+    }
+
+    #zScaleSlider::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+    }
+
+    #zScaleSlider::-webkit-slider-thumb {
+      margin-left: 0;
+      transform: rotate(90deg);
+      margin-top: -3px;
+    }
+  }
 }
 
 /* ================================
@@ -628,7 +654,7 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
 
 .controlPanel label {
   font-family: "JuliaMono", monospace;
-  font-size: 1rem; /* Was 10pt */
+  font-size: 1rem;
   color: #333;
   display: block;
   margin-bottom: 5px;
@@ -654,18 +680,22 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
     transform: scale(1.002);
     opacity: 0.14;
   }
+
   8% {
     transform: scale(1.005);
     opacity: 0.13;
   }
+
   15% {
     transform: scale(1.01);
     opacity: 0.05;
   }
+
   30% {
     transform: scale(1.006);
     opacity: 0.09;
   }
+
   100% {
     transform: scale(1.002);
     opacity: 0.14;
@@ -676,6 +706,7 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   0% {
     transform: translateY(-8px);
   }
+
   100% {
     transform: translateY(800px);
   }
@@ -686,6 +717,7 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   100% {
     opacity: 1;
   }
+
   70% {
     opacity: 0.8;
   }
