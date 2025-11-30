@@ -25,14 +25,8 @@
       };
     </script>
     <link rel="stylesheet" href="docs.css" />
-    <style>
-      /* Index page specific overrides */
-      body {
-        max-width: 800px;
-      }
-    </style>
   </head>
-  <body>
+  <body class="docs-index">
     <div class="navigation">
       <a href="../">← Back to lpviz</a> | &nbsp;
       <strong>lpviz Documentation</strong>
@@ -76,7 +70,7 @@
     lpviz implements four solvers: IPM, PDHG, Simplex, and Central Path. Click on each solver below for detailed explanations with code references.
 
     <h3>
-      <a href="simplex.html" style="color: #2c3e50; text-decoration: none">Simplex Algorithm</a>
+      <a href="simplex.html" class="docs-link">Simplex Algorithm</a>
     </h3>
     <p>The simplex method implements a two-phase revised simplex algorithm with Bland's anti-cycling rule. The first phase finds an initial basic feasible solution and the second phase finds the optimal solution.</p>
 
@@ -85,7 +79,7 @@
     <p>In 3D mode, the z-axis of each iterate of Simplex is set to $c^\top x$.</p>
 
     <h3>
-      <a href="ipm.html" style="color: #2c3e50; text-decoration: none">Interior Point Method (IPM)</a>
+      <a href="ipm.html" class="docs-link">Interior Point Method (IPM)</a>
     </h3>
     <p>IPM implements an infeasible primal-dual interior point algorithm. The core IPM routine requires problems be converted to the standard form $\min \enspace c^\top x \enspace \text{s.t.} \enspace Ax \geq b$. Each iteration involves solving two linear systems differing only in their right-hand sides.</p>
 
@@ -94,7 +88,7 @@
     <p>In 3D mode, the z-axis is of each iterate of IPM is set to $c^\top x + \frac{s^\top y}{m}$.</p>
 
     <h3>
-      <a href="pdhg.html" style="color: #2c3e50; text-decoration: none">Primal-Dual Hybrid Gradient (PDHG)</a>
+      <a href="pdhg.html" class="docs-link">Primal-Dual Hybrid Gradient (PDHG)</a>
     </h3>
     <p>PDHG implements a first-order method that alternates between primal and dual updates. Most textbook implementations first transform the problem to the equality standard form $Ax = b, x \geq 0$, then apply:</p>
 
@@ -112,7 +106,7 @@
     <p>where $\tilde{y}^{k+1} = 2y^{k+1} - y^k$ is the extrapolated dual variable. Due to the inequality constraints in the primal, the dual variables $y$ are now constrained to be non-negative.</p>
 
     <h3>
-      <a href="central-path.html" style="color: #2c3e50; text-decoration: none">Central Path</a>
+      <a href="central-path.html" class="docs-link">Central Path</a>
     </h3>
     <p>The central path is a smooth curve of solutions to the barrier problem as $\mu \to 0$. Each point on the path is found using Newton's method with Armijo line search.</p>
 

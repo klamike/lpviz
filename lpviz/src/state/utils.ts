@@ -5,7 +5,11 @@ export function setButtonsEnabled(buttonStates: Record<string, boolean>): void {
   });
 }
 
-export function setElementDisplay(elementId: string, display: string): void {
+export function setElementDisplay(elementId: string, display: "block" | "none"): void {
   const element = document.getElementById(elementId);
-  if (element) element.style.display = display;
+  if (!element) return;
+
+  element.style.removeProperty("display");
+  element.classList.toggle("is-hidden", display === "none");
+  element.classList.toggle("is-block", display === "block");
 }

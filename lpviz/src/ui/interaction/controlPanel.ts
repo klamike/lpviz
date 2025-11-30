@@ -148,14 +148,14 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       if (!hadObjective) uiManager.updateObjectiveDisplay();
       if (animationIntervalId !== null) clearInterval(animationIntervalId);
 
-      rotationSettings.style.display = "block";
+      rotationSettings.classList.remove("is-hidden");
       uiManager.updateSolverModeButtons();
       computeAndRotate();
     });
 
     stopRotateButton.addEventListener("click", () => {
       setState({ rotateObjectiveMode: false, totalRotationAngle: 0 });
-      rotationSettings.style.display = "none";
+      rotationSettings.classList.add("is-hidden");
       uiManager.updateSolverModeButtons();
       showAllResults?.();
     });
