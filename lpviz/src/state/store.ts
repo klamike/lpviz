@@ -15,7 +15,6 @@ interface TraceLineData {
 
 interface TraceEntry {
   lineData: TraceLineData;
-  angle: number;
 }
 
 const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
@@ -78,7 +77,6 @@ export type State = {
   transitionProgress: number;
 
   traceEnabled: boolean;
-  totalRotationAngle: number;
   traceBuffer: TraceEntry[];
   maxTraceCount: number;
 
@@ -142,7 +140,6 @@ const initialState: State = {
   transitionProgress: 0,
 
   traceEnabled: false,
-  totalRotationAngle: 0,
   traceBuffer: [],
   maxTraceCount: 0,
 
@@ -203,10 +200,7 @@ export function addTraceToBuffer(iteratesArray: number[][]): void {
 
   const lineData = buildTraceLineData(iteratesArray);
   mutate((draft) => {
-    draft.traceBuffer.push({
-      lineData,
-      angle: draft.totalRotationAngle,
-    });
+    draft.traceBuffer.push({ lineData });
     while (draft.traceBuffer.length > draft.maxTraceCount) draft.traceBuffer.shift();
   });
 }
@@ -247,7 +241,7 @@ export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {
 
 export function resetTraceState(): void {
   if (!getState().traceEnabled) return;
-  setState({ traceBuffer: [], totalRotationAngle: 0 });
+  setState({ traceBuffer: [] });
 }
 
 export function handleStepSizeChange(): void {

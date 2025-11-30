@@ -416,12 +416,12 @@ canvas {
 }
 
 #toggle3DButton.button-active {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
 }
 
 #toggle3DButton.button-active:hover {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   box-shadow: none;
   transform: none;

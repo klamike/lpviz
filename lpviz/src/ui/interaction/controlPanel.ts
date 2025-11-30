@@ -154,7 +154,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
     });
 
     stopRotateButton.addEventListener("click", () => {
-      setState({ rotateObjectiveMode: false, totalRotationAngle: 0 });
+      setState({ rotateObjectiveMode: false });
       rotationSettings.classList.add("is-hidden");
       uiManager.updateSolverModeButtons();
       showAllResults?.();
@@ -274,11 +274,6 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
         y: magnitude * Math.sin(angle + angleStep),
       },
     });
-    if (getState().traceEnabled) {
-      mutate((draft) => {
-        draft.totalRotationAngle += angleStep;
-      });
-    }
 
     uiManager.updateObjectiveDisplay();
     canvasManager.draw();
