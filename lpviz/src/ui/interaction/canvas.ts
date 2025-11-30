@@ -5,6 +5,7 @@ import { setButtonsEnabled, setElementDisplay } from "../../state/utils";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
 import { InactivityHelpOverlay } from "../tour/tour";
+import { DEFAULT_Z_SCALE } from "../rendering/constants";
 
 export function registerCanvasInteractions(canvasManager: ViewportManager, uiManager: LayoutManager, saveToHistory: () => void, sendPolytope: () => void, recomputeSolver?: () => void, helpPopup?: InactivityHelpOverlay): void {
   const canvas = canvasManager.canvas;
@@ -448,7 +449,7 @@ export function registerCanvasInteractions(canvasManager: ViewportManager, uiMan
       const zoomFactor = 1.05;
       const dominantDelta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       if (dominantDelta === 0) return;
-      const effectiveScale = (zScale || 0.1) * (dominantDelta < 0 ? 1 / zoomFactor : zoomFactor);
+      const effectiveScale = (zScale || DEFAULT_Z_SCALE) * (dominantDelta < 0 ? 1 / zoomFactor : zoomFactor);
       const clampedScale = Math.max(0.01, Math.min(100, effectiveScale));
       setState({ zScale: clampedScale });
       canvasManager.draw();

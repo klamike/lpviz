@@ -3,20 +3,23 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { PointXY, PointXYZ } from "../solvers/utils/blas";
 import { getState, setState } from "../state/store";
-import { RENDER_LAYERS, STAR_POINT_PIXEL_SIZE, OBJECTIVE_Z_OFFSET } from "./rendering/constants";
+import {
+  MAX_3D_DRAG_BOUND,
+  MAX_3D_PLANE_SLOPE,
+  MIN_3D_DRAG_BOUND,
+  OBJECTIVE_Z_OFFSET,
+  ORTHO_MAX_SCALE_FACTOR,
+  ORTHO_MIN_SCALE_FACTOR,
+  RENDER_LAYERS,
+  STAR_POINT_PIXEL_SIZE,
+  VIEW_DRAG_BOUND_MULTIPLIER,
+} from "./rendering/constants";
 import { inverseTransform2DProjection } from "./rendering/math3d";
 import { CanvasRenderPipeline } from "./rendering/pipeline";
 import { AlwaysVisibleLineGeometry } from "./rendering/three/AlwaysVisibleLineGeometry";
 import { UndashedLine2 } from "./rendering/three/UndashedLine2";
 import { CanvasRenderContext, CanvasRenderHelpers, LineBasicMaterialOptions, PointMaterialOptions, ThickLineOptions } from "./rendering/types";
 import type { Tour } from "./tour/tour";
-
-const ORTHO_MIN_SCALE_FACTOR = 0.05;
-const ORTHO_MAX_SCALE_FACTOR = 400;
-const MIN_3D_DRAG_BOUND = 60;
-const MAX_3D_DRAG_BOUND = 5000;
-const VIEW_DRAG_BOUND_MULTIPLIER = 6;
-const MAX_3D_PLANE_SLOPE = 2;
 
 export class ViewportManager {
   canvas: HTMLCanvasElement;

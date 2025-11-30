@@ -1,7 +1,8 @@
 import type { PointXY, Lines, Vertices } from "./blas";
 import type { State } from "../../state/store";
 import { getState, subscribe } from "../../state/store";
-import { createPopupElement, POPUP_ANIMATION_MS } from "../../ui/tour/tour";
+import { createPopupElement } from "../../ui/tour/tour";
+import { POPUP_ANIMATION_MS } from "../../ui/rendering/constants";
 
 type NonEmptyArray<T> = [T, ...T[]];
 

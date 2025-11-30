@@ -4,10 +4,17 @@ import { LayoutManager } from "../layout";
 import { setButtonsEnabled, setElementDisplay } from "../../state/utils";
 import { buildTour, generateObjective, generatePentagon, type TourStep } from "./config";
 import type { State } from "../../state/store";
-import { DEFAULT_BUTTON_STATES } from "../rendering/constants";
-
-const CURSOR_TRANSITION_MS = 700;
-export const POPUP_ANIMATION_MS = 300;
+import {
+  DEFAULT_BUTTON_STATES,
+  POPUP_ANIMATION_MS,
+  TOUR_BUTTON_CLICK_DELAY_MS,
+  TOUR_CLICK_AT_POINT_DELAY_MS,
+  TOUR_CURSOR_CLICK_ANIMATION_MS,
+  TOUR_CURSOR_TRANSITION_MS,
+  TOUR_DEFAULT_DELAY_MS,
+  TOUR_INACTIVITY_TIMEOUT_MS,
+  TOUR_STEP_PAUSE_MS,
+} from "../rendering/constants";
 
 type PopupOptions = {
   id: string;
@@ -19,7 +26,7 @@ type PopupOptions = {
   onClick?: () => void;
 };
 
-const delay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms = TOUR_DEFAULT_DELAY_MS) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function createPopupElement({ id, text, gradient, position, maxWidth, onClose, onClick }: PopupOptions): HTMLElement {
   const popup = document.createElement("div");
@@ -147,7 +154,7 @@ export class Tour {
         if (!this.running) break;
         await this.runStep(step);
         if (!this.running) break;
-        await delay(250);
+        await delay(TOUR_STEP_PAUSE_MS);
       }
     } finally {
       this.stopTour();
@@ -235,7 +242,7 @@ export class Tour {
     await this.moveCursorTo(point);
     await this.animateCursorClick();
     apply();
-    await delay(120);
+    await delay(TOUR_CLICK_AT_POINT_DELAY_MS);
   }
 
   private async clickButton(id: string) {
@@ -246,7 +253,7 @@ export class Tour {
     await this.animateCursorClick();
     this.allowNextClick = true;
     element.click();
-    await delay(150);
+    await delay(TOUR_BUTTON_CLICK_DELAY_MS);
   }
 
   private createCursor() {
@@ -260,7 +267,7 @@ export class Tour {
       width: "24px",
       height: "24px",
       pointerEvents: "none",
-      transition: `all ${CURSOR_TRANSITION_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
+      transition: `all ${TOUR_CURSOR_TRANSITION_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
       transform: "translate(-25%, -25%)",
       filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))",
     });
@@ -282,14 +289,14 @@ export class Tour {
     if (!this.cursor) return;
     this.cursor.style.left = `${x}px`;
     this.cursor.style.top = `${y}px`;
-    await delay(CURSOR_TRANSITION_MS);
+    await delay(TOUR_CURSOR_TRANSITION_MS);
   }
 
   private async animateCursorClick() {
     if (!this.cursor) return;
     this.cursor.style.transform = "translate(-25%, -25%) scale(1.8)";
     this.cursor.style.filter = "drop-shadow(2px 2px 8px rgba(74,144,226,0.6))";
-    await delay(100);
+    await delay(TOUR_CURSOR_CLICK_ANIMATION_MS);
     this.cursor.style.transform = "translate(-25%, -25%) scale(1)";
     this.cursor.style.filter = "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))";
   }
@@ -341,7 +348,7 @@ export class InactivityHelpOverlay {
         this.hasShown = true;
         this.showPopup();
       }
-    }, 5000);
+    }, TOUR_INACTIVITY_TIMEOUT_MS);
   }
 
   public stopTimer() {

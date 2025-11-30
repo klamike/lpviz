@@ -61,3 +61,19 @@ export const DEFAULT_BUTTON_STATES = {
   traceButton: false,
   zoomButton: true,
 };
+
+export const ORTHO_MIN_SCALE_FACTOR = 0.05;
+export const ORTHO_MAX_SCALE_FACTOR = 400;
+export const MIN_3D_DRAG_BOUND = 60;
+export const MAX_3D_DRAG_BOUND = 5000;
+export const VIEW_DRAG_BOUND_MULTIPLIER = 6;
+export const MAX_3D_PLANE_SLOPE = 2;
+
+export const TOUR_CURSOR_TRANSITION_MS = 700;
+export const POPUP_ANIMATION_MS = 300;
+export const TOUR_DEFAULT_DELAY_MS = 300;
+export const TOUR_STEP_PAUSE_MS = 250;
+export const TOUR_CLICK_AT_POINT_DELAY_MS = 120;
+export const TOUR_BUTTON_CLICK_DELAY_MS = 150;
+export const TOUR_CURSOR_CLICK_ANIMATION_MS = 100;
+export const TOUR_INACTIVITY_TIMEOUT_MS = 5000;

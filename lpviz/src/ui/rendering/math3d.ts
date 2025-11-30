@@ -3,6 +3,7 @@ import type { PointXY, PointXYZ } from "../../solvers/utils/blas";
 import { getState, mutate, setState } from "../../state/store";
 import { ViewportManager } from "../viewport";
 import { LayoutManager } from "../layout";
+import { DEFAULT_VIEW_ANGLE } from "./constants";
 
 const rotationEuler = new Euler();
 const inverseVector = new Vector3();
@@ -29,7 +30,7 @@ export function start3DTransition(canvasManager: ViewportManager, uiManager: Lay
 
   const transitionDuration = targetMode ? 400 : 500;
   const startAngles = targetMode ? { x: 0, y: 0, z: 0 } : { ...viewAngle };
-  const endAngles = targetMode ? { x: -1.15, y: 0.4, z: 0 } : { x: 0, y: 0, z: 0 };
+  const endAngles = targetMode ? { ...DEFAULT_VIEW_ANGLE } : { x: 0, y: 0, z: 0 };
 
   canvasManager.prepareFor3DTransition(targetMode);
 
@@ -70,9 +71,9 @@ function animate3DTransition(canvasManager: ViewportManager, uiManager: LayoutMa
       draft.transitionDirection = null;
       draft.transitionProgress = 0;
       if (targetMode) {
-        draft.viewAngle.x = -1.15;
-        draft.viewAngle.y = 0.4;
-        draft.viewAngle.z = 0;
+        draft.viewAngle.x = DEFAULT_VIEW_ANGLE.x;
+        draft.viewAngle.y = DEFAULT_VIEW_ANGLE.y;
+        draft.viewAngle.z = DEFAULT_VIEW_ANGLE.z;
       } else {
         draft.viewAngle.x = 0;
         draft.viewAngle.y = 0;
