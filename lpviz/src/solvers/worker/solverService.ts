@@ -76,7 +76,7 @@ export function applyPDHGResult(result: PDHGResult, updateResult: (payload: Resu
   });
 }
 
-export function applyCentralPathResult(result: CentralPathResult, angleStep: number, updateResult: (payload: ResultRenderPayload) => void) {
+export function applyCentralPathResult(result: CentralPathResult, updateResult: (payload: ResultRenderPayload) => void) {
   updateIteratesAndRender({
     iterations: result.iterations,
     logs: result.logs,
@@ -88,11 +88,9 @@ export function applyCentralPathResult(result: CentralPathResult, angleStep: num
     updateTrace: false,
   });
 
-  const { traceEnabled, rotateObjectiveMode, totalRotationAngle } = getState();
+  const { traceEnabled } = getState();
   if (traceEnabled && result.iterations.length > 0) {
-    if (!rotateObjectiveMode || totalRotationAngle < 2 * Math.PI + 0.9 * angleStep) {
-      addTraceToBuffer(result.iterations);
-    }
+    addTraceToBuffer(result.iterations);
   }
 }
 

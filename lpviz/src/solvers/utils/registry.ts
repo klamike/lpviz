@@ -50,10 +50,9 @@ export const SOLVER_DEFINITIONS: SolverDefinition[] = [
         niter: Math.max(1, parseInt(settings["centralPathIterSlider"].value, 10) || 1),
       };
     },
-    applyResult: (response, settings, updateResult) => {
+    applyResult: (response, _settings, updateResult) => {
       if (response.solver !== "central") return;
-      const angleStep = parseNumber(settings["objectiveAngleStepSlider"].value, 0.1);
-      applyCentralPathResult(response.result, angleStep, updateResult);
+      applyCentralPathResult(response.result, updateResult);
     },
   },
   {
