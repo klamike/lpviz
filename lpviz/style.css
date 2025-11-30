@@ -569,7 +569,7 @@ canvas {
     #zScaleSlider {
       width: 80px;
       height: 80px;
-      transform: rotate(90deg);
+      transform: rotate(270deg);
       transform-origin: center;
       writing-mode: horizontal-tb;
       background: transparent;
@@ -582,7 +582,7 @@ canvas {
 
     #zScaleSlider::-webkit-slider-thumb {
       margin-left: 0;
-      transform: rotate(90deg);
+      transform: rotate(270deg);
       margin-top: -3px;
     }
   }
