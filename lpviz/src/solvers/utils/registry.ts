@@ -107,6 +107,7 @@ export const SOLVER_DEFINITIONS: SolverDefinition[] = [
         maxit: Math.max(1, parseInt(settings["maxitInputPDHG"].value, 10) || 1),
         eta: parseNumber(settings["pdhgEtaSlider"].value),
         tau: parseNumber(settings["pdhgTauSlider"].value),
+        showBasis: settings["pdhgShowBasis"]?.checked ?? false,
       };
     },
     applyResult: (response, _settings, updateResult) => {

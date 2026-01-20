@@ -1,9 +1,9 @@
-import { BufferGeometry, Float32BufferAttribute, LineSegments, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3, Points, DoubleSide } from "three";
+import { BufferGeometry, Float32BufferAttribute, LineSegments, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3, Points, DoubleSide, Color } from "three";
 import { getState } from "../../state/store";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep, hasPolytopeLines } from "../../solvers/utils/polytope";
 import { buildArrowHeadSegments, clipLineToBounds, Bounds } from "./geometry";
-import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_OPACITY, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
+import { COLORS, EDGE_Z_OFFSET, GRID_MARGIN, ITERATE_LINE_THICKNESS, ITERATE_POINT_PIXEL_SIZE, ITERATE_Z_OFFSET, OBJECTIVE_Z_OFFSET, PHASE_COLORS, POLY_LINE_THICKNESS, RENDER_LAYERS, TRACE_LINE_OPACITY, TRACE_LINE_THICKNESS, TRACE_POINT_PIXEL_SIZE, TRACE_Z_OFFSET, VERTEX_POINT_PIXEL_SIZE, VERTEX_Z_OFFSET } from "./constants";
 import { CanvasRenderContext } from "./types";
 
 const buildShapeFromVertices = (vertices: ReadonlyArray<PointXY>) => {
@@ -344,7 +344,7 @@ export class CanvasRenderPipeline {
     helpers.clearGroup(groups.iterate);
     helpers.clearGroup(groups.overlay);
 
-    const { iteratePath, highlightIteratePathIndex } = getState();
+    const { iteratePath, highlightIteratePathIndex, iteratePhases } = getState();
     if (!iteratePath || iteratePath.length === 0) {
       return;
     }
@@ -363,28 +363,100 @@ export class CanvasRenderPipeline {
     };
 
     const positions = new Float32Array(iteratePath.length * 3);
+    const colors = new Float32Array(iteratePath.length * 3);
+    const hasPhases = iteratePhases && iteratePhases.length === iteratePath.length;
+
     for (let i = 0; i < iteratePath.length; i++) {
       const entry = iteratePath[i];
       const z = blendIterateZ(entry);
       positions[i * 3] = entry[0];
       positions[i * 3 + 1] = entry[1];
       positions[i * 3 + 2] = z;
+
+      if (hasPhases) {
+        const phase = iteratePhases[i];
+        const colorValue = PHASE_COLORS[phase % PHASE_COLORS.length];
+        const color = new Color(colorValue);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      } else {
+        const color = new Color(COLORS.iteratePath);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      }
     }
 
     const buildIteratePosition = (entry: number[]) => new Vector3(entry[0], entry[1], blendIterateZ(entry));
-    const iterateLine = helpers.createThickLine(Array.from(positions), {
-      color: COLORS.iteratePath,
-      width: ITERATE_LINE_THICKNESS,
-      depthTest: false,
-      depthWrite: false,
-    });
-    iterateLine.renderOrder = RENDER_LAYERS.iterateLine;
-    groups.iterate.add(iterateLine);
+
+    if (hasPhases) {
+      let segmentStart = 0;
+      let segmentPhase = iteratePhases[0];
+
+      for (let i = 1; i < iteratePath.length; i++) {
+        const currPhase = iteratePhases[i];
+        const prevPhase = iteratePhases[i - 1];
+
+        if (currPhase !== prevPhase) {
+          if (i - 1 >= segmentStart) {
+            const segmentPositions: number[] = [];
+            for (let j = segmentStart; j < i; j++) {
+              segmentPositions.push(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2]);
+            }
+
+            if (segmentPositions.length >= 6) {
+              const segmentColor = PHASE_COLORS[segmentPhase % PHASE_COLORS.length];
+              const segmentLine = helpers.createThickLine(segmentPositions, {
+                color: segmentColor,
+                width: ITERATE_LINE_THICKNESS,
+                depthTest: false,
+                depthWrite: false,
+              });
+              segmentLine.renderOrder = RENDER_LAYERS.iterateLine;
+              groups.iterate.add(segmentLine);
+            }
+          }
+
+          segmentStart = i - 1;
+          segmentPhase = currPhase;
+        }
+      }
+
+      if (segmentStart < iteratePath.length) {
+        const segmentPositions: number[] = [];
+        for (let j = segmentStart; j < iteratePath.length; j++) {
+          segmentPositions.push(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2]);
+        }
+
+        if (segmentPositions.length >= 6) {
+          const segmentColor = PHASE_COLORS[segmentPhase % PHASE_COLORS.length];
+          const segmentLine = helpers.createThickLine(segmentPositions, {
+            color: segmentColor,
+            width: ITERATE_LINE_THICKNESS,
+            depthTest: false,
+            depthWrite: false,
+          });
+          segmentLine.renderOrder = RENDER_LAYERS.iterateLine;
+          groups.iterate.add(segmentLine);
+        }
+      }
+    } else {
+      const iterateLine = helpers.createThickLine(Array.from(positions), {
+        color: COLORS.iteratePath,
+        width: ITERATE_LINE_THICKNESS,
+        depthTest: false,
+        depthWrite: false,
+      });
+      iterateLine.renderOrder = RENDER_LAYERS.iterateLine;
+      groups.iterate.add(iterateLine);
+    }
 
     const pointsGeometry = new BufferGeometry();
     pointsGeometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    pointsGeometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
     const material = helpers.getPointMaterial({
-      color: COLORS.iteratePath,
+      color: 0xffffff,
       size: ITERATE_POINT_PIXEL_SIZE,
       sizeAttenuation: false,
       depthWrite: false,
@@ -392,6 +464,7 @@ export class CanvasRenderPipeline {
       transparent: false,
       opacity: 1,
       alphaTest: 0.2,
+      vertexColors: true,
     });
     const iteratePoints = new Points(pointsGeometry, material);
     iteratePoints.renderOrder = RENDER_LAYERS.iteratePoints;

@@ -37,6 +37,8 @@ export type State = {
   solverMode: SolverMode;
   iteratePath: VecNs;
   iteratePathComputed: boolean;
+  iteratePhases: number[];
+  originalIteratePhases: number[];
   highlightIteratePathIndex: number | null;
   rotateObjectiveMode: boolean;
   animationIntervalId: number | null;
@@ -100,6 +102,8 @@ const initialState: State = {
   solverMode: "central",
   iteratePath: [],
   iteratePathComputed: false,
+  iteratePhases: [],
+  originalIteratePhases: [],
   highlightIteratePathIndex: null,
   rotateObjectiveMode: false,
   animationIntervalId: null,
@@ -188,10 +192,12 @@ export function prepareAnimationInterval(): void {
   if (animationIntervalId !== null) (clearInterval(animationIntervalId), setState({ animationIntervalId: null }));
 }
 
-export function updateIteratePaths(iteratesArray: number[][]): void {
+export function updateIteratePaths(iteratesArray: number[][], phasesArray?: number[]): void {
   mutate((draft) => {
     draft.originalIteratePath = [...iteratesArray];
     draft.iteratePath = iteratesArray;
+    draft.iteratePhases = phasesArray || [];
+    draft.originalIteratePhases = phasesArray ? [...phasesArray] : [];
   });
 }
 
@@ -232,8 +238,8 @@ function buildTraceLineData(path: number[][]): TraceLineData {
   return { positions, sampledIndices };
 }
 
-export function updateIteratePathsWithTrace(iteratesArray: number[][]): void {
-  updateIteratePaths(iteratesArray);
+export function updateIteratePathsWithTrace(iteratesArray: number[][], phasesArray?: number[]): void {
+  updateIteratePaths(iteratesArray, phasesArray);
   const snapshot = getState();
   if (snapshot.traceEnabled && iteratesArray.length > 0) {
     addTraceToBuffer(iteratesArray);
