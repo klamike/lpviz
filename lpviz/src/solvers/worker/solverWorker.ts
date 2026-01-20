@@ -27,6 +27,7 @@ export type SolverWorkerPayload =
       maxit: number;
       eta: number;
       tau: number;
+      showBasis: boolean;
     }
   | {
       solver: "central";
@@ -114,9 +115,9 @@ async function runIPM(lines: Lines, objective: VecN, alphamax: number, maxit: nu
   });
 }
 
-async function runPDHG(lines: Lines, objective: VecN, ineq: boolean, maxit: number, eta: number, tau: number) {
+async function runPDHG(lines: Lines, objective: VecN, ineq: boolean, maxit: number, eta: number, tau: number, showBasis: boolean) {
   return wrapSolverCall("PDHG", () => {
-    const options = { ...DEFAULT_BASE_OPTIONS, ineq, maxit, eta, tau };
+    const options = { ...DEFAULT_BASE_OPTIONS, ineq, maxit, eta, tau, showBasis };
     return pdhg(lines, objective, options);
   });
 }
@@ -132,7 +133,7 @@ async function executeSolver(data: SolverWorkerRequest): Promise<SolverWorkerSuc
     return { id, solver: "simplex", success: true, result: await runSimplex(data.lines, data.objective) };
   }
   if (data.solver === "pdhg") {
-    return { id, solver: "pdhg", success: true, result: await runPDHG(data.lines, data.objective, data.ineq, data.maxit, data.eta, data.tau) };
+    return { id, solver: "pdhg", success: true, result: await runPDHG(data.lines, data.objective, data.ineq, data.maxit, data.eta, data.tau, data.showBasis) };
   }
   if (data.solver === "central") {
     return { id, solver: "central", success: true, result: await runCentralPath(data.vertices, data.lines, data.objective, data.niter) };

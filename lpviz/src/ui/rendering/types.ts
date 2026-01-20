@@ -46,6 +46,7 @@ export interface PointMaterialOptions {
   transparent?: boolean;
   opacity?: number;
   alphaTest?: number;
+  vertexColors?: boolean;
 }
 
 export interface LineBasicMaterialOptions {

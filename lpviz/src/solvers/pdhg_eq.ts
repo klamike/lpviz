@@ -11,6 +11,7 @@ interface PDHGEqOptions {
   tau: number;
   tol: number;
   verbose: boolean;
+  showBasis: boolean;
 }
 
 function pdhgEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM) {
@@ -22,11 +23,35 @@ function pdhgEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM
   return primalFeasibility + dualFeasibility + dualityGap;
 }
 
+function detectBasis(xk: VectorN, m: number, n_orig: number): Set<number> {
+  const basis = new Set<number>();
+
+  for (let i = 0; i < m; i++) {
+    const si = xk.get(2 * n_orig + i, 0);
+    if (Math.abs(si) <= 1e-10) {
+      basis.add(i);
+    }
+  }
+
+  return basis;
+}
+
+function basisToColorIndex(basis: Set<number>, m: number, numColors: number): number {
+  let value = 0;
+  for (let i = 0; i < m; i++) {
+    if (basis.has(i)) {
+      value |= (1 << i);
+    }
+  }
+  return value % numColors;
+}
+
 function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOptions) {
-  const { maxit, eta, tau, tol, verbose } = options;
+  const { maxit, eta, tau, tol, verbose, showBasis } = options;
 
   const m = A.rows;
   const n = A.columns;
+  const n_orig = (n - m) / 2;
 
   let xk = Matrix.zeros(n, 1);
   let yk = Matrix.zeros(m, 1);
@@ -35,20 +60,41 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
   let epsilonK = pdhgEpsilon(A, b, c, xk, yk);
   const logs = [];
 
-  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s", "Iter", "x", "y", " Obj", "Infeas", "eps");
+  const basisHeaderName = "basis";
+  const padding = showBasis ? " ".repeat(Math.max(0, m - basisHeaderName.length)) : "";
+  const paddedBasisTitle = showBasis ? (basisHeaderName + padding) : "";
+  const logHeader = showBasis
+    ? sprintf("%5s %8s %8s %10s %10s %10s %s", "Iter", "x", "y", " Obj", "Infeas", "eps", paddedBasisTitle)
+    : sprintf("%5s %8s %8s %10s %10s %10s", "Iter", "x", "y", " Obj", "Infeas", "eps");
   if (verbose) console.log(logHeader);
   logs.push(logHeader);
 
   const iterates: Vec2Ns = [];
   const eps: number[] = [];
+  const phases: number[] = [];
+
+  let currentBasis = showBasis ? detectBasis(xk, m, n_orig) : new Set<number>();
+  let currentColorIndex = 0;
+
   const startTime = performance.now();
 
   while (k < maxit && epsilonK > tol) {
     iterates.push(xk.to1DArray());
+    if (showBasis) {
+      currentColorIndex = basisToColorIndex(currentBasis, m, 10);
+      phases.push(currentColorIndex);
+    }
 
     const pObj = -c.dot(xk);
     const pFeas = Matrix.sub(A.mmul(xk), b).max();
-    let logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e", k, xk.get(0, 0), -yk.get(0, 0), pObj, pFeas, epsilonK);
+
+    let logMsg: string;
+    if (showBasis) {
+      const basisString = Array.from({ length: m }, (_, i) => (currentBasis.has(i) ? "1" : "0")).join("");
+      logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e %s", k, xk.get(0, 0), -yk.get(0, 0), pObj, pFeas, epsilonK, basisString);
+    } else {
+      logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e", k, xk.get(0, 0), -yk.get(0, 0), pObj, pFeas, epsilonK);
+    }
 
     if (verbose) console.log(logMsg);
     logs.push(logMsg);
@@ -66,6 +112,10 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
     yk = yk_plus_1;
     k++;
 
+    if (showBasis) {
+      currentBasis = detectBasis(xk, m, n_orig);
+    }
+
     epsilonK = pdhgEpsilon(A, b, c, xk, yk);
   }
 
@@ -78,11 +128,12 @@ function pdhgStandardForm(A: Matrix, b: VectorM, c: VectorN, options: PDHGEqOpti
     iterations: iterates,
     logs: logs,
     eps,
+    phases,
   };
 }
 
 export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
-  const { maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4 } = options;
+  const { maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4, showBasis = false } = options;
   if (maxit > MAX_ITERATIONS_LIMIT) throw new Error("maxit > 2^16 not allowed");
 
   const { A, b } = linesToAb(lines);
@@ -95,7 +146,7 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
 
   // ĉ = [-c; c; 0_m]
   const c_hat = vstack([Matrix.mul(c, -1), c, Matrix.zeros(A.rows, 1)]);
-  const { iterations: chi_iterates, logs, eps } = pdhgStandardForm(A_hat, b, c_hat, { maxit, eta, tau, verbose, tol });
+  const { iterations: chi_iterates, logs, eps, phases } = pdhgStandardForm(A_hat, b, c_hat, { maxit, eta, tau, verbose, tol, showBasis });
 
   // x = x^+ - x^-
   const x_iterates = chi_iterates.map((chi_k: Vec2N) => {
@@ -108,5 +159,6 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
     iterations: x_iterates,
     logs,
     eps,
+    phases,
   };
 }

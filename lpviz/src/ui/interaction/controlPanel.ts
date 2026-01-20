@@ -114,6 +114,7 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
       { id: "maxitInput", solver: "ipm" },
       { id: "maxitInputPDHG", solver: "pdhg" },
       { id: "pdhgIneqMode", solver: "pdhg", event: "change" },
+      { id: "pdhgShowBasis", solver: "pdhg", event: "change" },
     ];
 
     return bindControls(bindings, {
@@ -188,8 +189,10 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
 
       const intervalTime = parseInt(replaySpeedSlider.value, 10) || 500;
       const iteratesToAnimate = [...solverSnapshot.originalIteratePath];
+      const phasesToAnimate = [...solverSnapshot.originalIteratePhases];
       setState({
         iteratePath: [],
+        iteratePhases: [],
         highlightIteratePathIndex: null,
         animationIntervalId: null,
       });
@@ -207,6 +210,9 @@ export function initializeControlPanel(canvasManager: ViewportManager, uiManager
 
         mutate((draft) => {
           draft.iteratePath.push(iteratesToAnimate[currentIndex]);
+          if (phasesToAnimate.length > 0) {
+            draft.iteratePhases.push(phasesToAnimate[currentIndex]);
+          }
           draft.highlightIteratePathIndex = currentIndex;
         });
         currentIndex++;

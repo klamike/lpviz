@@ -32,6 +32,7 @@ export interface PDHGResult {
   iterations: number[][];
   logs: string[];
   eps?: number[];
+  phases?: number[];
 }
 
 export interface CentralPathResult {
@@ -63,11 +64,13 @@ export function applySimplexResult(result: SimplexResult, updateResult: (payload
 
 export function applyPDHGResult(result: PDHGResult, updateResult: (payload: ResultRenderPayload) => void) {
   const epsArray = result.eps;
+  const phasesArray = result.phases;
   const [cx, cy] = getObjectiveVector();
   updateIteratesAndRender({
     iterations: result.iterations,
     logs: result.logs,
     updateResult,
+    phases: phasesArray,
     zFrom: (xy, index) => {
       const eps = epsArray && epsArray[index] !== undefined ? epsArray[index]! : 0;
       const pObj = cx * xy[0] + cy * xy[1];
@@ -101,15 +104,16 @@ type IterateRenderParams = {
   zFrom?: (xy: number[], index: number) => number;
   payloadOptions?: Parameters<typeof buildIteratePayload>[1];
   updateTrace?: boolean;
+  phases?: number[];
 };
 
-function updateIteratesAndRender({ iterations, logs, updateResult, zFrom, payloadOptions, updateTrace = true }: IterateRenderParams) {
+function updateIteratesAndRender({ iterations, logs, updateResult, zFrom, payloadOptions, updateTrace = true, phases }: IterateRenderParams) {
   const iteratesWithZ = zFrom ? iterations.map((xy, index) => [xy[0], xy[1], zFrom(xy, index)]) : iterations;
 
   if (updateTrace) {
-    updateIteratePathsWithTrace(iteratesWithZ);
+    updateIteratePathsWithTrace(iteratesWithZ, phases);
   } else {
-    updateIteratePaths(iteratesWithZ);
+    updateIteratePaths(iteratesWithZ, phases);
   }
 
   updateResult(buildIteratePayload(logs, payloadOptions));

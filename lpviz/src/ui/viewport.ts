@@ -900,7 +900,7 @@ export class ViewportManager {
   }
 
   private getPointMaterial(options: PointMaterialOptions) {
-    const key = [options.color, options.size, options.sizeAttenuation, options.depthTest, options.depthWrite, options.transparent ?? false, options.opacity ?? 1, options.alphaTest ?? 0].join(":");
+    const key = [options.color, options.size, options.sizeAttenuation, options.depthTest, options.depthWrite, options.transparent ?? false, options.opacity ?? 1, options.alphaTest ?? 0, options.vertexColors ?? false].join(":");
     let material = this.pointsMaterialCache.get(key);
     const texture = this.getCircleTexture();
     if (!material) {
@@ -913,6 +913,7 @@ export class ViewportManager {
         transparent: options.transparent ?? false,
         opacity: options.opacity ?? 1,
         alphaTest: options.alphaTest ?? 0,
+        vertexColors: options.vertexColors ?? false,
         map: texture,
       });
       material.needsUpdate = true;
