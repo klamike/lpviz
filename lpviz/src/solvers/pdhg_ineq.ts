@@ -150,7 +150,7 @@ export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions
       restart: halpern ? restartIndices.includes(iterates.length - 1) : false,
       x: xk[0] ?? 0,
       y: xk[1] ?? 0,
-      objective: dot(c, xk),
+      objective: -dot(c, xk),
       infeasibility,
       epsilon: epsilonK,
     };
