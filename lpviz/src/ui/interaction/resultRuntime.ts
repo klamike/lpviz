@@ -1,4 +1,3 @@
-import { Virtualizer, elementScroll, observeElementOffset, observeElementRect } from "@tanstack/virtual-core";
 import { getState, setState } from "../../state/store";
 import type { SolverMode } from "../../state/store";
 import { formatVirtualResultRow } from "../../solvers/worker/solverService";
@@ -77,56 +76,69 @@ export function createResultRuntime({
       wrapper.append(topSpacer, rowsContainer, bottomSpacer);
       container.appendChild(wrapper);
 
+      let rafId: number | null = null;
+      let destroyed = false;
+
       const renderRows = () => {
-        const virtualItems = virtualizer.getVirtualItems();
-        const totalSize = virtualizer.getTotalSize();
+        if (destroyed) return;
+        const viewportHeight = Math.max(container.clientHeight, ESTIMATED_ROW_HEIGHT);
+        const scrollTop = container.scrollTop;
+        const totalSize = rows.length * ESTIMATED_ROW_HEIGHT;
+        const overscanRows = 25;
+        const visibleStart = Math.max(0, Math.floor(scrollTop / ESTIMATED_ROW_HEIGHT) - overscanRows);
+        const visibleEnd = Math.min(rows.length, Math.ceil((scrollTop + viewportHeight) / ESTIMATED_ROW_HEIGHT) + overscanRows);
         rowsContainer.innerHTML = "";
-        if (virtualItems.length === 0) {
+        if (visibleEnd <= visibleStart) {
           topSpacer.style.height = "0px";
           bottomSpacer.style.height = "0px";
           return;
         }
-        const paddingTop = virtualItems[0]?.start ?? 0;
-        const paddingBottom = Math.max(totalSize - (virtualItems[virtualItems.length - 1]?.end ?? totalSize), 0);
+        const paddingTop = visibleStart * ESTIMATED_ROW_HEIGHT;
+        const paddingBottom = Math.max(totalSize - visibleEnd * ESTIMATED_ROW_HEIGHT, 0);
         topSpacer.style.height = `${paddingTop}px`;
         bottomSpacer.style.height = `${paddingBottom}px`;
 
-        virtualItems.forEach((item) => {
+        for (let index = visibleStart; index < visibleEnd; index++) {
           const rowEl = document.createElement("div");
           rowEl.className = "iterate-item";
-          rowEl.dataset.index = String(item.index);
-          rowEl.textContent = formatVirtualResultRow(rows[item.index]!);
-          rowEl.addEventListener("mouseenter", () => this.setHighlight(item.index));
+          rowEl.dataset.index = String(index);
+          rowEl.textContent = formatVirtualResultRow(rows[index]!);
+          rowEl.addEventListener("mouseenter", () => this.setHighlight(index));
           rowEl.addEventListener("mouseleave", () => this.setHighlight(null));
           rowsContainer.appendChild(rowEl);
+        }
+        if (container.scrollTop !== scrollTop) {
+          container.scrollTop = scrollTop;
+        }
+      };
+
+      const scheduleRender = () => {
+        if (destroyed || rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          renderRows();
         });
       };
 
-      const virtualizer = new Virtualizer<HTMLElement, HTMLDivElement>({
-        count: rows.length,
-        getScrollElement: () => container,
-        estimateSize: () => ESTIMATED_ROW_HEIGHT,
-        overscan: 25,
-        scrollToFn: elementScroll,
-        observeElementRect,
-        observeElementOffset,
-        onChange: () => renderRows(),
-      });
-
-      const cleanupMount = virtualizer._didMount();
-      virtualizer._willUpdate();
+      const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => scheduleRender()) : null;
+      resizeObserver?.observe(container);
+      container.addEventListener("scroll", scheduleRender, { passive: true });
       renderRows();
 
       return {
         destroy: () => {
-          cleanupMount?.();
-          virtualizer.measureElement(null);
+          destroyed = true;
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          container.removeEventListener("scroll", scheduleRender);
+          resizeObserver?.disconnect();
           wrapper.remove();
           this.setHighlight(null);
         },
         refresh: () => {
-          virtualizer._willUpdate();
-          renderRows();
+          scheduleRender();
         },
       };
     },

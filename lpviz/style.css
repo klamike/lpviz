@@ -311,16 +311,19 @@ canvas {
   display: flex;
   flex-direction: column;
   width: 100%;
+  overflow-anchor: none;
 }
 
 .iterate-rows {
   display: flex;
   flex-direction: column;
+  overflow-anchor: none;
 }
 
 #result.virtualized .iterate-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-anchor: none;
 }
 
 #result.virtualized .iterate-header,
