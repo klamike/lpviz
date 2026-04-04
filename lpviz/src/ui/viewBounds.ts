@@ -32,9 +32,7 @@ export function collectZoomFitBounds({
   const appendPath = (path: number[][], objectiveOverride?: PointXY | null) => {
     path.forEach((entry) => {
       points.push({ x: entry[0], y: entry[1] });
-      if (entry[2] !== undefined) {
-        zValues.push(getDisplayedIterateZ(entry, objectiveOverride));
-      }
+      zValues.push(getDisplayedIterateZ(entry, objectiveOverride));
     });
   };
 
