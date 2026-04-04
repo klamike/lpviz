@@ -1,10 +1,8 @@
-import { Matrix, solve } from "ml-matrix";
-import { sprintf } from "sprintf-js";
-import { linesToAb, diag, vstack, vslice, hstack } from "./utils/blas";
-import type { Lines, VecM, VecN, VectorM, VectorN } from "./utils/blas";
+import { dot, infinityNorm, linesToDenseAb, matVec, solveDenseSystem, transposedMatVec } from "./utils/dense";
+import { formatMilliseconds } from "./utils/time";
+import type { Lines, VecM, VecN } from "./utils/blas";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
-const CORRECTOR_THRESHOLD = 0.9;
 const SIGMA_MIN = 1e-8;
 const SIGMA_MAX = 1 - 1e-8;
 const SIGMA_POWER = 3;
@@ -15,7 +13,9 @@ interface IPMOptions {
   eps_opt: number;
   maxit: number;
   alphaMax: number;
+  correctorThreshold: number;
   verbose: boolean;
+  colorByPhase: boolean;
 }
 
 interface IPMSolutionData {
@@ -23,159 +23,276 @@ interface IPMSolutionData {
   s: VecM[];
   y: VecM[];
   mu: number[];
-  log: string[];
+  header: string;
+  rows: Array<{
+    kind: "ipm";
+    iteration: number;
+    x: number;
+    y: number;
+    objective: number;
+    infeasibility: number;
+    mu: number;
+  }>;
+  phases?: number[];
+  footer?: string;
 }
 
-// Convert A x ≤ b, max c^T x → −A x ≥ −b, min −c^T x
+const COMPLEMENTARITY_RATIO_THRESHOLD = 100;
+
+function computeComplementarityPhase(s: Float64Array, y: Float64Array) {
+  let phase = 0;
+  for (let i = 0; i < s.length; i++) {
+    const slack = Math.max(s[i]!, 1e-16);
+    const dual = Math.max(y[i]!, 1e-16);
+    const label =
+      dual >= slack * COMPLEMENTARITY_RATIO_THRESHOLD
+        ? 1
+        : slack >= dual * COMPLEMENTARITY_RATIO_THRESHOLD
+          ? 2
+          : 0;
+    phase = (phase * 33 + label) >>> 0;
+  }
+  return phase;
+}
+
 export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
-  const { eps_p, eps_d, eps_opt, maxit, alphaMax, verbose } = opts;
+  const { eps_p, eps_d, eps_opt, maxit, alphaMax, correctorThreshold, verbose, colorByPhase } = opts;
 
   if (maxit > MAX_ITERATIONS_LIMIT) {
     throw new Error("maxit > 2^16 not allowed");
   }
 
-  const { A, b } = linesToAb(lines);
-  const c = Matrix.columnVector(objective);
+  const { A, b } = linesToDenseAb(lines);
+  const c = Float64Array.from(objective, (value) => -value);
+  const bneg = Float64Array.from(b, (value) => -value);
+  const Aneg = Float64Array.from(A.data, (value) => -value);
 
-  const Aneg = A.mul(-1);
-  const bneg = b.mul(-1);
-  const cneg = c.mul(-1);
-
-  return ipmCore(Aneg, bneg, cneg, {
-    eps_p,
-    eps_d,
-    eps_opt,
-    maxit,
-    alphaMax,
-    verbose,
-  });
+  return ipmCore(
+    {
+      rows: A.rows,
+      cols: A.cols,
+      data: Aneg,
+    },
+    bneg,
+    c,
+    {
+      eps_p,
+      eps_d,
+      eps_opt,
+      maxit,
+      alphaMax,
+      correctorThreshold,
+      verbose,
+      colorByPhase,
+    },
+  );
 }
 
-function ipmCore(A: Matrix, b: VectorM, c: VectorN, opts: IPMOptions) {
-  const { eps_p, eps_d, eps_opt, maxit, alphaMax, verbose } = opts;
-  const m = A.rows; // inequalities
-  const n = A.columns; // variables
+function ipmCore(
+  A: { rows: number; cols: number; data: Float64Array },
+  b: Float64Array,
+  c: Float64Array,
+  opts: IPMOptions,
+) {
+  const { eps_p, eps_d, eps_opt, maxit, alphaMax, correctorThreshold, verbose, colorByPhase } = opts;
+  const m = A.rows;
+  const n = A.cols;
+  const systemSize = n + 2 * m;
 
-  const solution: IPMSolutionData = { x: [], s: [], y: [], mu: [], log: [] };
-  const res = {
-    iterates: {
-      solution,
-    },
+  const solution: IPMSolutionData = {
+    x: [],
+    s: [],
+    y: [],
+    mu: [],
+    header: " Iter        x        y        Obj     Infeas          µ",
+    rows: [],
+    phases: colorByPhase ? [] : undefined,
   };
+  const res = { iterates: { solution } };
 
-  let x = Matrix.zeros(n, 1);
-  let s = Matrix.ones(m, 1);
-  let y = Matrix.ones(m, 1);
+  let x = new Float64Array(n);
+  let s = new Float64Array(m).fill(1);
+  let y = new Float64Array(m).fill(1);
 
-  let deltaAff = Matrix.zeros(n + m + m, 1);
-  let deltaCor = Matrix.zeros(n + m + m, 1);
+  const ax = new Float64Array(m);
+  const aty = new Float64Array(n);
+  const rP = new Float64Array(m);
+  const rD = new Float64Array(n);
+  const K = new Float64Array(systemSize * systemSize);
+  const rhsAff = new Float64Array(systemSize);
+  const rhsCor = new Float64Array(systemSize);
+  const deltaAff = new Float64Array(systemSize);
+  const deltaCor = new Float64Array(systemSize);
+  const luScratch = new Float64Array(systemSize * systemSize);
+  const dx = new Float64Array(n);
+  const ds = new Float64Array(m);
+  const dy = new Float64Array(m);
 
-  let niter = 0;
+  let iteration = 0;
   let converged = false;
-  const t0 = Date.now();
+  let failureMessage: string | null = null;
+  const startTime = performance.now();
 
-  const banner = sprintf("%5s %8s %8s %10s %10s %10s\n", "Iter", "x", "y", "Obj", "Infeas", " µ");
-  if (verbose) console.log(banner);
-  solution.log.push(banner);
+  if (verbose) console.log(solution.header);
 
-  while (++niter <= maxit) {
-    // r_p = b - (Ax - s)
-    const r_p = Matrix.sub(b, Matrix.sub(A.mmul(x), s));
-    // r_d = c - A^T y
-    const r_d = Matrix.sub(c, A.transpose().mmul(y));
-    // μ = s^T y / m
-    const mu = s.dot(y) / m;
-    // c^T x
-    const pObj = c.dot(x);
-    // |c^T x - b^T y| / (1 + |c^T x|)
-    const gap = Math.abs(pObj - b.dot(y)) / (1 + Math.abs(pObj));
+  while (++iteration <= maxit) {
+    matVec(A, x, ax);
+    transposedMatVec(A, y, aty);
 
-    logIter(solution, verbose, x, mu, pObj, r_p.max());
+    for (let i = 0; i < m; i++) {
+      rP[i] = b[i]! - ax[i]! + s[i]!;
+    }
+    for (let j = 0; j < n; j++) {
+      rD[j] = c[j]! - aty[j]!;
+    }
+
+    const mu = dot(s, y) / m;
+    const pObj = dot(c, x);
+    const gap = Math.abs(pObj - dot(b, y)) / (1 + Math.abs(pObj));
+    const pRes = infinityNorm(rP);
+
+    logIter(solution, verbose, x, mu, pObj, pRes);
     pushIter(solution, x, s, y, mu);
+    if (colorByPhase) {
+      solution.phases!.push(computeComplementarityPhase(s, y));
+    }
 
-    // ||r_p|| ≤ ε_p, ||r_d|| ≤ ε_d, gap ≤ ε_opt
-    if (r_p.max() <= eps_p && r_d.max() <= eps_d && gap <= eps_opt) {
+    if (pRes <= eps_p && infinityNorm(rD) <= eps_d && gap <= eps_opt) {
       converged = true;
       break;
     }
 
-    if (++niter > maxit) break;
+    buildKktSystem(K, A, s, y);
+    for (let i = 0; i < m; i++) rhsAff[i] = rP[i]!;
+    for (let j = 0; j < n; j++) rhsAff[m + j] = rD[j]!;
+    for (let i = 0; i < m; i++) rhsAff[m + n + i] = -s[i]! * y[i]!;
 
-    // K = [A  -I  0 ]
-    //     [0   0  A^T]
-    //     [0   Y  S ]
-    const Y = diag(y);
-    const S = diag(s);
-    const I = Matrix.eye(m);
-    const Z_mn = Matrix.zeros(m, n);
-    const Z_nm = Matrix.zeros(n, m);
-    const Z_mm = Matrix.zeros(m, m);
-    const Z_nn = Matrix.zeros(n, n);
+    try {
+      solveDenseSystem(K, systemSize, rhsAff, deltaAff, luScratch);
+    } catch (error) {
+      failureMessage = `IPM linear solve failed: ${error instanceof Error ? error.message : String(error)}`;
+      if (verbose) console.log(failureMessage);
+      break;
+    }
 
-    const K = vstack([hstack(A, I.mul(-1), Z_mm), hstack(Z_nn, Z_nm, A.transpose()), hstack(Z_mn, Y, S)]);
-
-    // [r_p, r_d, -s⊙y]
-    const rhsAff = vstack([r_p, r_d, Matrix.mul(Matrix.mul(s, -1), y)]);
-
-    deltaAff = solve(K, rhsAff);
-    const dxAff = vslice(deltaAff, 0, n);
-    const dsAff = vslice(deltaAff, n, n + m);
-    const dyAff = vslice(deltaAff, n + m, n + m + m);
+    const dxAff = deltaAff.subarray(0, n);
+    const dsAff = deltaAff.subarray(n, n + m);
+    const dyAff = deltaAff.subarray(n + m, systemSize);
 
     const alphaP = alphaStep(s, dsAff);
     const alphaD = alphaStep(y, dyAff);
-    const sds = Matrix.add(s, Matrix.mul(dsAff, alphaP));
-    const sdy = Matrix.add(y, Matrix.mul(dyAff, alphaD));
-    // μ_aff = (s + α_p ds)^T (y + α_d dy) / m
-    const muAff = sds.dot(sdy) / m;
+    let muAff = 0;
+    for (let i = 0; i < m; i++) {
+      muAff += (s[i]! + alphaP * dsAff[i]!) * (y[i]! + alphaD * dyAff[i]!);
+    }
+    muAff /= m;
 
-    let dx: VectorN, ds: VectorM, dy: VectorM;
-    if (!(alphaP >= CORRECTOR_THRESHOLD && alphaD >= CORRECTOR_THRESHOLD)) {
+    if (!(alphaP >= correctorThreshold && alphaD >= correctorThreshold)) {
       const sigma = Math.max(SIGMA_MIN, Math.min(SIGMA_MAX, (muAff / mu) ** SIGMA_POWER));
-      const rhsCor = vstack([Matrix.zeros(m, 1), Matrix.zeros(n, 1), Matrix.mul(Matrix.sub(Matrix.mul(dsAff, dyAff), sigma * mu), -1)]);
-      deltaCor = solve(K, rhsCor);
-      dx = Matrix.add(dxAff, vslice(deltaCor, 0, n));
-      ds = Matrix.add(dsAff, vslice(deltaCor, n, n + m));
-      dy = Matrix.add(dyAff, vslice(deltaCor, n + m, n + m + m));
+      rhsCor.fill(0);
+      for (let i = 0; i < m; i++) {
+        rhsCor[m + n + i] = -(dsAff[i]! * dyAff[i]! - sigma * mu);
+      }
+
+      try {
+        solveDenseSystem(K, systemSize, rhsCor, deltaCor, luScratch);
+      } catch (error) {
+        failureMessage = `IPM corrector solve failed: ${error instanceof Error ? error.message : String(error)}`;
+        if (verbose) console.log(failureMessage);
+        break;
+      }
+
+      for (let j = 0; j < n; j++) dx[j] = dxAff[j]! + deltaCor[j]!;
+      for (let i = 0; i < m; i++) {
+        ds[i] = dsAff[i]! + deltaCor[n + i]!;
+        dy[i] = dyAff[i]! + deltaCor[n + m + i]!;
+      }
     } else {
-      dx = dxAff;
-      ds = dsAff;
-      dy = dyAff;
+      dx.set(dxAff);
+      ds.set(dsAff);
+      dy.set(dyAff);
     }
 
     const stepP = alphaMax * alphaStep(s, ds);
     const stepD = alphaMax * alphaStep(y, dy);
-
-    // x ← x + α_p dx, s ← s + α_p ds, y ← y + α_d dy
-    x = Matrix.add(x, Matrix.mul(dx, stepP));
-    s = Matrix.add(s, Matrix.mul(ds, stepP));
-    y = Matrix.add(y, Matrix.mul(dy, stepD));
+    for (let j = 0; j < n; j++) x[j] += dx[j]! * stepP;
+    for (let i = 0; i < m; i++) {
+      s[i] += ds[i]! * stepP;
+      y[i] += dy[i]! * stepD;
+    }
   }
 
-  const tSolve = Math.round((Date.now() - t0) * 10) / 10;
-  logFinal(solution, verbose, converged, tSolve);
+  const solveTime = performance.now() - startTime;
+  logFinal(solution, verbose, converged, solveTime, failureMessage);
   return res;
 }
 
-function alphaStep(x: VectorN, dx: VectorN) {
-  return Math.min(1.0, Math.min(...x.to1DArray().map((xi: number, i: number) => (dx.get(i, 0) >= 0 ? 1.0 : -xi / dx.get(i, 0)))));
+function buildKktSystem(K: Float64Array, A: { rows: number; cols: number; data: Float64Array }, s: Float64Array, y: Float64Array) {
+  const m = A.rows;
+  const n = A.cols;
+  const size = n + 2 * m;
+  K.fill(0);
+
+  for (let i = 0; i < m; i++) {
+    const rowOffset = i * size;
+    const aOffset = i * n;
+    for (let j = 0; j < n; j++) {
+      K[rowOffset + j] = A.data[aOffset + j]!;
+    }
+    K[rowOffset + n + i] = -1;
+  }
+
+  for (let j = 0; j < n; j++) {
+    const rowOffset = (m + j) * size;
+    for (let i = 0; i < m; i++) {
+      K[rowOffset + n + m + i] = A.data[i * n + j]!;
+    }
+  }
+
+  for (let i = 0; i < m; i++) {
+    const rowOffset = (m + n + i) * size;
+    K[rowOffset + n + i] = y[i]!;
+    K[rowOffset + n + m + i] = s[i]!;
+  }
 }
 
-function pushIter(d: IPMSolutionData, x: VectorN, s: VectorM, y: VectorM, mu: number) {
-  d.x.push(x.to1DArray());
-  d.s.push(s.to1DArray());
-  d.y.push(y.to1DArray());
+function alphaStep(values: ArrayLike<number>, delta: ArrayLike<number>) {
+  let alpha = 1;
+  for (let i = 0; i < values.length; i++) {
+    const direction = delta[i]!;
+    if (direction < 0) {
+      alpha = Math.min(alpha, -values[i]! / direction);
+    }
+  }
+  return alpha;
+}
+
+function pushIter(d: IPMSolutionData, x: Float64Array, s: Float64Array, y: Float64Array, mu: number) {
+  d.x.push(Array.from(x));
+  d.s.push(Array.from(s));
+  d.y.push(Array.from(y));
   d.mu.push(mu);
 }
 
-function logIter(d: IPMSolutionData, verbose: boolean, x: VectorN, mu: number, pObj: number, pRes: number) {
-  const msg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e\n", d.x.length + 1, x.get(0, 0), x.get(1, 0), -pObj, pRes, mu);
-  if (verbose) console.log(msg);
-  d.log.push(msg);
+function logIter(d: IPMSolutionData, verbose: boolean, x: Float64Array, mu: number, pObj: number, pRes: number) {
+  const row = {
+    kind: "ipm" as const,
+    iteration: d.x.length + 1,
+    x: x[0] ?? 0,
+    y: x[1] ?? 0,
+    objective: -pObj,
+    infeasibility: pRes,
+    mu,
+  };
+  if (verbose) console.log(row);
+  d.rows.push(row);
 }
 
-function logFinal(d: IPMSolutionData, verbose: boolean, converged: boolean, tSolve: number) {
-  const msg = converged ? `Converged to primal-dual optimal solution in ${tSolve} ms\n` : `Did not converge after ${d.x.length} iterations in ${tSolve} ms\n`;
-  if (verbose) console.log(msg);
-  d.log.push(msg);
+function logFinal(d: IPMSolutionData, verbose: boolean, converged: boolean, solveTime: number, failureMessage: string | null) {
+  d.footer = failureMessage
+    ? `${failureMessage}\nStopped after ${d.x.length} iterations in ${formatMilliseconds(solveTime)}\n`
+    : converged
+      ? `Converged to optimal solution in ${formatMilliseconds(solveTime)} / ${d.x.length} iterations\n`
+      : `Did not converge after ${d.x.length} iterations in ${formatMilliseconds(solveTime)}\n`;
+  if (verbose) console.log(d.footer);
 }

@@ -12,21 +12,26 @@ export type SolverWorkerPayload =
       lines: Lines;
       objective: VecN;
       alphaMax: number;
+      correctorThreshold: number;
       maxit: number;
+      colorByPhase: boolean;
     }
   | {
       solver: "simplex";
       lines: Lines;
       objective: VecN;
+      dual: boolean;
     }
   | {
       solver: "pdhg";
       lines: Lines;
       objective: VecN;
       ineq: boolean;
+      halpern: boolean;
       maxit: number;
       eta: number;
       tau: number;
+      colorByBasis: boolean;
     }
   | {
       solver: "central";
@@ -100,23 +105,32 @@ async function runCentralPath(vertices: Vertices, lines: Lines, objective: VecN,
   });
 }
 
-async function runSimplex(lines: Lines, objective: VecN) {
+async function runSimplex(lines: Lines, objective: VecN, dual: boolean) {
   return wrapSolverCall("Simplex", () => {
-    const options = { tol: DEFAULT_TOLERANCE, verbose: false };
+    const options = { tol: DEFAULT_TOLERANCE, verbose: false, dual };
     return simplex(lines, objective, options);
   });
 }
 
-async function runIPM(lines: Lines, objective: VecN, alphamax: number, maxit: number) {
+async function runIPM(lines: Lines, objective: VecN, alphamax: number, correctorThreshold: number, maxit: number, colorByPhase: boolean) {
   return wrapSolverCall("IPM", () => {
-    const options = { ...DEFAULT_BASE_OPTIONS, eps_p: DEFAULT_TOLERANCE, eps_d: DEFAULT_TOLERANCE, eps_opt: DEFAULT_TOLERANCE, alphaMax: alphamax, maxit };
+    const options = {
+      ...DEFAULT_BASE_OPTIONS,
+      eps_p: DEFAULT_TOLERANCE,
+      eps_d: DEFAULT_TOLERANCE,
+      eps_opt: DEFAULT_TOLERANCE,
+      alphaMax: alphamax,
+      correctorThreshold,
+      maxit,
+      colorByPhase,
+    };
     return ipm(lines, objective, options);
   });
 }
 
-async function runPDHG(lines: Lines, objective: VecN, ineq: boolean, maxit: number, eta: number, tau: number) {
+async function runPDHG(lines: Lines, objective: VecN, ineq: boolean, halpern: boolean, maxit: number, eta: number, tau: number, colorByBasis: boolean) {
   return wrapSolverCall("PDHG", () => {
-    const options = { ...DEFAULT_BASE_OPTIONS, ineq, maxit, eta, tau };
+    const options = { ...DEFAULT_BASE_OPTIONS, ineq, halpern, maxit, eta, tau, colorByBasis };
     return pdhg(lines, objective, options);
   });
 }
@@ -126,13 +140,13 @@ const ctx = self as unknown as Worker;
 async function executeSolver(data: SolverWorkerRequest): Promise<SolverWorkerSuccessResponse> {
   const { id } = data;
   if (data.solver === "ipm") {
-    return { id, solver: "ipm", success: true, result: await runIPM(data.lines, data.objective, data.alphaMax, data.maxit) };
+    return { id, solver: "ipm", success: true, result: await runIPM(data.lines, data.objective, data.alphaMax, data.correctorThreshold, data.maxit, data.colorByPhase) };
   }
   if (data.solver === "simplex") {
-    return { id, solver: "simplex", success: true, result: await runSimplex(data.lines, data.objective) };
+    return { id, solver: "simplex", success: true, result: await runSimplex(data.lines, data.objective, data.dual) };
   }
   if (data.solver === "pdhg") {
-    return { id, solver: "pdhg", success: true, result: await runPDHG(data.lines, data.objective, data.ineq, data.maxit, data.eta, data.tau) };
+    return { id, solver: "pdhg", success: true, result: await runPDHG(data.lines, data.objective, data.ineq, data.halpern, data.maxit, data.eta, data.tau, data.colorByBasis) };
   }
   if (data.solver === "central") {
     return { id, solver: "central", success: true, result: await runCentralPath(data.vertices, data.lines, data.objective, data.niter) };
