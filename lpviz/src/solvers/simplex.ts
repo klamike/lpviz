@@ -1,87 +1,291 @@
-import { Matrix, solve } from "ml-matrix";
 import { sprintf } from "sprintf-js";
-import { linesToAb, hstack, vstack } from "./utils/blas";
+import { type DenseMatrix, dot, linesToDenseAb, solveDenseSystem, transposedMatVec } from "./utils/dense";
 import type { Lines, Vec2N, VecN, Vec2Ns } from "./utils/blas";
 
 const MAX_ITERATIONS = 2 ** 16;
 
+type SimplexStatus = "optimal" | "unbounded" | "unavailable";
+
 interface SimplexOptions {
   tol: number;
   verbose: boolean;
+  dual: boolean;
 }
 
-export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
-  const { tol, verbose } = opts;
+function createDenseMatrix(rows: number, cols: number, fill = 0): DenseMatrix {
+  const data = new Float64Array(rows * cols);
+  if (fill !== 0) data.fill(fill);
+  return { rows, cols, data };
+}
 
-  const { A: A_orig, b } = linesToAb(lines);
-  const m = A_orig.rows;
-  const n = A_orig.columns;
-  const c_objective = Matrix.columnVector(objective);
+function identityMatrix(size: number): DenseMatrix {
+  const matrix = createDenseMatrix(size, size);
+  for (let i = 0; i < size; i++) {
+    matrix.data[i * size + i] = 1;
+  }
+  return matrix;
+}
 
-  // Γ = diag(sign(b))
-  const gamma = b.to1DArray().map((bi: number) => (bi < 0 ? -1 : 1));
-  const Gamma = Matrix.diag(gamma);
-  const b1 = Gamma.mmul(b); // Γ b
+function transposeMatrix(matrix: DenseMatrix): DenseMatrix {
+  const out = createDenseMatrix(matrix.cols, matrix.rows);
+  for (let row = 0; row < matrix.rows; row++) {
+    const rowOffset = row * matrix.cols;
+    for (let col = 0; col < matrix.cols; col++) {
+      out.data[col * matrix.rows + row] = matrix.data[rowOffset + col]!;
+    }
+  }
+  return out;
+}
 
-  const Apos = Gamma.mmul(A_orig);
-  const Aneg = Matrix.mul(Apos, -1);
+function scaleMatrix(matrix: DenseMatrix, scale: number): DenseMatrix {
+  const out = createDenseMatrix(matrix.rows, matrix.cols);
+  for (let i = 0; i < matrix.data.length; i++) {
+    out.data[i] = matrix.data[i]! * scale;
+  }
+  return out;
+}
 
-  const Im = Matrix.eye(m);
-  const A1 = hstack(Apos, Aneg, Gamma.mmul(Im), Im);
-  const c1_zeros = Matrix.zeros(2 * n + m, 1);
-  const c1_ones = Matrix.ones(m, 1).mul(-1);
-  const c1 = vstack([c1_zeros, c1_ones]); // –Σ t
+function scaleRows(matrix: DenseMatrix, rowScales: ArrayLike<number>): DenseMatrix {
+  const out = createDenseMatrix(matrix.rows, matrix.cols);
+  for (let row = 0; row < matrix.rows; row++) {
+    const scale = rowScales[row]!;
+    const rowOffset = row * matrix.cols;
+    for (let col = 0; col < matrix.cols; col++) {
+      out.data[rowOffset + col] = matrix.data[rowOffset + col]! * scale;
+    }
+  }
+  return out;
+}
 
-  const basis1_init = Array(2 * n + 2 * m).fill(false); // start: t basic
-  for (let i = 0; i < m; ++i) basis1_init[2 * n + m + i] = true;
+function hstackMatrices(...matrices: DenseMatrix[]): DenseMatrix {
+  if (matrices.length === 0) return createDenseMatrix(0, 0);
+  const rows = matrices[0]!.rows;
+  const cols = matrices.reduce((sum, matrix) => sum + matrix.cols, 0);
+  const out = createDenseMatrix(rows, cols);
+  let colOffset = 0;
+  for (const matrix of matrices) {
+    if (matrix.rows !== rows) {
+      throw new Error("hstackMatrices: all matrices must have the same number of rows");
+    }
+    for (let row = 0; row < rows; row++) {
+      const srcOffset = row * matrix.cols;
+      const dstOffset = row * cols + colOffset;
+      for (let col = 0; col < matrix.cols; col++) {
+        out.data[dstOffset + col] = matrix.data[srcOffset + col]!;
+      }
+    }
+    colOffset += matrix.cols;
+  }
+  return out;
+}
 
-  if (verbose) console.log("Phase One");
-  const { finalBasis: rawBasis1, logs: log1 } = simplexCore(c1, A1, b1, basis1_init, {
-    tol,
-    verbose,
-    phase1: true,
-    nOrig: n,
-    m,
-  });
+function concatenateVectors(...vectors: ArrayLike<number>[]): Float64Array {
+  const totalLength = vectors.reduce((sum, vector) => sum + vector.length, 0);
+  const out = new Float64Array(totalLength);
+  let offset = 0;
+  for (const vector of vectors) {
+    for (let i = 0; i < vector.length; i++) {
+      out[offset + i] = vector[i]!;
+    }
+    offset += vector.length;
+  }
+  return out;
+}
 
-  // Phase 2: min c^T x s.t. Ax = b, x ≥ 0
-  const c_neg = Matrix.mul(c_objective, -1);
-  const c2_zeros = Matrix.zeros(m, 1);
-  const c2 = vstack([c_objective, c_neg, c2_zeros]); //  c x₁ – c x₂
-  const A_orig_neg = Matrix.mul(A_orig, -1);
-  const A2 = hstack(A_orig, A_orig_neg, Im);
+function extractColumn(matrix: DenseMatrix, column: number, out = new Float64Array(matrix.rows)) {
+  for (let row = 0; row < matrix.rows; row++) {
+    out[row] = matrix.data[row * matrix.cols + column]!;
+  }
+  return out;
+}
 
-  if (verbose) console.log("Phase Two");
-  const {
-    iterations: iters2,
-    finalBasis: _basis2,
-    logs: log2,
-  } = simplexCore(c2, A2, b, rawBasis1, {
-    tol,
-    verbose,
-    phase1: false,
-    nOrig: n,
-    m,
-  });
-  // x = x₁ - x₂
-  const xIters = iters2.map((tableau_x: Vec2N) => {
-    const tableau_matrix = Matrix.columnVector(tableau_x);
-    const x1 = tableau_matrix.subMatrix(0, n - 1, 0, 0);
-    const x2 = tableau_matrix.subMatrix(n, 2 * n - 1, 0, 0);
-    return Matrix.sub(x1, x2).to1DArray();
-  });
+function countBasicVariables(basis: boolean[]) {
+  let count = 0;
+  for (const isBasic of basis) {
+    if (isBasic) count++;
+  }
+  return count;
+}
+
+function basisString(basis: boolean[]) {
+  return basis.map((isBasic) => (isBasic ? 1 : 0)).join("");
+}
+
+function buildBasisState(cVec: Float64Array, A: DenseMatrix, bVec: Float64Array, basis: boolean[]) {
+  const mRows = A.rows;
+  const nCols = A.cols;
+  const basisIndices: number[] = [];
+
+  for (let i = 0; i < nCols; i++) {
+    if (basis[i]) basisIndices.push(i);
+  }
+  if (basisIndices.length !== mRows) {
+    throw new Error(`Basis size ${basisIndices.length} does not match number of constraints ${mRows}. Basis: ${basisString(basis)}`);
+  }
+
+  const B = createDenseMatrix(mRows, mRows);
+  for (let basisCol = 0; basisCol < mRows; basisCol++) {
+    const sourceCol = basisIndices[basisCol]!;
+    for (let row = 0; row < mRows; row++) {
+      B.data[row * mRows + basisCol] = A.data[row * nCols + sourceCol]!;
+    }
+  }
+
+  const xB = new Float64Array(mRows);
+  solveDenseSystem(B.data, mRows, bVec, xB);
+
+  const xTableau = new Float64Array(nCols);
+  for (let basisIndex = 0; basisIndex < mRows; basisIndex++) {
+    xTableau[basisIndices[basisIndex]!] = xB[basisIndex]!;
+  }
+
+  const cB = new Float64Array(mRows);
+  for (let i = 0; i < mRows; i++) {
+    cB[i] = cVec[basisIndices[i]!]!;
+  }
+
+  const BT = transposeMatrix(B);
+  const y = new Float64Array(mRows);
+  solveDenseSystem(BT.data, mRows, cB, y);
+
+  const aty = new Float64Array(nCols);
+  transposedMatVec(A, y, aty);
+  const reducedCosts = new Float64Array(nCols);
+  for (let j = 0; j < nCols; j++) {
+    reducedCosts[j] = cVec[j]! - aty[j]!;
+  }
 
   return {
-    iterations: xIters,
-    logs: [log1, log2],
+    B,
+    xB,
+    xTableau,
+    basisIndices,
+    reducedCosts,
+    objective: dot(cVec, xTableau),
   };
 }
 
-// max cᵀx  s.t.  A x = b , x ≥ 0  (basis given)
+function formatIterationLog(iteration: number, xTableau: Float64Array, objective: number, basis: boolean[], nOrig: number) {
+  const x0 = nOrig >= 1 ? (xTableau[0] ?? 0) - (xTableau[nOrig] ?? 0) : 0;
+  const y0 = nOrig >= 2 ? (xTableau[1] ?? 0) - (xTableau[nOrig + 1] ?? 0) : 0;
+  return sprintf("%5d %+8.2f %+8.2f %+10.1e %s\n", iteration, x0, y0, objective, basisString(basis));
+}
+
+function recoverPrimalPointFromDualBasis(lines: Lines, basisIndices: number[], tol: number): [number, number] {
+  const support = basisIndices.filter((index) => index < lines.length).slice(0, 2);
+  if (support.length < 2) return [0, 0];
+
+  const [i, j] = support;
+  const first = lines[i]!;
+  const second = lines[j]!;
+  const determinant = first[0]! * second[1]! - first[1]! * second[0]!;
+  if (Math.abs(determinant) <= tol) return [0, 0];
+
+  const x = (first[2]! * second[1]! - first[1]! * second[2]!) / determinant;
+  const y = (first[0]! * second[2]! - first[2]! * second[0]!) / determinant;
+  return [x, y];
+}
+
+function simplexCoreStandard(
+  cVec: Float64Array,
+  A: DenseMatrix,
+  bVec: Float64Array,
+  basisInit: boolean[],
+  cfg: {
+    tol: number;
+    verbose: boolean;
+    pointFromBasis: (basisIndices: number[]) => [number, number];
+    completionLabel: string;
+  },
+) {
+  const { tol, verbose, pointFromBasis, completionLabel } = cfg;
+  const mRows = A.rows;
+  const nCols = A.cols;
+  let basis = basisInit.slice();
+  const iterations: Vec2Ns = [];
+  const basisHistory: number[][] = [];
+  const logs: string[] = [];
+  const header = sprintf("%5s %8s %8s %10s %s\n", "Iter", "x", "y", "Obj", "basis".padEnd(nCols, " "));
+
+  if (verbose) console.log(header);
+  logs.push(header);
+
+  let iteration = 0;
+  let status: SimplexStatus = "optimal";
+  let objective = 0;
+  const enterColumn = new Float64Array(mRows);
+  const direction = new Float64Array(mRows);
+
+  while (true) {
+    if (++iteration > MAX_ITERATIONS) throw new Error(`Simplex stalled after ${MAX_ITERATIONS} iterations`);
+
+    const state = buildBasisState(cVec, A, bVec, basis);
+    iterations.push(Array.from(state.xTableau));
+    basisHistory.push(state.basisIndices.slice());
+    objective = state.objective;
+
+    const [x, y] = pointFromBasis(state.basisIndices);
+    const line = sprintf("%5d %+8.2f %+8.2f %+10.1e %s\n", iteration, x, y, objective, basisString(basis));
+    if (verbose) console.log(line);
+    logs.push(line);
+
+    let enterIndex = -1;
+    for (let j = 0; j < nCols; j++) {
+      if (!basis[j] && state.reducedCosts[j]! > tol) {
+        enterIndex = j;
+        break;
+      }
+    }
+    if (enterIndex === -1) break;
+
+    extractColumn(A, enterIndex, enterColumn);
+    solveDenseSystem(state.B.data, state.B.rows, enterColumn, direction);
+
+    let leaveBasisIndex = -1;
+    let minRatio = Infinity;
+    let smallestLeavingIndex = Infinity;
+    for (let i = 0; i < mRows; i++) {
+      if (direction[i]! <= tol) continue;
+      const ratio = state.xB[i]! / direction[i]!;
+      const originalIndex = state.basisIndices[i]!;
+      if (ratio < minRatio - tol || (Math.abs(ratio - minRatio) < tol && originalIndex < smallestLeavingIndex)) {
+        minRatio = ratio;
+        leaveBasisIndex = i;
+        smallestLeavingIndex = originalIndex;
+      }
+    }
+
+    if (leaveBasisIndex === -1) {
+      const message = "LP is unbounded. No leaving variable found.";
+      if (verbose) console.log(message);
+      logs.push(message);
+      status = "unbounded";
+      break;
+    }
+
+    basis[enterIndex] = true;
+    basis[state.basisIndices[leaveBasisIndex]!] = false;
+  }
+
+  const finalBasis = basis.slice();
+  const tail = `${completionLabel} finished – basis ${basisString(finalBasis)}\n`;
+  if (verbose) console.log(tail);
+  logs.push(tail);
+
+  return {
+    iterations,
+    basisHistory,
+    logs,
+    finalBasis,
+    objective,
+    status,
+  };
+}
+
 function simplexCore(
-  cVec: Matrix,
-  A: Matrix,
-  bVec: Matrix,
+  cVec: Float64Array,
+  A: DenseMatrix,
+  bVec: Float64Array,
   basisInit: boolean[],
   cfg: {
     tol: number;
@@ -93,187 +297,118 @@ function simplexCore(
 ) {
   const { tol, verbose, phase1, nOrig, m } = cfg;
   const mRows = A.rows;
-  const nCols = A.columns;
+  const nCols = A.cols;
 
-  if (mRows !== m || bVec.rows !== m) {
-    throw new Error(`Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.rows=${bVec.rows} vs m=${m}`);
+  if (mRows !== m || bVec.length !== m) {
+    throw new Error(`Dimension mismatch: A.rows=${mRows} vs m=${m}, bVec.length=${bVec.length} vs m=${m}`);
   }
 
   let basis = basisInit.slice();
   const iterations: Vec2Ns = [];
-  const logs = [];
+  const logs: string[] = [];
+  const header = sprintf("%5s %8s %8s %10s %s\n", "Iter", "x", "y", "Obj", "basis".padEnd(nCols, " "));
+  if (verbose) console.log(header);
+  logs.push(header);
 
-  const basisHeaderName = "basis";
-  const padding = " ".repeat(Math.max(0, nCols - basisHeaderName.length));
-  const paddedBasisTitle = basisHeaderName + padding;
-
-  const hdr = sprintf("%5s %8s %8s %10s %s\n", "Iter", "x", "y", "Obj", paddedBasisTitle);
-  if (verbose) console.log(hdr);
-  logs.push(hdr);
-
-  let iter = 0;
-
+  let iteration = 0;
+  let xTableau = new Float64Array(nCols);
+  let objective = 0;
+  let status: SimplexStatus = "optimal";
   let basisIndices: number[] = [];
-  let x_tableau = Matrix.zeros(nCols, 1);
-  let objVal = 0;
+  const enterColumn = new Float64Array(mRows);
+  const direction = new Float64Array(mRows);
 
   while (true) {
-    if (++iter > MAX_ITERATIONS) throw new Error(`Simplex stalled after ${MAX_ITERATIONS} iterations`);
+    if (++iteration > MAX_ITERATIONS) throw new Error(`Simplex stalled after ${MAX_ITERATIONS} iterations`);
 
-    // B = A[:, basis_indices]
-    basisIndices = [];
-    for (let i = 0; i < nCols; ++i) if (basis[i]) basisIndices.push(i);
+    const state = buildBasisState(cVec, A, bVec, basis);
+    basisIndices = state.basisIndices;
+    xTableau = state.xTableau;
+    objective = state.objective;
+    iterations.push(Array.from(xTableau));
 
-    if (basisIndices.length !== mRows) {
-      throw new Error(`Basis size ${basisIndices.length} does not match number of constraints ${mRows}. Basis: ${basis.map((bVal) => (bVal ? 1 : 0)).join("")}`);
-    }
-
-    const B = Matrix.zeros(mRows, mRows);
-    for (let j = 0; j < mRows; ++j) {
-      const original_col_idx = basisIndices[j];
-      for (let i = 0; i < mRows; ++i) {
-        B.set(i, j, A.get(i, original_col_idx));
-      }
-    }
-    // x_B = B^{-1} b
-    let xB;
-    try {
-      xB = solve(B, bVec);
-    } catch (e) {
-      console.error("Error solving BxB = b. B might be singular.", e);
-      throw e;
-    }
-
-    x_tableau = Matrix.zeros(nCols, 1);
-    const xBArray = xB.to1DArray();
-    basisIndices.forEach((col_idx, k) => {
-      x_tableau.set(col_idx, 0, xBArray[k]);
-    });
-    iterations.push(x_tableau.to1DArray());
-
-    // B^T y = c_B
-    const cB = Matrix.columnVector(basisIndices.map((j) => cVec.get(j, 0)));
-    const y = solve(B.transpose(), cB);
-
-    // z = c - A^T y
-    const ATy = A.transpose().mmul(y);
-    const z = Matrix.sub(cVec, ATy);
-
-    objVal = cVec.dot(x_tableau);
-    let x0_log = 0;
-    let y0_log = 0;
-    if (nOrig >= 1) {
-      const x1_part = x_tableau.subMatrix(0, nOrig - 1, 0, 0);
-      const x2_part = x_tableau.subMatrix(nOrig, 2 * nOrig - 1, 0, 0);
-      const x_primal = Matrix.sub(x1_part, x2_part);
-      x0_log = x_primal.get(0, 0);
-      if (nOrig >= 2) {
-        y0_log = x_primal.get(1, 0);
-      }
-    }
-
-    const line = sprintf("%5d %+8.2f %+8.2f %+10.1e %s\n", iter, x0_log, y0_log, objVal, basis.map((bVal) => (bVal ? 1 : 0)).join(""));
+    const line = formatIterationLog(iteration, xTableau, objective, basis, nOrig);
     if (verbose) console.log(line);
     logs.push(line);
 
-    // find entering variable
-    let enter_idx = -1;
-    for (let j = 0; j < nCols; ++j) {
-      if (!basis[j] && z.get(j, 0) > tol) {
-        enter_idx = j;
+    let enterIndex = -1;
+    for (let j = 0; j < nCols; j++) {
+      if (!basis[j] && state.reducedCosts[j]! > tol) {
+        enterIndex = j;
         break;
       }
     }
-    if (enter_idx === -1) break;
+    if (enterIndex === -1) break;
 
-    // d = B^{-1} a_enter
-    const A_enter_col = Matrix.columnVector(Array.from({ length: mRows }, (_, i) => A.get(i, enter_idx)));
-    const d = solve(B, A_enter_col);
+    extractColumn(A, enterIndex, enterColumn);
+    solveDenseSystem(state.B.data, state.B.rows, enterColumn, direction);
 
-    // find leaving variable
-    let leave_idx_in_basis_indices = -1;
+    let leaveIndexInBasis = -1;
     let minRatio = Infinity;
-    let smallest_leaving_var_original_idx = Infinity;
-
-    for (let i = 0; i < mRows; ++i) {
-      if (d.get(i, 0) > tol) {
-        const ratio = xB.get(i, 0) / d.get(i, 0);
-        const current_var_original_idx = basisIndices[i];
-
-        if (ratio < minRatio - tol) {
-          minRatio = ratio;
-          leave_idx_in_basis_indices = i;
-          smallest_leaving_var_original_idx = current_var_original_idx;
-        } else if (Math.abs(ratio - minRatio) < tol) {
-          if (current_var_original_idx < smallest_leaving_var_original_idx) {
-            minRatio = ratio;
-            leave_idx_in_basis_indices = i;
-            smallest_leaving_var_original_idx = current_var_original_idx;
-          }
-        }
+    let smallestLeavingOriginalIndex = Infinity;
+    for (let i = 0; i < mRows; i++) {
+      if (direction[i]! <= tol) continue;
+      const ratio = state.xB[i]! / direction[i]!;
+      const originalIndex = basisIndices[i]!;
+      if (ratio < minRatio - tol || (Math.abs(ratio - minRatio) < tol && originalIndex < smallestLeavingOriginalIndex)) {
+        minRatio = ratio;
+        leaveIndexInBasis = i;
+        smallestLeavingOriginalIndex = originalIndex;
       }
     }
 
-    if (leave_idx_in_basis_indices === -1) {
-      const msg = "LP is unbounded. No leaving variable found.";
-      if (verbose) console.log(msg);
-      logs.push(msg);
-      throw new Error(msg);
+    if (leaveIndexInBasis === -1) {
+      const message = "LP is unbounded. No leaving variable found.";
+      if (verbose) console.log(message);
+      logs.push(message);
+      status = "unbounded";
+      break;
     }
 
-    const leave_original_idx = basisIndices[leave_idx_in_basis_indices];
-
-    basis[enter_idx] = true;
-    basis[leave_original_idx] = false;
+    basis[enterIndex] = true;
+    basis[basisIndices[leaveIndexInBasis]!] = false;
   }
 
   let finalBasis = basis.slice();
   if (phase1) {
-    const artificial_vars_start_index = 2 * nOrig + m;
-
+    const artificialVarsStartIndex = 2 * nOrig + m;
     let problemInfeasible = false;
-    for (let i = 0; i < m; ++i) {
-      const art_var_idx = artificial_vars_start_index + i;
-      if (finalBasis[art_var_idx]) {
-        const xB_idx = basisIndices.indexOf(art_var_idx);
-        const x_val = x_tableau.get(art_var_idx, 0);
-        if (xB_idx !== -1 && x_val > tol) {
-          problemInfeasible = true;
-          break;
-        } else if (xB_idx === -1 && x_val > tol) {
-          // Should not happen if basis is consistent
-          problemInfeasible = true;
-          break;
-        }
+
+    for (let i = 0; i < m; i++) {
+      const artificialVariableIndex = artificialVarsStartIndex + i;
+      if (!finalBasis[artificialVariableIndex]) continue;
+      if (xTableau[artificialVariableIndex]! > tol) {
+        problemInfeasible = true;
+        break;
       }
     }
 
     if (problemInfeasible) {
-      const msg = "Problem infeasible (Phase-1 optimum > 0, an artificial variable is basic with positive value)";
-      if (verbose) console.log(msg);
-      logs.push(msg);
-      if (Math.abs(objVal) > tol) throw new Error(msg);
+      const message = "Problem infeasible (Phase-1 optimum > 0, an artificial variable is basic with positive value)";
+      if (verbose) console.log(message);
+      logs.push(message);
+      if (Math.abs(objective) > tol) throw new Error(message);
     }
 
     finalBasis = finalBasis.slice(0, 2 * nOrig + m);
-
-    let currentBasicCount = finalBasis.filter((bVal) => bVal).length;
+    let currentBasicCount = countBasicVariables(finalBasis);
     if (currentBasicCount < m) {
-      for (let j = 2 * nOrig; j < 2 * nOrig + m && currentBasicCount < m; ++j) {
+      for (let j = 2 * nOrig; j < 2 * nOrig + m && currentBasicCount < m; j++) {
         if (!finalBasis[j]) {
           finalBasis[j] = true;
           currentBasicCount++;
         }
       }
     }
-    if (finalBasis.filter((bVal) => bVal).length !== m) {
-      const basisSizeError = `Phase 1 resulted in a basis for Phase 2 of size ${finalBasis.filter((bVal) => bVal).length}, expected ${m}.`;
-      if (verbose) console.warn(basisSizeError);
-      logs.push(basisSizeError);
+
+    if (countBasicVariables(finalBasis) !== m) {
+      const message = `Phase 1 resulted in a basis for Phase 2 of size ${countBasicVariables(finalBasis)}, expected ${m}.`;
+      if (verbose) console.warn(message);
+      logs.push(message);
     }
   }
 
-  const tail = sprintf("Phase %d finished – basis %s\n", phase1 ? 1 : 2, finalBasis.map((bVal) => (bVal ? 1 : 0)).join(""));
+  const tail = `Phase ${phase1 ? 1 : 2} finished – basis ${basisString(finalBasis)}\n`;
   if (verbose) console.log(tail);
   logs.push(tail);
 
@@ -281,5 +416,175 @@ function simplexCore(
     iterations,
     finalBasis,
     logs,
+    status,
+  };
+}
+
+function pivotOutArtificialVariables(
+  phase1Matrix: DenseMatrix,
+  bVec: Float64Array,
+  basisInit: boolean[],
+  originalColumnCount: number,
+  tol: number,
+) {
+  const basis = basisInit.slice();
+  const zeroCosts = new Float64Array(phase1Matrix.cols);
+  const column = new Float64Array(phase1Matrix.rows);
+  const direction = new Float64Array(phase1Matrix.rows);
+
+  while (true) {
+    const basisIndices = basis.flatMap((isBasic, index) => (isBasic ? [index] : []));
+    const artificialIndex = basisIndices.find((index) => index >= originalColumnCount);
+    if (artificialIndex === undefined) break;
+
+    const rowIndex = basisIndices.indexOf(artificialIndex);
+    const state = buildBasisState(zeroCosts, phase1Matrix, bVec, basis);
+    let replacement = -1;
+
+    for (let j = 0; j < originalColumnCount; j++) {
+      if (basis[j]) continue;
+      extractColumn(phase1Matrix, j, column);
+      solveDenseSystem(state.B.data, state.B.rows, column, direction);
+      if (Math.abs(direction[rowIndex]!) > tol) {
+        replacement = j;
+        break;
+      }
+    }
+
+    if (replacement === -1) {
+      throw new Error("Could not pivot artificial variables out of the dual Phase 1 basis.");
+    }
+
+    basis[artificialIndex] = false;
+    basis[replacement] = true;
+  }
+
+  const phase2Basis = basis.slice(0, originalColumnCount);
+  if (countBasicVariables(phase2Basis) !== bVec.length) {
+    throw new Error("Dual Phase 1 did not produce a valid Phase 2 basis.");
+  }
+  return phase2Basis;
+}
+
+function solveDualMode(
+  lines: Lines,
+  primalA: DenseMatrix,
+  primalB: Float64Array,
+  objective: Float64Array,
+  opts: Pick<SimplexOptions, "tol" | "verbose">,
+) {
+  const { tol, verbose } = opts;
+  const dualA = transposeMatrix(primalA);
+  const bDual = Float64Array.from(objective);
+  const cDual = Float64Array.from(primalB, (value) => -value);
+  const gamma = Float64Array.from(bDual, (value) => (value < 0 ? -1 : 1));
+  const bPhase1 = Float64Array.from(bDual, (value, index) => value * gamma[index]!);
+  const aPhase2 = scaleRows(dualA, gamma);
+  const artificial = identityMatrix(aPhase2.rows);
+  const aPhase1 = hstackMatrices(aPhase2, artificial);
+  const cPhase1 = concatenateVectors(new Float64Array(aPhase2.cols), Float64Array.from({ length: aPhase2.rows }, () => -1));
+  const phase1Basis = Array(aPhase2.cols + aPhase2.rows).fill(false);
+  for (let i = 0; i < aPhase2.rows; i++) phase1Basis[aPhase2.cols + i] = true;
+
+  const dualPointFromBasis = (basisIndices: number[]) => recoverPrimalPointFromDualBasis(lines, basisIndices, tol);
+
+  if (verbose) console.log("Phase 1");
+  const phase1 = simplexCoreStandard(cPhase1, aPhase1, bPhase1, phase1Basis, {
+    tol,
+    verbose,
+    pointFromBasis: dualPointFromBasis,
+    completionLabel: "Phase 1",
+  });
+
+  if (Math.abs(phase1.objective) > tol) {
+    const unavailableMessage = "Dual simplex unavailable";
+    const phase2Logs = ["Phase 2 did not start.\n", unavailableMessage];
+    if (verbose) console.log(unavailableMessage);
+    return {
+      iterations: [],
+      logs: [phase1.logs, phase2Logs],
+      status: "unavailable" as const,
+    };
+  }
+
+  const phase2Basis = pivotOutArtificialVariables(aPhase1, bPhase1, phase1.finalBasis, aPhase2.cols, tol);
+
+  if (verbose) console.log("Phase 2");
+  const phase2 = simplexCoreStandard(cDual, aPhase2, bPhase1, phase2Basis, {
+    tol,
+    verbose,
+    pointFromBasis: dualPointFromBasis,
+    completionLabel: "Phase 2",
+  });
+
+  return {
+    iterations: phase2.basisHistory.map((basisIndices) => dualPointFromBasis(basisIndices)),
+    logs: [phase1.logs, phase2.logs],
+    status: phase2.status,
+  };
+}
+
+export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
+  const { tol, verbose, dual } = opts;
+  const { A: aOriginal, b } = linesToDenseAb(lines);
+  const m = aOriginal.rows;
+  const n = aOriginal.cols;
+  const cObjective = Float64Array.from(objective);
+
+  if (dual) {
+    return {
+      ...solveDualMode(lines, aOriginal, b, cObjective, { tol, verbose }),
+      mode: "dual" as const,
+    };
+  }
+
+  const gamma = Float64Array.from(b, (value) => (value < 0 ? -1 : 1));
+  const bPhase1 = Float64Array.from(b, (value, index) => value * gamma[index]!);
+  const aPositive = scaleRows(aOriginal, gamma);
+  const aNegative = scaleMatrix(aPositive, -1);
+  const gammaIdentity = createDenseMatrix(m, m);
+  for (let i = 0; i < m; i++) {
+    gammaIdentity.data[i * m + i] = gamma[i]!;
+  }
+  const identity = identityMatrix(m);
+  const aPhase1 = hstackMatrices(aPositive, aNegative, gammaIdentity, identity);
+  const cPhase1 = concatenateVectors(new Float64Array(2 * n + m), Float64Array.from({ length: m }, () => -1));
+  const phase1Basis = Array(2 * n + 2 * m).fill(false);
+  for (let i = 0; i < m; i++) phase1Basis[2 * n + m + i] = true;
+
+  const cPhase2 = concatenateVectors(cObjective, Float64Array.from(cObjective, (value) => -value), new Float64Array(m));
+  const aPhase2 = hstackMatrices(aOriginal, scaleMatrix(aOriginal, -1), identity);
+
+  if (verbose) console.log("Phase One");
+  const { finalBasis: rawBasis1, logs: log1 } = simplexCore(cPhase1, aPhase1, bPhase1, phase1Basis, {
+    tol,
+    verbose,
+    phase1: true,
+    nOrig: n,
+    m,
+  });
+
+  if (verbose) console.log("Primal Simplex");
+  const { iterations, logs, status } = simplexCore(cPhase2, aPhase2, b, rawBasis1, {
+    tol,
+    verbose,
+    phase1: false,
+    nOrig: n,
+    m,
+  });
+
+  const xIterations = iterations.map((tableauX: Vec2N) => {
+    const point = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      point[i] = (tableauX[i] ?? 0) - (tableauX[n + i] ?? 0);
+    }
+    return Array.from(point);
+  });
+
+  return {
+    iterations: xIterations,
+    logs: [log1, logs],
+    mode: "primal" as const,
+    status,
   };
 }

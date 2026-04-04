@@ -33,17 +33,7 @@
           <div id="uiContainer">
             <div id="terminal-container2">
               <div id="topResult">
-                <div id="nullStateMessage">
-  ___                                   
- /\_ \                   __             
- \//\ \   ______  __  __/\_\  _____     
-   \ \ \ /\  __ \/\ \/\ \/\ \/\__  \    
-    \_\ \\ \ \_\ \ \ \_/ \ \ \/_/  /_   
-    /\____\ \  __/\ \___/ \ \_\/\____\  
-    \/____/\ \ \/  \/__/   \/_/\/____/  
-            \ \_\                       
-             \/_/                       
-                </div>
+                <div id="nullStateMessage" aria-label="lpviz logo"></div>
                 <div id="maximize">maximize</div>
                 <div id="objectiveDisplay"></div>
                 <div id="subjectTo">subject to</div>
@@ -68,8 +58,17 @@
                 </label>
                 <input type="range" id="alphaMaxSlider" min="0.001" max="1" step="0.001" value="0.1" autocomplete="off" />
                 <br />
+                <label for="correctorThresholdSlider">
+                  Corrector threshold:
+                  <span id="correctorThresholdValue">0.900</span>
+                </label>
+                <input type="range" id="correctorThresholdSlider" min="0.001" max="0.999" step="0.001" value="0.900" autocomplete="off" />
+                <br />
                 <label for="maxitInput">Maximum iterations:</label>
                 <input type="number" id="maxitInput" value="1000" min="1" step="1" autocomplete="off" />
+                <div id="ipmColorByPhaseBox" class="settings-checkbox-row">
+                  <label for="ipmColorByPhase">Color by phase <input type="checkbox" id="ipmColorByPhase" autocomplete="off" /></label>
+                </div>
               </div>
 
               <div id="pdhgSettings" class="settings-section">
@@ -87,8 +86,16 @@
                 <br />
                 <label for="maxitInputPDHG">Maximum iterations:</label>
                 <input type="number" id="maxitInputPDHG" value="1000" min="1" step="1" autocomplete="off" />
-                <label for="pdhgIneqMode">Inequality mode</label>
-                <input type="checkbox" id="pdhgIneqMode" checked />
+                <div class="settings-checkbox-row">
+                  <label for="pdhgIneqMode">Inequality mode <input type="checkbox" id="pdhgIneqMode" checked /></label>
+                  <label for="pdhgHalpernMode">Halpern <input type="checkbox" id="pdhgHalpernMode" autocomplete="off" /></label>
+                  <label for="pdhgColorByBasis">Color by basis <input type="checkbox" id="pdhgColorByBasis" autocomplete="off" /></label>
+                </div>
+              </div>
+
+              <div id="simplexSettings" class="settings-section">
+                <label for="simplexDualMode">Dual simplex mode</label>
+                <input type="checkbox" id="simplexDualMode" autocomplete="off" />
               </div>
 
               <div id="centralPathSettings" class="settings-section is-block">
@@ -99,7 +106,6 @@
 
             <div class="controlPanel controlPanel--compact">
               <div class="button-group">
-                <button id="traceButton" disabled>Solve</button>
                 <button id="animateButton" disabled>Animate</button>
               </div>
               <div class="button-group">
@@ -110,15 +116,13 @@
                 <div class="rotation-layout">
                   <div class="rotation-column">
                     <label for="objectiveAngleStepSlider" class="label-centered">
-                      Angle Step:
-                      <span class="nowrap"><span id="objectiveAngleStepValue">0.10</span> rad</span>
+                      Angle Step
                     </label>
                     <input type="range" id="objectiveAngleStepSlider" min="0.01" max="0.5" step="0.01" value="0.1" autocomplete="off" />
                   </div>
                   <div class="rotation-column">
                     <label for="objectiveRotationSpeedSlider" class="label-centered">
-                      Rotation Speed:
-                      <span id="objectiveRotationSpeedValue">1.0</span>x
+                      Rotation Speed
                     </label>
                     <input type="range" id="objectiveRotationSpeedSlider" min="0.2" max="3" step="0.1" value="1" autocomplete="off" />
                   </div>
@@ -136,7 +140,7 @@
                 <div id="usageTips">
                   <br /><br /><strong class="usage-title">Usage Tips:</strong><br /><br />
                   <strong>Draw a polygon</strong>: click to add vertices<br />
-                  <strong>Select a solver</strong>: select a solver and click <strong>Solve</strong><br />
+                  <strong>Select a solver</strong>: select a solver to solve immediately<br />
                   <strong>Change objective</strong>: drag it or click <strong>Rotate Objective</strong><br />
                   <strong>Add new vertices</strong>: double‐click an edge<br />
                   <strong>Move vertices</strong>: drag vertices to reshape<br />
@@ -145,6 +149,11 @@
                   <strong>3D Z Scale</strong>: Shift + scroll or use the Z Scale slider<br />
                   <strong>Reset</strong>: refresh the page<br />
                   <strong>Undo/Redo</strong>: ⌘+z to undo, ⇧⌘+z to redo<br />
+                  <br />
+                  <mark style="background-color: whitesmoke; color: black;">
+                  <strong><em>&nbsp;&nbsp;ATTN: Unbounded regions are now supported!&nbsp;&nbsp;</em></strong><br /><br /></mark>
+                  <strong>Delete a vertex</strong>: right-click it <br />
+                  <strong>Stop drawing</strong>: press enter
                 </div>
               </div>
               <div id="terminal-window"></div>
@@ -178,6 +187,7 @@
           </svg>
         </button>
         <button id="toggle3DButton" title="Toggle 3D Mode">3D</button>
+        <button id="toggleZOffsetButton" class="is-hidden" title="Toggle objective contribution in Z">Include Obj</button>
         <button id="shareButton" title="Share this configuration">
           <svg fill="currentColor" width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="share-alt" class="icon glyph">
             <path d="M20,21H4a2,2,0,0,1-2-2V6A2,2,0,0,1,4,4H8A1,1,0,0,1,8,6H4V19H20V13a1,1,0,0,1,2,0v6A2,2,0,0,1,20,21Z"></path>

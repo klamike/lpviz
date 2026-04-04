@@ -1,7 +1,6 @@
-import { Matrix } from "ml-matrix";
-import { sprintf } from "sprintf-js";
-import { linesToAb, projectNonNegative } from "./utils/blas";
-import type { Lines, VecN, Vec2Ns, VectorM, VectorN } from "./utils/blas";
+import { dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "./utils/dense";
+import { formatMilliseconds } from "./utils/time";
+import type { Lines, Vec2Ns, VecN } from "./utils/blas";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
 
@@ -11,75 +10,224 @@ interface PDHGIneqOptions {
   tau: number;
   tol: number;
   verbose: boolean;
+  colorByBasis: boolean;
+  halpern: boolean;
 }
 
-function pdhgIneqEpsilon(A: Matrix, b: VectorM, c: VectorN, xk: VectorN, yk: VectorM) {
-  const primalFeasibility = projectNonNegative(Matrix.sub(A.mmul(xk), b)).norm() / (1 + b.norm());
-  const dualFeasibility = projectNonNegative(yk.mul(-1)).norm() / (1 + c.norm());
-  yk.mul(-1); // put it back
-  const cTx = c.dot(xk);
-  const bTy = b.dot(yk);
+const BASIS_THRESHOLD = 1e-10;
+const HALPERN_SUFFICIENT_REDUCTION = 0.2;
+const HALPERN_NECESSARY_REDUCTION = 0.5;
+const HALPERN_ARTIFICIAL_RESTART_THRESHOLD = 0.36;
+
+function computeIneqBasisPhase(yk: ArrayLike<number>) {
+  let phase = 0;
+  for (let i = 0; i < yk.length; i++) {
+    phase = (phase * 33 + (yk[i]! > BASIS_THRESHOLD ? 1 : 0)) >>> 0;
+  }
+  return phase;
+}
+
+function pdhgIneqEpsilon(
+  A: ReturnType<typeof linesToDenseAb>["A"],
+  b: Float64Array,
+  c: Float64Array,
+  xk: Float64Array,
+  yk: Float64Array,
+  axScratch: Float64Array,
+  atYScratch: Float64Array,
+  bNorm: number,
+  cNorm: number,
+) {
+  matVec(A, xk, axScratch);
+  let primalResidual = 0;
+  for (let i = 0; i < axScratch.length; i++) {
+    const residual = Math.max(0, axScratch[i]! - b[i]!);
+    if (residual > primalResidual) primalResidual = residual;
+  }
+
+  transposedMatVec(A, yk, atYScratch);
+  let dualResidual = 0;
+  for (let i = 0; i < atYScratch.length; i++) {
+    const residual = Math.abs(c[i]! + atYScratch[i]!);
+    if (residual > dualResidual) dualResidual = residual;
+  }
+
+  const cTx = dot(c, xk);
+  const bTy = dot(b, yk);
   const dualityGap = Math.abs(bTy + cTx) / (1 + Math.abs(cTx) + Math.abs(bTy));
-  return primalFeasibility + dualFeasibility + dualityGap;
+  return Math.max(primalResidual / (1 + bNorm), dualResidual / (1 + cNorm), dualityGap);
+}
+
+function computeFixedPointError(currentX: Float64Array, nextX: Float64Array, currentY: Float64Array, nextY: Float64Array) {
+  let error = 0;
+  for (let i = 0; i < currentX.length; i++) {
+    const delta = Math.abs(nextX[i]! - currentX[i]!);
+    if (delta > error) error = delta;
+  }
+  for (let i = 0; i < currentY.length; i++) {
+    const delta = Math.abs(nextY[i]! - currentY[i]!);
+    if (delta > error) error = delta;
+  }
+  return error;
+}
+
+function shouldRestartHalpern(innerIteration: number, totalIteration: number, fixedPointError: number, initialFixedPointError: number, lastTrialFixedPointError: number) {
+  if (!Number.isFinite(initialFixedPointError) || innerIteration < 2) {
+    return false;
+  }
+  if (fixedPointError <= HALPERN_SUFFICIENT_REDUCTION * initialFixedPointError) {
+    return true;
+  }
+  if (fixedPointError <= HALPERN_NECESSARY_REDUCTION * initialFixedPointError && fixedPointError > lastTrialFixedPointError) {
+    return true;
+  }
+  return innerIteration >= Math.ceil(HALPERN_ARTIFICIAL_RESTART_THRESHOLD * totalIteration);
 }
 
 export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions) {
-  const { maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4 } = options;
+  const { maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4, colorByBasis = false, halpern = false } = options;
   if (maxit > MAX_ITERATIONS_LIMIT) throw new Error("maxit > 2^16 not allowed");
 
-  const { A, b } = linesToAb(lines);
-  const c = Matrix.mul(Matrix.columnVector(objective), -1);
+  const { A, b } = linesToDenseAb(lines);
+  const c = Float64Array.from(objective, (value) => -value);
 
-  const m = A.rows;
-  const n = A.columns;
+  const { rows: m, cols: n } = A;
+  const bNorm = infinityNorm(b);
+  const cNorm = infinityNorm(c);
 
-  let xk = Matrix.zeros(n, 1);
-  let yk = Matrix.ones(m, 1);
+  let xk = new Float64Array(n);
+  let yk = new Float64Array(m).fill(1);
+  let nextX = new Float64Array(n);
+  let nextY = new Float64Array(m);
+  let halpernX = new Float64Array(n);
+  let halpernY = new Float64Array(m);
+  let anchorX = new Float64Array(n);
+  let anchorY = new Float64Array(m).fill(1);
+  const axScratch = new Float64Array(m);
+  const atYScratch = new Float64Array(n);
+  const extrapolatedYScratch = new Float64Array(m);
   let k = 1;
+  let innerIteration = 1;
+  let initialFixedPointError = Number.POSITIVE_INFINITY;
+  let lastTrialFixedPointError = Number.POSITIVE_INFINITY;
 
-  let epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk);
-  const logs = [];
-
-  const logHeader = sprintf("%5s %8s %8s %10s %10s %10s", "Iter", "x", "y", " Obj", "Infeas", "eps");
-  if (verbose) console.log(logHeader);
-  logs.push(logHeader);
+  let epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
+  const header = " Iter        x        y        Obj     Infeas        eps";
 
   const iterates: Vec2Ns = [];
   const eps: number[] = [];
+  const phases: number[] = [];
+  const restartIndices: number[] = [];
   const startTime = performance.now();
+  const rows: Array<{
+    kind: "pdhg";
+    iteration: number;
+    restart?: boolean;
+    x: number;
+    y: number;
+    objective: number;
+    infeasibility: number;
+    epsilon: number;
+  }> = [];
+
+  if (verbose) console.log(header);
 
   while (k <= maxit && epsilonK > tol) {
-    iterates.push(xk.to1DArray());
+    iterates.push(Array.from(xk));
+    if (colorByBasis) {
+      phases.push(computeIneqBasisPhase(yk));
+    }
 
-    const logMsg = sprintf("%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e", k, xk.get(0, 0), xk.rows > 1 ? xk.get(1, 0) : 0.0, c.dot(xk), projectNonNegative(Matrix.sub(A.mmul(xk), b)).max(), epsilonK);
-    if (verbose) console.log(logMsg);
-    logs.push(logMsg);
+    matVec(A, xk, axScratch);
+    let infeasibility = 0;
+    for (let i = 0; i < m; i++) {
+      const residual = Math.max(0, axScratch[i]! - b[i]!);
+      if (residual > infeasibility) infeasibility = residual;
+    }
+    const row = {
+      kind: "pdhg" as const,
+      iteration: k,
+      restart: false,
+      x: xk[0] ?? 0,
+      y: xk[1] ?? 0,
+      objective: -dot(c, xk),
+      infeasibility,
+      epsilon: epsilonK,
+    };
+    if (verbose) console.log(row);
+    rows.push(row);
 
     // y_{k+1} = [y_k + τ(Ax_k - b)]_+
-    const yk_plus_1 = projectNonNegative(Matrix.add(yk, Matrix.sub(A.mmul(xk), b).mul(tau)));
+    for (let i = 0; i < m; i++) {
+      const candidate = yk[i]! + tau * (axScratch[i]! - b[i]!);
+      nextY[i] = candidate > 0 ? candidate : 0;
+      extrapolatedYScratch[i] = 2 * nextY[i]! - yk[i]!;
+    }
 
     // ỹ_k = y_{k+1} + (y_{k+1} - y_k)
-    const y_extrapolated = Matrix.add(yk_plus_1, Matrix.sub(yk_plus_1, yk));
     // x_{k+1} = x_k - η(c + A^T ỹ_k)
-    const xk_plus_1 = Matrix.sub(xk, Matrix.add(c, A.transpose().mmul(y_extrapolated)).mul(eta));
+    transposedMatVec(A, extrapolatedYScratch, atYScratch);
+    for (let i = 0; i < n; i++) {
+      nextX[i] = xk[i]! - eta * (c[i]! + atYScratch[i]!);
+    }
 
     eps.push(epsilonK);
 
-    xk = xk_plus_1;
-    yk = yk_plus_1;
+    if (halpern) {
+      const fixedPointError = computeFixedPointError(xk, nextX, yk, nextY);
+      if (!Number.isFinite(initialFixedPointError)) {
+        initialFixedPointError = fixedPointError;
+      }
+
+      if (shouldRestartHalpern(innerIteration, k, fixedPointError, initialFixedPointError, lastTrialFixedPointError)) {
+        xk.set(nextX);
+        yk.set(nextY);
+        anchorX.set(nextX);
+        anchorY.set(nextY);
+        initialFixedPointError = fixedPointError;
+        innerIteration = 1;
+        restartIndices.push(iterates.length - 1);
+        if (rows.length > 0) {
+          rows[rows.length - 1]!.restart = true;
+        }
+      } else {
+        const weight = innerIteration / (innerIteration + 1);
+        const anchorWeight = 1 - weight;
+        for (let i = 0; i < n; i++) {
+          halpernX[i] = weight * nextX[i]! + anchorWeight * anchorX[i]!;
+        }
+        for (let i = 0; i < m; i++) {
+          halpernY[i] = weight * nextY[i]! + anchorWeight * anchorY[i]!;
+        }
+        [xk, halpernX] = [halpernX, xk];
+        [yk, halpernY] = [halpernY, yk];
+        innerIteration++;
+      }
+      lastTrialFixedPointError = fixedPointError;
+    } else {
+      [xk, nextX] = [nextX, xk];
+      [yk, nextY] = [nextY, yk];
+    }
     k++;
 
-    epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk);
+    epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
   }
 
-  const tsolve = parseFloat((performance.now() - startTime).toFixed(2));
-  const finalLogMsg = epsilonK <= tol ? `Converged to primal-dual optimal solution in ${tsolve}ms` : `Did not converge after ${iterates.length} iterations in ${tsolve}ms`;
-  if (verbose) console.log(finalLogMsg);
-  logs.push(finalLogMsg);
+  const solveTime = performance.now() - startTime;
+  const formattedSolveTime = formatMilliseconds(solveTime);
+  const footer =
+    epsilonK <= tol
+      ? `Converged to optimal solution in ${formattedSolveTime} / ${iterates.length} iterations`
+      : `Did not converge after ${iterates.length} iterations in ${formattedSolveTime}`;
+  if (verbose) console.log(footer);
 
   return {
+    header,
     iterations: iterates,
-    logs: logs,
+    rows,
+    footer,
     eps,
+    phases: colorByBasis ? phases : undefined,
+    restartIndices: halpern ? restartIndices : undefined,
   };
 }

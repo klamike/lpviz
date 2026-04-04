@@ -149,11 +149,13 @@ canvas {
 }
 
 #terminal-container2 {
-  height: auto;
+  height: 180px;
+  min-height: 180px;
+  max-height: 180px;
   display: block;
   color: #eee;
   margin-top: 15px;
-  padding: 10px 0 10px 20px;
+  padding: 0;
 }
 
 #terminal-container2,
@@ -204,13 +206,20 @@ canvas {
 #topResult {
   max-height: 100%;
   overflow-y: auto;
-  padding-left: 4px;
-  padding-right: 8px;
-  padding-top: 5px;
+  box-sizing: border-box;
 }
 
 #topResult {
-  padding-bottom: 5px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 8px 10px 20px;
+}
+
+#result {
+  padding-left: 4px;
+  padding-right: 8px;
+  padding-top: 5px;
 }
 
 #usageTips {
@@ -228,8 +237,21 @@ canvas {
 }
 
 #nullStateMessage {
-  text-align: center;
-  white-space: pre-wrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#nullStateMessage .null-state-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 #uiContainer {
@@ -289,16 +311,19 @@ canvas {
   display: flex;
   flex-direction: column;
   width: 100%;
+  overflow-anchor: none;
 }
 
 .iterate-rows {
   display: flex;
   flex-direction: column;
+  overflow-anchor: none;
 }
 
 #result.virtualized .iterate-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-anchor: none;
 }
 
 #result.virtualized .iterate-header,
@@ -376,6 +401,16 @@ canvas {
   cursor: not-allowed;
 }
 
+#sidebar button.button-active {
+  background-color: #fafafa;
+  color: #333;
+  border-color: #333;
+  transform: translateY(2px);
+  box-shadow:
+    0 2px 0 #333,
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 /* ================================
     Home/Zoom Buttons
     ================================ */
@@ -422,6 +457,18 @@ canvas {
 
 #toggle3DButton.button-active:hover {
   background-color: #4caf50;
+  color: white;
+  box-shadow: none;
+  transform: none;
+}
+
+#toggleZOffsetButton.button-active {
+  background-color: #2196f3;
+  color: white;
+}
+
+#toggleZOffsetButton.button-active:hover {
+  background-color: #2196f3;
   color: white;
   box-shadow: none;
   transform: none;
@@ -758,6 +805,21 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   width: 100%;
 }
 
+.controlPanel .settings-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.controlPanel .settings-checkbox-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0;
+}
+
 .objective-rotation {
   margin-top: 1em;
 }
@@ -827,4 +889,12 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   70% {
     opacity: 0.8;
   }
+}
+
+
+#simplexSettings {
+    display: none !important;
+}
+#ipmColorByPhaseBox {
+    display: none !important;
 }
