@@ -43,6 +43,13 @@ export function createSolverRuntime({
     updateObjectiveDisplay: () => void;
   };
 }) {
+  const escapeHtml = (value: string) =>
+    value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
   const runtime = {
     baseRotationWaitMs: 30,
     objectiveRotationDirection: 1 as 1 | -1,
@@ -183,7 +190,7 @@ export function createSolverRuntime({
           type: "html",
           html: `
             <div class="iterate-header">Solver error</div>
-            <div class="iterate-item-nohover">${error instanceof Error ? error.message : String(error)}</div>
+            <div class="iterate-item-nohover">${escapeHtml(error instanceof Error ? error.message : String(error))}</div>
           `,
         });
         uiRuntime.syncButtonStates();

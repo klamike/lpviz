@@ -57,6 +57,8 @@ const expandedShareKeyMap = Object.fromEntries(
   Object.entries(shareKeyMap).map(([key, value]) => [value, key]),
 ) as Record<string, string>;
 
+const FORBIDDEN_SHARE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 function transformShareObject<T>(value: T, keyMap: Record<string, string>): T {
   if (value === null || value === undefined || typeof value !== "object") {
     return value;
@@ -65,9 +67,13 @@ function transformShareObject<T>(value: T, keyMap: Record<string, string>): T {
     return value.map((item) => transformShareObject(item, keyMap)) as unknown as T;
   }
 
-  const result: Record<string, unknown> = {};
+  const result = Object.create(null) as Record<string, unknown>;
   for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    result[keyMap[key] || key] = transformShareObject(nestedValue, keyMap);
+    const mappedKey = keyMap[key] || key;
+    if (FORBIDDEN_SHARE_KEYS.has(mappedKey)) {
+      continue;
+    }
+    result[mappedKey] = transformShareObject(nestedValue, keyMap);
   }
   return result as T;
 }

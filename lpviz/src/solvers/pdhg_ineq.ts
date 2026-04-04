@@ -147,7 +147,7 @@ export function pdhgIneq(lines: Lines, objective: VecN, options: PDHGIneqOptions
     const row = {
       kind: "pdhg" as const,
       iteration: k,
-      restart: halpern ? restartIndices.includes(iterates.length - 1) : false,
+      restart: false,
       x: xk[0] ?? 0,
       y: xk[1] ?? 0,
       objective: -dot(c, xk),

@@ -145,7 +145,7 @@ function pdhgStandardForm(A: ReturnType<typeof createDenseMatrix>, b: Float64Arr
     const row = {
       kind: "pdhg" as const,
       iteration: k,
-      restart: halpern ? restartIndices.includes(iterates.length - 1) : false,
+      restart: false,
       x: xk[0] ?? 0,
       y: -(yk[0] ?? 0),
       objective: pObj,

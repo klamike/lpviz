@@ -76,8 +76,20 @@ export function transposedMatVec(matrix: DenseMatrix, vector: ArrayLike<number>,
 
 export function solveDenseSystem(matrix: ArrayLike<number>, size: number, rhs: ArrayLike<number>, out: Float64Array, luScratch?: Float64Array) {
   const lu = luScratch ?? new Float64Array(size * size);
-  lu.set(Array.from(matrix));
-  out.set(Array.from(rhs));
+  if (ArrayBuffer.isView(matrix)) {
+    lu.set(matrix as Float64Array);
+  } else {
+    for (let i = 0; i < size * size; i++) {
+      lu[i] = matrix[i]!;
+    }
+  }
+  if (ArrayBuffer.isView(rhs)) {
+    out.set(rhs as Float64Array);
+  } else {
+    for (let i = 0; i < size; i++) {
+      out[i] = rhs[i]!;
+    }
+  }
 
   for (let pivot = 0; pivot < size; pivot++) {
     let pivotRow = pivot;

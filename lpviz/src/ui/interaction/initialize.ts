@@ -135,11 +135,18 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   };
+  const escapeHtml = (value: string) =>
+    value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
   const createMessageResult = (header: string, message: string): ResultRenderPayload => ({
     type: "html",
     html: `
-      <div class="iterate-header">${header}</div>
-      <div class="iterate-item-nohover">${message}</div>
+      <div class="iterate-header">${escapeHtml(header)}</div>
+      <div class="iterate-item-nohover">${escapeHtml(message)}</div>
     `,
   });
   const solverControls = [
