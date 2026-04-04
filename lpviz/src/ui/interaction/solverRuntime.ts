@@ -319,7 +319,7 @@ export function createSolverRuntime({
 
       const animationIntervalId = solverSnapshot.animationIntervalId;
       if (animationIntervalId !== null) {
-        clearTimeout(animationIntervalId);
+        clearInterval(animationIntervalId);
       }
       setState({ animationIntervalId: null }, { viewportDirty: {} });
 
