@@ -1148,9 +1148,11 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       canvasManager.draw();
     },
     zoomToFitCurrentPolytope() {
-      const zoomFit = collectZoomFitBounds(getState());
-      if (!zoomFit) return;
-      canvasManager.zoomToFit(zoomFit.bounds, 50, zoomFit.zBounds);
+      const state = getState();
+      const isOpenUnbounded = state.completionMode === "open" && state.polytope?.kind === "unbounded";
+      const zoomFit = collectZoomFitBounds(state);
+      if (!zoomFit && !isOpenUnbounded) return;
+      canvasManager.zoomToFit(isOpenUnbounded ? canvasManager.getUnboundedClipBounds() : zoomFit!.bounds, 50, zoomFit?.zBounds);
       canvasManager.setSidebarWidth(sidebar.offsetWidth);
       uiRuntime.syncButtonStates();
     },

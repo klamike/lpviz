@@ -826,15 +826,19 @@ export class ViewportManager {
 
   private getRenderBounds(context: ReturnType<ViewportManager["buildRenderContext"]>): Bounds {
     if (context.is3D) {
-      const extent = Math.max(200, 200 / context.scaleFactor);
-      return {
-        minX: -extent,
-        maxX: extent,
-        minY: -extent,
-        maxY: extent,
-      };
+      return this.getUnboundedClipBounds();
     }
     return this.getVisibleBounds(context.toLogicalCoords);
+  }
+
+  getUnboundedClipBounds(): Bounds {
+    const extent = MAX_3D_DRAG_BOUND;
+    return {
+      minX: -extent,
+      maxX: extent,
+      minY: -extent,
+      maxY: extent,
+    };
   }
 
   private is3DState() {
@@ -1917,7 +1921,8 @@ export class ViewportManager {
 
     const vrep = VRep.fromPoints(displayVertices);
     const isNonconvex = !vrep.isConvex();
-    const bounds = this.getRenderBounds(context);
+    const useFixedUnboundedBounds = completionMode === "open" && !hasDerivedClosedRegion && polytope?.kind === "unbounded";
+    const bounds = useFixedUnboundedBounds ? this.getUnboundedClipBounds() : this.getRenderBounds(context);
 
     const fillVertices: PointXY[] =
       isClosedRegion && displayVertices.length >= 3
