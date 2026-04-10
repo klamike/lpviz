@@ -1679,8 +1679,14 @@ export class ViewportManager {
     return sprite;
   }
 
-  private createCircleSprite(position: ThreeVector3, color: number, size: number) {
-    return this.createSpriteAtSize(position, this.getSpriteMaterial("circle", color), size);
+  private createCircleSprite(position: ThreeVector3, color: number, pixelSize: number) {
+    const sprite = this.createSpriteAtSize(
+      position,
+      this.getSpriteMaterial("circle", color),
+      this.getWorldSizeFromPixels(pixelSize, position),
+    );
+    sprite.userData.pixelSize = pixelSize;
+    return sprite;
   }
 
   private createStarSprite(position: ThreeVector3, color: number) {
@@ -2416,9 +2422,10 @@ export class ViewportManager {
         context,
         iterateObjectiveVector,
       );
-      const highlightSize = helpers.getWorldSizeFromPixels(ITERATE_POINT_PIXEL_SIZE * 1.3, highlightPos);
+      const highlightPixelSize = ITERATE_POINT_PIXEL_SIZE * 1.3;
+      const highlightSize = helpers.getWorldSizeFromPixels(highlightPixelSize, highlightPos);
       const highlightSprite =
-        this.persistentSceneObjects.iterateHighlight ?? this.createCircleSprite(highlightPos, COLORS.iterateHighlight, highlightSize);
+        this.persistentSceneObjects.iterateHighlight ?? this.createCircleSprite(highlightPos, COLORS.iterateHighlight, highlightPixelSize);
       if (!this.persistentSceneObjects.iterateHighlight) {
         groups.iterate.add(highlightSprite);
         this.persistentSceneObjects.iterateHighlight = highlightSprite;

@@ -1,61 +1,17 @@
 import { dot, infinityNorm, linesToDenseAb, matVec, solveDenseSystem, transposedMatVec } from "./utils/dense";
-import { formatMilliseconds } from "./utils/time";
-import type { Lines, VecM, VecN } from "./utils/blas";
+import { ipmImplicit } from "./ipmImplicit";
+import { computeComplementarityPhase, logFinal, logIter, MAX_ITERATIONS_LIMIT, pushIter, type IPMOptions, type IPMSolutionData } from "./ipmShared";
+import type { Lines, VecN } from "./utils/blas";
 
-const MAX_ITERATIONS_LIMIT = 2 ** 16;
 const SIGMA_MIN = 1e-8;
 const SIGMA_MAX = 1 - 1e-8;
 const SIGMA_POWER = 3;
 
-interface IPMOptions {
-  eps_p: number;
-  eps_d: number;
-  eps_opt: number;
-  maxit: number;
-  alphaMax: number;
-  correctorThreshold: number;
-  verbose: boolean;
-  colorByPhase: boolean;
-}
-
-interface IPMSolutionData {
-  x: VecN[];
-  s: VecM[];
-  y: VecM[];
-  mu: number[];
-  header: string;
-  rows: Array<{
-    kind: "ipm";
-    iteration: number;
-    x: number;
-    y: number;
-    objective: number;
-    infeasibility: number;
-    mu: number;
-  }>;
-  phases?: number[];
-  footer?: string;
-}
-
-const COMPLEMENTARITY_RATIO_THRESHOLD = 100;
-
-function computeComplementarityPhase(s: Float64Array, y: Float64Array) {
-  let phase = 0;
-  for (let i = 0; i < s.length; i++) {
-    const slack = Math.max(s[i]!, 1e-16);
-    const dual = Math.max(y[i]!, 1e-16);
-    const label =
-      dual >= slack * COMPLEMENTARITY_RATIO_THRESHOLD
-        ? 1
-        : slack >= dual * COMPLEMENTARITY_RATIO_THRESHOLD
-          ? 2
-          : 0;
-    phase = (phase * 33 + label) >>> 0;
-  }
-  return phase;
-}
-
 export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
+  if (opts.variant === "implicit") {
+    return ipmImplicit(lines, objective, opts);
+  }
+
   const { eps_p, eps_d, eps_opt, maxit, alphaMax, correctorThreshold, verbose, colorByPhase } = opts;
 
   if (maxit > MAX_ITERATIONS_LIMIT) {
@@ -265,34 +221,4 @@ function alphaStep(values: ArrayLike<number>, delta: ArrayLike<number>) {
     }
   }
   return alpha;
-}
-
-function pushIter(d: IPMSolutionData, x: Float64Array, s: Float64Array, y: Float64Array, mu: number) {
-  d.x.push(Array.from(x));
-  d.s.push(Array.from(s));
-  d.y.push(Array.from(y));
-  d.mu.push(mu);
-}
-
-function logIter(d: IPMSolutionData, verbose: boolean, x: Float64Array, mu: number, pObj: number, pRes: number) {
-  const row = {
-    kind: "ipm" as const,
-    iteration: d.x.length + 1,
-    x: x[0] ?? 0,
-    y: x[1] ?? 0,
-    objective: -pObj,
-    infeasibility: pRes,
-    mu,
-  };
-  if (verbose) console.log(row);
-  d.rows.push(row);
-}
-
-function logFinal(d: IPMSolutionData, verbose: boolean, converged: boolean, solveTime: number, failureMessage: string | null) {
-  d.footer = failureMessage
-    ? `${failureMessage}\nStopped after ${d.x.length} iterations in ${formatMilliseconds(solveTime)}\n`
-    : converged
-      ? `Converged to optimal solution in ${formatMilliseconds(solveTime)} / ${d.x.length} iterations\n`
-      : `Did not converge after ${d.x.length} iterations in ${formatMilliseconds(solveTime)}\n`;
-  if (verbose) console.log(d.footer);
 }

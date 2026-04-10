@@ -5,6 +5,7 @@ import { subscribe } from "../../state/store";
 import { applyCentralPathResult, applyIPMResult, applyPDHGResult, applySimplexResult } from "../../solvers/worker/solverService";
 import type { ResultRenderPayload } from "../../solvers/worker/solverService";
 import type { SolverWorkerPayload, SolverWorkerSuccessResponse } from "../../solvers/worker/solverWorker";
+import type { IPMVariant } from "../../solvers/ipmShared";
 import { ViewportManager } from "../viewport";
 import { isObjectiveDirectionUnbounded } from "../../solvers/utils/objectiveDirection";
 import { registerCanvasInteractions } from "./canvas";
@@ -116,6 +117,8 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   const traceCheckbox = getRequiredElementById<HTMLInputElement>("traceCheckbox");
   const replaySpeedSlider = getRequiredElementById<HTMLInputElement>("replaySpeedSlider");
   const rotationSettings = getRequiredElementById<HTMLElement>("objectiveRotationSettings");
+  const ipmVariantSelect = getRequiredElementById<HTMLSelectElement>("ipmVariantSelect");
+  const ipmExplicitControls = getRequiredElementById<HTMLElement>("ipmExplicitControls");
   const alphaMaxSlider = getRequiredElementById<HTMLInputElement>("alphaMaxSlider");
   const correctorThresholdSlider = getRequiredElementById<HTMLInputElement>("correctorThresholdSlider");
   const ipmColorByPhase = getRequiredElementById<HTMLInputElement>("ipmColorByPhase");
@@ -149,6 +152,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       <div class="iterate-item-nohover">${escapeHtml(message)}</div>
     `,
   });
+  const getIPMVariant = (): IPMVariant => (ipmVariantSelect.value === "implicit" ? "implicit" : "explicit");
   const solverControls = [
     {
       mode: "central",
@@ -204,12 +208,17 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
           ? createMessageResult("No valid region", "IPM requires a feasible region.")
           : null,
       collectShareSettings: (): ShareSettings => ({
+        ipmVariant: getIPMVariant(),
         alphaMax: parseFloat(alphaMaxSlider.value),
         correctorThreshold: parseFloat(correctorThresholdSlider.value),
         maxitIPM: parseInt(maxitInput.value, 10),
         ipmColorByPhase: ipmColorByPhase.checked,
       }),
       applySharedSettings: (settings: ShareSettings) => {
+        if (settings.ipmVariant !== undefined) {
+          const sharedVariant = settings.ipmVariant as string | undefined;
+          ipmVariantSelect.value = sharedVariant === "implicit" || sharedVariant === "implicit-asinh" ? "implicit" : "explicit";
+        }
         applySliderSetting(settings.alphaMax, alphaMaxSlider, alphaMaxValue, 3);
         applySliderSetting(settings.correctorThreshold, correctorThresholdSlider, correctorThresholdValue, 3);
         if (settings.maxitIPM !== undefined) {
@@ -218,6 +227,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
         if (settings.ipmColorByPhase !== undefined) {
           ipmColorByPhase.checked = settings.ipmColorByPhase;
         }
+        syncIPMVariantControls();
       },
       buildRequest: (state: State) => {
         if (!state.objectiveVector || !hasPolytopeLines(state.polytope)) {
@@ -227,6 +237,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
           solver: "ipm",
           lines: state.polytope.lines,
           objective: [state.objectiveVector.x, state.objectiveVector.y],
+          variant: getIPMVariant(),
           alphaMax: readSolverNumber(alphaMaxSlider.value),
           correctorThreshold: readSolverNumber(correctorThresholdSlider.value, 0.9),
           maxit: Math.max(1, parseInt(maxitInput.value, 10) || 1),
@@ -1003,6 +1014,10 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       element.classList.toggle(visibleClass, visible);
     }
   };
+  const syncIPMVariantControls = () => {
+    const implicit = getIPMVariant() === "implicit";
+    setElementVisibility(ipmExplicitControls, !implicit);
+  };
   const applySliderSetting = (value: number | undefined, slider: HTMLInputElement, valueElement: HTMLElement | null, digits: number | null) => {
     if (value === undefined) return;
     slider.value = value.toString();
@@ -1086,6 +1101,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     synchronize() {
       this.syncButtonStates();
       this.updateSolverSettingsPanels(getState().solverMode);
+      syncIPMVariantControls();
       this.updateZScaleValue();
       this.updateObjectiveDisplay();
       this.updateMaximizeVisibility();
@@ -1382,7 +1398,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       });
     };
     const bindSolverInput = (
-      control: HTMLInputElement,
+      control: HTMLInputElement | HTMLSelectElement,
       eventName: "input" | "change",
       mode: SolverMode,
     ) => {
@@ -1430,12 +1446,17 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     bindSlider(objectiveRotationSpeedSlider, null, null, () => {});
 
     bindSolverInput(maxitInput, "input", "ipm");
+    bindSolverInput(ipmVariantSelect, "change", "ipm");
     bindSolverInput(ipmColorByPhase, "change", "ipm");
     bindSolverInput(maxitInputPDHG, "input", "pdhg");
     bindSolverInput(pdhgIneqMode, "change", "pdhg");
     bindSolverInput(pdhgHalpernMode, "change", "pdhg");
     bindSolverInput(pdhgColorByBasis, "change", "pdhg");
     bindSolverInput(simplexDualMode, "change", "simplex");
+
+    ipmVariantSelect.addEventListener("change", () => {
+      syncIPMVariantControls();
+    });
 
     startRotateButton.addEventListener("click", () => {
       solverRuntime.startRotation();
@@ -1445,5 +1466,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     });
   };
   bindSolverControls();
+  syncIPMVariantControls();
   uiRuntime.initialize(finishOpenRegion ?? undefined);
 }

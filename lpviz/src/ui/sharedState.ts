@@ -1,6 +1,8 @@
 import type { CompletionMode, SolverMode, State } from "../state/store";
+import type { IPMVariant } from "../solvers/ipmShared";
 
 export type ShareSettings = {
+  ipmVariant?: IPMVariant;
   alphaMax?: number;
   correctorThreshold?: number;
   maxitIPM?: number;
@@ -37,6 +39,7 @@ const shareKeyMap = {
   zAxisOffsetOnly: "u",
   x: "x",
   y: "y",
+  ipmVariant: "z",
   alphaMax: "a",
   correctorThreshold: "f",
   maxitIPM: "i",

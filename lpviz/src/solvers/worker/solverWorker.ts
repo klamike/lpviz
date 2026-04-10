@@ -2,6 +2,7 @@ import { centralPath } from "../../solvers/centralPath";
 import { ipm } from "../../solvers/ipm";
 import { pdhg } from "../../solvers/pdhg";
 import { simplex } from "../../solvers/simplex";
+import type { IPMVariant } from "../../solvers/ipmShared";
 import type { Lines, VecN, Vertices } from "../utils/blas";
 
 import type { CentralPathResult, IPMResult, PDHGResult, SimplexResult } from "./solverService";
@@ -11,6 +12,7 @@ export type SolverWorkerPayload =
       solver: "ipm";
       lines: Lines;
       objective: VecN;
+      variant: IPMVariant;
       alphaMax: number;
       correctorThreshold: number;
       maxit: number;
@@ -112,10 +114,19 @@ async function runSimplex(lines: Lines, objective: VecN, dual: boolean) {
   });
 }
 
-async function runIPM(lines: Lines, objective: VecN, alphamax: number, correctorThreshold: number, maxit: number, colorByPhase: boolean) {
+async function runIPM(
+  lines: Lines,
+  objective: VecN,
+  variant: IPMVariant,
+  alphamax: number,
+  correctorThreshold: number,
+  maxit: number,
+  colorByPhase: boolean,
+) {
   return wrapSolverCall("IPM", () => {
     const options = {
       ...DEFAULT_BASE_OPTIONS,
+      variant,
       eps_p: DEFAULT_TOLERANCE,
       eps_d: DEFAULT_TOLERANCE,
       eps_opt: DEFAULT_TOLERANCE,
@@ -140,7 +151,20 @@ const ctx = self as unknown as Worker;
 async function executeSolver(data: SolverWorkerRequest): Promise<SolverWorkerSuccessResponse> {
   const { id } = data;
   if (data.solver === "ipm") {
-    return { id, solver: "ipm", success: true, result: await runIPM(data.lines, data.objective, data.alphaMax, data.correctorThreshold, data.maxit, data.colorByPhase) };
+    return {
+      id,
+      solver: "ipm",
+      success: true,
+      result: await runIPM(
+        data.lines,
+        data.objective,
+        data.variant,
+        data.alphaMax,
+        data.correctorThreshold,
+        data.maxit,
+        data.colorByPhase,
+      ),
+    };
   }
   if (data.solver === "simplex") {
     return { id, solver: "simplex", success: true, result: await runSimplex(data.lines, data.objective, data.dual) };
