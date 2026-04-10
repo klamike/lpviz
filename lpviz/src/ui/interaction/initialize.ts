@@ -119,8 +119,10 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   const rotationSettings = getRequiredElementById<HTMLElement>("objectiveRotationSettings");
   const ipmVariantSelect = getRequiredElementById<HTMLSelectElement>("ipmVariantSelect");
   const ipmExplicitControls = getRequiredElementById<HTMLElement>("ipmExplicitControls");
+  const ipmImplicitControls = getRequiredElementById<HTMLElement>("ipmImplicitControls");
   const alphaMaxSlider = getRequiredElementById<HTMLInputElement>("alphaMaxSlider");
   const correctorThresholdSlider = getRequiredElementById<HTMLInputElement>("correctorThresholdSlider");
+  const implicitSigmaSlider = getRequiredElementById<HTMLInputElement>("implicitSigmaSlider");
   const ipmColorByPhase = getRequiredElementById<HTMLInputElement>("ipmColorByPhase");
   const pdhgEtaSlider = getRequiredElementById<HTMLInputElement>("pdhgEtaSlider");
   const pdhgTauSlider = getRequiredElementById<HTMLInputElement>("pdhgTauSlider");
@@ -211,6 +213,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
         ipmVariant: getIPMVariant(),
         alphaMax: parseFloat(alphaMaxSlider.value),
         correctorThreshold: parseFloat(correctorThresholdSlider.value),
+        implicitSigma: parseFloat(implicitSigmaSlider.value),
         maxitIPM: parseInt(maxitInput.value, 10),
         ipmColorByPhase: ipmColorByPhase.checked,
       }),
@@ -221,6 +224,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
         }
         applySliderSetting(settings.alphaMax, alphaMaxSlider, alphaMaxValue, 3);
         applySliderSetting(settings.correctorThreshold, correctorThresholdSlider, correctorThresholdValue, 3);
+        applySliderSetting(settings.implicitSigma, implicitSigmaSlider, implicitSigmaValue, 3);
         if (settings.maxitIPM !== undefined) {
           maxitInput.value = settings.maxitIPM.toString();
         }
@@ -240,6 +244,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
           variant: getIPMVariant(),
           alphaMax: readSolverNumber(alphaMaxSlider.value),
           correctorThreshold: readSolverNumber(correctorThresholdSlider.value, 0.9),
+          implicitSigma: readSolverNumber(implicitSigmaSlider.value, 0.5),
           maxit: Math.max(1, parseInt(maxitInput.value, 10) || 1),
           colorByPhase: ipmColorByPhase.checked,
         };
@@ -996,6 +1001,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   };
   const alphaMaxValue = getRequiredElementById<HTMLElement>("alphaMaxValue");
   const correctorThresholdValue = getRequiredElementById<HTMLElement>("correctorThresholdValue");
+  const implicitSigmaValue = getRequiredElementById<HTMLElement>("implicitSigmaValue");
   const pdhgEtaValue = getRequiredElementById<HTMLElement>("pdhgEtaValue");
   const pdhgTauValue = getRequiredElementById<HTMLElement>("pdhgTauValue");
   const centralPathIterValue = getRequiredElementById<HTMLElement>("centralPathIterValue");
@@ -1017,6 +1023,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   const syncIPMVariantControls = () => {
     const implicit = getIPMVariant() === "implicit";
     setElementVisibility(ipmExplicitControls, !implicit);
+    setElementVisibility(ipmImplicitControls, implicit);
   };
   const applySliderSetting = (value: number | undefined, slider: HTMLInputElement, valueElement: HTMLElement | null, digits: number | null) => {
     if (value === undefined) return;
@@ -1422,6 +1429,10 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       solverRuntime.recomputeIfModeActive("ipm");
     });
     bindSlider(correctorThresholdSlider, correctorThresholdValue, 3, () => {
+      resetTraceAndRedrawIfNeeded();
+      solverRuntime.recomputeIfModeActive("ipm");
+    });
+    bindSlider(implicitSigmaSlider, implicitSigmaValue, 3, () => {
       resetTraceAndRedrawIfNeeded();
       solverRuntime.recomputeIfModeActive("ipm");
     });

@@ -15,6 +15,7 @@ export type SolverWorkerPayload =
       variant: IPMVariant;
       alphaMax: number;
       correctorThreshold: number;
+      implicitSigma: number;
       maxit: number;
       colorByPhase: boolean;
     }
@@ -120,6 +121,7 @@ async function runIPM(
   variant: IPMVariant,
   alphamax: number,
   correctorThreshold: number,
+  implicitSigma: number,
   maxit: number,
   colorByPhase: boolean,
 ) {
@@ -132,6 +134,7 @@ async function runIPM(
       eps_opt: DEFAULT_TOLERANCE,
       alphaMax: alphamax,
       correctorThreshold,
+      implicitSigma,
       maxit,
       colorByPhase,
     };
@@ -161,6 +164,7 @@ async function executeSolver(data: SolverWorkerRequest): Promise<SolverWorkerSuc
         data.variant,
         data.alphaMax,
         data.correctorThreshold,
+        data.implicitSigma,
         data.maxit,
         data.colorByPhase,
       ),

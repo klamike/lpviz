@@ -12,14 +12,11 @@ import type { Lines, VecN } from "./utils/blas";
 
 const INITIAL_MU = 1;
 const MIN_MU = 1e-12;
-const MU_RESIDUAL_FLOOR_RATIO = 0.02;
+const DEFAULT_CENTERING_SIGMA = 0.5;
 const LINE_SEARCH_SHRINK_FACTOR = 0.5;
 const LINE_SEARCH_SUFFICIENT_DECREASE = 1e-4;
 const MAX_LINE_SEARCH_ITERATIONS = 32;
 const MIN_STEP_SIZE = 1e-10;
-const SIGMA_MIN = 1e-4;
-const SIGMA_MAX = 0.95;
-const CENTRALITY_POWER = 1;
 
 type DenseSystem = {
   rows: number;
@@ -29,12 +26,15 @@ type DenseSystem = {
 
 type ResidualScratch = {
   ax: Float64Array;
-  aty: Float64Array;
-  rP: Float64Array;
-  rD: Float64Array;
+  atLambda: Float64Array;
+  rX: Float64Array;
+  rI: Float64Array;
+  rLambda: Float64Array;
+  rS: Float64Array;
   s: Float64Array;
-  y: Float64Array;
-  dS: Float64Array;
+  lambda: Float64Array;
+  bPlus: Float64Array;
+  bMinus: Float64Array;
 };
 
 type ResidualMetrics = {
@@ -53,16 +53,6 @@ function softplusDerivative(mu: number, value: number) {
   return 0.5 * (1 + value / denominator);
 }
 
-function computeAdaptiveSigma(s: Float64Array, y: Float64Array) {
-  let centrality = 0;
-  for (let i = 0; i < s.length; i++) {
-    const dominant = Math.max(s[i]!, y[i]!, 1e-16);
-    centrality += Math.min(s[i]!, y[i]!) / dominant;
-  }
-  centrality /= s.length;
-  return Math.max(SIGMA_MIN, Math.min(SIGMA_MAX, centrality ** CENTRALITY_POWER));
-}
-
 function evaluateResiduals(
   A: DenseSystem,
   b: Float64Array,
@@ -72,26 +62,29 @@ function evaluateResiduals(
   mu: number,
   scratch: ResidualScratch,
 ): ResidualMetrics {
-  const { ax, aty, rP, rD, s, y, dS } = scratch;
+  const { ax, atLambda, rX, rI, rLambda, rS, s, lambda, bPlus, bMinus } = scratch;
 
   matVec(A, x, ax);
   for (let i = 0; i < A.rows; i++) {
-    y[i] = softplus(mu, v[i]!);
+    lambda[i] = softplus(mu, v[i]!);
     s[i] = softplus(mu, -v[i]!);
-    dS[i] = softplusDerivative(mu, -v[i]!);
-    rP[i] = ax[i]! - b[i]! - s[i]!;
+    bPlus[i] = softplusDerivative(mu, v[i]!);
+    bMinus[i] = softplusDerivative(mu, -v[i]!);
+    rI[i] = ax[i]! - b[i]! - s[i]!;
+    rLambda[i] = 0;
+    rS[i] = 0;
   }
 
-  transposedMatVec(A, y, aty);
+  transposedMatVec(A, lambda, atLambda);
   for (let j = 0; j < A.cols; j++) {
-    rD[j] = c[j]! - aty[j]!;
+    rX[j] = c[j]! - atLambda[j]!;
   }
 
   const pObj = dot(c, x);
   return {
-    pRes: infinityNorm(rP),
-    dRes: infinityNorm(rD),
-    gap: Math.abs(pObj - dot(b, y)) / (1 + Math.abs(pObj)),
+    pRes: infinityNorm(rI),
+    dRes: infinityNorm(rX),
+    gap: Math.abs(pObj - dot(b, lambda)) / (1 + Math.abs(pObj)),
     pObj,
   };
 }
@@ -100,14 +93,18 @@ function buildImplicitSystem(
   system: Float64Array,
   rhs: Float64Array,
   A: DenseSystem,
-  dS: Float64Array,
-  rP: Float64Array,
-  rD: Float64Array,
+  bPlus: Float64Array,
+  bMinus: Float64Array,
+  rX: Float64Array,
+  rI: Float64Array,
+  rLambda: Float64Array,
+  rS: Float64Array,
 ) {
   const { rows: m, cols: n, data } = A;
   const size = n + m;
   system.fill(0);
 
+  // LP specialization of the paper's condensed implicit system J(v).
   for (let j = 0; j < n; j++) {
     const rowOffset = j * size;
     for (let k = 0; k < n; k++) {
@@ -118,11 +115,11 @@ function buildImplicitSystem(
       system[rowOffset + k] = -sum;
     }
 
-    let rhsValue = -rD[j]!;
+    let rhsValue = -rX[j]!;
     for (let i = 0; i < m; i++) {
       const aij = data[i * n + j]!;
-      system[rowOffset + n + i] = -aij;
-      rhsValue += aij * rP[i]!;
+      system[rowOffset + n + i] = -aij * (bPlus[i]! + bMinus[i]!);
+      rhsValue += aij * (rI[i]! - rLambda[i]! + rS[i]!);
     }
     rhs[j] = rhsValue;
   }
@@ -132,8 +129,8 @@ function buildImplicitSystem(
     for (let j = 0; j < n; j++) {
       system[rowOffset + j] = -data[i * n + j]!;
     }
-    system[rowOffset + n + i] = -dS[i]!;
-    rhs[n + i] = rP[i]!;
+    system[rowOffset + n + i] = -bMinus[i]!;
+    rhs[n + i] = rI[i]! + rS[i]!;
   }
 }
 
@@ -208,6 +205,7 @@ function ipmImplicitCore(A: DenseSystem, b: Float64Array, c: Float64Array, opts:
   const m = A.rows;
   const n = A.cols;
   const systemSize = n + m;
+  const centeringSigma = Math.max(0.001, Math.min(0.999, opts.implicitSigma ?? DEFAULT_CENTERING_SIGMA));
 
   const solution: IPMSolutionData = {
     x: [],
@@ -226,21 +224,27 @@ function ipmImplicitCore(A: DenseSystem, b: Float64Array, c: Float64Array, opts:
 
   const currentScratch: ResidualScratch = {
     ax: new Float64Array(m),
-    aty: new Float64Array(n),
-    rP: new Float64Array(m),
-    rD: new Float64Array(n),
+    atLambda: new Float64Array(n),
+    rX: new Float64Array(n),
+    rI: new Float64Array(m),
+    rLambda: new Float64Array(m),
+    rS: new Float64Array(m),
     s: new Float64Array(m),
-    y: new Float64Array(m),
-    dS: new Float64Array(m),
+    lambda: new Float64Array(m),
+    bPlus: new Float64Array(m),
+    bMinus: new Float64Array(m),
   };
   const candidateScratch: ResidualScratch = {
     ax: new Float64Array(m),
-    aty: new Float64Array(n),
-    rP: new Float64Array(m),
-    rD: new Float64Array(n),
+    atLambda: new Float64Array(n),
+    rX: new Float64Array(n),
+    rI: new Float64Array(m),
+    rLambda: new Float64Array(m),
+    rS: new Float64Array(m),
     s: new Float64Array(m),
-    y: new Float64Array(m),
-    dS: new Float64Array(m),
+    lambda: new Float64Array(m),
+    bPlus: new Float64Array(m),
+    bMinus: new Float64Array(m),
   };
   const system = new Float64Array(systemSize * systemSize);
   const rhs = new Float64Array(systemSize);
@@ -260,9 +264,9 @@ function ipmImplicitCore(A: DenseSystem, b: Float64Array, c: Float64Array, opts:
     const currentResidual = Math.max(metrics.pRes, metrics.dRes);
 
     logIter(solution, verbose, x, mu, metrics.pObj, currentResidual);
-    pushIter(solution, x, currentScratch.s, currentScratch.y, mu);
+    pushIter(solution, x, currentScratch.s, currentScratch.lambda, mu);
     if (colorByPhase) {
-      solution.phases!.push(computeComplementarityPhase(currentScratch.s, currentScratch.y));
+      solution.phases!.push(computeComplementarityPhase(currentScratch.s, currentScratch.lambda));
     }
 
     if (metrics.pRes <= eps_p && metrics.dRes <= eps_d && metrics.gap <= eps_opt) {
@@ -270,7 +274,17 @@ function ipmImplicitCore(A: DenseSystem, b: Float64Array, c: Float64Array, opts:
       break;
     }
 
-    buildImplicitSystem(system, rhs, A, currentScratch.dS, currentScratch.rP, currentScratch.rD);
+    buildImplicitSystem(
+      system,
+      rhs,
+      A,
+      currentScratch.bPlus,
+      currentScratch.bMinus,
+      currentScratch.rX,
+      currentScratch.rI,
+      currentScratch.rLambda,
+      currentScratch.rS,
+    );
 
     try {
       solveDenseSystem(system, systemSize, rhs, delta, luScratch);
@@ -312,10 +326,7 @@ function ipmImplicitCore(A: DenseSystem, b: Float64Array, c: Float64Array, opts:
     for (let i = 0; i < m; i++) {
       v[i] = candidateV[i]!;
     }
-    const candidateResidual = Math.max(candidateScratchMetrics(candidateScratch), targetResidual);
-    const muFromPredictor = mu * computeAdaptiveSigma(candidateScratch.s, candidateScratch.y);
-    const muFloor = Math.min(mu, Math.max(MIN_MU, MU_RESIDUAL_FLOOR_RATIO * candidateResidual));
-    mu = Math.max(muFromPredictor, muFloor);
+    mu = Math.max(MIN_MU, centeringSigma * mu);
   }
 
   const solveTime = performance.now() - startTime;
@@ -324,5 +335,5 @@ function ipmImplicitCore(A: DenseSystem, b: Float64Array, c: Float64Array, opts:
 }
 
 function candidateScratchMetrics(scratch: ResidualScratch) {
-  return Math.max(infinityNorm(scratch.rP), infinityNorm(scratch.rD));
+  return Math.max(infinityNorm(scratch.rI), infinityNorm(scratch.rX));
 }

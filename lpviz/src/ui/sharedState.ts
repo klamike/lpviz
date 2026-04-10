@@ -5,6 +5,7 @@ export type ShareSettings = {
   ipmVariant?: IPMVariant;
   alphaMax?: number;
   correctorThreshold?: number;
+  implicitSigma?: number;
   maxitIPM?: number;
   ipmColorByPhase?: boolean;
   simplexDualMode?: boolean;
@@ -42,6 +43,7 @@ const shareKeyMap = {
   ipmVariant: "z",
   alphaMax: "a",
   correctorThreshold: "f",
+  implicitSigma: "n",
   maxitIPM: "i",
   ipmColorByPhase: "w",
   simplexDualMode: "d",

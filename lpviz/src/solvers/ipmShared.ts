@@ -13,6 +13,7 @@ export interface IPMOptions {
   maxit: number;
   alphaMax: number;
   correctorThreshold: number;
+  implicitSigma?: number;
   verbose: boolean;
   colorByPhase: boolean;
   variant?: IPMVariant;
