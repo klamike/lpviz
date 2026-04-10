@@ -118,6 +118,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   const replaySpeedSlider = getRequiredElementById<HTMLInputElement>("replaySpeedSlider");
   const rotationSettings = getRequiredElementById<HTMLElement>("objectiveRotationSettings");
   const ipmVariantSelect = getRequiredElementById<HTMLSelectElement>("ipmVariantSelect");
+  const ipmAlphaMaxControls = getRequiredElementById<HTMLElement>("ipmAlphaMaxControls");
   const ipmExplicitControls = getRequiredElementById<HTMLElement>("ipmExplicitControls");
   const ipmImplicitControls = getRequiredElementById<HTMLElement>("ipmImplicitControls");
   const alphaMaxSlider = getRequiredElementById<HTMLInputElement>("alphaMaxSlider");
@@ -1022,6 +1023,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   };
   const syncIPMVariantControls = () => {
     const implicit = getIPMVariant() === "implicit";
+    setElementVisibility(ipmAlphaMaxControls, !implicit);
     setElementVisibility(ipmExplicitControls, !implicit);
     setElementVisibility(ipmImplicitControls, implicit);
   };
