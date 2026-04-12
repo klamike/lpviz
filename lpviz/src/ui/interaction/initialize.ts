@@ -1255,16 +1255,15 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       }
     },
 
-    initialize(finishOpenRegion?: () => void) {
-      this.bindControls(finishOpenRegion);
+    initialize() {
+      this.bindControls();
       this.synchronize();
       syncSidebarViewport();
       this.handleStartupParams();
       this.synchronize();
-      canvas.focus();
     },
 
-    bindControls(finishOpenRegion?: () => void) {
+    bindControls() {
       bindEvent(getOptionalElementById<HTMLButtonElement>("shareButton"), "click", () => {
         const crushed = JSONCrush.crush(JSON.stringify(this.buildSharedState()));
         window.prompt("Share this link:", `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`);
@@ -1303,26 +1302,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       bindEvent(document, "mouseup", () => {
         this.finishResize();
       });
-
-      bindEvent(window, "keydown", (event: KeyboardEvent) => {
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
-          event.preventDefault();
-          historyRuntime.handleUndoRedo(event.shiftKey);
-        }
-        if (event.key === "Enter") {
-          event.preventDefault();
-          finishOpenRegion?.();
-        }
-        if (event.key.toLowerCase() === "s") {
-          const { snapToGrid } = getState();
-          setState({ snapToGrid: !snapToGrid });
-        }
-        if (event.key.toLowerCase() === "h") {
-          const { objectiveHidden } = getState();
-          setState({ objectiveHidden: !objectiveHidden });
-          canvasManager.draw();
-        }
-      });
     },
   };
   const solverRuntime = createSolverRuntime({
@@ -1340,7 +1319,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     },
   });
 
-  const { finishOpenRegion, teardown: teardownCanvasInteractions } = registerCanvasInteractions(
+  const { teardown: teardownCanvasInteractions } = registerCanvasInteractions(
     canvasManager,
     {
       hideNullStateMessage: uiRuntime.hideNullStateMessage,
@@ -1350,6 +1329,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     },
     historyRuntime.save.bind(historyRuntime),
     polytopeRuntime.send.bind(polytopeRuntime),
+    historyRuntime.handleUndoRedo.bind(historyRuntime),
   );
   registerCleanup(() => {
     teardownCanvasInteractions();
@@ -1432,7 +1412,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     });
   };
   bindSolverControls();
-  uiRuntime.initialize(finishOpenRegion ?? undefined);
+  uiRuntime.initialize();
 
   return () => {
     overlayRuntime.teardown();
