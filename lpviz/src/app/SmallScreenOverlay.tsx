@@ -1,23 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { LegacyRuntimeElementsProvider } from "./legacyRuntimeElements";
 import { MIN_SCREEN_WIDTH } from "./uiConstants";
-import { CanvasStage } from "../components/layout/CanvasStage";
-import { Sidebar } from "../components/layout/Sidebar";
 
-export function AppShell() {
-  return (
-    <LegacyRuntimeElementsProvider>
-      <header>
-        <Sidebar />
-      </header>
-      <CanvasStage />
-      <SmallScreenOverlay />
-    </LegacyRuntimeElementsProvider>
-  );
-}
-
-function SmallScreenOverlay() {
+export function SmallScreenOverlay() {
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
 
   useEffect(() => {

@@ -79,7 +79,29 @@ export function UsagePanel() {
           >
             {resultPanelUiState.virtualShowEmpty ? (
               <div className="iterate-item-nohover">No iterations available.</div>
-            ) : null}
+            ) : (
+              <div className="iterate-virtual-wrapper">
+                <div style={{ height: `${resultPanelUiState.virtualPaddingTop}px` }}></div>
+                <div className="iterate-rows">
+                  {resultPanelUiState.virtualRows.map((row, index) => (
+                    <div
+                      key={`${index}-${row.index}-${row.text}`}
+                      className={row.className}
+                      data-index={row.index}
+                      onMouseEnter={row.index === undefined ? undefined : () => {
+                        lpvizRuntimeCommands.setIterateHighlight(row.index ?? null);
+                      }}
+                      onMouseLeave={row.index === undefined ? undefined : () => {
+                        lpvizRuntimeCommands.setIterateHighlight(null);
+                      }}
+                    >
+                      {row.text}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: `${resultPanelUiState.virtualPaddingBottom}px` }}></div>
+              </div>
+            )}
           </div>
           {resultPanelUiState.virtualFooter ? <div className="iterate-footer">{resultPanelUiState.virtualFooter}</div> : null}
         </div>
