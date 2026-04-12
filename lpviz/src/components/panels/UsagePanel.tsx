@@ -10,7 +10,7 @@ export function UsagePanel() {
 
   return (
     <TerminalFrame containerId="terminal-container" delayClassName="scanlines--delay-12">
-      <div id="result" ref={refs.result}>
+      <div id="result" ref={refs.result} className={resultPanelUiState.mode === "virtual" ? "virtualized" : undefined}>
         {resultPanelUiState.mode === "usage" ? (
           <div id="usageTips">
             <br />
