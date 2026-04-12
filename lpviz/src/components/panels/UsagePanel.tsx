@@ -1,9 +1,12 @@
+import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
 import { TerminalFrame } from "../layout/TerminalFrame";
 
 export function UsagePanel() {
+  const refs = useLegacyRuntimeElementRefs();
+
   return (
     <TerminalFrame containerId="terminal-container" delayClassName="scanlines--delay-12">
-      <div id="result">
+      <div id="result" ref={refs.result}>
         <div id="usageTips">
           <br />
           <br />
