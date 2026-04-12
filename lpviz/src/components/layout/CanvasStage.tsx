@@ -1,14 +1,14 @@
 import type { RefObject } from "react";
 
-import { areCanvasControlsUiStatesEqual, getCanvasControlsUiState } from "../../app/phase4UiState";
-import { useLpvizStoreSelector } from "../../app/useLpvizStoreSelector";
+import { useLpvizSelector } from "../../app/lpvizStore";
+import { areCanvasControlsUiStatesEqual, selectCanvasControlsUiState } from "../../app/uiSelectors";
 
 type CanvasStageProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
 };
 
 export function CanvasStage({ canvasRef }: CanvasStageProps) {
-  const canvasControlsUiState = useLpvizStoreSelector(getCanvasControlsUiState, areCanvasControlsUiStatesEqual);
+  const canvasControlsUiState = useLpvizSelector(selectCanvasControlsUiState, areCanvasControlsUiStatesEqual);
 
   return (
     <main>

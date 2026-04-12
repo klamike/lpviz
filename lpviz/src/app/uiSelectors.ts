@@ -21,7 +21,7 @@ export type CanvasControlsUiState = {
   zScale: number;
 };
 
-export function getSolverControlsUiState(state: State): SolverControlsUiState {
+export function selectSolverControlsUiState(state: State): SolverControlsUiState {
   return {
     activeMode: state.solverMode,
     buttons: {
@@ -45,7 +45,7 @@ export function areSolverControlsUiStatesEqual(a: SolverControlsUiState, b: Solv
   });
 }
 
-export function getCanvasControlsUiState(state: State): CanvasControlsUiState {
+export function selectCanvasControlsUiState(state: State): CanvasControlsUiState {
   return {
     is3DMode: state.is3DMode,
     toggle3DLabel: state.is3DMode ? "2D" : "3D",

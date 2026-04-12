@@ -1,8 +1,8 @@
-import { areSolverControlsUiStatesEqual, getSolverControlsUiState } from "../../app/phase4UiState";
-import { useLpvizStoreSelector } from "../../app/useLpvizStoreSelector";
+import { useLpvizSelector } from "../../app/lpvizStore";
+import { areSolverControlsUiStatesEqual, selectSolverControlsUiState } from "../../app/uiSelectors";
 
 export function SolverControlsPanel() {
-  const solverControlsUiState = useLpvizStoreSelector(getSolverControlsUiState, areSolverControlsUiStatesEqual);
+  const solverControlsUiState = useLpvizSelector(selectSolverControlsUiState, areSolverControlsUiStatesEqual);
 
   return (
     <div className="controlPanel">
