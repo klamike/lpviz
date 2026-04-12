@@ -1,6 +1,7 @@
 import { sprintf } from "sprintf-js";
 import { formatMilliseconds } from "../utils/time";
 import { getState, updateIteratePaths, updateIteratePathsWithTrace, addTraceToBuffer } from "../../state/store";
+import type { ResultTextBlock } from "../../ui/resultPayload";
 
 export type VirtualResultRow =
   | string
@@ -31,12 +32,12 @@ export interface VirtualResultPayload {
   footer?: string;
 }
 
-interface HtmlResultPayload {
-  type: "html";
-  html: string;
+interface BlocksResultPayload {
+  type: "blocks";
+  blocks: ResultTextBlock[];
 }
 
-export type ResultRenderPayload = VirtualResultPayload | HtmlResultPayload;
+export type ResultRenderPayload = VirtualResultPayload | BlocksResultPayload;
 export interface IPMResult {
   iterates: {
     solution: {
@@ -95,7 +96,7 @@ export function applyIPMResult(result: IPMResult, updateResult: (payload: Result
 
 export function applySimplexResult(result: SimplexResult, updateResult: (payload: ResultRenderPayload) => void) {
   updateIteratePathsWithTrace(result.iterations);
-  updateResult({ type: "html", html: generateSimplexHTML(result.logs[0], result.logs[1], result.mode, result.status) });
+  updateResult({ type: "blocks", blocks: generateSimplexBlocks(result.logs[0], result.logs[1], result.mode, result.status) });
 }
 
 export function applyPDHGResult(result: PDHGResult, updateResult: (payload: ResultRenderPayload) => void) {
@@ -172,20 +173,18 @@ function applyCanonicalIterateResult(
   updateResult(buildIteratePayload({ header, rows, footer }));
 }
 
-function generateSimplexHTML(
+function generateSimplexBlocks(
   phase1logs: string[] = [],
   phase2logs: string[] = [],
   mode: SimplexResult["mode"] = "primal",
   status: SimplexResult["status"] = "optimal",
-): string {
+): ResultTextBlock[] {
   const normalizeLog = (value: string) => value.replace(/\n+$/g, "");
-  const escapeHtml = (value: string) =>
-    value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  const renderBlock = (className: string, text: string, attrs = "") =>
-    `<div class="${className}"${attrs} style="white-space: pre-wrap">${escapeHtml(normalizeLog(text))}</div>`;
+  const createBlock = (className: ResultTextBlock["className"], text: string, index?: number): ResultTextBlock => ({
+    className,
+    text: normalizeLog(text),
+    index,
+  });
 
   const phase1Header = phase1logs[0] ?? "No phase 1 logs.";
   const phase1Rows = phase1logs.length > 2 ? phase1logs.slice(1, -1) : [];
@@ -209,17 +208,17 @@ function generateSimplexHTML(
     phase1logs.length === 0
       ? []
       : [
-          renderBlock("iterate-header", `${phase1Title}\n${phase1Header}`),
-          ...phase1Rows.map((log) => renderBlock("iterate-item-nohover", log)),
-          ...(phase1Footer ? [renderBlock("iterate-footer", phase1Footer)] : []),
+          createBlock("iterate-header", `${phase1Title}\n${phase1Header}`),
+          ...phase1Rows.map((log) => createBlock("iterate-item-nohover", log)),
+          ...(phase1Footer ? [createBlock("iterate-footer", phase1Footer)] : []),
         ];
 
   return [
     ...setupBlocks,
-    renderBlock("iterate-header", `${phase2Title}\n${phase2Header}`),
-    ...phase2Rows.map((log, i) => renderBlock("iterate-item", log, ` data-index="${i}"`)),
-    ...(phase2Footer ? [renderBlock("iterate-footer", phase2Footer)] : []),
-  ].join("");
+    createBlock("iterate-header", `${phase2Title}\n${phase2Header}`),
+    ...phase2Rows.map((log, i) => createBlock("iterate-item", log, i)),
+    ...(phase2Footer ? [createBlock("iterate-footer", phase2Footer)] : []),
+  ];
 }
 
 function getObjectiveVector(): [number, number] {

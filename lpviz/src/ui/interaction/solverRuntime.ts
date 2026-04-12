@@ -6,6 +6,7 @@ import { isObjectiveDirectionUnbounded } from "../../solvers/utils/objectiveDire
 import { hasPolytopeLines } from "../../solvers/utils/polytopeTypes";
 import { computeObjectiveRotationStep } from "../../solvers/utils/objectiveDirection";
 import { ViewportManager } from "../viewport";
+import type { ResultTextBlock } from "../resultPayload";
 
 type SolverControl = {
   mode: SolverMode;
@@ -43,13 +44,11 @@ export function createSolverRuntime({
     updateObjectiveDisplay: () => void;
   };
 }) {
-  const escapeHtml = (value: string) =>
-    value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
+  const createResultBlock = (className: ResultTextBlock["className"], text: string, index?: number): ResultTextBlock => ({
+    className,
+    text,
+    index,
+  });
   const runtime = {
     baseRotationWaitMs: 30,
     objectiveRotationDirection: 1 as 1 | -1,
@@ -187,11 +186,11 @@ export function createSolverRuntime({
           return;
         }
         resultRuntime.render({
-          type: "html",
-          html: `
-            <div class="iterate-header">Solver error</div>
-            <div class="iterate-item-nohover">${escapeHtml(error instanceof Error ? error.message : String(error))}</div>
-          `,
+          type: "blocks",
+          blocks: [
+            createResultBlock("iterate-header", "Solver error"),
+            createResultBlock("iterate-item-nohover", error instanceof Error ? error.message : String(error)),
+          ],
         });
         uiRuntime.syncButtonStates();
       }
