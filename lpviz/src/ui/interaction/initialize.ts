@@ -1046,18 +1046,8 @@ export async function initializeUI(
     },
 
     syncButtonStates() {
-      const state = getState();
-      const hasComputedLines = solverRuntime.hasComputedConstraintSystem(state);
-      const hasSolution = (state.originalIteratePath?.length ?? 0) > 0;
-      const hasObjective = state.objectiveVector !== null;
-      const isRotating = state.rotateObjectiveMode;
-      const isAnimating = state.animationIntervalId !== null && !isRotating;
-
       zoomButton.disabled = false;
       unzoomButton.disabled = false;
-      animateButton.disabled = !hasComputedLines || !hasSolution || isAnimating || isRotating;
-      startRotateButton.disabled = !hasComputedLines || !hasObjective || isAnimating || isRotating;
-      stopRotateButton.disabled = !isRotating;
     },
 
     synchronize() {
