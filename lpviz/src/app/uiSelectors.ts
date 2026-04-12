@@ -35,6 +35,11 @@ export type TopResultUiState = {
   subjectToVisible: boolean;
 };
 
+export type InequalitiesUiState = {
+  items: string[];
+  message: string | null;
+};
+
 export function selectSolverControlsUiState(state: State): SolverControlsUiState {
   return {
     activeMode: state.solverMode,
@@ -119,6 +124,38 @@ export function areTopResultUiStatesEqual(a: TopResultUiState, b: TopResultUiSta
     a.objectiveDisplayText === b.objectiveDisplayText &&
     a.subjectToVisible === b.subjectToVisible
   );
+}
+
+export function selectInequalitiesUiState(state: State): InequalitiesUiState {
+  if (state.inequalitiesMessage !== null) {
+    return {
+      items: [],
+      message: state.inequalitiesMessage,
+    };
+  }
+
+  if (!state.polytope) {
+    return {
+      items: [],
+      message: null,
+    };
+  }
+
+  return {
+    items:
+      state.completionMode === "draft"
+        ? state.polytope.inequalities.slice(0, Math.max(0, state.polytope.inequalities.length - 1))
+        : state.polytope.inequalities,
+    message: null,
+  };
+}
+
+export function areInequalitiesUiStatesEqual(a: InequalitiesUiState, b: InequalitiesUiState): boolean {
+  if (a.message !== b.message || a.items.length !== b.items.length) {
+    return false;
+  }
+
+  return a.items.every((item, index) => item === b.items[index]);
 }
 
 function getSolverButtonUiState(state: State, mode: SolverMode): SolverButtonUiState {

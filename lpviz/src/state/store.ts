@@ -55,6 +55,7 @@ export type State = {
   completionMode: CompletionMode;
   interiorPoint: PointXY | null;
   polytope: PolytopeRepresentation | null;
+  inequalitiesMessage: string | null;
 
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -105,6 +106,7 @@ const initialState: State = {
   completionMode: "draft",
   interiorPoint: null,
   polytope: null,
+  inequalitiesMessage: null,
 
   objectiveVector: null,
   currentObjective: null,

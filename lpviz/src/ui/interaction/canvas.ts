@@ -304,6 +304,8 @@ export function registerCanvasInteractions(
         completionMode: result.completionMode,
         interiorPoint: result.interiorPoint,
         polytope: null as null,
+        inequalitiesMessage: null,
+        highlightIndex: null,
         ...(options.extraPatch ?? {}),
       }, { viewportDirty: canvasManager.getPolytopeDirtyFlags() });
       ui.hideNullStateMessage();
