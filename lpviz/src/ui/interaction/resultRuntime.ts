@@ -12,15 +12,16 @@ type ResponsiveSyncOptions = { includeTerminal?: boolean; forceResultFont?: bool
 export function createResultRuntime({
   canvasManager,
   resultDiv,
+  resultVirtualHost,
   resultSelector,
   syncResponsiveUi,
 }: {
   canvasManager: ViewportManager;
   resultDiv: HTMLElement;
+  resultVirtualHost: HTMLElement;
   resultSelector: string;
   syncResponsiveUi: (options?: ResponsiveSyncOptions) => void;
 }) {
-  const initialResultHtml = resultDiv.innerHTML;
   const runtime = {
     resultMouseX: 0,
     resultMouseY: 0,
@@ -34,8 +35,8 @@ export function createResultRuntime({
 
     clearHover() {
       if (!this.currentHoveredResult) return;
+      this.setHighlight(null);
       this.currentHoveredResult.classList.remove("hover");
-      this.currentHoveredResult.dispatchEvent(new Event("mouseleave", { bubbles: true }));
       this.currentHoveredResult = null;
     },
 
@@ -50,7 +51,10 @@ export function createResultRuntime({
       if (!next) return;
       this.currentHoveredResult = next;
       next.classList.add("hover");
-      next.dispatchEvent(new Event("mouseenter", { bubbles: true }));
+      const index = next.dataset.index;
+      if (index !== undefined) {
+        this.setHighlight(parseInt(index, 10));
+      }
     },
 
     updateHoverState() {
@@ -103,8 +107,6 @@ export function createResultRuntime({
           rowEl.className = "iterate-item";
           rowEl.dataset.index = String(index);
           rowEl.textContent = formatVirtualResultRow(rows[index]!);
-          rowEl.addEventListener("mouseenter", () => this.setHighlight(index));
-          rowEl.addEventListener("mouseleave", () => this.setHighlight(null));
           rowsContainer.appendChild(rowEl);
         }
         if (container.scrollTop !== scrollTop) {
@@ -155,7 +157,8 @@ export function createResultRuntime({
       if (payload.type === "virtual") {
         this.lastVirtualResult = payload;
         resultDiv.classList.add("virtualized");
-        resultDiv.innerHTML = "";
+        setState({ resultDisplayMode: "virtual", resultHtml: null, highlightIteratePathIndex: null });
+        resultVirtualHost.textContent = "";
         this.setHighlight(null);
         this.activeVirtualizer?.destroy();
         this.activeVirtualizer = null;
@@ -166,20 +169,20 @@ export function createResultRuntime({
           0,
         );
         resultDiv.dataset.virtualMaxChars = String(maxLineChars);
-        resultDiv.appendChild(createResultElement("iterate-header", payload.header || ""));
+        resultVirtualHost.appendChild(createResultElement("iterate-header", payload.header || ""));
 
         const bodyEl = document.createElement("div");
         bodyEl.className = "iterate-scroll";
         if (rowsForLayout.length === 0) {
           bodyEl.appendChild(createResultElement("iterate-item-nohover", "No iterations available."));
-          resultDiv.appendChild(bodyEl);
+          resultVirtualHost.appendChild(bodyEl);
         } else {
-          resultDiv.appendChild(bodyEl);
+          resultVirtualHost.appendChild(bodyEl);
           this.activeVirtualizer = this.createVirtualizer(bodyEl, rowsForLayout);
         }
 
         if (payload.footer) {
-          resultDiv.appendChild(createResultElement("iterate-footer", payload.footer));
+          resultVirtualHost.appendChild(createResultElement("iterate-footer", payload.footer));
         }
       } else {
         this.lastVirtualResult = null;
@@ -187,17 +190,8 @@ export function createResultRuntime({
         this.activeVirtualizer?.destroy();
         this.activeVirtualizer = null;
         delete resultDiv.dataset.virtualMaxChars;
-        resultDiv.innerHTML = payload.html;
-
-        resultDiv.querySelectorAll(".iterate-item[data-index]").forEach((item) => {
-          item.addEventListener("mouseenter", () => {
-            const index = parseInt(item.getAttribute("data-index") || "0");
-            this.setHighlight(index);
-          });
-          item.addEventListener("mouseleave", () => {
-            this.setHighlight(null);
-          });
-        });
+        resultVirtualHost.textContent = "";
+        setState({ resultDisplayMode: "html", resultHtml: payload.html, highlightIteratePathIndex: null });
       }
 
       canvasManager.draw();
@@ -239,7 +233,8 @@ export function createResultRuntime({
       this.activeVirtualizer = null;
       delete resultDiv.dataset.virtualMaxChars;
       resultDiv.classList.remove("virtualized");
-      resultDiv.innerHTML = initialResultHtml;
+      resultVirtualHost.textContent = "";
+      setState({ resultDisplayMode: "usage", resultHtml: null, highlightIteratePathIndex: null });
       this.setHighlight(null);
       syncResponsiveUi({ forceResultFont: true });
     },

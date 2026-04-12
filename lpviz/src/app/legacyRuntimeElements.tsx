@@ -18,6 +18,7 @@ export type LegacyRuntimeElements = {
   subjectTo: HTMLDivElement;
   inequalities: HTMLDivElement;
   result: HTMLDivElement;
+  resultVirtualHost: HTMLDivElement;
   iteratePathButton: HTMLButtonElement;
   ipmButton: HTMLButtonElement;
   simplexButton: HTMLButtonElement;
@@ -73,6 +74,7 @@ export function LegacyRuntimeElementsProvider({ children }: PropsWithChildren) {
     subjectTo: createRef<HTMLDivElement>(),
     inequalities: createRef<HTMLDivElement>(),
     result: createRef<HTMLDivElement>(),
+    resultVirtualHost: createRef<HTMLDivElement>(),
     iteratePathButton: createRef<HTMLButtonElement>(),
     ipmButton: createRef<HTMLButtonElement>(),
     simplexButton: createRef<HTMLButtonElement>(),

@@ -40,6 +40,11 @@ export type InequalitiesUiState = {
   message: string | null;
 };
 
+export type ResultPanelUiState = {
+  mode: State["resultDisplayMode"];
+  html: string | null;
+};
+
 export function selectSolverControlsUiState(state: State): SolverControlsUiState {
   return {
     activeMode: state.solverMode,
@@ -156,6 +161,17 @@ export function areInequalitiesUiStatesEqual(a: InequalitiesUiState, b: Inequali
   }
 
   return a.items.every((item, index) => item === b.items[index]);
+}
+
+export function selectResultPanelUiState(state: State): ResultPanelUiState {
+  return {
+    mode: state.resultDisplayMode,
+    html: state.resultHtml,
+  };
+}
+
+export function areResultPanelUiStatesEqual(a: ResultPanelUiState, b: ResultPanelUiState): boolean {
+  return a.mode === b.mode && a.html === b.html;
 }
 
 function getSolverButtonUiState(state: State, mode: SolverMode): SolverButtonUiState {
