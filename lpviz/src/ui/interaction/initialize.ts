@@ -456,12 +456,10 @@ export async function initializeUI(
     syncResponsiveUi({ includeTerminal: true });
   };
 
-  const resultSelector = ".iterate-item, .iterate-header, .iterate-footer";
   const resultRuntime = createResultRuntime({
     canvasManager,
     resultDiv,
     resultVirtualHost,
-    resultSelector,
     syncResponsiveUi,
   });
   let wasNavigatingViewport = getState().isNavigatingViewport;
