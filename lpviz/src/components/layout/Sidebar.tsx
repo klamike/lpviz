@@ -4,19 +4,13 @@ import { SolverControlsPanel } from "../panels/SolverControlsPanel";
 import { TopResultPanel } from "../panels/TopResultPanel";
 import { UsagePanel } from "../panels/UsagePanel";
 
-import type { RefObject } from "react";
-
-type SidebarProps = {
-  nullStateMessageRef: RefObject<HTMLDivElement | null>;
-};
-
-export function Sidebar({ nullStateMessageRef }: SidebarProps) {
+export function Sidebar() {
   return (
     <div id="sidebar">
       <div id="sidebarContent">
         <AppHeader />
         <div id="uiContainer">
-          <TopResultPanel nullStateMessageRef={nullStateMessageRef} />
+          <TopResultPanel />
           <SolverControlsPanel />
           <AnimationControlsPanel />
           <label className="is-hidden" htmlFor="replaySpeedSlider">
