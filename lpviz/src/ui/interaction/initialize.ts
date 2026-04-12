@@ -30,8 +30,31 @@ const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
 };
 
 export type LegacyUiCleanup = () => void;
+export type LegacyCanvasSurfaceElements = {
+  canvas: HTMLCanvasElement;
+  shareButton: HTMLButtonElement;
+  zoomButton: HTMLButtonElement;
+  unzoomButton: HTMLButtonElement;
+  toggle3DButton: HTMLButtonElement;
+  toggleZOffsetButton: HTMLButtonElement;
+  zScaleSlider: HTMLInputElement;
+  sidebarHandle: HTMLDivElement;
+};
 
-export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchParams): Promise<LegacyUiCleanup> {
+export async function initializeUI(
+  canvasSurface: LegacyCanvasSurfaceElements,
+  params: URLSearchParams,
+): Promise<LegacyUiCleanup> {
+  const {
+    canvas,
+    shareButton,
+    zoomButton,
+    unzoomButton,
+    toggle3DButton,
+    toggleZOffsetButton,
+    zScaleSlider,
+    sidebarHandle,
+  } = canvasSurface;
   const POPUP_ANIMATION_MS = 300;
   const TOUR_CURSOR_TRANSITION_MS = 700;
   const TOUR_DEFAULT_DELAY_MS = 300;
@@ -115,11 +138,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   };
   const objectiveDisplay = getRequiredElementById<HTMLElement>("objectiveDisplay");
   const inequalitiesDiv = getRequiredElementById<HTMLElement>("inequalities");
-  const zoomButton = getRequiredElementById<HTMLButtonElement>("zoomButton");
-  const unzoomButton = getRequiredElementById<HTMLButtonElement>("unzoomButton");
-  const toggle3DButton = getRequiredElementById<HTMLButtonElement>("toggle3DButton");
-  const toggleZOffsetButton = getRequiredElementById<HTMLButtonElement>("toggleZOffsetButton");
-  const zScaleSlider = getRequiredElementById<HTMLInputElement>("zScaleSlider");
   const iteratePathButton = getRequiredElementById<HTMLButtonElement>("iteratePathButton");
   const ipmButton = getRequiredElementById<HTMLButtonElement>("ipmButton");
   const simplexButton = getRequiredElementById<HTMLButtonElement>("simplexButton");
@@ -145,7 +163,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   const pdhgHalpernMode = getRequiredElementById<HTMLInputElement>("pdhgHalpernMode");
   const pdhgColorByBasis = getRequiredElementById<HTMLInputElement>("pdhgColorByBasis");
   const sidebar = getRequiredElementById<HTMLElement>("sidebar");
-  const sidebarHandle = getRequiredElementById<HTMLElement>("sidebarHandle");
   const readSolverNumber = (value: string, fallback = 0): number => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -1264,7 +1281,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     },
 
     bindControls() {
-      bindEvent(getOptionalElementById<HTMLButtonElement>("shareButton"), "click", () => {
+      bindEvent(shareButton, "click", () => {
         const crushed = JSONCrush.crush(JSON.stringify(this.buildSharedState()));
         window.prompt("Share this link:", `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`);
       });
