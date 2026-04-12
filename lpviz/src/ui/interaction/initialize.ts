@@ -1,5 +1,6 @@
 import JSONCrush from "jsoncrush";
 import type { LegacyRuntimeElements } from "../../app/legacyRuntimeElements";
+import { MIN_SCREEN_WIDTH } from "../../app/uiConstants";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
 import type { DrawingPhase, SolverMode } from "../../state/store";
 import { subscribe } from "../../state/store";
@@ -18,17 +19,6 @@ import { collectZoomFitBounds } from "../viewBounds";
 import { createResultRuntime } from "./resultRuntime";
 import { createSolverRuntime } from "./solverRuntime";
 import type { PointXY } from "../../solvers/utils/blas";
-
-const MIN_SCREEN_WIDTH = 750;
-
-const getOptionalElementById = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null;
-const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
-  const element = getOptionalElementById<T>(id);
-  if (!element) {
-    throw new Error(`Element with id "${id}" not found`);
-  }
-  return element;
-};
 
 export type LegacyUiCleanup = () => void;
 
@@ -361,23 +351,6 @@ export async function initializeUI(
     applyResult: (response: SolverWorkerSuccessResponse, updateResult: (payload: ResultRenderPayload) => void) => void;
   }>;
   const getSolverControl = (mode: SolverMode) => solverControls.find((solverControl) => solverControl.mode === mode) ?? null;
-  const existingSmallScreenOverlay = getOptionalElementById<HTMLElement>("smallScreenOverlay");
-  const createdSmallScreenOverlay = !existingSmallScreenOverlay;
-  const smallScreenOverlay =
-    existingSmallScreenOverlay ??
-    Object.assign(document.createElement("div"), {
-      id: "smallScreenOverlay",
-      className: "small-screen-overlay",
-    });
-  if (!existingSmallScreenOverlay) {
-    document.body.appendChild(smallScreenOverlay);
-  }
-  smallScreenOverlay.classList.add("is-hidden");
-  if (createdSmallScreenOverlay) {
-    registerCleanup(() => {
-      smallScreenOverlay.remove();
-    });
-  }
   const responsiveUiRuntime = {
     pendingOptions: null as { includeTerminal?: boolean; forceResultFont?: boolean } | null,
 
@@ -436,11 +409,6 @@ export async function initializeUI(
         }
       }
     }
-
-    const tooSmall = window.innerWidth < MIN_SCREEN_WIDTH;
-    smallScreenOverlay.textContent = `The window is not wide enough (${window.innerWidth}px < ${MIN_SCREEN_WIDTH}px) for lpviz.`;
-    setElementVisibility(smallScreenOverlay, tooSmall, "is-flex");
-
     if (!options.includeTerminal) return;
   };
   const syncResponsiveUi = (options: { includeTerminal?: boolean; forceResultFont?: boolean } = {}) => {
@@ -900,7 +868,7 @@ export async function initializeUI(
     },
 
     async clickButton(id: string) {
-      const element = getOptionalElementById<HTMLElement>(id);
+      const element = tourButtonTargets[id as keyof typeof tourButtonTargets];
       if (!element) return;
       const rect = element.getBoundingClientRect();
       await this.moveCursorToScreen(rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -994,6 +962,13 @@ export async function initializeUI(
       }
     },
   };
+  const tourButtonTargets = {
+    ipmButton,
+    toggle3DButton,
+    startRotateObjectiveButton: startRotateButton,
+    iteratePathButton,
+    traceCheckbox,
+  } as const;
   const unsubscribeHelpOverlay = subscribe((state: State) => {
     const phase = computeDrawingPhase(state);
     if (state.objectiveVector !== null || state.tourActive) {
