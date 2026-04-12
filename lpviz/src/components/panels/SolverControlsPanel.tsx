@@ -1,22 +1,46 @@
+import { areSolverControlsUiStatesEqual, getSolverControlsUiState } from "../../app/phase4UiState";
+import { useLpvizStoreSelector } from "../../app/useLpvizStoreSelector";
+
 export function SolverControlsPanel() {
+  const solverControlsUiState = useLpvizStoreSelector(getSolverControlsUiState, areSolverControlsUiStatesEqual);
+
   return (
     <div className="controlPanel">
       <div className="button-group">
-        <button id="ipmButton" disabled>
+        <button
+          id="ipmButton"
+          className={solverControlsUiState.buttons.ipm.active ? "button-active" : undefined}
+          disabled={solverControlsUiState.buttons.ipm.disabled}
+        >
           IPM
         </button>
-        <button id="pdhgButton" disabled>
+        <button
+          id="pdhgButton"
+          className={solverControlsUiState.buttons.pdhg.active ? "button-active" : undefined}
+          disabled={solverControlsUiState.buttons.pdhg.disabled}
+        >
           PDHG
         </button>
-        <button id="simplexButton" disabled>
+        <button
+          id="simplexButton"
+          className={solverControlsUiState.buttons.simplex.active ? "button-active" : undefined}
+          disabled={solverControlsUiState.buttons.simplex.disabled}
+        >
           Simplex
         </button>
-        <button id="iteratePathButton" disabled>
+        <button
+          id="iteratePathButton"
+          className={solverControlsUiState.buttons.central.active ? "button-active" : undefined}
+          disabled={solverControlsUiState.buttons.central.disabled}
+        >
           Central Path
         </button>
       </div>
 
-      <div id="ipmSettings" className="settings-section">
+      <div
+        id="ipmSettings"
+        className={solverControlsUiState.activeMode === "ipm" ? "settings-section is-block" : "settings-section is-hidden"}
+      >
         <label htmlFor="alphaMaxSlider">
           αmax (maximum step size ratio):
           <span id="alphaMaxValue">0.1</span>
@@ -38,7 +62,10 @@ export function SolverControlsPanel() {
         </div>
       </div>
 
-      <div id="pdhgSettings" className="settings-section">
+      <div
+        id="pdhgSettings"
+        className={solverControlsUiState.activeMode === "pdhg" ? "settings-section is-block" : "settings-section is-hidden"}
+      >
         <label htmlFor="pdhgEtaSlider">
           η (primal step size factor):
           <span id="pdhgEtaValue">0.250</span>
@@ -66,12 +93,18 @@ export function SolverControlsPanel() {
         </div>
       </div>
 
-      <div id="simplexSettings" className="settings-section">
+      <div
+        id="simplexSettings"
+        className={solverControlsUiState.activeMode === "simplex" ? "settings-section is-block" : "settings-section is-hidden"}
+      >
         <label htmlFor="simplexDualMode">Dual simplex mode</label>
         <input type="checkbox" id="simplexDualMode" autoComplete="off" />
       </div>
 
-      <div id="centralPathSettings" className="settings-section is-block">
+      <div
+        id="centralPathSettings"
+        className={solverControlsUiState.activeMode === "central" ? "settings-section is-block" : "settings-section is-hidden"}
+      >
         <label htmlFor="centralPathIterSlider">
           {" "}
           N (number of steps): <span id="centralPathIterValue">75</span>{" "}
