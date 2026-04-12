@@ -1,12 +1,11 @@
 import JSONCrush from "jsoncrush";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
-import type { CompletionMode, DrawingPhase, SolverMode } from "../../state/store";
+import type { DrawingPhase, SolverMode } from "../../state/store";
 import { subscribe } from "../../state/store";
 import { applyCentralPathResult, applyIPMResult, applyPDHGResult, applySimplexResult } from "../../solvers/worker/solverService";
 import type { ResultRenderPayload } from "../../solvers/worker/solverService";
 import type { SolverWorkerPayload, SolverWorkerSuccessResponse } from "../../solvers/worker/solverWorker";
 import { ViewportManager } from "../viewport";
-import { isObjectiveDirectionUnbounded } from "../../solvers/utils/objectiveDirection";
 import { registerCanvasInteractions } from "./canvas";
 import { computeEditorRegionForState } from "./editorSession";
 import { VRep } from "../../solvers/utils/polygon";
@@ -17,6 +16,7 @@ import { buildSharedStatePatch, compactSharedAppState, expandSharedAppState, typ
 import { collectZoomFitBounds } from "../viewBounds";
 import { createResultRuntime } from "./resultRuntime";
 import { createSolverRuntime } from "./solverRuntime";
+import type { PointXY } from "../../solvers/utils/blas";
 
 const MIN_SCREEN_WIDTH = 750;
 
@@ -29,7 +29,9 @@ const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
   return element;
 };
 
-export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchParams) {
+export type LegacyUiCleanup = () => void;
+
+export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchParams): Promise<LegacyUiCleanup> {
   const POPUP_ANIMATION_MS = 300;
   const TOUR_CURSOR_TRANSITION_MS = 700;
   const TOUR_DEFAULT_DELAY_MS = 300;
@@ -39,6 +41,21 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   const TOUR_CURSOR_CLICK_ANIMATION_MS = 100;
   const TOUR_INACTIVITY_TIMEOUT_MS = 5000;
   const fontSizeCache = new Map<string, number>();
+  const cleanupHandlers: Array<() => void> = [];
+  const registerCleanup = (cleanup: () => void) => {
+    cleanupHandlers.push(cleanup);
+  };
+  const bindEvent = (
+    target: EventTarget | null | undefined,
+    eventName: string,
+    handler: (event: any) => void,
+    options?: boolean | AddEventListenerOptions,
+  ) => {
+    if (!target) return;
+    const listener = handler as EventListener;
+    target.addEventListener(eventName, listener, options);
+    registerCleanup(() => target.removeEventListener(eventName, listener, options));
+  };
 
   const canvasManager = await ViewportManager.create(canvas);
   const historyRuntime = {
@@ -334,6 +351,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   }>;
   const getSolverControl = (mode: SolverMode) => solverControls.find((solverControl) => solverControl.mode === mode) ?? null;
   const existingSmallScreenOverlay = getOptionalElementById<HTMLElement>("smallScreenOverlay");
+  const createdSmallScreenOverlay = !existingSmallScreenOverlay;
   const smallScreenOverlay =
     existingSmallScreenOverlay ??
     Object.assign(document.createElement("div"), {
@@ -344,6 +362,11 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     document.body.appendChild(smallScreenOverlay);
   }
   smallScreenOverlay.classList.add("is-hidden");
+  if (createdSmallScreenOverlay) {
+    registerCleanup(() => {
+      smallScreenOverlay.remove();
+    });
+  }
   const responsiveUiRuntime = {
     pendingOptions: null as { includeTerminal?: boolean; forceResultFont?: boolean } | null,
 
@@ -444,12 +467,16 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     syncResponsiveUi,
   });
   let wasNavigatingViewport = getState().isNavigatingViewport;
-  subscribe((snapshot) => {
+  const unsubscribeViewportNavigation = subscribe((snapshot) => {
     if (wasNavigatingViewport && !snapshot.isNavigatingViewport) {
       resultRuntime.flushDeferredRender();
       responsiveUiRuntime.flush();
     }
     wasNavigatingViewport = snapshot.isNavigatingViewport;
+  });
+  registerCleanup(unsubscribeViewportNavigation);
+  registerCleanup(() => {
+    resultRuntime.teardown();
   });
 
   const polytopeRuntime = {
@@ -972,7 +999,12 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     overlayRuntime.scheduleIfNeeded();
     overlayRuntime.lastHelpPhase = phase;
   });
-  window.addEventListener("beforeunload", () => {
+  const handleBeforeUnload = () => {
+    overlayRuntime.teardown();
+    unsubscribeHelpOverlay();
+  };
+  bindEvent(window, "beforeunload", handleBeforeUnload);
+  registerCleanup(() => {
     overlayRuntime.teardown();
     unsubscribeHelpOverlay();
   });
@@ -1274,52 +1306,46 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     },
 
     bindControls(finishOpenRegion?: () => void) {
-      const bind = <T extends EventTarget>(
-        target: T | null | undefined,
-        eventName: string,
-        handler: (event: any) => void,
-      ) => target?.addEventListener(eventName, handler);
-
-      bind(getOptionalElementById<HTMLButtonElement>("shareButton"), "click", () => {
+      bindEvent(getOptionalElementById<HTMLButtonElement>("shareButton"), "click", () => {
         const crushed = JSONCrush.crush(JSON.stringify(this.buildSharedState()));
         window.prompt("Share this link:", `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`);
       });
 
       solverControls.forEach(({ button, mode }) => {
-        bind(button, "click", () => {
+        bindEvent(button, "click", () => {
           this.setActiveSolverMode(mode, true);
         });
       });
 
-      bind(window, "resize", () => {
+      bindEvent(window, "resize", () => {
         this.scheduleViewportSync();
       });
-      bind(zoomButton, "click", () => {
+      bindEvent(zoomButton, "click", () => {
         this.zoomToFitCurrentPolytope();
       });
-      bind(unzoomButton, "click", () => {
+      bindEvent(unzoomButton, "click", () => {
         this.resetView();
       });
-      bind(toggle3DButton, "click", () => {
+      bindEvent(toggle3DButton, "click", () => {
         this.toggle3D();
       });
-      bind(toggleZOffsetButton, "click", () => {
+      bindEvent(toggleZOffsetButton, "click", () => {
         this.toggleZOffsetOnly();
       });
-      bind(zScaleSlider, "input", () => {
+      bindEvent(zScaleSlider, "input", () => {
         this.setZScale();
       });
-      bind(sidebarHandle, "mousedown", (event) => {
+      bindEvent(sidebarHandle, "mousedown", (event: MouseEvent) => {
         this.beginResize(event);
       });
-      bind(document, "mousemove", (event) => {
+      bindEvent(document, "mousemove", (event: MouseEvent) => {
         this.updateResize(event);
       });
-      bind(document, "mouseup", () => {
+      bindEvent(document, "mouseup", () => {
         this.finishResize();
       });
 
-      bind(window, "keydown", (event) => {
+      bindEvent(window, "keydown", (event: KeyboardEvent) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
           event.preventDefault();
           historyRuntime.handleUndoRedo(event.shiftKey);
@@ -1355,7 +1381,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     },
   });
 
-  const { finishOpenRegion } = registerCanvasInteractions(
+  const { finishOpenRegion, teardown: teardownCanvasInteractions } = registerCanvasInteractions(
     canvasManager,
     {
       hideNullStateMessage: uiRuntime.hideNullStateMessage,
@@ -1367,6 +1393,9 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     historyRuntime.save.bind(historyRuntime),
     polytopeRuntime.send.bind(polytopeRuntime),
   );
+  registerCleanup(() => {
+    teardownCanvasInteractions();
+  });
   const bindSolverControls = () => {
     const bindSlider = (
       slider: HTMLInputElement,
@@ -1375,7 +1404,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       onInput: () => void,
     ) => {
       setSliderDisplay(slider, valueElement, digits);
-      slider.addEventListener("input", () => {
+      bindEvent(slider, "input", () => {
         setSliderDisplay(slider, valueElement, digits);
         onInput();
         syncResponsiveUi({ forceResultFont: true });
@@ -1386,7 +1415,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       eventName: "input" | "change",
       mode: SolverMode,
     ) => {
-      control.addEventListener(eventName, () => {
+      bindEvent(control, eventName, () => {
         resetTraceAndRedrawIfNeeded();
         solverRuntime.recomputeIfModeActive(mode);
         syncResponsiveUi({ forceResultFont: true });
@@ -1394,10 +1423,10 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     };
 
     traceCheckbox.checked = false;
-    traceCheckbox.addEventListener("change", () => {
+    bindEvent(traceCheckbox, "change", () => {
       solverRuntime.setTraceEnabled(traceCheckbox.checked);
     });
-    animateButton.addEventListener("click", () => {
+    bindEvent(animateButton, "click", () => {
       solverRuntime.startReplay();
     });
 
@@ -1437,13 +1466,29 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     bindSolverInput(pdhgColorByBasis, "change", "pdhg");
     bindSolverInput(simplexDualMode, "change", "simplex");
 
-    startRotateButton.addEventListener("click", () => {
+    bindEvent(startRotateButton, "click", () => {
       solverRuntime.startRotation();
     });
-    stopRotateButton.addEventListener("click", () => {
+    bindEvent(stopRotateButton, "click", () => {
       solverRuntime.stopRotation();
     });
   };
   bindSolverControls();
   uiRuntime.initialize(finishOpenRegion ?? undefined);
+
+  return () => {
+    overlayRuntime.teardown();
+    tourRuntime.stop();
+    solverRuntime.stopActiveMotion();
+    uiRuntime.finishResize();
+    if (uiRuntime.resizeTimeout) {
+      clearTimeout(uiRuntime.resizeTimeout);
+      uiRuntime.resizeTimeout = null;
+    }
+    responsiveUiRuntime.pendingOptions = null;
+    while (cleanupHandlers.length > 0) {
+      cleanupHandlers.pop()?.();
+    }
+    canvasManager.destroy();
+  };
 }
