@@ -387,8 +387,10 @@ export async function initializeUI(
   };
   const runResponsiveUiSync = (options: { includeTerminal?: boolean; forceResultFont?: boolean } = {}) => {
     const resultContainer = resultDiv;
-    if (!resultContainer.querySelector("#usageTips")) {
-      const selector = resultContainer.classList.contains("virtualized")
+    const { resultDisplayMode } = getState();
+
+    if (resultDisplayMode !== "usage") {
+      const selector = resultDisplayMode === "virtual"
         ? ".iterate-header, .iterate-item, .iterate-footer"
         : resultContainer.querySelector("#resultBlocksContent")
           ? "#resultBlocksContent > div"

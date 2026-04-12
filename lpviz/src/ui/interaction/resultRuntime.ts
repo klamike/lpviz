@@ -130,7 +130,6 @@ export function createResultRuntime({
 
       if (payload.type === "virtual") {
         this.lastVirtualResult = payload;
-        resultDiv.classList.add("virtualized");
         const rowsForLayout = limitVirtualRows ? payload.rows.slice(0, ROTATE_ROW_LIMIT) : payload.rows;
         setState({
           resultDisplayMode: "virtual",
@@ -157,7 +156,6 @@ export function createResultRuntime({
         }
       } else {
         this.lastVirtualResult = null;
-        resultDiv.classList.remove("virtualized");
         this.activeVirtualizer?.destroy();
         this.activeVirtualizer = null;
         delete resultDiv.dataset.virtualMaxChars;
@@ -212,7 +210,6 @@ export function createResultRuntime({
       this.activeVirtualizer?.destroy();
       this.activeVirtualizer = null;
       delete resultDiv.dataset.virtualMaxChars;
-      resultDiv.classList.remove("virtualized");
       setState({
         resultDisplayMode: "usage",
         resultBlocks: null,
