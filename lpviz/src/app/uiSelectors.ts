@@ -27,6 +27,14 @@ export type AnimationControlsUiState = {
   stopRotateDisabled: boolean;
 };
 
+export type TopResultUiState = {
+  maximizeVisible: boolean;
+  nullStateVisible: boolean;
+  objectiveActive: boolean;
+  objectiveDisplayText: string;
+  subjectToVisible: boolean;
+};
+
 export function selectSolverControlsUiState(state: State): SolverControlsUiState {
   return {
     activeMode: state.solverMode,
@@ -91,6 +99,28 @@ export function areAnimationControlsUiStatesEqual(a: AnimationControlsUiState, b
   );
 }
 
+export function selectTopResultUiState(state: State): TopResultUiState {
+  const objectiveActive = state.objectiveVector !== null;
+
+  return {
+    maximizeVisible: state.completionMode !== "draft" && objectiveActive,
+    nullStateVisible: state.vertices.length === 0 && state.objectiveVector === null && state.currentObjective === null,
+    objectiveActive,
+    objectiveDisplayText: formatObjectiveDisplay(state.objectiveVector),
+    subjectToVisible: hasPolytopeLines(state.polytope) && state.polytope.lines.length > 0,
+  };
+}
+
+export function areTopResultUiStatesEqual(a: TopResultUiState, b: TopResultUiState): boolean {
+  return (
+    a.maximizeVisible === b.maximizeVisible &&
+    a.nullStateVisible === b.nullStateVisible &&
+    a.objectiveActive === b.objectiveActive &&
+    a.objectiveDisplayText === b.objectiveDisplayText &&
+    a.subjectToVisible === b.subjectToVisible
+  );
+}
+
 function getSolverButtonUiState(state: State, mode: SolverMode): SolverButtonUiState {
   const hasComputedLines = hasPolytopeLines(state.polytope);
   const readyForSolvers =
@@ -118,4 +148,16 @@ function isSolverSelectable(state: State, mode: SolverMode): boolean {
   }
 
   return !isObjectiveDirectionUnbounded(state.polytope.lines, [state.objectiveVector.x, state.objectiveVector.y]);
+}
+
+function formatObjectiveDisplay(objectiveVector: State["objectiveVector"]): string {
+  if (!objectiveVector) {
+    return "";
+  }
+
+  const round = (value: number) => Math.round(value * 1000) / 1000;
+  const a = round(objectiveVector.x);
+  const b = round(objectiveVector.y);
+  const bTerm = b >= 0 ? `+ ${b}y` : `- ${-b}y`;
+  return `${a}x ${bTerm}`;
 }
