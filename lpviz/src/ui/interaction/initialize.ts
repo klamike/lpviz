@@ -43,6 +43,7 @@ export async function initializeUI(
     maximize,
     objectiveDisplay,
     result: resultDiv,
+    resultVirtualHost,
     iteratePathButton,
     ipmButton,
     simplexButton,
@@ -382,7 +383,9 @@ export async function initializeUI(
     if (!resultContainer.querySelector("#usageTips")) {
       const selector = resultContainer.classList.contains("virtualized")
         ? ".iterate-header, .iterate-item, .iterate-footer"
-        : "div";
+        : resultContainer.querySelector("#resultHtmlContent")
+          ? "#resultHtmlContent > div"
+          : "div";
       const texts = resultContainer.querySelectorAll(selector);
       let maxLineChars = 0;
       texts.forEach((text) => {
@@ -450,6 +453,7 @@ export async function initializeUI(
   const resultRuntime = createResultRuntime({
     canvasManager,
     resultDiv,
+    resultVirtualHost,
     resultSelector,
     syncResponsiveUi,
   });

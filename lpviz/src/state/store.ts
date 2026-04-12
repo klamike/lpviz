@@ -56,6 +56,8 @@ export type State = {
   interiorPoint: PointXY | null;
   polytope: PolytopeRepresentation | null;
   inequalitiesMessage: string | null;
+  resultDisplayMode: "usage" | "html" | "virtual";
+  resultHtml: string | null;
 
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -107,6 +109,8 @@ const initialState: State = {
   interiorPoint: null,
   polytope: null,
   inequalitiesMessage: null,
+  resultDisplayMode: "usage",
+  resultHtml: null,
 
   objectiveVector: null,
   currentObjective: null,
