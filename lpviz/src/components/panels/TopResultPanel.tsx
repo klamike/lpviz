@@ -1,12 +1,19 @@
 import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
-import { areTopResultUiStatesEqual, selectTopResultUiState } from "../../app/uiSelectors";
+import {
+  areInequalitiesUiStatesEqual,
+  areTopResultUiStatesEqual,
+  selectInequalitiesUiState,
+  selectTopResultUiState,
+} from "../../app/uiSelectors";
 import { TerminalFrame } from "../layout/TerminalFrame";
 import { useNullStateLogo } from "./useNullStateLogo";
 
 export function TopResultPanel() {
   const refs = useLegacyRuntimeElementRefs();
   const topResultUiState = useLpvizSelector(selectTopResultUiState, areTopResultUiStatesEqual);
+  const inequalitiesUiState = useLpvizSelector(selectInequalitiesUiState, areInequalitiesUiStatesEqual);
   useNullStateLogo(refs.nullStateMessage);
 
   return (
@@ -22,7 +29,24 @@ export function TopResultPanel() {
           {topResultUiState.objectiveDisplayText}
         </div>
         <div id="subjectTo" ref={refs.subjectTo} className={topResultUiState.subjectToVisible ? "is-block" : "is-hidden"}>subject to</div>
-        <div id="inequalities" ref={refs.inequalities}></div>
+        <div id="inequalities" ref={refs.inequalities}>
+          {inequalitiesUiState.message !== null
+            ? inequalitiesUiState.message
+            : inequalitiesUiState.items.map((inequality, index) => (
+              <div
+                key={`${index}-${inequality}`}
+                className="inequality-item"
+                onMouseEnter={() => {
+                  lpvizRuntimeCommands.setConstraintHighlight(index);
+                }}
+                onMouseLeave={() => {
+                  lpvizRuntimeCommands.setConstraintHighlight(null);
+                }}
+              >
+                {inequality}
+              </div>
+            ))}
+        </div>
       </div>
     </TerminalFrame>
   );
