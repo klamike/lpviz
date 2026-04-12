@@ -1019,31 +1019,7 @@ export async function initializeUI(
     setSliderDisplay(slider, valueElement, digits);
   };
   const uiRuntime = {
-    hideNullStateMessage() {
-      setElementVisibility(nullStateMessage, false);
-    },
-
-    updateObjectiveDisplay() {
-      const { objectiveVector } = getState();
-      const active = objectiveVector !== null;
-      objectiveDisplay.classList.toggle("objective-item", active);
-      objectiveDisplay.classList.toggle("objective-active", active);
-      if (!objectiveVector) {
-        objectiveDisplay.innerHTML = "";
-        return;
-      }
-      const round = (value: number) => Math.round(value * 1000) / 1000;
-      const a = round(objectiveVector.x);
-      const b = round(objectiveVector.y);
-      const bTerm = b >= 0 ? `+ ${b}y` : `- ${-b}y`;
-      objectiveDisplay.innerHTML = `${a}x ${bTerm}`;
-    },
-
-    updateMaximizeVisibility() {
-      const state = getState();
-      const visible = state.completionMode !== "draft" && state.objectiveVector !== null;
-      setElementVisibility(maximize, visible);
-    },
+    hideNullStateMessage() {},
 
     syncButtonStates() {
       zoomButton.disabled = false;
@@ -1052,11 +1028,6 @@ export async function initializeUI(
 
     synchronize() {
       this.syncButtonStates();
-      this.updateObjectiveDisplay();
-      this.updateMaximizeVisibility();
-      if (getState().objectiveVector) {
-        this.hideNullStateMessage();
-      }
       syncResponsiveUi();
     },
 
@@ -1097,10 +1068,7 @@ export async function initializeUI(
 
       const state = getState();
       const regionFinished = state.completionMode !== "draft";
-      uiRuntime.hideNullStateMessage();
-      uiRuntime.updateMaximizeVisibility();
       this.setActiveSolverMode(state.solverMode);
-      uiRuntime.updateObjectiveDisplay();
 
       if (regionFinished) {
         polytopeRuntime.send();
@@ -1283,7 +1251,7 @@ export async function initializeUI(
     resultRuntime,
     uiRuntime: {
       syncButtonStates: () => uiRuntime.syncButtonStates(),
-      updateObjectiveDisplay: () => uiRuntime.updateObjectiveDisplay(),
+      updateObjectiveDisplay: () => {},
     },
   });
 
@@ -1292,8 +1260,8 @@ export async function initializeUI(
     {
       hideNullStateMessage: uiRuntime.hideNullStateMessage,
       updateSolverModeButtons: uiRuntime.syncButtonStates,
-      updateObjectiveDisplay: uiRuntime.updateObjectiveDisplay,
-      updateMaximizeVisibility: uiRuntime.updateMaximizeVisibility,
+      updateObjectiveDisplay: () => {},
+      updateMaximizeVisibility: () => {},
     },
     historyRuntime.save.bind(historyRuntime),
     polytopeRuntime.send.bind(polytopeRuntime),
