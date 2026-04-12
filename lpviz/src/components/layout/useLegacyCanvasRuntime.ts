@@ -14,6 +14,8 @@ export function useLegacyCanvasRuntime() {
       throw new Error('Canvas element with id "gridCanvas" not found');
     }
 
+    canvas.focus();
+
     let disposed = false;
     let cleanup = noop;
 
