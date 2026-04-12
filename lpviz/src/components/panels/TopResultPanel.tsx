@@ -1,12 +1,9 @@
-import type { RefObject } from "react";
-
 import { TerminalFrame } from "../layout/TerminalFrame";
+import { useNullStateLogo } from "./useNullStateLogo";
 
-type TopResultPanelProps = {
-  nullStateMessageRef: RefObject<HTMLDivElement | null>;
-};
+export function TopResultPanel() {
+  const nullStateMessageRef = useNullStateLogo();
 
-export function TopResultPanel({ nullStateMessageRef }: TopResultPanelProps) {
   return (
     <TerminalFrame containerId="terminal-container2" delayClassName="scanlines--delay-8">
       <div id="topResult">

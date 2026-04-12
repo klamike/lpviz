@@ -1,14 +1,10 @@
-import type { RefObject } from "react";
-
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areCanvasControlsUiStatesEqual, selectCanvasControlsUiState } from "../../app/uiSelectors";
+import { useLegacyCanvasRuntime } from "./useLegacyCanvasRuntime";
 
-type CanvasStageProps = {
-  canvasRef: RefObject<HTMLCanvasElement | null>;
-};
-
-export function CanvasStage({ canvasRef }: CanvasStageProps) {
+export function CanvasStage() {
   const canvasControlsUiState = useLpvizSelector(selectCanvasControlsUiState, areCanvasControlsUiStatesEqual);
+  const canvasRef = useLegacyCanvasRuntime();
 
   return (
     <main>
