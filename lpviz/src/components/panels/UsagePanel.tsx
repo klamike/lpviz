@@ -1,4 +1,5 @@
 import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "../../app/uiSelectors";
 import { TerminalFrame } from "../layout/TerminalFrame";
@@ -50,10 +51,38 @@ export function UsagePanel() {
             <strong>Stop drawing</strong>: press enter
           </div>
         ) : null}
-        {resultPanelUiState.mode === "html" && resultPanelUiState.html !== null ? (
-          <div id="resultHtmlContent" dangerouslySetInnerHTML={{ __html: resultPanelUiState.html }} />
+        {resultPanelUiState.mode === "blocks" && resultPanelUiState.blocks !== null ? (
+          <div id="resultBlocksContent">
+            {resultPanelUiState.blocks.map((block, index) => (
+              <div
+                key={`${index}-${block.className}-${block.text}`}
+                className={block.className}
+                data-index={block.index}
+                onMouseEnter={block.index === undefined ? undefined : () => {
+                  lpvizRuntimeCommands.setIterateHighlight(block.index ?? null);
+                }}
+                onMouseLeave={block.index === undefined ? undefined : () => {
+                  lpvizRuntimeCommands.setIterateHighlight(null);
+                }}
+              >
+                {block.text}
+              </div>
+            ))}
+          </div>
         ) : null}
-        <div id="resultVirtualHost" ref={refs.resultVirtualHost} className={resultPanelUiState.mode === "virtual" ? undefined : "is-hidden"}></div>
+        <div className={resultPanelUiState.mode === "virtual" ? undefined : "is-hidden"}>
+          <div className="iterate-header">{resultPanelUiState.virtualHeader ?? ""}</div>
+          <div
+            id="resultVirtualHost"
+            ref={refs.resultVirtualHost}
+            className="iterate-scroll"
+          >
+            {resultPanelUiState.virtualShowEmpty ? (
+              <div className="iterate-item-nohover">No iterations available.</div>
+            ) : null}
+          </div>
+          {resultPanelUiState.virtualFooter ? <div className="iterate-footer">{resultPanelUiState.virtualFooter}</div> : null}
+        </div>
       </div>
     </TerminalFrame>
   );

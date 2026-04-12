@@ -1,5 +1,6 @@
 import type { Line, PointXY, PointXYZ, VecNs } from "../solvers/utils/blas";
 import type { PolytopeRepresentation } from "../solvers/utils/polytopeTypes";
+import type { ResultTextBlock } from "../ui/resultPayload";
 
 export const MAX_TRACE_POINT_SPRITES = 1200;
 export const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
@@ -56,8 +57,11 @@ export type State = {
   interiorPoint: PointXY | null;
   polytope: PolytopeRepresentation | null;
   inequalitiesMessage: string | null;
-  resultDisplayMode: "usage" | "html" | "virtual";
-  resultHtml: string | null;
+  resultDisplayMode: "usage" | "blocks" | "virtual";
+  resultBlocks: ResultTextBlock[] | null;
+  resultVirtualHeader: string | null;
+  resultVirtualFooter: string | null;
+  resultVirtualShowEmpty: boolean;
 
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -110,7 +114,10 @@ const initialState: State = {
   polytope: null,
   inequalitiesMessage: null,
   resultDisplayMode: "usage",
-  resultHtml: null,
+  resultBlocks: null,
+  resultVirtualHeader: null,
+  resultVirtualFooter: null,
+  resultVirtualShowEmpty: false,
 
   objectiveVector: null,
   currentObjective: null,
