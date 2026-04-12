@@ -1,3 +1,8 @@
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+
+import "../style.css";
+import { App } from "./app/App";
 import { initializeUI } from "./ui/interaction/initialize";
 import { renderNullStateLogo } from "./ui/logo";
 
@@ -15,6 +20,18 @@ async function initializeApplication() {
   const params = new URLSearchParams(window.location.search);
   await initializeUI(canvas, params);
 }
+
+const container = document.getElementById("root");
+
+if (!container) {
+  throw new Error('Root element with id "root" not found');
+}
+
+const root = createRoot(container);
+
+flushSync(() => {
+  root.render(<App />);
+});
 
 initializeApplication().catch((err) => {
   console.error("Failed to initialize lpviz", err);
