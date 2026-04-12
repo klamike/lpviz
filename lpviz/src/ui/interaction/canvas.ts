@@ -31,6 +31,7 @@ export function registerCanvasInteractions(
     options?: { clearRedo?: boolean },
   ) => void,
   sendPolytope: () => void,
+  handleUndoRedo: (isRedo: boolean) => void,
 ) {
   const canvas = canvasManager.canvas;
   const cleanupHandlers: Array<() => void> = [];
@@ -798,6 +799,31 @@ export function registerCanvasInteractions(
     { passive: false, capture: true },
   );
   bindEvent(
+    window,
+    "keydown",
+    (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        handleUndoRedo(event.shiftKey);
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        interactionController.finishOpenRegion();
+      }
+      if (event.key.toLowerCase() === "s") {
+        const { snapToGrid } = getState();
+        setState({ snapToGrid: !snapToGrid });
+      }
+      if (event.key.toLowerCase() === "h") {
+        const { objectiveHidden } = getState();
+        setState({ objectiveHidden: !objectiveHidden });
+        canvasManager.draw();
+      }
+    },
+    { capture: true },
+  );
+
+  bindEvent(
     canvas,
     "wheel",
     (event: WheelEvent) => interactionController.handleWheel(event),
@@ -815,7 +841,6 @@ export function registerCanvasInteractions(
   bindEvent(canvas, "click", (event: MouseEvent) => interactionController.handleClick(event));
 
   return {
-    finishOpenRegion: () => interactionController.finishOpenRegion(),
     teardown: () => {
       interactionController.cleanupDragState();
       while (cleanupHandlers.length > 0) {
