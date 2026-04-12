@@ -1,6 +1,7 @@
 import { computeDrawingPhase, type SolverMode, type State } from "../state/store";
 import { isObjectiveDirectionUnbounded } from "../solvers/utils/objectiveDirection";
 import { hasPolytopeLines } from "../solvers/utils/polytopeTypes";
+import type { ResultTextBlock } from "../ui/resultPayload";
 
 const SOLVER_MODES: SolverMode[] = ["ipm", "pdhg", "simplex", "central"];
 
@@ -42,7 +43,10 @@ export type InequalitiesUiState = {
 
 export type ResultPanelUiState = {
   mode: State["resultDisplayMode"];
-  html: string | null;
+  blocks: ResultTextBlock[] | null;
+  virtualHeader: string | null;
+  virtualFooter: string | null;
+  virtualShowEmpty: boolean;
 };
 
 export function selectSolverControlsUiState(state: State): SolverControlsUiState {
@@ -166,12 +170,36 @@ export function areInequalitiesUiStatesEqual(a: InequalitiesUiState, b: Inequali
 export function selectResultPanelUiState(state: State): ResultPanelUiState {
   return {
     mode: state.resultDisplayMode,
-    html: state.resultHtml,
+    blocks: state.resultBlocks,
+    virtualHeader: state.resultVirtualHeader,
+    virtualFooter: state.resultVirtualFooter,
+    virtualShowEmpty: state.resultVirtualShowEmpty,
   };
 }
 
 export function areResultPanelUiStatesEqual(a: ResultPanelUiState, b: ResultPanelUiState): boolean {
-  return a.mode === b.mode && a.html === b.html;
+  if (
+    a.mode !== b.mode ||
+    a.blocks?.length !== b.blocks?.length ||
+    a.virtualHeader !== b.virtualHeader ||
+    a.virtualFooter !== b.virtualFooter ||
+    a.virtualShowEmpty !== b.virtualShowEmpty
+  ) {
+    return false;
+  }
+
+  if (!a.blocks || !b.blocks) {
+    return a.blocks === b.blocks;
+  }
+
+  return a.blocks.every((block, index) => {
+    const nextBlock = b.blocks![index];
+    return (
+      block.className === nextBlock.className &&
+      block.text === nextBlock.text &&
+      block.index === nextBlock.index
+    );
+  });
 }
 
 function getSolverButtonUiState(state: State, mode: SolverMode): SolverButtonUiState {

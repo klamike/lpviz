@@ -147,42 +147,33 @@ export function createResultRuntime({
 
     applyRender(payload: ResultRenderPayload, options: { limitVirtualRows?: boolean } = {}) {
       const limitVirtualRows = options.limitVirtualRows ?? getState().rotateObjectiveMode;
-      const createResultElement = (className: string, text: string) => {
-        const el = document.createElement("div");
-        el.className = className;
-        el.textContent = text;
-        return el;
-      };
 
       if (payload.type === "virtual") {
         this.lastVirtualResult = payload;
         resultDiv.classList.add("virtualized");
-        setState({ resultDisplayMode: "virtual", resultHtml: null, highlightIteratePathIndex: null });
+        const rowsForLayout = limitVirtualRows ? payload.rows.slice(0, ROTATE_ROW_LIMIT) : payload.rows;
+        setState({
+          resultDisplayMode: "virtual",
+          resultBlocks: null,
+          resultVirtualHeader: payload.header || "",
+          resultVirtualFooter: payload.footer ?? null,
+          resultVirtualShowEmpty: rowsForLayout.length === 0,
+          highlightIteratePathIndex: null,
+        });
         resultVirtualHost.textContent = "";
         this.setHighlight(null);
         this.activeVirtualizer?.destroy();
         this.activeVirtualizer = null;
 
-        const rowsForLayout = limitVirtualRows ? payload.rows.slice(0, ROTATE_ROW_LIMIT) : payload.rows;
         const maxLineChars = [payload.header || "", ...(payload.footer ? [payload.footer] : []), ...rowsForLayout.map((row) => formatVirtualResultRow(row))].reduce(
           (max, line) => Math.max(max, line.length),
           0,
         );
         resultDiv.dataset.virtualMaxChars = String(maxLineChars);
-        resultVirtualHost.appendChild(createResultElement("iterate-header", payload.header || ""));
-
-        const bodyEl = document.createElement("div");
-        bodyEl.className = "iterate-scroll";
         if (rowsForLayout.length === 0) {
-          bodyEl.appendChild(createResultElement("iterate-item-nohover", "No iterations available."));
-          resultVirtualHost.appendChild(bodyEl);
+          resultVirtualHost.textContent = "";
         } else {
-          resultVirtualHost.appendChild(bodyEl);
-          this.activeVirtualizer = this.createVirtualizer(bodyEl, rowsForLayout);
-        }
-
-        if (payload.footer) {
-          resultVirtualHost.appendChild(createResultElement("iterate-footer", payload.footer));
+          this.activeVirtualizer = this.createVirtualizer(resultVirtualHost, rowsForLayout);
         }
       } else {
         this.lastVirtualResult = null;
@@ -191,7 +182,14 @@ export function createResultRuntime({
         this.activeVirtualizer = null;
         delete resultDiv.dataset.virtualMaxChars;
         resultVirtualHost.textContent = "";
-        setState({ resultDisplayMode: "html", resultHtml: payload.html, highlightIteratePathIndex: null });
+        setState({
+          resultDisplayMode: "blocks",
+          resultBlocks: payload.blocks,
+          resultVirtualHeader: null,
+          resultVirtualFooter: null,
+          resultVirtualShowEmpty: false,
+          highlightIteratePathIndex: null,
+        });
       }
 
       canvasManager.draw();
@@ -234,7 +232,14 @@ export function createResultRuntime({
       delete resultDiv.dataset.virtualMaxChars;
       resultDiv.classList.remove("virtualized");
       resultVirtualHost.textContent = "";
-      setState({ resultDisplayMode: "usage", resultHtml: null, highlightIteratePathIndex: null });
+      setState({
+        resultDisplayMode: "usage",
+        resultBlocks: null,
+        resultVirtualHeader: null,
+        resultVirtualFooter: null,
+        resultVirtualShowEmpty: false,
+        highlightIteratePathIndex: null,
+      });
       this.setHighlight(null);
       syncResponsiveUi({ forceResultFont: true });
     },

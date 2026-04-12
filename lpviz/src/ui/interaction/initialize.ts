@@ -20,6 +20,7 @@ import { collectZoomFitBounds } from "../viewBounds";
 import { createResultRuntime } from "./resultRuntime";
 import { createSolverRuntime } from "./solverRuntime";
 import type { PointXY } from "../../solvers/utils/blas";
+import type { ResultTextBlock } from "../resultPayload";
 
 export type LegacyUiCleanup = () => void;
 
@@ -108,6 +109,14 @@ export async function initializeUI(
       setState({ highlightIndex: index }, { viewportDirty: canvasManager.getConstraintDirtyFlags() });
       canvasManager.draw();
     },
+    setIterateHighlight(index) {
+      if (getState().highlightIteratePathIndex === index) {
+        return;
+      }
+
+      setState({ highlightIteratePathIndex: index }, { viewportDirty: canvasManager.getIterateDirtyFlags() });
+      canvasManager.draw();
+    },
   }));
   const historyRuntime = {
     captureEntry(state: Pick<State, "vertices" | "objectiveVector" | "completionMode">): HistoryEntry {
@@ -168,19 +177,17 @@ export async function initializeUI(
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   };
-  const escapeHtml = (value: string) =>
-    value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
+  const createResultBlock = (className: ResultTextBlock["className"], text: string, index?: number): ResultTextBlock => ({
+    className,
+    text,
+    index,
+  });
   const createMessageResult = (header: string, message: string): ResultRenderPayload => ({
-    type: "html",
-    html: `
-      <div class="iterate-header">${escapeHtml(header)}</div>
-      <div class="iterate-item-nohover">${escapeHtml(message)}</div>
-    `,
+    type: "blocks",
+    blocks: [
+      createResultBlock("iterate-header", header),
+      createResultBlock("iterate-item-nohover", message),
+    ],
   });
   const solverControls = [
     {
@@ -383,8 +390,8 @@ export async function initializeUI(
     if (!resultContainer.querySelector("#usageTips")) {
       const selector = resultContainer.classList.contains("virtualized")
         ? ".iterate-header, .iterate-item, .iterate-footer"
-        : resultContainer.querySelector("#resultHtmlContent")
-          ? "#resultHtmlContent > div"
+        : resultContainer.querySelector("#resultBlocksContent")
+          ? "#resultBlocksContent > div"
           : "div";
       const texts = resultContainer.querySelectorAll(selector);
       let maxLineChars = 0;
