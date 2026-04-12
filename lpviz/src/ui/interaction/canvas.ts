@@ -25,7 +25,6 @@ export function registerCanvasInteractions(
     updateSolverModeButtons(): void;
     updateObjectiveDisplay(): void;
     updateMaximizeVisibility(): void;
-    updateZScaleValue(): void;
   },
   saveToHistory: (
     snapshotSource?: Pick<State, "vertices" | "objectiveVector" | "completionMode">,
@@ -628,7 +627,6 @@ export function registerCanvasInteractions(
       const clampedScale = Math.max(0.01, Math.min(100, effectiveScale));
       setState({ zScale: clampedScale }, { viewportDirty: canvasManager.getZScaleDirtyFlags() });
       canvasManager.draw();
-      ui.updateZScaleValue();
     },
 
     handleContextMenu(event: MouseEvent) {

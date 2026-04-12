@@ -1,10 +1,15 @@
 import type { RefObject } from "react";
 
+import { areCanvasControlsUiStatesEqual, getCanvasControlsUiState } from "../../app/phase4UiState";
+import { useLpvizStoreSelector } from "../../app/useLpvizStoreSelector";
+
 type CanvasStageProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
 };
 
 export function CanvasStage({ canvasRef }: CanvasStageProps) {
+  const canvasControlsUiState = useLpvizStoreSelector(getCanvasControlsUiState, areCanvasControlsUiStatesEqual);
+
   return (
     <main>
       <canvas id="gridCanvas" ref={canvasRef} tabIndex={0}></canvas>
@@ -28,10 +33,21 @@ export function CanvasStage({ canvasRef }: CanvasStageProps) {
             </g>
           </svg>
         </button>
-        <button id="toggle3DButton" title="Toggle 3D Mode">
-          3D
+        <button
+          id="toggle3DButton"
+          className={canvasControlsUiState.is3DMode ? "button-active" : undefined}
+          title="Toggle 3D Mode"
+        >
+          {canvasControlsUiState.toggle3DLabel}
         </button>
-        <button id="toggleZOffsetButton" className="is-hidden" title="Toggle objective contribution in Z">
+        <button
+          id="toggleZOffsetButton"
+          className={[
+            canvasControlsUiState.zAxisOffsetOnly ? "button-active" : "",
+            canvasControlsUiState.is3DMode ? "" : "is-hidden",
+          ].filter(Boolean).join(" ") || undefined}
+          title="Toggle objective contribution in Z"
+        >
           Exclude Obj
         </button>
         <button id="shareButton" title="Share this configuration">
@@ -40,10 +56,20 @@ export function CanvasStage({ canvasRef }: CanvasStageProps) {
             <path d="M21.62,6.22l-5-4a1,1,0,0,0-1.05-.12A1,1,0,0,0,15,3V4.19a9.79,9.79,0,0,0-7,7.65,1,1,0,0,0,.62,1.09A1,1,0,0,0,9,13a1,1,0,0,0,.83-.45C11,10.78,13.58,10.24,15,10.07V11a1,1,0,0,0,.57.9,1,1,0,0,0,1.05-.12l5-4a1,1,0,0,0,0-1.56Z"></path>
           </svg>
         </button>
-        <div id="zScaleSliderContainer" className="is-hidden">
+        <div id="zScaleSliderContainer" className={canvasControlsUiState.is3DMode ? undefined : "is-hidden"}>
           <label htmlFor="zScaleSlider">Scale</label>
-          <input {...{ orient: "vertical" }} type="range" id="zScaleSlider" min="0.01" max="10" step="0.01" defaultValue="0.1" title="Adjust Z-axis scale" />
-          <div id="zScaleValue">0.10</div>
+          <input
+            {...{ orient: "vertical" }}
+            type="range"
+            id="zScaleSlider"
+            min="0.01"
+            max="10"
+            step="0.01"
+            value={canvasControlsUiState.zScale}
+            onChange={() => {}}
+            title="Adjust Z-axis scale"
+          />
+          <div id="zScaleValue">{canvasControlsUiState.zScale.toFixed(2)}</div>
         </div>
       </div>
       <div id="sidebarHandle"></div>
