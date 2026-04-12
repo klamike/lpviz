@@ -227,6 +227,7 @@ export class ViewportManager {
     traceLines: [],
   };
   private navigationIdleTimeoutId: number | null = null;
+  private unsubscribeFromStore: (() => void) | null = null;
   private renderHelpers: {
     clearGroup(group: Group): void;
     createThickLine(
@@ -384,7 +385,7 @@ export class ViewportManager {
 
     this.controlState.currentPerspectiveDistance = this.getPerspectiveDistance();
     this.stateSignatures = this.captureStateSignatures(getState());
-    subscribe((snapshot, meta) => {
+    this.unsubscribeFromStore = subscribe((snapshot, meta) => {
       if (meta?.viewportDirty !== undefined) {
         if (Object.keys(meta.viewportDirty).length > 0) {
           this.invalidateScene(meta.viewportDirty);
@@ -398,6 +399,20 @@ export class ViewportManager {
     this.updateDimensions();
     this.draw();
     window.addEventListener("resize", this.handleResize);
+  }
+
+  destroy() {
+    this.clearViewportNavigationTimeout();
+    this.setNavigationFrameCallback(null);
+    window.removeEventListener("resize", this.handleResize);
+    this.controls.orbit.removeEventListener("change", this.handleOrbitControlsChange);
+    this.controls.ortho.removeEventListener("change", this.handleOrthoControlsChange);
+    this.controls.orbit.dispose();
+    this.controls.ortho.dispose();
+    this.unsubscribeFromStore?.();
+    this.unsubscribeFromStore = null;
+    Object.values(this.groups).forEach((group) => this.clearGroup(group));
+    this.renderer.dispose();
   }
 
   static async create(canvas: HTMLCanvasElement) {

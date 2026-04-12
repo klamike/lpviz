@@ -34,6 +34,17 @@ export function registerCanvasInteractions(
   sendPolytope: () => void,
 ) {
   const canvas = canvasManager.canvas;
+  const cleanupHandlers: Array<() => void> = [];
+  const bindEvent = (
+    target: EventTarget,
+    eventName: string,
+    handler: (event: any) => void,
+    options?: boolean | AddEventListenerOptions,
+  ) => {
+    const listener = handler as EventListener;
+    target.addEventListener(eventName, listener, options);
+    cleanupHandlers.push(() => target.removeEventListener(eventName, listener, options));
+  };
   const interactionController = {
     pendingDragHistoryEntry: null as HistoryEntry | null,
 
@@ -710,33 +721,37 @@ export function registerCanvasInteractions(
   };
   interactionController.updatePanControls();
 
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "mousedown",
-    (event) => {
+    (event: MouseEvent) => {
       if (event.button !== 0) return;
       interactionController.handlePointerStart(event.clientX, event.clientY, event);
     },
     { capture: true },
   );
 
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "mousemove",
-    (event) => {
+    (event: MouseEvent) => {
       interactionController.handlePointerMove(event.clientX, event.clientY, event);
     },
     { capture: true },
   );
 
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "mouseup",
-    (event) => {
+    (event: MouseEvent) => {
       if (event.button !== 0) return;
       interactionController.handlePointerEnd(event);
     },
     { capture: true },
   );
 
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "touchstart",
     (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
@@ -746,7 +761,8 @@ export function registerCanvasInteractions(
     { passive: false, capture: true },
   );
 
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "touchmove",
     (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
@@ -756,7 +772,8 @@ export function registerCanvasInteractions(
     { passive: false, capture: true },
   );
 
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "touchend",
     (event: TouchEvent) => {
       interactionController.handlePointerEnd(event);
@@ -764,36 +781,48 @@ export function registerCanvasInteractions(
     { passive: false, capture: true },
   );
 
-  window.addEventListener(
+  bindEvent(
+    window,
     "mouseup",
-    (event) => {
+    (event: MouseEvent) => {
       if (event.button !== 0) return;
       interactionController.handleWindowPointerEnd(event);
     },
     { capture: true },
   );
 
-  window.addEventListener(
+  bindEvent(
+    window,
     "touchend",
     (event: TouchEvent) => {
       interactionController.handleWindowPointerEnd(event);
     },
     { passive: false, capture: true },
   );
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "wheel",
-    (event) => interactionController.handleWheel(event),
+    (event: WheelEvent) => interactionController.handleWheel(event),
     { passive: false, capture: true },
   );
-  canvas.addEventListener(
+  bindEvent(
+    canvas,
     "contextmenu",
-    (event) => interactionController.handleContextMenu(event),
+    (event: MouseEvent) => interactionController.handleContextMenu(event),
     { capture: true },
   );
 
-  canvas.addEventListener("dblclick", (event) => interactionController.handleDoubleClick(event));
+  bindEvent(canvas, "dblclick", (event: MouseEvent) => interactionController.handleDoubleClick(event));
 
-  canvas.addEventListener("click", (event) => interactionController.handleClick(event));
+  bindEvent(canvas, "click", (event: MouseEvent) => interactionController.handleClick(event));
 
-  return { finishOpenRegion: () => interactionController.finishOpenRegion() };
+  return {
+    finishOpenRegion: () => interactionController.finishOpenRegion(),
+    teardown: () => {
+      interactionController.cleanupDragState();
+      while (cleanupHandlers.length > 0) {
+        cleanupHandlers.pop()?.();
+      }
+    },
+  };
 }
