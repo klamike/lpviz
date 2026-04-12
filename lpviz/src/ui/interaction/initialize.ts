@@ -119,9 +119,7 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   const unzoomButton = getRequiredElementById<HTMLButtonElement>("unzoomButton");
   const toggle3DButton = getRequiredElementById<HTMLButtonElement>("toggle3DButton");
   const toggleZOffsetButton = getRequiredElementById<HTMLButtonElement>("toggleZOffsetButton");
-  const zScaleSliderContainer = getRequiredElementById<HTMLElement>("zScaleSliderContainer");
   const zScaleSlider = getRequiredElementById<HTMLInputElement>("zScaleSlider");
-  const zScaleValue = getRequiredElementById<HTMLElement>("zScaleValue");
   const iteratePathButton = getRequiredElementById<HTMLButtonElement>("iteratePathButton");
   const ipmButton = getRequiredElementById<HTMLButtonElement>("ipmButton");
   const simplexButton = getRequiredElementById<HTMLButtonElement>("simplexButton");
@@ -170,7 +168,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     {
       mode: "central",
       button: iteratePathButton,
-      settingsPanel: getOptionalElementById<HTMLElement>("centralPathSettings"),
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) &&
         (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded") &&
@@ -213,7 +210,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     {
       mode: "ipm",
       button: ipmButton,
-      settingsPanel: getOptionalElementById<HTMLElement>("ipmSettings"),
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) && (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded"),
       getRunBlock: (state: State): ResultRenderPayload | null =>
@@ -257,7 +253,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     {
       mode: "simplex",
       button: simplexButton,
-      settingsPanel: getOptionalElementById<HTMLElement>("simplexSettings"),
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) && (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded"),
       getRunBlock: (state: State): ResultRenderPayload | null =>
@@ -290,7 +285,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     {
       mode: "pdhg",
       button: pdhgButton,
-      settingsPanel: getOptionalElementById<HTMLElement>("pdhgSettings"),
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) && (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded"),
       getRunBlock: (): ResultRenderPayload | null => null,
@@ -341,7 +335,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
   ] satisfies Array<{
     mode: SolverMode;
     button: HTMLButtonElement | null;
-    settingsPanel: HTMLElement | null;
     isSelectable: (state: State) => boolean;
     getRunBlock: (state: State) => ResultRenderPayload | null;
     collectShareSettings: () => ShareSettings;
@@ -1071,54 +1064,23 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       setElementVisibility(maximize, visible);
     },
 
-    updateSolverSettingsPanels(activeMode: SolverMode) {
-      solverControls.forEach(({ mode, settingsPanel }) => {
-        if (!settingsPanel) return;
-        setElementVisibility(settingsPanel, mode === activeMode);
-      });
-    },
-
     syncButtonStates() {
       const state = getState();
       const hasComputedLines = solverRuntime.hasComputedConstraintSystem(state);
-      const readyForSolvers =
-        computeDrawingPhase(state) === "ready_for_solvers" &&
-        hasComputedLines &&
-        state.objectiveVector !== null;
       const hasSolution = (state.originalIteratePath?.length ?? 0) > 0;
       const hasObjective = state.objectiveVector !== null;
       const isRotating = state.rotateObjectiveMode;
       const isAnimating = state.animationIntervalId !== null && !isRotating;
-      const is3DMode = state.is3DMode;
-      const zAxisOffsetOnly = state.zAxisOffsetOnly;
 
       zoomButton.disabled = false;
       unzoomButton.disabled = false;
-      solverControls.forEach(({ button, mode, isSelectable }) => {
-        if (!button) return;
-        button.disabled = !readyForSolvers || !isSelectable(state);
-        button.classList.toggle("button-active", state.solverMode === mode);
-      });
       animateButton.disabled = !hasComputedLines || !hasSolution || isAnimating || isRotating;
       startRotateButton.disabled = !hasComputedLines || !hasObjective || isAnimating || isRotating;
       stopRotateButton.disabled = !isRotating;
-      toggle3DButton.textContent = is3DMode ? "2D" : "3D";
-      toggle3DButton.classList.toggle("button-active", is3DMode);
-      toggleZOffsetButton.classList.toggle("button-active", zAxisOffsetOnly);
-      setElementVisibility(toggleZOffsetButton, is3DMode, null);
-      setElementVisibility(zScaleSliderContainer, is3DMode, null);
-    },
-
-    updateZScaleValue() {
-      const zScale = getState().zScale;
-      zScaleValue.textContent = zScale.toFixed(2);
-      zScaleSlider.value = String(zScale);
     },
 
     synchronize() {
       this.syncButtonStates();
-      this.updateSolverSettingsPanels(getState().solverMode);
-      this.updateZScaleValue();
       this.updateObjectiveDisplay();
       this.updateMaximizeVisibility();
       if (getState().objectiveVector) {
@@ -1148,7 +1110,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       }
 
       setState({ solverMode: mode });
-      this.updateSolverSettingsPanels(mode);
       this.syncButtonStates();
       if (solve && !getState().rotateObjectiveMode) {
         void solverRuntime.computePath();
@@ -1168,7 +1129,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       uiRuntime.hideNullStateMessage();
       uiRuntime.updateMaximizeVisibility();
       this.setActiveSolverMode(state.solverMode);
-      uiRuntime.updateZScaleValue();
       uiRuntime.updateObjectiveDisplay();
 
       if (regionFinished) {
@@ -1211,7 +1171,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
     setZScale() {
       const newScale = parseFloat(zScaleSlider.value || DEFAULT_Z_SCALE.toString());
       setState({ zScale: newScale }, { viewportDirty: canvasManager.getZScaleDirtyFlags() });
-      uiRuntime.updateZScaleValue();
       const { is3DMode, isTransitioning3D } = getState();
       if (is3DMode || isTransitioning3D) {
         canvasManager.draw();
@@ -1388,7 +1347,6 @@ export async function initializeUI(canvas: HTMLCanvasElement, params: URLSearchP
       updateSolverModeButtons: uiRuntime.syncButtonStates,
       updateObjectiveDisplay: uiRuntime.updateObjectiveDisplay,
       updateMaximizeVisibility: uiRuntime.updateMaximizeVisibility,
-      updateZScaleValue: uiRuntime.updateZScaleValue,
     },
     historyRuntime.save.bind(historyRuntime),
     polytopeRuntime.send.bind(polytopeRuntime),
