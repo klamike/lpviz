@@ -1,4 +1,16 @@
+import { useRef } from "react";
+
+import { useLegacyLpvizBridge } from "./useLegacyLpvizBridge";
+
 export function App() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const nullStateMessageRef = useRef<HTMLDivElement>(null);
+
+  useLegacyLpvizBridge({
+    canvasRef,
+    nullStateMessageRef,
+  });
+
   return (
     <>
       <header>
@@ -21,7 +33,7 @@ export function App() {
             <div id="uiContainer">
               <div id="terminal-container2">
                 <div id="topResult">
-                  <div id="nullStateMessage" aria-label="lpviz logo"></div>
+                  <div id="nullStateMessage" ref={nullStateMessageRef} aria-label="lpviz logo"></div>
                   <div id="maximize">maximize</div>
                   <div id="objectiveDisplay"></div>
                   <div id="subjectTo">subject to</div>
@@ -202,7 +214,7 @@ export function App() {
         </div>
       </header>
       <main>
-        <canvas id="gridCanvas" tabIndex={0}></canvas>
+        <canvas id="gridCanvas" ref={canvasRef} tabIndex={0}></canvas>
         <div id="zoomControls">
           <button id="unzoomButton" title="Reset Zoom (Home)">
             <svg width="25" height="25" viewBox="0 0 24 24">

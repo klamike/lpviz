@@ -251,32 +251,58 @@ export function createResultRuntime({
     },
 
     bindHoverEvents() {
-      resultDiv.addEventListener("pointerenter", (event) => {
+      const handlePointerEnter = (event: PointerEvent) => {
         this.pointerInsideResult = true;
         this.resultMouseX = event.clientX;
         this.resultMouseY = event.clientY;
         if (this.resultHoverRafId === null) {
           this.resultHoverRafId = requestAnimationFrame(() => this.updateHoverState());
         }
-      });
+      };
 
-      resultDiv.addEventListener("pointermove", (event) => {
+      const handlePointerMove = (event: PointerEvent) => {
         if (!this.pointerInsideResult) return;
         this.resultMouseX = event.clientX;
         this.resultMouseY = event.clientY;
-      });
+      };
 
-      resultDiv.addEventListener("pointerleave", () => {
+      const handlePointerLeave = () => {
         this.pointerInsideResult = false;
         this.clearHover();
         if (this.resultHoverRafId !== null) {
           cancelAnimationFrame(this.resultHoverRafId);
           this.resultHoverRafId = null;
         }
-      });
+      };
+
+      resultDiv.addEventListener("pointerenter", handlePointerEnter);
+      resultDiv.addEventListener("pointermove", handlePointerMove);
+      resultDiv.addEventListener("pointerleave", handlePointerLeave);
+
+      return () => {
+        resultDiv.removeEventListener("pointerenter", handlePointerEnter);
+        resultDiv.removeEventListener("pointermove", handlePointerMove);
+        resultDiv.removeEventListener("pointerleave", handlePointerLeave);
+      };
+    },
+
+    teardown() {
+      this.activeVirtualizer?.destroy();
+      this.activeVirtualizer = null;
+      this.pointerInsideResult = false;
+      this.clearHover();
+      if (this.resultHoverRafId !== null) {
+        cancelAnimationFrame(this.resultHoverRafId);
+        this.resultHoverRafId = null;
+      }
     },
   };
 
-  runtime.bindHoverEvents();
+  const unbindHoverEvents = runtime.bindHoverEvents();
+  runtime.teardown = ((originalTeardown) => () => {
+    unbindHoverEvents();
+    originalTeardown.call(runtime);
+  })(runtime.teardown);
+
   return runtime;
 }
