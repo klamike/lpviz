@@ -62,6 +62,9 @@ export type State = {
   resultVirtualHeader: string | null;
   resultVirtualFooter: string | null;
   resultVirtualShowEmpty: boolean;
+  resultVirtualRows: ResultTextBlock[];
+  resultVirtualPaddingTop: number;
+  resultVirtualPaddingBottom: number;
 
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -118,6 +121,9 @@ const initialState: State = {
   resultVirtualHeader: null,
   resultVirtualFooter: null,
   resultVirtualShowEmpty: false,
+  resultVirtualRows: [],
+  resultVirtualPaddingTop: 0,
+  resultVirtualPaddingBottom: 0,
 
   objectiveVector: null,
   currentObjective: null,

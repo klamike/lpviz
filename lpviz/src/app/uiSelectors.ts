@@ -47,6 +47,9 @@ export type ResultPanelUiState = {
   virtualHeader: string | null;
   virtualFooter: string | null;
   virtualShowEmpty: boolean;
+  virtualRows: ResultTextBlock[];
+  virtualPaddingTop: number;
+  virtualPaddingBottom: number;
 };
 
 export function selectSolverControlsUiState(state: State): SolverControlsUiState {
@@ -174,6 +177,9 @@ export function selectResultPanelUiState(state: State): ResultPanelUiState {
     virtualHeader: state.resultVirtualHeader,
     virtualFooter: state.resultVirtualFooter,
     virtualShowEmpty: state.resultVirtualShowEmpty,
+    virtualRows: state.resultVirtualRows,
+    virtualPaddingTop: state.resultVirtualPaddingTop,
+    virtualPaddingBottom: state.resultVirtualPaddingBottom,
   };
 }
 
@@ -183,7 +189,10 @@ export function areResultPanelUiStatesEqual(a: ResultPanelUiState, b: ResultPane
     a.blocks?.length !== b.blocks?.length ||
     a.virtualHeader !== b.virtualHeader ||
     a.virtualFooter !== b.virtualFooter ||
-    a.virtualShowEmpty !== b.virtualShowEmpty
+    a.virtualShowEmpty !== b.virtualShowEmpty ||
+    a.virtualPaddingTop !== b.virtualPaddingTop ||
+    a.virtualPaddingBottom !== b.virtualPaddingBottom ||
+    a.virtualRows.length !== b.virtualRows.length
   ) {
     return false;
   }
@@ -198,6 +207,13 @@ export function areResultPanelUiStatesEqual(a: ResultPanelUiState, b: ResultPane
       block.className === nextBlock.className &&
       block.text === nextBlock.text &&
       block.index === nextBlock.index
+    );
+  }) && a.virtualRows.every((row, index) => {
+    const nextRow = b.virtualRows[index];
+    return (
+      row.className === nextRow.className &&
+      row.text === nextRow.text &&
+      row.index === nextRow.index
     );
   });
 }
