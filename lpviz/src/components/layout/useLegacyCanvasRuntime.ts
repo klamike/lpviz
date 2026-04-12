@@ -1,12 +1,9 @@
 import { useEffect, type RefObject } from "react";
 
-import { initializeUI, type LegacyCanvasSurfaceElements } from "../../ui/interaction/initialize";
+import { type LegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { initializeUI } from "../../ui/interaction/initialize";
 
 const noop = () => {};
-
-type LegacyCanvasSurfaceRefs = {
-  [K in keyof LegacyCanvasSurfaceElements]: RefObject<LegacyCanvasSurfaceElements[K] | null>;
-};
 
 const getRequiredElement = <T extends HTMLElement>(ref: RefObject<T | null>, id: string): T => {
   const element = ref.current;
@@ -16,7 +13,7 @@ const getRequiredElement = <T extends HTMLElement>(ref: RefObject<T | null>, id:
   return element;
 };
 
-export function useLegacyCanvasRuntime(canvasSurfaceRefs: LegacyCanvasSurfaceRefs) {
+export function useLegacyCanvasRuntime(runtimeElementRefs: LegacyRuntimeElementRefs) {
   const {
     canvas,
     shareButton,
@@ -26,10 +23,47 @@ export function useLegacyCanvasRuntime(canvasSurfaceRefs: LegacyCanvasSurfaceRef
     toggleZOffsetButton,
     zScaleSlider,
     sidebarHandle,
-  } = canvasSurfaceRefs;
+    sidebar,
+    replaySpeedSlider,
+    topResult,
+    nullStateMessage,
+    maximize,
+    objectiveDisplay,
+    subjectTo,
+    inequalities,
+    result,
+    iteratePathButton,
+    ipmButton,
+    simplexButton,
+    simplexDualMode,
+    pdhgButton,
+    animateButton,
+    startRotateObjectiveButton,
+    stopRotateObjectiveButton,
+    traceCheckbox,
+    objectiveRotationSettings,
+    alphaMaxSlider,
+    correctorThresholdSlider,
+    ipmColorByPhase,
+    pdhgEtaSlider,
+    pdhgTauSlider,
+    centralPathIterSlider,
+    objectiveAngleStepSlider,
+    objectiveRotationSpeedSlider,
+    maxitInput,
+    maxitInputPDHG,
+    pdhgIneqMode,
+    pdhgHalpernMode,
+    pdhgColorByBasis,
+    alphaMaxValue,
+    correctorThresholdValue,
+    pdhgEtaValue,
+    pdhgTauValue,
+    centralPathIterValue,
+  } = runtimeElementRefs;
 
   useEffect(() => {
-    const canvasSurface = {
+    const runtimeElements = {
       canvas: getRequiredElement(canvas, "gridCanvas"),
       shareButton: getRequiredElement(shareButton, "shareButton"),
       zoomButton: getRequiredElement(zoomButton, "zoomButton"),
@@ -38,14 +72,51 @@ export function useLegacyCanvasRuntime(canvasSurfaceRefs: LegacyCanvasSurfaceRef
       toggleZOffsetButton: getRequiredElement(toggleZOffsetButton, "toggleZOffsetButton"),
       zScaleSlider: getRequiredElement(zScaleSlider, "zScaleSlider"),
       sidebarHandle: getRequiredElement(sidebarHandle, "sidebarHandle"),
-    } satisfies LegacyCanvasSurfaceElements;
+      sidebar: getRequiredElement(sidebar, "sidebar"),
+      replaySpeedSlider: getRequiredElement(replaySpeedSlider, "replaySpeedSlider"),
+      topResult: getRequiredElement(topResult, "topResult"),
+      nullStateMessage: getRequiredElement(nullStateMessage, "nullStateMessage"),
+      maximize: getRequiredElement(maximize, "maximize"),
+      objectiveDisplay: getRequiredElement(objectiveDisplay, "objectiveDisplay"),
+      subjectTo: getRequiredElement(subjectTo, "subjectTo"),
+      inequalities: getRequiredElement(inequalities, "inequalities"),
+      result: getRequiredElement(result, "result"),
+      iteratePathButton: getRequiredElement(iteratePathButton, "iteratePathButton"),
+      ipmButton: getRequiredElement(ipmButton, "ipmButton"),
+      simplexButton: getRequiredElement(simplexButton, "simplexButton"),
+      simplexDualMode: getRequiredElement(simplexDualMode, "simplexDualMode"),
+      pdhgButton: getRequiredElement(pdhgButton, "pdhgButton"),
+      animateButton: getRequiredElement(animateButton, "animateButton"),
+      startRotateObjectiveButton: getRequiredElement(startRotateObjectiveButton, "startRotateObjectiveButton"),
+      stopRotateObjectiveButton: getRequiredElement(stopRotateObjectiveButton, "stopRotateObjectiveButton"),
+      traceCheckbox: getRequiredElement(traceCheckbox, "traceCheckbox"),
+      objectiveRotationSettings: getRequiredElement(objectiveRotationSettings, "objectiveRotationSettings"),
+      alphaMaxSlider: getRequiredElement(alphaMaxSlider, "alphaMaxSlider"),
+      correctorThresholdSlider: getRequiredElement(correctorThresholdSlider, "correctorThresholdSlider"),
+      ipmColorByPhase: getRequiredElement(ipmColorByPhase, "ipmColorByPhase"),
+      pdhgEtaSlider: getRequiredElement(pdhgEtaSlider, "pdhgEtaSlider"),
+      pdhgTauSlider: getRequiredElement(pdhgTauSlider, "pdhgTauSlider"),
+      centralPathIterSlider: getRequiredElement(centralPathIterSlider, "centralPathIterSlider"),
+      objectiveAngleStepSlider: getRequiredElement(objectiveAngleStepSlider, "objectiveAngleStepSlider"),
+      objectiveRotationSpeedSlider: getRequiredElement(objectiveRotationSpeedSlider, "objectiveRotationSpeedSlider"),
+      maxitInput: getRequiredElement(maxitInput, "maxitInput"),
+      maxitInputPDHG: getRequiredElement(maxitInputPDHG, "maxitInputPDHG"),
+      pdhgIneqMode: getRequiredElement(pdhgIneqMode, "pdhgIneqMode"),
+      pdhgHalpernMode: getRequiredElement(pdhgHalpernMode, "pdhgHalpernMode"),
+      pdhgColorByBasis: getRequiredElement(pdhgColorByBasis, "pdhgColorByBasis"),
+      alphaMaxValue: getRequiredElement(alphaMaxValue, "alphaMaxValue"),
+      correctorThresholdValue: getRequiredElement(correctorThresholdValue, "correctorThresholdValue"),
+      pdhgEtaValue: getRequiredElement(pdhgEtaValue, "pdhgEtaValue"),
+      pdhgTauValue: getRequiredElement(pdhgTauValue, "pdhgTauValue"),
+      centralPathIterValue: getRequiredElement(centralPathIterValue, "centralPathIterValue"),
+    };
 
-    canvasSurface.canvas.focus();
+    runtimeElements.canvas.focus();
 
     let disposed = false;
     let cleanup = noop;
 
-    void initializeUI(canvasSurface, new URLSearchParams(window.location.search))
+    void initializeUI(runtimeElements, new URLSearchParams(window.location.search))
       .then((nextCleanup) => {
         if (disposed) {
           nextCleanup();
@@ -61,5 +132,51 @@ export function useLegacyCanvasRuntime(canvasSurfaceRefs: LegacyCanvasSurfaceRef
       disposed = true;
       cleanup();
     };
-  }, [canvas, shareButton, zoomButton, unzoomButton, toggle3DButton, toggleZOffsetButton, zScaleSlider, sidebarHandle]);
+  }, [
+    canvas,
+    shareButton,
+    zoomButton,
+    unzoomButton,
+    toggle3DButton,
+    toggleZOffsetButton,
+    zScaleSlider,
+    sidebarHandle,
+    sidebar,
+    replaySpeedSlider,
+    topResult,
+    nullStateMessage,
+    maximize,
+    objectiveDisplay,
+    subjectTo,
+    inequalities,
+    result,
+    iteratePathButton,
+    ipmButton,
+    simplexButton,
+    simplexDualMode,
+    pdhgButton,
+    animateButton,
+    startRotateObjectiveButton,
+    stopRotateObjectiveButton,
+    traceCheckbox,
+    objectiveRotationSettings,
+    alphaMaxSlider,
+    correctorThresholdSlider,
+    ipmColorByPhase,
+    pdhgEtaSlider,
+    pdhgTauSlider,
+    centralPathIterSlider,
+    objectiveAngleStepSlider,
+    objectiveRotationSpeedSlider,
+    maxitInput,
+    maxitInputPDHG,
+    pdhgIneqMode,
+    pdhgHalpernMode,
+    pdhgColorByBasis,
+    alphaMaxValue,
+    correctorThresholdValue,
+    pdhgEtaValue,
+    pdhgTauValue,
+    centralPathIterValue,
+  ]);
 }

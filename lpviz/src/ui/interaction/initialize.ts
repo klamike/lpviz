@@ -1,4 +1,5 @@
 import JSONCrush from "jsoncrush";
+import type { LegacyRuntimeElements } from "../../app/legacyRuntimeElements";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
 import type { DrawingPhase, SolverMode } from "../../state/store";
 import { subscribe } from "../../state/store";
@@ -30,19 +31,9 @@ const getRequiredElementById = <T extends HTMLElement>(id: string): T => {
 };
 
 export type LegacyUiCleanup = () => void;
-export type LegacyCanvasSurfaceElements = {
-  canvas: HTMLCanvasElement;
-  shareButton: HTMLButtonElement;
-  zoomButton: HTMLButtonElement;
-  unzoomButton: HTMLButtonElement;
-  toggle3DButton: HTMLButtonElement;
-  toggleZOffsetButton: HTMLButtonElement;
-  zScaleSlider: HTMLInputElement;
-  sidebarHandle: HTMLDivElement;
-};
 
 export async function initializeUI(
-  canvasSurface: LegacyCanvasSurfaceElements,
+  runtimeElements: LegacyRuntimeElements,
   params: URLSearchParams,
 ): Promise<LegacyUiCleanup> {
   const {
@@ -54,7 +45,44 @@ export async function initializeUI(
     toggleZOffsetButton,
     zScaleSlider,
     sidebarHandle,
-  } = canvasSurface;
+    sidebar,
+    replaySpeedSlider,
+    topResult,
+    nullStateMessage,
+    maximize,
+    objectiveDisplay,
+    subjectTo,
+    inequalities: inequalitiesDiv,
+    result: resultDiv,
+    iteratePathButton,
+    ipmButton,
+    simplexButton,
+    simplexDualMode,
+    pdhgButton,
+    animateButton,
+    startRotateObjectiveButton: startRotateButton,
+    stopRotateObjectiveButton: stopRotateButton,
+    traceCheckbox,
+    objectiveRotationSettings: rotationSettings,
+    alphaMaxSlider,
+    correctorThresholdSlider,
+    ipmColorByPhase,
+    pdhgEtaSlider,
+    pdhgTauSlider,
+    centralPathIterSlider,
+    objectiveAngleStepSlider,
+    objectiveRotationSpeedSlider,
+    maxitInput,
+    maxitInputPDHG,
+    pdhgIneqMode,
+    pdhgHalpernMode,
+    pdhgColorByBasis,
+    alphaMaxValue,
+    correctorThresholdValue,
+    pdhgEtaValue,
+    pdhgTauValue,
+    centralPathIterValue,
+  } = runtimeElements;
   const POPUP_ANIMATION_MS = 300;
   const TOUR_CURSOR_TRANSITION_MS = 700;
   const TOUR_DEFAULT_DELAY_MS = 300;
@@ -136,33 +164,6 @@ export async function initializeUI(
       polytopeRuntime.send();
     },
   };
-  const objectiveDisplay = getRequiredElementById<HTMLElement>("objectiveDisplay");
-  const inequalitiesDiv = getRequiredElementById<HTMLElement>("inequalities");
-  const iteratePathButton = getRequiredElementById<HTMLButtonElement>("iteratePathButton");
-  const ipmButton = getRequiredElementById<HTMLButtonElement>("ipmButton");
-  const simplexButton = getRequiredElementById<HTMLButtonElement>("simplexButton");
-  const simplexDualMode = getRequiredElementById<HTMLInputElement>("simplexDualMode");
-  const pdhgButton = getRequiredElementById<HTMLButtonElement>("pdhgButton");
-  const animateButton = getRequiredElementById<HTMLButtonElement>("animateButton");
-  const startRotateButton = getRequiredElementById<HTMLButtonElement>("startRotateObjectiveButton");
-  const stopRotateButton = getRequiredElementById<HTMLButtonElement>("stopRotateObjectiveButton");
-  const traceCheckbox = getRequiredElementById<HTMLInputElement>("traceCheckbox");
-  const replaySpeedSlider = getRequiredElementById<HTMLInputElement>("replaySpeedSlider");
-  const rotationSettings = getRequiredElementById<HTMLElement>("objectiveRotationSettings");
-  const alphaMaxSlider = getRequiredElementById<HTMLInputElement>("alphaMaxSlider");
-  const correctorThresholdSlider = getRequiredElementById<HTMLInputElement>("correctorThresholdSlider");
-  const ipmColorByPhase = getRequiredElementById<HTMLInputElement>("ipmColorByPhase");
-  const pdhgEtaSlider = getRequiredElementById<HTMLInputElement>("pdhgEtaSlider");
-  const pdhgTauSlider = getRequiredElementById<HTMLInputElement>("pdhgTauSlider");
-  const centralPathIterSlider = getRequiredElementById<HTMLInputElement>("centralPathIterSlider");
-  const objectiveAngleStepSlider = getRequiredElementById<HTMLInputElement>("objectiveAngleStepSlider");
-  const objectiveRotationSpeedSlider = getRequiredElementById<HTMLInputElement>("objectiveRotationSpeedSlider");
-  const maxitInput = getRequiredElementById<HTMLInputElement>("maxitInput");
-  const maxitInputPDHG = getRequiredElementById<HTMLInputElement>("maxitInputPDHG");
-  const pdhgIneqMode = getRequiredElementById<HTMLInputElement>("pdhgIneqMode");
-  const pdhgHalpernMode = getRequiredElementById<HTMLInputElement>("pdhgHalpernMode");
-  const pdhgColorByBasis = getRequiredElementById<HTMLInputElement>("pdhgColorByBasis");
-  const sidebar = getRequiredElementById<HTMLElement>("sidebar");
   const readSolverNumber = (value: string, fallback = 0): number => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -395,8 +396,8 @@ export async function initializeUI(
     },
   };
   const runResponsiveUiSync = (options: { includeTerminal?: boolean; forceResultFont?: boolean } = {}) => {
-    const resultContainer = getOptionalElementById<HTMLElement>("result");
-    if (resultContainer && !resultContainer.querySelector("#usageTips")) {
+    const resultContainer = resultDiv;
+    if (!resultContainer.querySelector("#usageTips")) {
       const selector = resultContainer.classList.contains("virtualized")
         ? ".iterate-header, .iterate-item, .iterate-footer"
         : "div";
@@ -468,7 +469,6 @@ export async function initializeUI(
     syncResponsiveUi({ includeTerminal: true });
   };
 
-  const resultDiv = getRequiredElementById<HTMLElement>("result");
   const resultSelector = ".iterate-item, .iterate-header, .iterate-footer";
   const resultRuntime = createResultRuntime({
     canvasManager,
@@ -517,9 +517,7 @@ export async function initializeUI(
         });
       });
 
-      const element = getOptionalElementById<HTMLElement>("subjectTo");
-      if (!element) return;
-      setElementVisibility(element, polytope.lines.length > 0);
+      setElementVisibility(subjectTo, polytope.lines.length > 0);
     },
 
     showInequalityText(text: string) {
@@ -1025,11 +1023,6 @@ export async function initializeUI(
     resetTraceState();
     canvasManager.draw();
   };
-  const alphaMaxValue = getRequiredElementById<HTMLElement>("alphaMaxValue");
-  const correctorThresholdValue = getRequiredElementById<HTMLElement>("correctorThresholdValue");
-  const pdhgEtaValue = getRequiredElementById<HTMLElement>("pdhgEtaValue");
-  const pdhgTauValue = getRequiredElementById<HTMLElement>("pdhgTauValue");
-  const centralPathIterValue = getRequiredElementById<HTMLElement>("centralPathIterValue");
   const setSliderDisplay = (slider: HTMLInputElement, valueElement: HTMLElement | null, digits: number | null) => {
     if (!valueElement || digits === null) return;
     valueElement.textContent = parseFloat(slider.value).toFixed(digits);
@@ -1052,9 +1045,7 @@ export async function initializeUI(
   };
   const uiRuntime = {
     hideNullStateMessage() {
-      const element = getOptionalElementById<HTMLElement>("nullStateMessage");
-      if (!element) return;
-      setElementVisibility(element, false);
+      setElementVisibility(nullStateMessage, false);
     },
 
     updateObjectiveDisplay() {
@@ -1074,8 +1065,6 @@ export async function initializeUI(
     },
 
     updateMaximizeVisibility() {
-      const maximize = getOptionalElementById<HTMLElement>("maximize");
-      if (!maximize) return;
       const state = getState();
       const visible = state.completionMode !== "draft" && state.objectiveVector !== null;
       setElementVisibility(maximize, visible);
@@ -1195,15 +1184,12 @@ export async function initializeUI(
     },
 
     getMinSidebarWidth() {
-      const topResultContainer = getOptionalElementById<HTMLElement>("topResult");
-      if (!topResultContainer) return 375;
-
-      const style = window.getComputedStyle(topResultContainer);
+      const style = window.getComputedStyle(topResult);
       const paddingLeft = parseFloat(style.paddingLeft) || 0;
       const paddingRight = parseFloat(style.paddingRight) || 0;
       const paddingTop = parseFloat(style.paddingTop) || 0;
       const paddingBottom = parseFloat(style.paddingBottom) || 0;
-      const availableHeight = Math.max(1, topResultContainer.clientHeight - paddingTop - paddingBottom);
+      const availableHeight = Math.max(1, topResult.clientHeight - paddingTop - paddingBottom);
       const aspectRatio = NULL_STATE_LOGO_VIEWBOX_WIDTH / NULL_STATE_LOGO_VIEWBOX_HEIGHT;
       const logoWidth = availableHeight * aspectRatio;
       return Math.max(375, Math.min(logoWidth + paddingLeft + paddingRight + 20, 400));

@@ -1,10 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, type RefObject } from "react";
 
 import { renderNullStateLogo } from "../../ui/logo";
 
-export function useNullStateLogo() {
-  const nullStateMessageRef = useRef<HTMLDivElement>(null);
-
+export function useNullStateLogo(nullStateMessageRef: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const nullStateMessage = nullStateMessageRef.current;
 
@@ -14,6 +12,4 @@ export function useNullStateLogo() {
 
     renderNullStateLogo(nullStateMessage);
   }, []);
-
-  return nullStateMessageRef;
 }
