@@ -21,6 +21,12 @@ export type CanvasControlsUiState = {
   zScale: number;
 };
 
+export type AnimationControlsUiState = {
+  animateDisabled: boolean;
+  startRotateDisabled: boolean;
+  stopRotateDisabled: boolean;
+};
+
 export function selectSolverControlsUiState(state: State): SolverControlsUiState {
   return {
     activeMode: state.solverMode,
@@ -60,6 +66,28 @@ export function areCanvasControlsUiStatesEqual(a: CanvasControlsUiState, b: Canv
     a.toggle3DLabel === b.toggle3DLabel &&
     a.zAxisOffsetOnly === b.zAxisOffsetOnly &&
     a.zScale === b.zScale
+  );
+}
+
+export function selectAnimationControlsUiState(state: State): AnimationControlsUiState {
+  const hasComputedLines = hasPolytopeLines(state.polytope);
+  const hasSolution = (state.originalIteratePath?.length ?? 0) > 0;
+  const hasObjective = state.objectiveVector !== null;
+  const isRotating = state.rotateObjectiveMode;
+  const isAnimating = state.animationIntervalId !== null && !isRotating;
+
+  return {
+    animateDisabled: !hasComputedLines || !hasSolution || isAnimating || isRotating,
+    startRotateDisabled: !hasComputedLines || !hasObjective || isAnimating || isRotating,
+    stopRotateDisabled: !isRotating,
+  };
+}
+
+export function areAnimationControlsUiStatesEqual(a: AnimationControlsUiState, b: AnimationControlsUiState): boolean {
+  return (
+    a.animateDisabled === b.animateDisabled &&
+    a.startRotateDisabled === b.startRotateDisabled &&
+    a.stopRotateDisabled === b.stopRotateDisabled
   );
 }
 

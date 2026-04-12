@@ -1,20 +1,31 @@
 import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { useLpvizSelector } from "../../app/lpvizStore";
+import { areAnimationControlsUiStatesEqual, selectAnimationControlsUiState } from "../../app/uiSelectors";
 
 export function AnimationControlsPanel() {
   const refs = useLegacyRuntimeElementRefs();
+  const animationControlsUiState = useLpvizSelector(selectAnimationControlsUiState, areAnimationControlsUiStatesEqual);
 
   return (
     <div className="controlPanel controlPanel--compact">
       <div className="button-group">
-        <button id="animateButton" ref={refs.animateButton} disabled>
+        <button id="animateButton" ref={refs.animateButton} disabled={animationControlsUiState.animateDisabled}>
           Animate
         </button>
       </div>
       <div className="button-group">
-        <button id="startRotateObjectiveButton" ref={refs.startRotateObjectiveButton} disabled>
+        <button
+          id="startRotateObjectiveButton"
+          ref={refs.startRotateObjectiveButton}
+          disabled={animationControlsUiState.startRotateDisabled}
+        >
           Rotate Objective
         </button>
-        <button id="stopRotateObjectiveButton" ref={refs.stopRotateObjectiveButton} disabled>
+        <button
+          id="stopRotateObjectiveButton"
+          ref={refs.stopRotateObjectiveButton}
+          disabled={animationControlsUiState.stopRotateDisabled}
+        >
           Stop Rotation
         </button>
       </div>
