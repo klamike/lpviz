@@ -1,5 +1,6 @@
 import JSONCrush from "jsoncrush";
 import type { LegacyRuntimeElements } from "../../app/legacyRuntimeElements";
+import { registerLpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { MIN_SCREEN_WIDTH } from "../../app/uiConstants";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
 import type { DrawingPhase, SolverMode } from "../../state/store";
@@ -41,8 +42,6 @@ export async function initializeUI(
     nullStateMessage,
     maximize,
     objectiveDisplay,
-    subjectTo,
-    inequalities: inequalitiesDiv,
     result: resultDiv,
     iteratePathButton,
     ipmButton,
@@ -99,6 +98,16 @@ export async function initializeUI(
   };
 
   const canvasManager = await ViewportManager.create(canvas);
+  registerCleanup(registerLpvizRuntimeCommands({
+    setConstraintHighlight(index) {
+      if (getState().highlightIndex === index) {
+        return;
+      }
+
+      setState({ highlightIndex: index }, { viewportDirty: canvasManager.getConstraintDirtyFlags() });
+      canvasManager.draw();
+    },
+  }));
   const historyRuntime = {
     captureEntry(state: Pick<State, "vertices" | "objectiveVector" | "completionMode">): HistoryEntry {
       return {
@@ -458,40 +467,6 @@ export async function initializeUI(
   });
 
   const polytopeRuntime = {
-    renderInequalities(polytope: { inequalities: string[]; lines: number[][] }, completionMode: "draft" | "closed" | "open") {
-      const displayedInequalities =
-        completionMode === "draft"
-          ? polytope.inequalities.slice(0, Math.max(0, polytope.inequalities.length - 1))
-          : polytope.inequalities;
-      inequalitiesDiv.innerHTML = displayedInequalities
-        .map(
-          (ineq, index) => `
-            <div class="inequality-item" data-index="${index}">
-              ${ineq}
-            </div>
-          `,
-        )
-        .join("");
-
-      inequalitiesDiv.querySelectorAll(".inequality-item").forEach((item) => {
-        item.addEventListener("mouseenter", () => {
-          const index = parseInt(item.getAttribute("data-index") || "0");
-          setState({ highlightIndex: index }, { viewportDirty: canvasManager.getConstraintDirtyFlags() });
-          canvasManager.draw();
-        });
-        item.addEventListener("mouseleave", () => {
-          setState({ highlightIndex: null }, { viewportDirty: canvasManager.getConstraintDirtyFlags() });
-          canvasManager.draw();
-        });
-      });
-
-      setElementVisibility(subjectTo, polytope.lines.length > 0);
-    },
-
-    showInequalityText(text: string) {
-      inequalitiesDiv.textContent = text;
-    },
-
     send() {
       const state = getState();
       if (state.vertices.length > 0 || state.objectiveVector !== null || state.currentObjective !== null) {
@@ -504,8 +479,9 @@ export async function initializeUI(
         if (regionResult.status === "nonconvex") {
           mutate((draft) => {
             draft.polytope = null;
+            draft.inequalitiesMessage = "Nonconvex";
+            draft.highlightIndex = null;
           });
-          this.showInequalityText("Nonconvex");
           solverRuntime.handleProblemChange();
           uiRuntime.syncButtonStates();
           overlayRuntime.scheduleNonconvexHint();
@@ -522,22 +498,32 @@ export async function initializeUI(
 
         const result = regionResult.polytope;
         if (!result.inequalities) {
-          this.showInequalityText("No inequalities returned.");
+          mutate((draft) => {
+            draft.polytope = null;
+            draft.inequalitiesMessage = "No inequalities returned.";
+            draft.highlightIndex = null;
+          });
           solverRuntime.handleProblemChange();
           return;
         }
 
-        const nextState = getState();
-        this.renderInequalities(result, nextState.completionMode);
         mutate((draft) => {
           draft.polytope = result;
+          draft.inequalitiesMessage = null;
+          if (draft.highlightIndex !== null && draft.highlightIndex >= result.inequalities.length) {
+            draft.highlightIndex = null;
+          }
         });
         uiRuntime.syncButtonStates();
         overlayRuntime.scheduleNonconvexHint();
         solverRuntime.handleProblemChange();
       } catch (error) {
         console.error("Error:", error);
-        this.showInequalityText("Error computing inequalities.");
+        mutate((draft) => {
+          draft.polytope = null;
+          draft.inequalitiesMessage = "Error computing inequalities.";
+          draft.highlightIndex = null;
+        });
         solverRuntime.handleProblemChange();
         overlayRuntime.scheduleNonconvexHint();
       }
@@ -1062,6 +1048,8 @@ export async function initializeUI(
       solverRuntime.invalidatePendingSolveResults();
       mutate((draft) => {
         Object.assign(draft, buildSharedStatePatch(sharedState));
+        draft.inequalitiesMessage = null;
+        draft.highlightIndex = null;
       });
 
       this.applySharedSettings(sharedState.settings);
