@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { defineConfig } from "vite";
-import { resolve } from "path";
 import { readdirSync, statSync } from "fs";
+import { resolve } from "path";
+import { defineConfig } from "vite";
 
 function findHtmlFiles(dir: string): string[] {
   const entries = readdirSync(dir);
@@ -19,16 +19,14 @@ function findHtmlFiles(dir: string): string[] {
   return files;
 }
 
-const rootDir = resolve(__dirname, "lpviz");
-const docsDir = resolve(rootDir, "docs");
+const docsDir = resolve(__dirname, "docs");
 const docHtmlInputs = findHtmlFiles(docsDir);
 
 export default defineConfig({
-  root: rootDir,
   build: {
     outDir: resolve(__dirname, "dist"),
     rollupOptions: {
-      input: [resolve(rootDir, "index.html"), ...docHtmlInputs],
+      input: [resolve(__dirname, "index.html"), ...docHtmlInputs],
     },
     chunkSizeWarningLimit: 1000,
     emptyOutDir: false,
