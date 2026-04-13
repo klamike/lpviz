@@ -1,9 +1,11 @@
+import { useCallback } from "react";
+import { AutoSizer, List, type ListRowProps } from "react-virtualized";
+
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "../../app/uiSelectors";
 import { TerminalFrame } from "../layout/TerminalFrame";
 import { useResultTypography } from "./useResultTypography";
-import { useVirtualizedResultRows } from "./useVirtualizedResultRows";
 
 export function UsagePanel() {
   const resultPanelUiState = useLpvizSelector(selectResultPanelUiState, areResultPanelUiStatesEqual);
@@ -11,10 +13,29 @@ export function UsagePanel() {
     enabled: resultPanelUiState.mode !== "usage",
     maxLineChars: resultPanelUiState.maxLineChars,
   });
-  const { scrollRef, visibleRows, paddingTop, paddingBottom } = useVirtualizedResultRows({
-    enabled: resultPanelUiState.mode === "virtual" && !resultPanelUiState.virtualShowEmpty,
-    rows: resultPanelUiState.virtualRows,
-  });
+  const renderVirtualRow = useCallback(({ index, key, style }: ListRowProps) => {
+    const row = resultPanelUiState.virtualRows[index];
+    if (!row) {
+      return null;
+    }
+
+    return (
+      <div
+        key={key}
+        style={style}
+        className={row.className}
+        data-index={row.index}
+        onMouseEnter={row.index === undefined ? undefined : () => {
+          lpvizRuntimeCommands.setIterateHighlight(row.index ?? null);
+        }}
+        onMouseLeave={row.index === undefined ? undefined : () => {
+          lpvizRuntimeCommands.setIterateHighlight(null);
+        }}
+      >
+        {row.text}
+      </div>
+    );
+  }, [resultPanelUiState.virtualRows]);
 
   return (
     <TerminalFrame containerId="terminal-container" delayClassName="scanlines--delay-12">
@@ -85,31 +106,22 @@ export function UsagePanel() {
         ) : null}
         <div className={`result-virtual-layout ${resultPanelUiState.mode === "virtual" ? "" : "is-hidden"}`.trim()}>
           <div className="iterate-header">{resultPanelUiState.virtualHeader ?? ""}</div>
-          <div ref={scrollRef} className="iterate-scroll">
+          <div className="iterate-scroll">
             {resultPanelUiState.virtualShowEmpty ? (
               <div className="iterate-item-nohover">No iterations available.</div>
             ) : (
-              <div className="iterate-virtual-wrapper">
-                <div style={{ height: `${paddingTop}px` }}></div>
-                <div className="iterate-rows">
-                  {visibleRows.map((row, index) => (
-                    <div
-                      key={`${index}-${row.index}-${row.text}`}
-                      className={row.className}
-                      data-index={row.index}
-                      onMouseEnter={row.index === undefined ? undefined : () => {
-                        lpvizRuntimeCommands.setIterateHighlight(row.index ?? null);
-                      }}
-                      onMouseLeave={row.index === undefined ? undefined : () => {
-                        lpvizRuntimeCommands.setIterateHighlight(null);
-                      }}
-                    >
-                      {row.text}
-                    </div>
-                  ))}
-                </div>
-                <div style={{ height: `${paddingBottom}px` }}></div>
-              </div>
+              <AutoSizer>
+                {({ width, height }) => width > 0 && height > 0 ? (
+                  <List
+                    width={width}
+                    height={height}
+                    rowCount={resultPanelUiState.virtualRows.length}
+                    rowHeight={22}
+                    overscanRowCount={25}
+                    rowRenderer={renderVirtualRow}
+                  />
+                ) : null}
+              </AutoSizer>
             )}
           </div>
           {resultPanelUiState.virtualFooter ? <div className="iterate-footer">{resultPanelUiState.virtualFooter}</div> : null}
