@@ -1,4 +1,5 @@
 import { useLpvizRuntime } from "../../app/lpvizRuntime";
+import { useOnboardingActionTarget } from "../../app/onboardingUi";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
   areSolverControlsUiStatesEqual,
@@ -9,6 +10,8 @@ import {
 
 export function SolverControlsPanel() {
   const runtimeActions = useLpvizRuntime();
+  const activateIpmTargetRef = useOnboardingActionTarget("activate-ipm");
+  const activateCentralTargetRef = useOnboardingActionTarget("activate-central");
   const solverControlsUiState = useLpvizSelector(selectSolverControlsUiState, areSolverControlsUiStatesEqual);
   const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
@@ -17,6 +20,7 @@ export function SolverControlsPanel() {
       <div className="button-group">
         <button
           id="ipmButton"
+          ref={activateIpmTargetRef}
           className={solverControlsUiState.buttons.ipm.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.ipm.disabled}
           onClick={() => runtimeActions.setActiveSolverMode("ipm")}
@@ -39,6 +43,7 @@ export function SolverControlsPanel() {
         </button>
         <button
           id="iteratePathButton"
+          ref={activateCentralTargetRef}
           className={solverControlsUiState.buttons.central.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.central.disabled}
           onClick={() => runtimeActions.setActiveSolverMode("central")}
