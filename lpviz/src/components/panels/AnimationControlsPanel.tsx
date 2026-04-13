@@ -1,4 +1,3 @@
-import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
@@ -9,34 +8,40 @@ import {
 } from "../../app/uiSelectors";
 
 export function AnimationControlsPanel() {
-  const refs = useLegacyRuntimeElementRefs();
   const animationControlsUiState = useLpvizSelector(selectAnimationControlsUiState, areAnimationControlsUiStatesEqual);
   const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
   return (
     <div className="controlPanel controlPanel--compact">
       <div className="button-group">
-        <button id="animateButton" ref={refs.animateButton} disabled={animationControlsUiState.animateDisabled}>
+        <button
+          id="animateButton"
+          disabled={animationControlsUiState.animateDisabled}
+          onClick={() => lpvizRuntimeCommands.startReplay()}
+        >
           Animate
         </button>
       </div>
       <div className="button-group">
         <button
           id="startRotateObjectiveButton"
-          ref={refs.startRotateObjectiveButton}
           disabled={animationControlsUiState.startRotateDisabled}
+          onClick={() => lpvizRuntimeCommands.startRotation()}
         >
           Rotate Objective
         </button>
         <button
           id="stopRotateObjectiveButton"
-          ref={refs.stopRotateObjectiveButton}
           disabled={animationControlsUiState.stopRotateDisabled}
+          onClick={() => lpvizRuntimeCommands.stopRotation()}
         >
           Stop Rotation
         </button>
       </div>
-      <div id="objectiveRotationSettings" ref={refs.objectiveRotationSettings} className="objective-rotation is-hidden">
+      <div
+        id="objectiveRotationSettings"
+        className={animationControlsUiState.rotateObjectiveMode ? "objective-rotation is-block" : "objective-rotation is-hidden"}
+      >
         <div className="rotation-layout">
           <div className="rotation-column">
             <label htmlFor="objectiveAngleStepSlider" className="label-centered">
