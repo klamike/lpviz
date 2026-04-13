@@ -448,11 +448,11 @@ Outcome:
 
 Tasks:
 
-- [ ] create `LpvizRuntimeContext` or a similarly small actions provider
-- [ ] expose stable actions like `setActiveSolverMode`, `toggle3D`, `share`, `setConstraintHighlight`, etc.
-- [ ] migrate components away from `lpvizRuntimeCommands`
-- [ ] remove `registerLpvizRuntimeCommands()`
-- [ ] keep the API flat and boring; this should be a thin action surface, not a second store
+- [x] create `LpvizRuntimeContext` or a similarly small actions provider
+- [x] expose stable actions like `setActiveSolverMode`, `toggle3D`, `share`, `setConstraintHighlight`, etc.
+- [x] migrate components away from `lpvizRuntimeCommands`
+- [x] remove `registerLpvizRuntimeCommands()`
+- [x] keep the API flat and boring; this should be a thin action surface, not a second store
 
 Likely files:
 
@@ -609,11 +609,11 @@ Mitigation:
 
 ## Immediate Next Step
 
-Phases 1, 2, 3, 4, 5, and 6 are done.
+Phases 1, 2, 3, 4, 5, 6, and 7 are done.
 
 The next practical coding task should be:
 
-1. start Phase 7 and replace `lpvizRuntimeCommands` with a React actions/context surface
-2. then continue into Phase 8 to split `initialize.ts` into smaller feature runtimes
+1. start Phase 8 and split `initialize.ts` into smaller feature runtimes
+2. keep the top-level initializer focused on assembly only
 
-That should leave the shared bridge very close to canvas-only.
+That should make the remaining imperative layer much easier to shrink.

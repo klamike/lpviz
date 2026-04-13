@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 
-import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
+import { useLpvizRuntime } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
   areSolverSettingsEqual,
@@ -19,6 +19,7 @@ export function Sidebar({
   sidebarWidth: number;
   topResultRef: RefObject<HTMLDivElement | null>;
 }) {
+  const runtimeActions = useLpvizRuntime();
   const settings = useLpvizSelector(
     selectSolverSettings,
     areSolverSettingsEqual,
@@ -44,7 +45,7 @@ export function Sidebar({
               max="100"
               value={settings.replaySpeed}
               onChange={(e) => {
-                lpvizRuntimeCommands.updateSolverSetting(
+                runtimeActions.updateSolverSetting(
                   "replaySpeed",
                   parseInt(e.target.value, 10),
                 );
