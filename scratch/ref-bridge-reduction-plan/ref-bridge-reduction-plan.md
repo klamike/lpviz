@@ -381,12 +381,12 @@ Proposed direction:
 
 Tasks:
 
-- [ ] change `resultRuntime.render()` to write the full virtual payload into state, not the visible slice
-- [ ] create a local `useVirtualRows()` hook in the result panel
-- [ ] move the scroll listener + `ResizeObserver` to that hook
-- [ ] preserve the current estimated row height and overscan numbers first; optimize later
-- [ ] delete `resultVirtualHost` from `LegacyRuntimeElements`
-- [ ] once typography is already React-owned, remove `result` from the shared bridge too
+- [x] change `resultRuntime.render()` to write the full virtual payload into state, not the visible slice
+- [x] create a local `useVirtualRows()` hook in the result panel
+- [x] move the scroll listener + `ResizeObserver` to that hook
+- [x] preserve the current estimated row height and overscan numbers first; optimize later
+- [x] delete `resultVirtualHost` from `LegacyRuntimeElements`
+- [x] once typography is already React-owned, remove `result` from the shared bridge too
 
 Likely files:
 
@@ -609,11 +609,11 @@ Mitigation:
 
 ## Immediate Next Step
 
-Phases 1, 2, 3, and 4 are done.
+Phases 1, 2, 3, 4, and 5 are done.
 
 The next practical coding task should be:
 
-1. move result virtualization into React
-2. then remove `resultVirtualHost` from `LegacyRuntimeElements`
+1. start Phase 6 and collapse the remaining shared bridge toward canvas-only runtime elements
+2. move any remaining overlay/tour or non-canvas DOM ownership out of `initialize.ts`
 
 That should leave the shared bridge very close to canvas-only.

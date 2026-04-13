@@ -16,14 +16,12 @@ const getRequiredElement = <T extends HTMLElement>(ref: RefObject<T | null>, id:
 export function useLegacyCanvasRuntime(runtimeElementRefs: LegacyRuntimeElementRefs, initialSidebarWidth: number) {
   const {
     canvas,
-    resultVirtualHost,
   } = runtimeElementRefs;
   const initialSidebarWidthRef = useRef(initialSidebarWidth);
 
   useEffect(() => {
     const runtimeElements = {
       canvas: getRequiredElement(canvas, "gridCanvas"),
-      resultVirtualHost: getRequiredElement(resultVirtualHost, "resultVirtualHost"),
     };
 
     runtimeElements.canvas.focus();
@@ -51,6 +49,5 @@ export function useLegacyCanvasRuntime(runtimeElementRefs: LegacyRuntimeElementR
     };
   }, [
     canvas,
-    resultVirtualHost,
   ]);
 }

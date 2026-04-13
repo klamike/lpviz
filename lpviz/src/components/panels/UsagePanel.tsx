@@ -1,16 +1,19 @@
-import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "../../app/uiSelectors";
 import { TerminalFrame } from "../layout/TerminalFrame";
 import { useResultTypography } from "./useResultTypography";
+import { useVirtualizedResultRows } from "./useVirtualizedResultRows";
 
 export function UsagePanel() {
-  const refs = useLegacyRuntimeElementRefs();
   const resultPanelUiState = useLpvizSelector(selectResultPanelUiState, areResultPanelUiStatesEqual);
   const { resultRef, resultStyle } = useResultTypography({
     enabled: resultPanelUiState.mode !== "usage",
     maxLineChars: resultPanelUiState.maxLineChars,
+  });
+  const { scrollRef, visibleRows, paddingTop, paddingBottom } = useVirtualizedResultRows({
+    enabled: resultPanelUiState.mode === "virtual" && !resultPanelUiState.virtualShowEmpty,
+    rows: resultPanelUiState.virtualRows,
   });
 
   return (
@@ -80,19 +83,16 @@ export function UsagePanel() {
             ))}
           </div>
         ) : null}
-        <div className={resultPanelUiState.mode === "virtual" ? undefined : "is-hidden"}>
+        <div className={`result-virtual-layout ${resultPanelUiState.mode === "virtual" ? "" : "is-hidden"}`.trim()}>
           <div className="iterate-header">{resultPanelUiState.virtualHeader ?? ""}</div>
-          <div
-            ref={refs.resultVirtualHost}
-            className="iterate-scroll"
-          >
+          <div ref={scrollRef} className="iterate-scroll">
             {resultPanelUiState.virtualShowEmpty ? (
               <div className="iterate-item-nohover">No iterations available.</div>
             ) : (
               <div className="iterate-virtual-wrapper">
-                <div style={{ height: `${resultPanelUiState.virtualPaddingTop}px` }}></div>
+                <div style={{ height: `${paddingTop}px` }}></div>
                 <div className="iterate-rows">
-                  {resultPanelUiState.virtualRows.map((row, index) => (
+                  {visibleRows.map((row, index) => (
                     <div
                       key={`${index}-${row.index}-${row.text}`}
                       className={row.className}
@@ -108,7 +108,7 @@ export function UsagePanel() {
                     </div>
                   ))}
                 </div>
-                <div style={{ height: `${resultPanelUiState.virtualPaddingBottom}px` }}></div>
+                <div style={{ height: `${paddingBottom}px` }}></div>
               </div>
             )}
           </div>

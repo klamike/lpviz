@@ -308,6 +308,13 @@ canvas {
   height: 100%;
 }
 
+#result.virtualized .result-virtual-layout {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .iterate-virtual-wrapper {
   display: flex;
   flex-direction: column;
@@ -323,6 +330,7 @@ canvas {
 
 #result.virtualized .iterate-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-anchor: none;
 }
