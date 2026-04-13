@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import type { RefObject } from "react";
+
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
@@ -7,21 +8,19 @@ import {
   selectInequalitiesUiState,
   selectTopResultUiState,
 } from "../../app/uiSelectors";
-import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { NullStateLogo } from "../logo/NullStateLogo";
 import { TerminalFrame } from "../layout/TerminalFrame";
-import { useNullStateLogo } from "./useNullStateLogo";
 
-export function TopResultPanel() {
-  const refs = useLegacyRuntimeElementRefs();
-  const nullStateMessageRef = useRef<HTMLDivElement>(null);
+export function TopResultPanel({ topResultRef }: { topResultRef: RefObject<HTMLDivElement | null> }) {
   const topResultUiState = useLpvizSelector(selectTopResultUiState, areTopResultUiStatesEqual);
   const inequalitiesUiState = useLpvizSelector(selectInequalitiesUiState, areInequalitiesUiStatesEqual);
-  useNullStateLogo(nullStateMessageRef);
 
   return (
     <TerminalFrame containerId="terminal-container2" delayClassName="scanlines--delay-8">
-      <div id="topResult" ref={refs.topResult}>
-        <div id="nullStateMessage" ref={nullStateMessageRef} className={topResultUiState.nullStateVisible ? undefined : "is-hidden"} aria-label="lpviz logo"></div>
+      <div id="topResult" ref={topResultRef}>
+        <div id="nullStateMessage" className={topResultUiState.nullStateVisible ? undefined : "is-hidden"} aria-label="lpviz logo">
+          <NullStateLogo />
+        </div>
         <div id="maximize" className={topResultUiState.maximizeVisible ? "is-block" : "is-hidden"}>maximize</div>
         <div
           id="objectiveDisplay"

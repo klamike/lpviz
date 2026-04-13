@@ -4,10 +4,16 @@ import { useLpvizSelector } from "../../app/lpvizStore";
 import { areCanvasControlsUiStatesEqual, selectCanvasControlsUiState } from "../../app/uiSelectors";
 import { useLegacyCanvasRuntime } from "./useLegacyCanvasRuntime";
 
-export function CanvasStage() {
+export function CanvasStage({
+  sidebarWidth,
+  onResizeStart,
+}: {
+  sidebarWidth: number;
+  onResizeStart: () => void;
+}) {
   const refs = useLegacyRuntimeElementRefs();
   const canvasControlsUiState = useLpvizSelector(selectCanvasControlsUiState, areCanvasControlsUiStatesEqual);
-  useLegacyCanvasRuntime(refs);
+  useLegacyCanvasRuntime(refs, sidebarWidth);
 
   return (
     <main>
@@ -75,10 +81,10 @@ export function CanvasStage() {
       </div>
       <div
         id="sidebarHandle"
-        ref={refs.sidebarHandle}
+        style={{ left: sidebarWidth }}
         onMouseDown={(e) => {
           e.preventDefault();
-          lpvizRuntimeCommands.beginResize(e.clientX);
+          onResizeStart();
         }}
       ></div>
     </main>

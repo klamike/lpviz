@@ -20,7 +20,6 @@ export function createSolverRuntime({
   canvasManager,
   getSolverControl,
   resultRuntime,
-  uiRuntime,
 }: {
   canvasManager: ViewportManager;
   getSolverControl: (mode: SolverMode) => SolverControl | undefined;
@@ -28,10 +27,6 @@ export function createSolverRuntime({
     render: (payload: ResultRenderPayload, options?: { limitVirtualRows?: boolean }) => void;
     restoreFullVirtualResult: () => void;
     clear: () => void;
-  };
-  uiRuntime: {
-    syncButtonStates: () => void;
-    updateObjectiveDisplay: () => void;
   };
 }) {
   const createResultBlock = (className: ResultTextBlock["className"], text: string, index?: number): ResultTextBlock => ({
@@ -140,7 +135,6 @@ export function createSolverRuntime({
       if (!solverDefinition || !state.objectiveVector || computeDrawingPhase(state) !== "ready_for_solvers" || !this.hasComputedConstraintSystem(state)) {
         this.invalidatePendingSolveResults();
         this.clearComputedState();
-        uiRuntime.syncButtonStates();
         return;
       }
 
@@ -148,7 +142,6 @@ export function createSolverRuntime({
       if (runBlock) {
         this.invalidatePendingSolveResults();
         resultRuntime.render(runBlock);
-        uiRuntime.syncButtonStates();
         return;
       }
 
@@ -156,7 +149,6 @@ export function createSolverRuntime({
       if (!request) {
         this.invalidatePendingSolveResults();
         this.clearComputedState();
-        uiRuntime.syncButtonStates();
         return;
       }
 
@@ -170,7 +162,6 @@ export function createSolverRuntime({
         }
         solverDefinition.applyResult(response, (payload) => resultRuntime.render(payload));
         canvasManager.draw();
-        uiRuntime.syncButtonStates();
       } catch (error) {
         if (requestGeneration !== this.requestGeneration) {
           return;
@@ -182,7 +173,6 @@ export function createSolverRuntime({
             createResultBlock("iterate-item-nohover", error instanceof Error ? error.message : String(error)),
           ],
         });
-        uiRuntime.syncButtonStates();
       }
     },
 
@@ -208,7 +198,6 @@ export function createSolverRuntime({
         rotateObjectiveMode: active,
         highlightIteratePathIndex: null,
       }, { viewportDirty: canvasManager.getIterateDirtyFlags() });
-      uiRuntime.syncButtonStates();
       if (!active) {
         resultRuntime.restoreFullVirtualResult();
       }
@@ -230,7 +219,6 @@ export function createSolverRuntime({
         highlightIteratePathIndex: null,
         animationIntervalId: null,
       }, { viewportDirty: canvasManager.getIterateDirtyFlags() });
-      uiRuntime.syncButtonStates();
       if (wasRotating) {
         resultRuntime.restoreFullVirtualResult();
       }
@@ -247,11 +235,8 @@ export function createSolverRuntime({
         this.invalidatePendingSolveResults();
         this.stopActiveMotion();
         this.clearComputedState();
-        uiRuntime.syncButtonStates();
         return;
       }
-
-      uiRuntime.syncButtonStates();
 
       if (!state.rotateObjectiveMode) {
         void this.computePath();
@@ -289,7 +274,6 @@ export function createSolverRuntime({
         objectiveVector: rotationStep.nextObjective,
         highlightIteratePathIndex: null,
       }, { viewportDirty: canvasManager.getObjectiveDirtyFlags() });
-      uiRuntime.updateObjectiveDisplay();
 
       if (getState().traceEnabled) {
         this.syncTraceCapacity();
@@ -354,12 +338,11 @@ export function createSolverRuntime({
     },
 
     startRotation() {
-      const hadObjective = Boolean(getState().objectiveVector);
-
-      this.objectiveRotationDirection = 1;
-      if (!hadObjective) {
+      if (!getState().objectiveVector) {
         setState({ objectiveVector: { x: 1, y: 0 } }, { viewportDirty: canvasManager.getObjectiveDirtyFlags() });
       }
+
+      this.objectiveRotationDirection = 1;
 
       if (getState().traceEnabled) {
         this.syncTraceCapacity();
@@ -368,10 +351,6 @@ export function createSolverRuntime({
 
       this.setRotationActive(true);
       void this.computeAndRotate();
-
-      if (!hadObjective) {
-        uiRuntime.updateObjectiveDisplay();
-      }
     },
 
     stopRotation() {

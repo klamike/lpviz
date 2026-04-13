@@ -13,7 +13,6 @@ import { computeEditorRegionForState } from "./editorSession";
 import { VRep } from "../../solvers/utils/polygon";
 import { hasPolytopeLines } from "../../solvers/utils/polytopeTypes";
 import type { HistoryEntry, State } from "../../state/store";
-import { NULL_STATE_LOGO_VIEWBOX_HEIGHT, NULL_STATE_LOGO_VIEWBOX_WIDTH } from "../logo";
 import { buildSharedStatePatch, compactSharedAppState, expandSharedAppState, type ShareSettings, type SharedAppState } from "../sharedState";
 import { collectZoomFitBounds } from "../viewBounds";
 import { createResultRuntime } from "./resultRuntime";
@@ -26,12 +25,12 @@ export type LegacyUiCleanup = () => void;
 export async function initializeUI(
   runtimeElements: LegacyRuntimeElements,
   params: URLSearchParams,
+  layout: {
+    initialSidebarWidth: number;
+  },
 ): Promise<LegacyUiCleanup> {
   const {
     canvas,
-    sidebarHandle,
-    sidebar,
-    topResult,
     result: resultDiv,
     resultVirtualHost,
   } = runtimeElements;
@@ -61,6 +60,7 @@ export async function initializeUI(
   };
 
   const canvasManager = await ViewportManager.create(canvas);
+  let currentSidebarWidth = layout.initialSidebarWidth;
   const updateSolverSetting = <K extends keyof import("../../state/store").SolverSettings>(key: K, value: import("../../state/store").SolverSettings[K]) => {
     mutate((draft) => {
       draft.solverSettings[key] = value;
@@ -127,17 +127,15 @@ export async function initializeUI(
     setActiveSolverMode(mode) {
       uiRuntime.setActiveSolverMode(mode, true);
     },
-    beginResize(clientX) {
-      uiRuntime.beginResize(clientX);
+    setSidebarWidth(width) {
+      currentSidebarWidth = width;
+      canvasManager.setSidebarWidth(width);
+      canvasManager.draw();
+      syncResponsiveUi();
     },
-    updateResize(clientX) {
-      uiRuntime.updateResize(clientX);
-    },
-    finishResize() {
-      uiRuntime.finishResize();
-    },
-    scheduleViewportSync() {
-      uiRuntime.scheduleViewportSync();
+    syncViewportLayout(sidebarWidth) {
+      currentSidebarWidth = sidebarWidth;
+      syncSidebarViewport();
     },
   }));
   const historyRuntime = {
@@ -449,22 +447,10 @@ export async function initializeUI(
     }
     runResponsiveUiSync(options);
   };
-  const applySidebarWidth = (width: number, options: { draw?: boolean; syncResponsive?: boolean } = {}) => {
-    sidebar.style.width = `${width}px`;
-    sidebarHandle.style.left = `${width}px`;
-    canvasManager.setSidebarWidth(width);
-    if (options.draw) {
-      canvasManager.draw();
-    }
-    if (options.syncResponsive) {
-      syncResponsiveUi();
-    }
-  };
   const syncSidebarViewport = () => {
-    canvasManager.setSidebarWidth(sidebar.offsetWidth);
+    canvasManager.setSidebarWidth(currentSidebarWidth);
     canvasManager.updateDimensions();
     canvasManager.draw();
-    uiRuntime.syncButtonStates();
     syncResponsiveUi({ includeTerminal: true });
   };
 
@@ -490,9 +476,6 @@ export async function initializeUI(
   const polytopeRuntime = {
     send() {
       const state = getState();
-      if (state.vertices.length > 0 || state.objectiveVector !== null || state.currentObjective !== null) {
-        uiRuntime.hideNullStateMessage();
-      }
 
       try {
         const regionResult = computeEditorRegionForState(state);
@@ -504,7 +487,6 @@ export async function initializeUI(
             draft.highlightIndex = null;
           });
           solverRuntime.handleProblemChange();
-          uiRuntime.syncButtonStates();
           overlayRuntime.scheduleNonconvexHint();
           return;
         }
@@ -535,7 +517,6 @@ export async function initializeUI(
             draft.highlightIndex = null;
           }
         });
-        uiRuntime.syncButtonStates();
         overlayRuntime.scheduleNonconvexHint();
         solverRuntime.handleProblemChange();
       } catch (error) {
@@ -862,8 +843,6 @@ export async function initializeUI(
         objectiveVector: null,
         currentObjective: null,
       });
-      uiRuntime.syncButtonStates();
-      uiRuntime.updateObjectiveDisplay();
       canvasManager.draw();
     },
 
@@ -908,7 +887,6 @@ export async function initializeUI(
             draft.vertices.push(step.point);
             draft.completionMode = "draft";
           });
-          uiRuntime.hideNullStateMessage();
           canvasManager.draw();
           polytopeRuntime.send();
         });
@@ -920,9 +898,6 @@ export async function initializeUI(
           mutate((draft) => {
             draft.objectiveVector = step.point;
           });
-          uiRuntime.updateMaximizeVisibility();
-          uiRuntime.syncButtonStates();
-          uiRuntime.updateObjectiveDisplay();
           canvasManager.draw();
         });
         return;
@@ -935,7 +910,6 @@ export async function initializeUI(
         });
         canvasManager.draw();
         polytopeRuntime.send();
-        uiRuntime.syncButtonStates();
       });
     },
 
@@ -1002,13 +976,7 @@ export async function initializeUI(
     canvasManager.draw();
   };
   const uiRuntime = {
-    hideNullStateMessage() {},
-
-    syncButtonStates() {
-    },
-
     synchronize() {
-      this.syncButtonStates();
       syncResponsiveUi();
     },
 
@@ -1034,7 +1002,6 @@ export async function initializeUI(
       }
 
       setState({ solverMode: mode });
-      this.syncButtonStates();
       if (solve && !getState().rotateObjectiveMode) {
         void solverRuntime.computePath();
       }
@@ -1056,8 +1023,6 @@ export async function initializeUI(
 
       if (regionFinished) {
         polytopeRuntime.send();
-      } else {
-        uiRuntime.syncButtonStates();
       }
 
       canvasManager.draw();
@@ -1068,72 +1033,28 @@ export async function initializeUI(
       const zoomFit = collectZoomFitBounds(state);
       if (!zoomFit && !isOpenUnbounded) return;
       canvasManager.zoomToFit(isOpenUnbounded ? canvasManager.getUnboundedClipBounds() : zoomFit!.bounds, 50, zoomFit?.zBounds);
-      canvasManager.setSidebarWidth(sidebar.offsetWidth);
-      uiRuntime.syncButtonStates();
+      canvasManager.setSidebarWidth(currentSidebarWidth);
     },
 
     resetView() {
       canvasManager.setViewState(1, 0, 0);
       setState({ viewAngle: { ...DEFAULT_VIEW_ANGLE } }, { viewportDirty: {} });
-      uiRuntime.syncButtonStates();
     },
 
     toggle3D() {
       const viewState = getState();
       if (viewState.isTransitioning3D) return;
       canvasManager.start3DTransition(!viewState.is3DMode);
-      uiRuntime.syncButtonStates();
     },
 
     toggleZOffsetOnly() {
       setState({ zAxisOffsetOnly: !getState().zAxisOffsetOnly }, { viewportDirty: canvasManager.getZScaleDirtyFlags() });
-      uiRuntime.syncButtonStates();
       canvasManager.draw();
     },
 
     share() {
       const crushed = JSONCrush.crush(JSON.stringify(this.buildSharedState()));
       window.prompt("Share this link:", `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`);
-    },
-
-    getMinSidebarWidth() {
-      const style = window.getComputedStyle(topResult);
-      const paddingLeft = parseFloat(style.paddingLeft) || 0;
-      const paddingRight = parseFloat(style.paddingRight) || 0;
-      const paddingTop = parseFloat(style.paddingTop) || 0;
-      const paddingBottom = parseFloat(style.paddingBottom) || 0;
-      const availableHeight = Math.max(1, topResult.clientHeight - paddingTop - paddingBottom);
-      const aspectRatio = NULL_STATE_LOGO_VIEWBOX_WIDTH / NULL_STATE_LOGO_VIEWBOX_HEIGHT;
-      const logoWidth = availableHeight * aspectRatio;
-      return Math.max(375, Math.min(logoWidth + paddingLeft + paddingRight + 20, 400));
-    },
-
-    resizeTimeout: null as number | null,
-    isResizing: false,
-
-    scheduleViewportSync() {
-      syncResponsiveUi({ includeTerminal: true });
-      if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
-      this.resizeTimeout = window.setTimeout(() => {
-        syncSidebarViewport();
-        this.resizeTimeout = null;
-      }, 16);
-    },
-
-    beginResize(_clientX: number) {
-      this.isResizing = true;
-    },
-
-    updateResize(clientX: number) {
-      if (!this.isResizing) return;
-      const newWidth = Math.max(this.getMinSidebarWidth(), Math.min(clientX, 1000));
-      applySidebarWidth(newWidth, { draw: true, syncResponsive: true });
-    },
-
-    finishResize() {
-      if (!this.isResizing) return;
-      this.isResizing = false;
-      syncResponsiveUi();
     },
 
     buildSharedState() {
@@ -1171,15 +1092,6 @@ export async function initializeUI(
     },
 
     initialize() {
-      bindEvent(window, "resize", () => {
-        this.scheduleViewportSync();
-      });
-      bindEvent(document, "mousemove", (event: MouseEvent) => {
-        this.updateResize(event.clientX);
-      });
-      bindEvent(document, "mouseup", () => {
-        this.finishResize();
-      });
       this.synchronize();
       syncSidebarViewport();
       this.handleStartupParams();
@@ -1190,20 +1102,10 @@ export async function initializeUI(
     canvasManager,
     getSolverControl,
     resultRuntime,
-    uiRuntime: {
-      syncButtonStates: () => uiRuntime.syncButtonStates(),
-      updateObjectiveDisplay: () => {},
-    },
   });
 
   const { teardown: teardownCanvasInteractions } = registerCanvasInteractions(
     canvasManager,
-    {
-      hideNullStateMessage: uiRuntime.hideNullStateMessage,
-      updateSolverModeButtons: uiRuntime.syncButtonStates,
-      updateObjectiveDisplay: () => {},
-      updateMaximizeVisibility: () => {},
-    },
     historyRuntime.save.bind(historyRuntime),
     polytopeRuntime.send.bind(polytopeRuntime),
     historyRuntime.handleUndoRedo.bind(historyRuntime),
@@ -1217,11 +1119,6 @@ export async function initializeUI(
     overlayRuntime.teardown();
     tourRuntime.stop();
     solverRuntime.stopActiveMotion();
-    uiRuntime.finishResize();
-    if (uiRuntime.resizeTimeout) {
-      clearTimeout(uiRuntime.resizeTimeout);
-      uiRuntime.resizeTimeout = null;
-    }
     responsiveUiRuntime.pendingOptions = null;
     while (cleanupHandlers.length > 0) {
       cleanupHandlers.pop()?.();
