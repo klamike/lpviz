@@ -13,12 +13,12 @@ export function CanvasStage() {
     <main>
       <canvas id="gridCanvas" ref={refs.canvas} tabIndex={0}></canvas>
       <div id="zoomControls">
-        <button id="unzoomButton" title="Reset Zoom (Home)" onClick={() => lpvizRuntimeCommands.resetView()}>
+        <button title="Reset Zoom (Home)" onClick={() => lpvizRuntimeCommands.resetView()}>
           <svg width="25" height="25" viewBox="0 0 24 24">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
           </svg>
         </button>
-        <button id="zoomButton" title="Zoom" onClick={() => lpvizRuntimeCommands.zoomToFit()}>
+        <button title="Zoom" onClick={() => lpvizRuntimeCommands.zoomToFit()}>
           <svg width="25" height="25" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <mask id="hole-mask">
@@ -52,7 +52,7 @@ export function CanvasStage() {
           Exclude Obj
         </button>
         <button id="shareButton" title="Share this configuration" onClick={() => lpvizRuntimeCommands.share()}>
-          <svg fill="currentColor" width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="share-alt" className="icon glyph">
+          <svg fill="currentColor" width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="icon glyph">
             <path d="M20,21H4a2,2,0,0,1-2-2V6A2,2,0,0,1,4,4H8A1,1,0,0,1,8,6H4V19H20V13a1,1,0,0,1,2,0v6A2,2,0,0,1,20,21Z"></path>
             <path d="M21.62,6.22l-5-4a1,1,0,0,0-1.05-.12A1,1,0,0,0,15,3V4.19a9.79,9.79,0,0,0-7,7.65,1,1,0,0,0,.62,1.09A1,1,0,0,0,9,13a1,1,0,0,0,.83-.45C11,10.78,13.58,10.24,15,10.07V11a1,1,0,0,0,.57.9,1,1,0,0,0,1.05-.12l5-4a1,1,0,0,0,0-1.56Z"></path>
           </svg>

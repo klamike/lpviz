@@ -15,7 +15,6 @@ export function AnimationControlsPanel() {
     <div className="controlPanel controlPanel--compact">
       <div className="button-group">
         <button
-          id="animateButton"
           disabled={animationControlsUiState.animateDisabled}
           onClick={() => lpvizRuntimeCommands.startReplay()}
         >
@@ -31,7 +30,6 @@ export function AnimationControlsPanel() {
           Rotate Objective
         </button>
         <button
-          id="stopRotateObjectiveButton"
           disabled={animationControlsUiState.stopRotateDisabled}
           onClick={() => lpvizRuntimeCommands.stopRotation()}
         >
@@ -39,7 +37,6 @@ export function AnimationControlsPanel() {
         </button>
       </div>
       <div
-        id="objectiveRotationSettings"
         className={animationControlsUiState.rotateObjectiveMode ? "objective-rotation is-block" : "objective-rotation is-hidden"}
       >
         <div className="rotation-layout">
