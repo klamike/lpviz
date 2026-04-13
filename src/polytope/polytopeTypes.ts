@@ -1,4 +1,4 @@
-import type { Lines, Vertices } from "../lib/math/blas";
+import type { Lines, Vertices } from "../math/blas";
 import type { RegionKind } from "./feasibleRegion";
 import type { BoundaryRay } from "./openRegionBoundary";
 

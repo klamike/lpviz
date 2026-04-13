@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { useLpvizRuntime } from "../LpvizRuntimeProvider";
+import { useLpvizRuntime } from "../context/LpvizRuntimeProvider";
 import {
   NULL_STATE_LOGO_VIEWBOX_HEIGHT,
   NULL_STATE_LOGO_VIEWBOX_WIDTH,
-} from "../components/branding/logo.constants";
+} from "../features/branding/logo.constants";
 
 const DEFAULT_SIDEBAR_WIDTH = 450;
 const MIN_SIDEBAR_WIDTH = 375;
