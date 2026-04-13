@@ -1,4 +1,7 @@
 import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
+import { useLpvizSelector } from "../../app/lpvizStore";
+import { areSolverSettingsEqual, selectSolverSettings } from "../../app/uiSelectors";
 import { AppHeader } from "./AppHeader";
 import { AnimationControlsPanel } from "../panels/AnimationControlsPanel";
 import { SolverControlsPanel } from "../panels/SolverControlsPanel";
@@ -7,6 +10,7 @@ import { UsagePanel } from "../panels/UsagePanel";
 
 export function Sidebar() {
   const refs = useLegacyRuntimeElementRefs();
+  const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
   return (
     <div id="sidebar" ref={refs.sidebar}>
@@ -23,10 +27,12 @@ export function Sidebar() {
             className="is-hidden"
             type="range"
             id="replaySpeedSlider"
-            ref={refs.replaySpeedSlider}
             min="1"
             max="100"
-            defaultValue="10"
+            value={settings.replaySpeed}
+            onChange={(e) => {
+              lpvizRuntimeCommands.updateSolverSetting("replaySpeed", parseInt(e.target.value, 10));
+            }}
             step="1"
             autoComplete="off"
           />

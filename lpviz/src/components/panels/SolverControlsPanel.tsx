@@ -1,10 +1,17 @@
 import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
-import { areSolverControlsUiStatesEqual, selectSolverControlsUiState } from "../../app/uiSelectors";
+import {
+  areSolverControlsUiStatesEqual,
+  areSolverSettingsEqual,
+  selectSolverControlsUiState,
+  selectSolverSettings,
+} from "../../app/uiSelectors";
 
 export function SolverControlsPanel() {
   const refs = useLegacyRuntimeElementRefs();
   const solverControlsUiState = useLpvizSelector(selectSolverControlsUiState, areSolverControlsUiStatesEqual);
+  const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
   return (
     <div className="controlPanel">
@@ -48,31 +55,67 @@ export function SolverControlsPanel() {
         className={solverControlsUiState.activeMode === "ipm" ? "settings-section is-block" : "settings-section is-hidden"}
       >
         <label htmlFor="alphaMaxSlider">
-          αmax (maximum step size ratio):
-          <span id="alphaMaxValue" ref={refs.alphaMaxValue}>0.1</span>
+          {"\u03B1"}max (maximum step size ratio):
+          <span id="alphaMaxValue">{settings.alphaMax.toFixed(3)}</span>
         </label>
-        <input type="range" id="alphaMaxSlider" ref={refs.alphaMaxSlider} min="0.001" max="1" step="0.001" defaultValue="0.1" autoComplete="off" />
+        <input
+          type="range"
+          id="alphaMaxSlider"
+          min="0.001"
+          max="1"
+          step="0.001"
+          value={settings.alphaMax}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("alphaMax", parseFloat(e.target.value));
+            lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+          }}
+          autoComplete="off"
+        />
         <br />
         <label htmlFor="correctorThresholdSlider">
           Corrector threshold:
-          <span id="correctorThresholdValue" ref={refs.correctorThresholdValue}>0.900</span>
+          <span id="correctorThresholdValue">{settings.correctorThreshold.toFixed(3)}</span>
         </label>
         <input
           type="range"
           id="correctorThresholdSlider"
-          ref={refs.correctorThresholdSlider}
           min="0.001"
           max="0.999"
           step="0.001"
-          defaultValue="0.900"
+          value={settings.correctorThreshold}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("correctorThreshold", parseFloat(e.target.value));
+            lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+          }}
           autoComplete="off"
         />
         <br />
         <label htmlFor="maxitInput">Maximum iterations:</label>
-        <input type="number" id="maxitInput" ref={refs.maxitInput} defaultValue="1000" min="1" step="1" autoComplete="off" />
+        <input
+          type="number"
+          id="maxitInput"
+          value={settings.maxitIPM}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("maxitIPM", Math.max(1, parseInt(e.target.value, 10) || 1));
+            lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+          }}
+          min="1"
+          step="1"
+          autoComplete="off"
+        />
         <div id="ipmColorByPhaseBox" className="settings-checkbox-row">
           <label htmlFor="ipmColorByPhase">
-            Color by phase <input type="checkbox" id="ipmColorByPhase" ref={refs.ipmColorByPhase} autoComplete="off" />
+            Color by phase{" "}
+            <input
+              type="checkbox"
+              id="ipmColorByPhase"
+              checked={settings.ipmColorByPhase}
+              onChange={(e) => {
+                lpvizRuntimeCommands.updateSolverSetting("ipmColorByPhase", e.target.checked);
+                lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+              }}
+              autoComplete="off"
+            />
           </label>
         </div>
       </div>
@@ -82,28 +125,92 @@ export function SolverControlsPanel() {
         className={solverControlsUiState.activeMode === "pdhg" ? "settings-section is-block" : "settings-section is-hidden"}
       >
         <label htmlFor="pdhgEtaSlider">
-          η (primal step size factor):
-          <span id="pdhgEtaValue" ref={refs.pdhgEtaValue}>0.250</span>
+          {"\u03B7"} (primal step size factor):
+          <span id="pdhgEtaValue">{settings.pdhgEta.toFixed(3)}</span>
         </label>
-        <input type="range" id="pdhgEtaSlider" ref={refs.pdhgEtaSlider} min="0.001" max="0.750" step="0.001" defaultValue="0.250" autoComplete="off" />
+        <input
+          type="range"
+          id="pdhgEtaSlider"
+          min="0.001"
+          max="0.750"
+          step="0.001"
+          value={settings.pdhgEta}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("pdhgEta", parseFloat(e.target.value));
+            lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+          }}
+          autoComplete="off"
+        />
         <br />
         <label htmlFor="pdhgTauSlider">
-          τ (dual step size factor):
-          <span id="pdhgTauValue" ref={refs.pdhgTauValue}>0.250</span>
+          {"\u03C4"} (dual step size factor):
+          <span id="pdhgTauValue">{settings.pdhgTau.toFixed(3)}</span>
         </label>
-        <input type="range" id="pdhgTauSlider" ref={refs.pdhgTauSlider} min="0.001" max="0.750" step="0.001" defaultValue="0.250" autoComplete="off" />
+        <input
+          type="range"
+          id="pdhgTauSlider"
+          min="0.001"
+          max="0.750"
+          step="0.001"
+          value={settings.pdhgTau}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("pdhgTau", parseFloat(e.target.value));
+            lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+          }}
+          autoComplete="off"
+        />
         <br />
         <label htmlFor="maxitInputPDHG">Maximum iterations:</label>
-        <input type="number" id="maxitInputPDHG" ref={refs.maxitInputPDHG} defaultValue="1000" min="1" step="1" autoComplete="off" />
+        <input
+          type="number"
+          id="maxitInputPDHG"
+          value={settings.maxitPDHG}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("maxitPDHG", Math.max(1, parseInt(e.target.value, 10) || 1));
+            lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+          }}
+          min="1"
+          step="1"
+          autoComplete="off"
+        />
         <div className="settings-checkbox-row">
           <label htmlFor="pdhgIneqMode">
-            Inequality mode <input type="checkbox" id="pdhgIneqMode" ref={refs.pdhgIneqMode} defaultChecked />
+            Inequality mode{" "}
+            <input
+              type="checkbox"
+              id="pdhgIneqMode"
+              checked={settings.pdhgIneqMode}
+              onChange={(e) => {
+                lpvizRuntimeCommands.updateSolverSetting("pdhgIneqMode", e.target.checked);
+                lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+              }}
+            />
           </label>
           <label htmlFor="pdhgHalpernMode">
-            Halpern <input type="checkbox" id="pdhgHalpernMode" ref={refs.pdhgHalpernMode} autoComplete="off" />
+            Halpern{" "}
+            <input
+              type="checkbox"
+              id="pdhgHalpernMode"
+              checked={settings.pdhgHalpernMode}
+              onChange={(e) => {
+                lpvizRuntimeCommands.updateSolverSetting("pdhgHalpernMode", e.target.checked);
+                lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+              }}
+              autoComplete="off"
+            />
           </label>
           <label htmlFor="pdhgColorByBasis">
-            Color by basis <input type="checkbox" id="pdhgColorByBasis" ref={refs.pdhgColorByBasis} autoComplete="off" />
+            Color by basis{" "}
+            <input
+              type="checkbox"
+              id="pdhgColorByBasis"
+              checked={settings.pdhgColorByBasis}
+              onChange={(e) => {
+                lpvizRuntimeCommands.updateSolverSetting("pdhgColorByBasis", e.target.checked);
+                lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+              }}
+              autoComplete="off"
+            />
           </label>
         </div>
       </div>
@@ -113,7 +220,16 @@ export function SolverControlsPanel() {
         className={solverControlsUiState.activeMode === "simplex" ? "settings-section is-block" : "settings-section is-hidden"}
       >
         <label htmlFor="simplexDualMode">Dual simplex mode</label>
-        <input type="checkbox" id="simplexDualMode" ref={refs.simplexDualMode} autoComplete="off" />
+        <input
+          type="checkbox"
+          id="simplexDualMode"
+          checked={settings.simplexDualMode}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("simplexDualMode", e.target.checked);
+            lpvizRuntimeCommands.recomputeIfModeActive("simplex");
+          }}
+          autoComplete="off"
+        />
       </div>
 
       <div
@@ -122,16 +238,19 @@ export function SolverControlsPanel() {
       >
         <label htmlFor="centralPathIterSlider">
           {" "}
-          N (number of steps): <span id="centralPathIterValue" ref={refs.centralPathIterValue}>75</span>{" "}
+          N (number of steps): <span id="centralPathIterValue">{settings.centralPathIter}</span>{" "}
         </label>
         <input
           type="range"
           id="centralPathIterSlider"
-          ref={refs.centralPathIterSlider}
           min="2"
           max="100"
           step="1"
-          defaultValue="75"
+          value={settings.centralPathIter}
+          onChange={(e) => {
+            lpvizRuntimeCommands.updateSolverSetting("centralPathIter", parseInt(e.target.value, 10));
+            lpvizRuntimeCommands.recomputeIfModeActive("central");
+          }}
           autoComplete="off"
         />
       </div>

@@ -50,6 +50,42 @@ export type StateChangeMeta = {
   viewportDirty?: ViewportDirtyFlags;
 };
 
+export type SolverSettings = {
+  alphaMax: number;
+  correctorThreshold: number;
+  maxitIPM: number;
+  ipmColorByPhase: boolean;
+  simplexDualMode: boolean;
+  pdhgEta: number;
+  pdhgTau: number;
+  maxitPDHG: number;
+  pdhgIneqMode: boolean;
+  pdhgHalpernMode: boolean;
+  pdhgColorByBasis: boolean;
+  centralPathIter: number;
+  objectiveAngleStep: number;
+  objectiveRotationSpeed: number;
+  replaySpeed: number;
+};
+
+export const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
+  alphaMax: 0.1,
+  correctorThreshold: 0.9,
+  maxitIPM: 1000,
+  ipmColorByPhase: false,
+  simplexDualMode: false,
+  pdhgEta: 0.25,
+  pdhgTau: 0.25,
+  maxitPDHG: 1000,
+  pdhgIneqMode: true,
+  pdhgHalpernMode: false,
+  pdhgColorByBasis: false,
+  centralPathIter: 75,
+  objectiveAngleStep: 0.1,
+  objectiveRotationSpeed: 1,
+  replaySpeed: 10,
+};
+
 export type State = {
   vertices: PointXY[];
   currentMouse: PointXY | null;
@@ -71,6 +107,7 @@ export type State = {
   objectiveHidden: boolean;
 
   solverMode: SolverMode;
+  solverSettings: SolverSettings;
   iteratePath: VecNs;
   iteratePhases: number[];
   highlightIteratePathIndex: number | null;
@@ -130,6 +167,7 @@ const initialState: State = {
   objectiveHidden: false,
 
   solverMode: "central",
+  solverSettings: { ...DEFAULT_SOLVER_SETTINGS },
   iteratePath: [],
   iteratePhases: [],
   highlightIteratePathIndex: null,
