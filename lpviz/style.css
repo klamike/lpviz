@@ -284,6 +284,7 @@ canvas {
   color: #eee;
   white-space: pre-wrap;
   padding-left: 4px;
+  font-size: var(--result-font-size, 18px);
 }
 
 .iterate-header {
@@ -326,12 +327,6 @@ canvas {
   overflow-anchor: none;
 }
 
-#result.virtualized .iterate-header,
-#result.virtualized .iterate-item,
-#result.virtualized .iterate-item-nohover,
-#result.virtualized .iterate-footer {
-  font-size: var(--virtual-font-size, 18px);
-}
 
 /* -------------------------------
     GitHub Icon

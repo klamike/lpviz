@@ -52,6 +52,7 @@ export type ResultPanelUiState = {
   virtualRows: ResultTextBlock[];
   virtualPaddingTop: number;
   virtualPaddingBottom: number;
+  maxLineChars: number;
 };
 
 export function selectSolverControlsUiState(state: State): SolverControlsUiState {
@@ -186,6 +187,7 @@ export function selectResultPanelUiState(state: State): ResultPanelUiState {
     virtualRows: state.resultVirtualRows,
     virtualPaddingTop: state.resultVirtualPaddingTop,
     virtualPaddingBottom: state.resultVirtualPaddingBottom,
+    maxLineChars: state.resultMaxLineChars,
   };
 }
 
@@ -198,6 +200,7 @@ export function areResultPanelUiStatesEqual(a: ResultPanelUiState, b: ResultPane
     a.virtualShowEmpty !== b.virtualShowEmpty ||
     a.virtualPaddingTop !== b.virtualPaddingTop ||
     a.virtualPaddingBottom !== b.virtualPaddingBottom ||
+    a.maxLineChars !== b.maxLineChars ||
     a.virtualRows.length !== b.virtualRows.length
   ) {
     return false;

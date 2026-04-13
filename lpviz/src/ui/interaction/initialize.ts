@@ -31,7 +31,6 @@ export async function initializeUI(
 ): Promise<LegacyUiCleanup> {
   const {
     canvas,
-    result: resultDiv,
     resultVirtualHost,
   } = runtimeElements;
   const POPUP_ANIMATION_MS = 300;
@@ -42,7 +41,6 @@ export async function initializeUI(
   const TOUR_BUTTON_CLICK_DELAY_MS = 150;
   const TOUR_CURSOR_CLICK_ANIMATION_MS = 100;
   const TOUR_INACTIVITY_TIMEOUT_MS = 5000;
-  const fontSizeCache = new Map<string, number>();
   const cleanupHandlers: Array<() => void> = [];
   const registerCleanup = (cleanup: () => void) => {
     cleanupHandlers.push(cleanup);
@@ -88,7 +86,6 @@ export async function initializeUI(
     recomputeIfModeActive(mode) {
       resetTraceAndRedrawIfNeeded();
       solverRuntime.recomputeIfModeActive(mode);
-      syncResponsiveUi({ forceResultFont: true });
     },
     setTraceEnabled(enabled) {
       solverRuntime.setTraceEnabled(enabled);
@@ -131,7 +128,6 @@ export async function initializeUI(
       currentSidebarWidth = width;
       canvasManager.setSidebarWidth(width);
       canvasManager.draw();
-      syncResponsiveUi();
     },
     syncViewportLayout(sidebarWidth) {
       currentSidebarWidth = sidebarWidth;
@@ -376,95 +372,20 @@ export async function initializeUI(
     applyResult: (response: SolverWorkerSuccessResponse, updateResult: (payload: ResultRenderPayload) => void) => void;
   }>;
   const getSolverControl = (mode: SolverMode) => solverControls.find((solverControl) => solverControl.mode === mode) ?? null;
-  const responsiveUiRuntime = {
-    pendingOptions: null as { includeTerminal?: boolean; forceResultFont?: boolean } | null,
-
-    queue(options: { includeTerminal?: boolean; forceResultFont?: boolean }) {
-      this.pendingOptions = {
-        includeTerminal: Boolean(this.pendingOptions?.includeTerminal || options.includeTerminal),
-        forceResultFont: Boolean(this.pendingOptions?.forceResultFont || options.forceResultFont),
-      };
-    },
-
-    flush() {
-      if (!this.pendingOptions || getState().isNavigatingViewport) return;
-      const options = this.pendingOptions;
-      this.pendingOptions = null;
-      runResponsiveUiSync(options);
-    },
-  };
-  const runResponsiveUiSync = (options: { includeTerminal?: boolean; forceResultFont?: boolean } = {}) => {
-    const resultContainer = resultDiv;
-    const { resultDisplayMode } = getState();
-
-    if (resultDisplayMode !== "usage") {
-      const selector = resultDisplayMode === "virtual"
-        ? ".iterate-header, .iterate-item, .iterate-footer"
-        : resultContainer.querySelector("#resultBlocksContent")
-          ? "#resultBlocksContent > div"
-          : "div";
-      const texts = resultContainer.querySelectorAll(selector);
-      let maxLineChars = 0;
-      texts.forEach((text) => {
-        const content = (text.textContent ?? "").split("\n");
-        for (const line of content) {
-          maxLineChars = Math.max(maxLineChars, line.length);
-        }
-      });
-      const datasetMax = parseInt(resultContainer.dataset.virtualMaxChars || "", 10);
-      if (Number.isFinite(datasetMax)) {
-        maxLineChars = Math.max(maxLineChars, datasetMax);
-      }
-      if (maxLineChars > 0) {
-        const containerStyle = window.getComputedStyle(resultContainer);
-        const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
-        const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
-        const effectiveWidth = resultContainer.clientWidth - paddingLeft - paddingRight;
-        if (effectiveWidth > 0) {
-          const cacheKey = `${maxLineChars}-${Math.round(effectiveWidth)}`;
-          let fontSize = fontSizeCache.get(cacheKey);
-          if (options.forceResultFont || fontSize === undefined) {
-            const baseSize = 18;
-            const targetWidth = Math.max(1, effectiveWidth - 10);
-            const maxLineWidth = maxLineChars * baseSize * 0.55;
-            const scale = Math.min(4, Math.max(0, targetWidth / maxLineWidth));
-            fontSize = Math.min(24, Math.max(10, baseSize * scale * 0.875));
-            fontSizeCache.set(cacheKey, fontSize);
-          }
-          texts.forEach((text) => {
-            (text as HTMLElement).style.fontSize = `${fontSize}px`;
-          });
-          resultContainer.style.setProperty("--virtual-font-size", `${fontSize}px`);
-        }
-      }
-    }
-    if (!options.includeTerminal) return;
-  };
-  const syncResponsiveUi = (options: { includeTerminal?: boolean; forceResultFont?: boolean } = {}) => {
-    if (getState().isNavigatingViewport) {
-      responsiveUiRuntime.queue(options);
-      return;
-    }
-    runResponsiveUiSync(options);
-  };
   const syncSidebarViewport = () => {
     canvasManager.setSidebarWidth(currentSidebarWidth);
     canvasManager.updateDimensions();
     canvasManager.draw();
-    syncResponsiveUi({ includeTerminal: true });
   };
 
   const resultRuntime = createResultRuntime({
     canvasManager,
-    resultDiv,
     resultVirtualHost,
-    syncResponsiveUi,
   });
   let wasNavigatingViewport = getState().isNavigatingViewport;
   const unsubscribeViewportNavigation = subscribe((snapshot) => {
     if (wasNavigatingViewport && !snapshot.isNavigatingViewport) {
       resultRuntime.flushDeferredRender();
-      responsiveUiRuntime.flush();
     }
     wasNavigatingViewport = snapshot.isNavigatingViewport;
   });
@@ -976,10 +897,6 @@ export async function initializeUI(
     canvasManager.draw();
   };
   const uiRuntime = {
-    synchronize() {
-      syncResponsiveUi();
-    },
-
     collectShareSettings(solverMode: SolverMode): ShareSettings {
       const s = getState().solverSettings;
       const settings: ShareSettings = {
@@ -1092,10 +1009,8 @@ export async function initializeUI(
     },
 
     initialize() {
-      this.synchronize();
       syncSidebarViewport();
       this.handleStartupParams();
-      this.synchronize();
     },
   };
   const solverRuntime = createSolverRuntime({
@@ -1119,7 +1034,6 @@ export async function initializeUI(
     overlayRuntime.teardown();
     tourRuntime.stop();
     solverRuntime.stopActiveMotion();
-    responsiveUiRuntime.pendingOptions = null;
     while (cleanupHandlers.length > 0) {
       cleanupHandlers.pop()?.();
     }
