@@ -9,6 +9,17 @@ type LpvizRuntimeCommandHandlers = {
   startReplay: () => void;
   startRotation: () => void;
   stopRotation: () => void;
+  share: () => void;
+  zoomToFit: () => void;
+  resetView: () => void;
+  toggle3D: () => void;
+  toggleZOffset: () => void;
+  setZScale: (value: number) => void;
+  setActiveSolverMode: (mode: SolverMode) => void;
+  beginResize: (clientX: number) => void;
+  updateResize: (clientX: number) => void;
+  finishResize: () => void;
+  scheduleViewportSync: () => void;
 };
 
 const noop = () => {};
@@ -22,6 +33,17 @@ let runtimeCommandHandlers: LpvizRuntimeCommandHandlers = {
   startReplay: noop,
   startRotation: noop,
   stopRotation: noop,
+  share: noop,
+  zoomToFit: noop,
+  resetView: noop,
+  toggle3D: noop,
+  toggleZOffset: noop,
+  setZScale: noop,
+  setActiveSolverMode: noop,
+  beginResize: noop,
+  updateResize: noop,
+  finishResize: noop,
+  scheduleViewportSync: noop,
 };
 
 export const lpvizRuntimeCommands = {
@@ -49,6 +71,39 @@ export const lpvizRuntimeCommands = {
   stopRotation() {
     runtimeCommandHandlers.stopRotation();
   },
+  share() {
+    runtimeCommandHandlers.share();
+  },
+  zoomToFit() {
+    runtimeCommandHandlers.zoomToFit();
+  },
+  resetView() {
+    runtimeCommandHandlers.resetView();
+  },
+  toggle3D() {
+    runtimeCommandHandlers.toggle3D();
+  },
+  toggleZOffset() {
+    runtimeCommandHandlers.toggleZOffset();
+  },
+  setZScale(value: number) {
+    runtimeCommandHandlers.setZScale(value);
+  },
+  setActiveSolverMode(mode: SolverMode) {
+    runtimeCommandHandlers.setActiveSolverMode(mode);
+  },
+  beginResize(clientX: number) {
+    runtimeCommandHandlers.beginResize(clientX);
+  },
+  updateResize(clientX: number) {
+    runtimeCommandHandlers.updateResize(clientX);
+  },
+  finishResize() {
+    runtimeCommandHandlers.finishResize();
+  },
+  scheduleViewportSync() {
+    runtimeCommandHandlers.scheduleViewportSync();
+  },
 };
 
 export function registerLpvizRuntimeCommands(handlers: LpvizRuntimeCommandHandlers) {
@@ -64,6 +119,17 @@ export function registerLpvizRuntimeCommands(handlers: LpvizRuntimeCommandHandle
       startReplay: noop,
       startRotation: noop,
       stopRotation: noop,
+      share: noop,
+      zoomToFit: noop,
+      resetView: noop,
+      toggle3D: noop,
+      toggleZOffset: noop,
+      setZScale: noop,
+      setActiveSolverMode: noop,
+      beginResize: noop,
+      updateResize: noop,
+      finishResize: noop,
+      scheduleViewportSync: noop,
     };
   };
 }
