@@ -315,23 +315,13 @@ canvas {
   min-height: 0;
 }
 
-.iterate-virtual-wrapper {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  overflow-anchor: none;
-}
-
-.iterate-rows {
-  display: flex;
-  flex-direction: column;
-  overflow-anchor: none;
-}
-
 #result.virtualized .iterate-scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+}
+
+#result.virtualized .iterate-scroll .ReactVirtualized__Grid {
+  outline: none;
   overflow-anchor: none;
 }
 
