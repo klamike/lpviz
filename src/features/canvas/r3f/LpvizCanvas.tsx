@@ -1,10 +1,17 @@
 import { Canvas } from "@react-three/fiber";
 
-function SceneRoot() {
-  return null;
-}
+import { ViewportBridge, type R3FViewportBridge } from "./ViewportBridge";
+import { SceneRoot } from "./scene/SceneRoot";
 
-export function LpvizCanvas() {
+export type { R3FViewportBridge } from "./ViewportBridge";
+
+export function LpvizCanvas({
+  onBridgeReady,
+  onBridgeDispose,
+}: {
+  onBridgeReady: (bridge: R3FViewportBridge) => void;
+  onBridgeDispose?: () => void;
+}) {
   return (
     <Canvas
       className="canvas-stage__r3f"
@@ -20,7 +27,7 @@ export function LpvizCanvas() {
         gl.setClearColor(0x000000, 0);
       }}
     >
-      {/* Empty R3F host while ViewportManager still renders on the legacy canvas. */}
+      <ViewportBridge onReady={onBridgeReady} onDispose={onBridgeDispose} />
       <SceneRoot />
     </Canvas>
   );

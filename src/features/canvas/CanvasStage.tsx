@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import {
@@ -8,7 +8,7 @@ import {
 import { useLpvizSelector } from "../../store/useLpvizStore";
 import { useOnboardingActionTarget } from "../onboarding/OnboardingProvider";
 import { useCanvasRuntime } from "./useCanvasRuntime";
-import { LpvizCanvas } from "./r3f/LpvizCanvas";
+import { LpvizCanvas, type R3FViewportBridge } from "./r3f/LpvizCanvas";
 
 export function CanvasStage({
   sidebarWidth,
@@ -18,18 +18,31 @@ export function CanvasStage({
   onResizeStart: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [viewportBridge, setViewportBridge] =
+    useState<R3FViewportBridge | null>(null);
   const runtimeActions = useLpvizRuntime();
   const toggle3DTargetRef = useOnboardingActionTarget("toggle-3d");
   const canvasControlsUiState = useLpvizSelector(
     selectCanvasControlsUiState,
     areCanvasControlsUiStatesEqual,
   );
-  useCanvasRuntime(canvasRef, sidebarWidth);
+  useCanvasRuntime({ canvasRef, viewportBridge }, sidebarWidth);
+
+  const handleBridgeReady = useCallback((bridge: R3FViewportBridge) => {
+    setViewportBridge(bridge);
+  }, []);
+
+  const handleBridgeDispose = useCallback(() => {
+    setViewportBridge(null);
+  }, []);
 
   return (
     <main className="canvas-stage">
       <div className="canvas-stage__viewport">
-        <LpvizCanvas />
+        <LpvizCanvas
+          onBridgeReady={handleBridgeReady}
+          onBridgeDispose={handleBridgeDispose}
+        />
         <canvas
           className="canvas-stage__canvas canvas-stage__canvas--legacy"
           ref={canvasRef}

@@ -18,9 +18,11 @@ import { createSolverRuntime } from "../solver/solverRuntime";
 import { registerCanvasRuntimeActions } from "./registerRuntimeActions";
 import { createUiRuntime } from "./uiRuntime";
 import { createViewportRuntime } from "./viewportApi";
+import type { R3FViewportBridge } from "./r3f/ViewportBridge";
 
 export type CanvasRuntimeElements = {
   canvas: HTMLCanvasElement;
+  viewportBridge: R3FViewportBridge;
 };
 
 export type CanvasRuntimeCleanup = () => void;
@@ -36,13 +38,16 @@ export async function initializeCanvasRuntime(
     onboardingUi: OnboardingUiController;
   },
 ): Promise<CanvasRuntimeCleanup> {
-  const { canvas } = runtimeElements;
+  const { canvas, viewportBridge } = runtimeElements;
   const cleanupHandlers: Array<() => void> = [];
   const registerCleanup = (cleanup: () => void) => {
     cleanupHandlers.push(cleanup);
   };
 
-  const canvasManager = await createViewportRuntime(canvas);
+  const canvasManager = await createViewportRuntime({
+    canvas,
+    viewportBridge,
+  });
   let currentSidebarWidth = layout.initialSidebarWidth;
   const updateSolverSetting: SolverSettingUpdater = (key, value) => {
     mutate((draft) => {

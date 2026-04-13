@@ -3,6 +3,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import { useRegisterLpvizRuntimeActions } from "../../context/LpvizRuntimeProvider";
 import { useOnboardingUiController } from "../onboarding/OnboardingProvider";
 import { initializeCanvasRuntime } from "./initializeCanvasRuntime";
+import type { R3FViewportBridge } from "./r3f/ViewportBridge";
 
 const noop = () => {};
 
@@ -18,7 +19,13 @@ const getRequiredElement = <T extends HTMLElement>(
 };
 
 export function useCanvasRuntime(
-  canvasRef: RefObject<HTMLCanvasElement | null>,
+  {
+    canvasRef,
+    viewportBridge,
+  }: {
+    canvasRef: RefObject<HTMLCanvasElement | null>;
+    viewportBridge: R3FViewportBridge | null;
+  },
   initialSidebarWidth: number,
 ) {
   const initialSidebarWidthRef = useRef(initialSidebarWidth);
@@ -26,14 +33,18 @@ export function useCanvasRuntime(
   const onboardingUi = useOnboardingUiController();
 
   useEffect(() => {
-    const canvas = getRequiredElement(canvasRef, "Canvas stage");
-    canvas.focus();
+    if (!viewportBridge) {
+      return;
+    }
+
+    const canvas = getRequiredElement(canvasRef, "Legacy canvas stage");
+    viewportBridge.getCanvasElement().focus();
 
     let disposed = false;
     let cleanup = noop;
 
     void initializeCanvasRuntime(
-      { canvas },
+      { canvas, viewportBridge },
       new URLSearchParams(window.location.search),
       { initialSidebarWidth: initialSidebarWidthRef.current },
       { registerRuntimeActions, onboardingUi },
@@ -53,5 +64,5 @@ export function useCanvasRuntime(
       disposed = true;
       cleanup();
     };
-  }, [canvasRef, onboardingUi, registerRuntimeActions]);
+  }, [canvasRef, onboardingUi, registerRuntimeActions, viewportBridge]);
 }

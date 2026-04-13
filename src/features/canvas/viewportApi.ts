@@ -1,6 +1,15 @@
 import type { PointXY } from "../../math/blas";
-import type { ViewportDirtyFlags } from "../../store/lpvizStore";
+import {
+  getState,
+  subscribe,
+  type ViewportDirtyFlags,
+} from "../../store/lpvizStore";
 import { ViewportManager } from "../../ViewportManager";
+import {
+  resetViewportRenderSnapshot,
+  setViewportRenderSnapshot,
+} from "./r3f/viewportRenderStore";
+import type { R3FViewportBridge } from "./r3f/ViewportBridge";
 
 export type ViewportBounds = {
   minX: number;
@@ -49,14 +58,41 @@ export type ViewportRuntime = ViewportApi & {
   destroy: () => void;
 };
 
-export async function createViewportRuntime(
-  canvas: HTMLCanvasElement,
-): Promise<ViewportRuntime> {
-  const manager = await ViewportManager.create(canvas);
+export async function createViewportRuntime({
+  canvas,
+  viewportBridge,
+}: {
+  canvas: HTMLCanvasElement;
+  viewportBridge: R3FViewportBridge;
+}): Promise<ViewportRuntime> {
+  const manager = await ViewportManager.create(
+    canvas,
+    viewportBridge.getCanvasElement(),
+  );
+
+  manager.setRenderSnapshotCallback((snapshot) => {
+    setViewportRenderSnapshot(snapshot);
+    viewportBridge.invalidate();
+  });
+  manager.setExternalGridEnabled(true);
+
+  const syncExternalPolytopeBase = () => {
+    const state = getState();
+    manager.setExternalPolytopeBaseEnabled(
+      !state.is3DMode && !state.isTransitioning3D,
+    );
+  };
+  syncExternalPolytopeBase();
+  const unsubscribeExternalPolytopeBase = subscribe(() => {
+    syncExternalPolytopeBase();
+  });
 
   // Temporary compatibility bridge while ViewportManager still backs rendering.
   return {
-    draw: () => manager.draw(),
+    draw: () => {
+      manager.draw();
+      viewportBridge.invalidate();
+    },
     updateDimensions: () => manager.updateDimensions(),
     setSidebarWidth: (width) => manager.setSidebarWidth(width),
     setNavigationFrameCallback: (callback) =>
@@ -75,8 +111,8 @@ export async function createViewportRuntime(
       manager.getObjectiveScreenPosition(point),
     getUnboundedClipBounds: () => manager.getUnboundedClipBounds(),
     start3DTransition: (targetMode) => manager.start3DTransition(targetMode),
-    getCanvasElement: () => manager.canvas,
-    getCanvasRect: () => manager.canvas.getBoundingClientRect(),
+    getCanvasElement: () => viewportBridge.getCanvasElement(),
+    getCanvasRect: () => viewportBridge.getCanvasRect(),
     getObjectiveDirtyFlags: () => manager.getObjectiveDirtyFlags(),
     getPolytopeDirtyFlags: () => manager.getPolytopeDirtyFlags(),
     getTraceDirtyFlags: () => manager.getTraceDirtyFlags(),
@@ -84,6 +120,11 @@ export async function createViewportRuntime(
     getConstraintDirtyFlags: () => manager.getConstraintDirtyFlags(),
     getDraftPreviewDirtyFlags: () => manager.getDraftPreviewDirtyFlags(),
     getZScaleDirtyFlags: () => manager.getZScaleDirtyFlags(),
-    destroy: () => manager.destroy(),
+    destroy: () => {
+      unsubscribeExternalPolytopeBase();
+      manager.setRenderSnapshotCallback(null);
+      resetViewportRenderSnapshot();
+      manager.destroy();
+    },
   };
 }

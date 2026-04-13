@@ -39,6 +39,7 @@ import type { Line, PointXY, PointXYZ } from "./math/blas";
 import { isObjectiveDirectionUnbounded } from "./polytope/objectiveDirection";
 import { VRep } from "./polytope/polygon";
 import { hasPolytopeLines } from "./polytope/polytopeTypes";
+import type { ViewportRenderSnapshot } from "./features/canvas/viewportRenderTypes";
 import {
   DEFAULT_VIEW_ANGLE,
   MAX_TRACE_POINT_SPRITES,
@@ -142,6 +143,7 @@ const ARROW_HALF_ANGLE = Math.PI / 6;
 
 export class ViewportManager {
   canvas: HTMLCanvasElement;
+  private interactionElement: HTMLElement;
   private viewState: {
     gridSpacing: number;
     scaleFactor: number;
@@ -347,9 +349,18 @@ export class ViewportManager {
     planeOrigin: new Vector3(0, 0, 0),
   };
   private navigationFrameCallback: (() => void) | null = null;
+  private renderSnapshotCallback:
+    | ((snapshot: ViewportRenderSnapshot) => void)
+    | null = null;
+  private externalGridEnabled = false;
+  private externalPolytopeBaseEnabled = false;
 
-  private constructor(canvas: HTMLCanvasElement) {
+  private constructor(
+    canvas: HTMLCanvasElement,
+    interactionElement: HTMLElement = canvas,
+  ) {
     this.canvas = canvas;
+    this.interactionElement = interactionElement;
     this.renderer = new WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
@@ -409,8 +420,11 @@ export class ViewportManager {
     };
     this.cameras.active = this.cameras.ortho;
     this.controls = {
-      orbit: new OrbitControls(this.cameras.perspective, this.canvas),
-      ortho: new OrbitControls(this.cameras.ortho, this.canvas),
+      orbit: new OrbitControls(
+        this.cameras.perspective,
+        this.interactionElement,
+      ),
+      ortho: new OrbitControls(this.cameras.ortho, this.interactionElement),
     };
     this.controls.orbit.enabled = false;
     this.controls.orbit.enableDamping = false;
@@ -485,8 +499,11 @@ export class ViewportManager {
     this.renderer.dispose();
   }
 
-  static async create(canvas: HTMLCanvasElement) {
-    return new ViewportManager(canvas);
+  static async create(
+    canvas: HTMLCanvasElement,
+    interactionElement?: HTMLElement,
+  ) {
+    return new ViewportManager(canvas, interactionElement);
   }
 
   isDefaultView() {
@@ -504,6 +521,87 @@ export class ViewportManager {
 
   setNavigationFrameCallback(callback: (() => void) | null) {
     this.navigationFrameCallback = callback;
+  }
+
+  setRenderSnapshotCallback(
+    callback: ((snapshot: ViewportRenderSnapshot) => void) | null,
+  ) {
+    this.renderSnapshotCallback = callback;
+    if (callback) {
+      callback(this.getRenderSnapshot());
+    }
+  }
+
+  setExternalGridEnabled(enabled: boolean) {
+    if (this.externalGridEnabled === enabled) {
+      return;
+    }
+    this.externalGridEnabled = enabled;
+    this.invalidateScene({ grid: true });
+    this.draw();
+  }
+
+  setExternalPolytopeBaseEnabled(enabled: boolean) {
+    if (this.externalPolytopeBaseEnabled === enabled) {
+      return;
+    }
+    this.externalPolytopeBaseEnabled = enabled;
+    this.invalidateScene({ polytope: true });
+    this.draw();
+  }
+
+  getRenderSnapshot(): ViewportRenderSnapshot {
+    const width = this.interactionElement.clientWidth || window.innerWidth;
+    const height = this.interactionElement.clientHeight || window.innerHeight;
+    const unitsPerPixel = this.getUnitsPerPixel();
+    const halfWidth = (width * unitsPerPixel) / 2;
+    const halfHeight = (height * unitsPerPixel) / 2;
+    const target = this.getViewportTarget();
+
+    return {
+      mode: this.is3DState() ? "3d" : "2d",
+      width,
+      height,
+      gridSpacing: this.viewState.gridSpacing,
+      scaleFactor: this.viewState.scaleFactor,
+      unitsPerPixel,
+      target: {
+        x: target.x,
+        y: target.y,
+        z: target.z,
+      },
+      orthographic: {
+        left: -halfWidth,
+        right: halfWidth,
+        top: halfHeight,
+        bottom: -halfHeight,
+        position: {
+          x: target.x,
+          y: target.y,
+          z: 10,
+        },
+      },
+      perspective: {
+        position: {
+          x: this.cameras.perspective.position.x,
+          y: this.cameras.perspective.position.y,
+          z: this.cameras.perspective.position.z,
+        },
+        up: {
+          x: this.cameras.perspective.up.x,
+          y: this.cameras.perspective.up.y,
+          z: this.cameras.perspective.up.z,
+        },
+        fov: this.cameras.perspective.fov,
+        near: this.cameras.perspective.near,
+        far: this.cameras.perspective.far,
+        aspect: this.cameras.perspective.aspect,
+      },
+    };
+  }
+
+  private emitRenderSnapshot() {
+    this.renderSnapshotCallback?.(this.getRenderSnapshot());
   }
 
   private setViewportCenterFromSidebarWidth(
@@ -1124,7 +1222,7 @@ export class ViewportManager {
     screenX: number,
     screenY: number,
   ): PointXY | null {
-    const rect = this.canvas.getBoundingClientRect();
+    const rect = this.interactionElement.getBoundingClientRect();
     const { width, height } = rect;
     if (width === 0 || height === 0) return null;
 
@@ -1154,7 +1252,7 @@ export class ViewportManager {
     screenY: number,
     z = 0,
   ): PointXY | null {
-    const rect = this.canvas.getBoundingClientRect();
+    const rect = this.interactionElement.getBoundingClientRect();
     const { width, height } = rect;
     if (width === 0 || height === 0) return null;
 
@@ -1360,7 +1458,7 @@ export class ViewportManager {
 
   private projectWorldPosition(position: Vector3): PointXY {
     const projected = position.clone().project(this.cameras.active);
-    const rect = this.canvas.getBoundingClientRect();
+    const rect = this.interactionElement.getBoundingClientRect();
     return {
       x: ((projected.x + 1) / 2) * rect.width,
       y: ((1 - projected.y) / 2) * rect.height,
@@ -2137,6 +2235,7 @@ export class ViewportManager {
       this.controls.orbit.update();
     }
     this.updateCamera();
+    this.emitRenderSnapshot();
     this.refreshScreenSpaceSprites();
     const context = this.buildRenderContext(is3D);
     this.renderScene(context);
@@ -2228,6 +2327,16 @@ export class ViewportManager {
     context: ReturnType<ViewportManager["buildRenderContext"]>,
   ) {
     const { helpers, groups, is3D, toLogicalCoords, scaleFactor } = context;
+    if (this.externalGridEnabled) {
+      if (this.gridObjects.lines) {
+        this.gridObjects.lines.visible = false;
+      }
+      if (this.gridObjects.axes) {
+        this.gridObjects.axes.visible = false;
+      }
+      return;
+    }
+
     if (!this.gridObjects.lines) {
       this.gridObjects.lines = new LineSegments(
         new BufferGeometry(),
@@ -2252,6 +2361,9 @@ export class ViewportManager {
       );
       groups.grid.add(this.gridObjects.axes);
     }
+
+    this.gridObjects.lines.visible = true;
+    this.gridObjects.axes.visible = true;
 
     let minX: number, maxX: number, minY: number, maxY: number;
     let gridPositions: number[] = [];
@@ -2335,106 +2447,140 @@ export class ViewportManager {
       ? this.getUnboundedClipBounds()
       : this.getRenderBounds(context);
 
-    const fillVertices: PointXY[] =
-      isClosedRegion && displayVertices.length >= 3
-        ? displayVertices
-        : completionMode === "open" &&
-            polytope?.kind === "unbounded" &&
-            hasPolytopeLines(polytope)
-          ? this.clipRegionToBounds(polytope.lines, bounds)
-          : [];
+    if (!this.externalPolytopeBaseEnabled) {
+      const fillVertices: PointXY[] =
+        isClosedRegion && displayVertices.length >= 3
+          ? displayVertices
+          : completionMode === "open" &&
+              polytope?.kind === "unbounded" &&
+              hasPolytopeLines(polytope)
+            ? this.clipRegionToBounds(polytope.lines, bounds)
+            : [];
 
-    if (fillVertices.length >= 3) {
-      const shapeGeometry = new ShapeGeometry(
-        this.buildShapeFromVertices(fillVertices),
-      );
-      if (is3D) {
-        const positions = shapeGeometry.getAttribute(
-          "position",
-        ) as Float32BufferAttribute;
-        for (let i = 0; i < positions.count; i++) {
-          const x = positions.getX(i);
-          const y = positions.getY(i);
-          positions.setZ(i, this.getBlendedObjectiveZ(x, y, 0, context));
-        }
-      }
-      const mesh = this.getOrCreatePolytopeFillMesh();
-      mesh.geometry.dispose();
-      mesh.geometry = shapeGeometry;
-      const material = mesh.material as MeshBasicMaterial;
-      material.color.set(
-        isNonconvex ? COLORS.polytopeHighlight : COLORS.polytopeFill,
-      );
-      if (!is3D) {
-        mesh.position.z = context.getPlanarOffset(VERTEX_Z_OFFSET / 2);
-      } else {
-        mesh.position.z = 0;
-      }
-      mesh.renderOrder = RENDER_LAYERS.polyEdges - 1;
-      mesh.visible = true;
-    } else if (this.persistentSceneObjects.polytopeFillMesh) {
-      this.persistentSceneObjects.polytopeFillMesh.visible = false;
-    }
-
-    let outlineLineCount = 0;
-    const edgeCount = regionFinished
-      ? Math.max(0, displayVertices.length - (isClosedRegion ? 0 : 1))
-      : Math.max(0, displayVertices.length - 1);
-    for (let i = 0; i < edgeCount; i++) {
-      const nextIndex = (i + 1) % displayVertices.length;
-      if (!isClosedRegion && nextIndex >= displayVertices.length) break;
-      const v = displayVertices[i];
-      const next = displayVertices[nextIndex];
-      const z1 = this.getBlendedObjectiveZ(v.x, v.y, EDGE_Z_OFFSET, context);
-      const z2 = this.getBlendedObjectiveZ(
-        next.x,
-        next.y,
-        EDGE_Z_OFFSET,
-        context,
-      );
-      const positions = [v.x, v.y, z1, next.x, next.y, z2];
-      const highlight = !hasDerivedClosedRegion && highlightIndex === i;
-      this.updateThickLine(
-        this.getOrCreatePolytopeOutlineLine(outlineLineCount++),
-        positions,
-        {
-          color: highlight ? COLORS.polytopeHighlight : 0x000000,
-          width: POLY_LINE_THICKNESS,
-          depthTest: is3D,
-          depthWrite: is3D,
-          renderOrder: RENDER_LAYERS.polyEdges,
-        },
-      );
-    }
-
-    if (
-      completionMode === "open" &&
-      !hasDerivedClosedRegion &&
-      polytope?.boundaryRays
-    ) {
-      polytope.boundaryRays.forEach((ray) => {
-        const clipped = this.clipRayToBounds(
-          { x: ray.start[0], y: ray.start[1] },
-          { x: ray.direction[0], y: ray.direction[1] },
-          bounds,
+      if (fillVertices.length >= 3) {
+        const shapeGeometry = new ShapeGeometry(
+          this.buildShapeFromVertices(fillVertices),
         );
-        if (!clipped) return;
-        const [start, end] = clipped;
-        const z1 = this.getBlendedObjectiveZ(
-          start.x,
-          start.y,
+        if (is3D) {
+          const positions = shapeGeometry.getAttribute(
+            "position",
+          ) as Float32BufferAttribute;
+          for (let i = 0; i < positions.count; i++) {
+            const x = positions.getX(i);
+            const y = positions.getY(i);
+            positions.setZ(i, this.getBlendedObjectiveZ(x, y, 0, context));
+          }
+        }
+        const mesh = this.getOrCreatePolytopeFillMesh();
+        mesh.geometry.dispose();
+        mesh.geometry = shapeGeometry;
+        const material = mesh.material as MeshBasicMaterial;
+        material.color.set(
+          isNonconvex ? COLORS.polytopeHighlight : COLORS.polytopeFill,
+        );
+        if (!is3D) {
+          mesh.position.z = context.getPlanarOffset(VERTEX_Z_OFFSET / 2);
+        } else {
+          mesh.position.z = 0;
+        }
+        mesh.renderOrder = RENDER_LAYERS.polyEdges - 1;
+        mesh.visible = true;
+      } else if (this.persistentSceneObjects.polytopeFillMesh) {
+        this.persistentSceneObjects.polytopeFillMesh.visible = false;
+      }
+
+      let outlineLineCount = 0;
+      const edgeCount = regionFinished
+        ? Math.max(0, displayVertices.length - (isClosedRegion ? 0 : 1))
+        : Math.max(0, displayVertices.length - 1);
+      for (let i = 0; i < edgeCount; i++) {
+        const nextIndex = (i + 1) % displayVertices.length;
+        if (!isClosedRegion && nextIndex >= displayVertices.length) break;
+        const v = displayVertices[i];
+        const next = displayVertices[nextIndex];
+        const z1 = this.getBlendedObjectiveZ(v.x, v.y, EDGE_Z_OFFSET, context);
+        const z2 = this.getBlendedObjectiveZ(
+          next.x,
+          next.y,
           EDGE_Z_OFFSET,
           context,
         );
-        const z2 = this.getBlendedObjectiveZ(
-          end.x,
-          end.y,
+        const positions = [v.x, v.y, z1, next.x, next.y, z2];
+        const highlight = !hasDerivedClosedRegion && highlightIndex === i;
+        this.updateThickLine(
+          this.getOrCreatePolytopeOutlineLine(outlineLineCount++),
+          positions,
+          {
+            color: highlight ? COLORS.polytopeHighlight : 0x000000,
+            width: POLY_LINE_THICKNESS,
+            depthTest: is3D,
+            depthWrite: is3D,
+            renderOrder: RENDER_LAYERS.polyEdges,
+          },
+        );
+      }
+
+      if (
+        completionMode === "open" &&
+        !hasDerivedClosedRegion &&
+        polytope?.boundaryRays
+      ) {
+        polytope.boundaryRays.forEach((ray) => {
+          const clipped = this.clipRayToBounds(
+            { x: ray.start[0], y: ray.start[1] },
+            { x: ray.direction[0], y: ray.direction[1] },
+            bounds,
+          );
+          if (!clipped) return;
+          const [start, end] = clipped;
+          const z1 = this.getBlendedObjectiveZ(
+            start.x,
+            start.y,
+            EDGE_Z_OFFSET,
+            context,
+          );
+          const z2 = this.getBlendedObjectiveZ(
+            end.x,
+            end.y,
+            EDGE_Z_OFFSET,
+            context,
+          );
+          this.updateThickLine(
+            this.getOrCreatePolytopeOutlineLine(outlineLineCount++),
+            [start.x, start.y, z1, end.x, end.y, z2],
+            {
+              color: 0x000000,
+              width: POLY_LINE_THICKNESS,
+              depthTest: is3D,
+              depthWrite: is3D,
+              renderOrder: RENDER_LAYERS.polyEdges,
+            },
+          );
+        });
+      }
+
+      if (
+        !regionFinished &&
+        displayVertices.length >= 1 &&
+        currentMouse &&
+        !skipPreviewDrawing
+      ) {
+        const last = displayVertices[displayVertices.length - 1];
+        const lastZ = this.getBlendedObjectiveZ(
+          last.x,
+          last.y,
+          EDGE_Z_OFFSET,
+          context,
+        );
+        const previewZ = this.getBlendedObjectiveZ(
+          currentMouse.x,
+          currentMouse.y,
           EDGE_Z_OFFSET,
           context,
         );
         this.updateThickLine(
           this.getOrCreatePolytopeOutlineLine(outlineLineCount++),
-          [start.x, start.y, z1, end.x, end.y, z2],
+          [last.x, last.y, lastZ, currentMouse.x, currentMouse.y, previewZ],
           {
             color: 0x000000,
             width: POLY_LINE_THICKNESS,
@@ -2443,6 +2589,21 @@ export class ViewportManager {
             renderOrder: RENDER_LAYERS.polyEdges,
           },
         );
+      }
+      for (
+        let index = outlineLineCount;
+        index < this.persistentSceneObjects.polytopeOutlineLines.length;
+        index++
+      ) {
+        this.persistentSceneObjects.polytopeOutlineLines[index]!.visible =
+          false;
+      }
+    } else {
+      if (this.persistentSceneObjects.polytopeFillMesh) {
+        this.persistentSceneObjects.polytopeFillMesh.visible = false;
+      }
+      this.persistentSceneObjects.polytopeOutlineLines.forEach((line) => {
+        line.visible = false;
       });
     }
 
@@ -2471,45 +2632,6 @@ export class ViewportManager {
       index++
     ) {
       this.persistentSceneObjects.polytopeVertexSprites[index]!.visible = false;
-    }
-
-    if (
-      !regionFinished &&
-      displayVertices.length >= 1 &&
-      currentMouse &&
-      !skipPreviewDrawing
-    ) {
-      const last = displayVertices[displayVertices.length - 1];
-      const lastZ = this.getBlendedObjectiveZ(
-        last.x,
-        last.y,
-        EDGE_Z_OFFSET,
-        context,
-      );
-      const previewZ = this.getBlendedObjectiveZ(
-        currentMouse.x,
-        currentMouse.y,
-        EDGE_Z_OFFSET,
-        context,
-      );
-      this.updateThickLine(
-        this.getOrCreatePolytopeOutlineLine(outlineLineCount++),
-        [last.x, last.y, lastZ, currentMouse.x, currentMouse.y, previewZ],
-        {
-          color: 0x000000,
-          width: POLY_LINE_THICKNESS,
-          depthTest: is3D,
-          depthWrite: is3D,
-          renderOrder: RENDER_LAYERS.polyEdges,
-        },
-      );
-    }
-    for (
-      let index = outlineLineCount;
-      index < this.persistentSceneObjects.polytopeOutlineLines.length;
-      index++
-    ) {
-      this.persistentSceneObjects.polytopeOutlineLines[index]!.visible = false;
     }
   }
 
