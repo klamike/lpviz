@@ -1,9 +1,10 @@
 import JSONCrush from "jsoncrush";
 
-import { DEFAULT_VIEW_ANGLE, getState, mutate, setState, type SolverMode, type SolverSettings } from "../../state/store";
+import { DEFAULT_VIEW_ANGLE, getState, mutate, setState, type SolverMode } from "../../state/store";
 import { buildSharedStatePatch, compactSharedAppState, expandSharedAppState, type ShareSettings, type SharedAppState } from "../sharedState";
 import { collectZoomFitBounds } from "../viewBounds";
 import { ViewportManager } from "../viewport";
+import type { SolverSettingUpdater } from "./runtimeTypes";
 
 export function createUiRuntime({
   params,
@@ -24,7 +25,7 @@ export function createUiRuntime({
   canvasManager: ViewportManager;
   getCurrentSidebarWidth: () => number;
   syncSidebarViewport: () => void;
-  updateSolverSetting: <K extends keyof SolverSettings>(key: K, value: SolverSettings[K]) => void;
+  updateSolverSetting: SolverSettingUpdater;
   collectSolverShareSettings: (mode: SolverMode) => ShareSettings;
   applySolverSharedSettings: (settings: ShareSettings) => void;
   invalidatePendingSolveResults: () => void;
