@@ -414,11 +414,11 @@ Outcome:
 
 Tasks:
 
-- [ ] remove the ref context/provider entirely
-- [ ] let `CanvasStage` own its own `canvasRef`
-- [ ] change `useLegacyCanvasRuntime()` to accept only the canvas ref (and URL params)
-- [ ] rename bridge modules to reflect the new scope, e.g. `useCanvasRuntime()` / `initializeCanvasRuntime()`
-- [ ] delete `LegacyRuntimeElements` types and the provider file
+- [x] remove the ref context/provider entirely
+- [x] let `CanvasStage` own its own `canvasRef`
+- [x] change `useLegacyCanvasRuntime()` to accept only the canvas ref (and URL params)
+- [x] rename bridge modules to reflect the new scope, e.g. `useCanvasRuntime()` / `initializeCanvasRuntime()`
+- [x] delete `LegacyRuntimeElements` types and the provider file
 
 Likely files:
 
@@ -609,11 +609,11 @@ Mitigation:
 
 ## Immediate Next Step
 
-Phases 1, 2, 3, 4, and 5 are done.
+Phases 1, 2, 3, 4, 5, and 6 are done.
 
 The next practical coding task should be:
 
-1. start Phase 6 and collapse the remaining shared bridge toward canvas-only runtime elements
-2. move any remaining overlay/tour or non-canvas DOM ownership out of `initialize.ts`
+1. start Phase 7 and replace `lpvizRuntimeCommands` with a React actions/context surface
+2. then continue into Phase 8 to split `initialize.ts` into smaller feature runtimes
 
 That should leave the shared bridge very close to canvas-only.

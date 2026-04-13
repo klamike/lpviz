@@ -1,5 +1,4 @@
 import JSONCrush from "jsoncrush";
-import type { LegacyRuntimeElements } from "../../app/legacyRuntimeElements";
 import { registerLpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { DEFAULT_VIEW_ANGLE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
 import type { DrawingPhase, SolverMode } from "../../state/store";
@@ -20,15 +19,19 @@ import { createSolverRuntime } from "./solverRuntime";
 import type { PointXY } from "../../solvers/utils/blas";
 import type { ResultTextBlock } from "../resultPayload";
 
-export type LegacyUiCleanup = () => void;
+export type CanvasRuntimeElements = {
+  canvas: HTMLCanvasElement;
+};
 
-export async function initializeUI(
-  runtimeElements: LegacyRuntimeElements,
+export type CanvasRuntimeCleanup = () => void;
+
+export async function initializeCanvasRuntime(
+  runtimeElements: CanvasRuntimeElements,
   params: URLSearchParams,
   layout: {
     initialSidebarWidth: number;
   },
-): Promise<LegacyUiCleanup> {
+): Promise<CanvasRuntimeCleanup> {
   const {
     canvas,
   } = runtimeElements;
