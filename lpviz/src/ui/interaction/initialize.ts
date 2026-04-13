@@ -1,5 +1,5 @@
 import JSONCrush from "jsoncrush";
-import { registerLpvizRuntimeCommands } from "../../app/lpvizRuntime";
+import type { RegisterLpvizRuntimeActions } from "../../app/lpvizRuntime";
 import { DEFAULT_VIEW_ANGLE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
 import type { DrawingPhase, SolverMode } from "../../state/store";
 import { subscribe } from "../../state/store";
@@ -30,6 +30,9 @@ export async function initializeCanvasRuntime(
   params: URLSearchParams,
   layout: {
     initialSidebarWidth: number;
+  },
+  runtime: {
+    registerRuntimeActions: RegisterLpvizRuntimeActions;
   },
 ): Promise<CanvasRuntimeCleanup> {
   const {
@@ -67,7 +70,7 @@ export async function initializeCanvasRuntime(
     });
   };
 
-  registerCleanup(registerLpvizRuntimeCommands({
+  registerCleanup(runtime.registerRuntimeActions({
     setConstraintHighlight(index) {
       if (getState().highlightIndex === index) {
         return;

@@ -1,4 +1,4 @@
-import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
+import { useLpvizRuntime } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
   areAnimationControlsUiStatesEqual,
@@ -8,6 +8,7 @@ import {
 } from "../../app/uiSelectors";
 
 export function AnimationControlsPanel() {
+  const runtimeActions = useLpvizRuntime();
   const animationControlsUiState = useLpvizSelector(selectAnimationControlsUiState, areAnimationControlsUiStatesEqual);
   const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
@@ -16,7 +17,7 @@ export function AnimationControlsPanel() {
       <div className="button-group">
         <button
           disabled={animationControlsUiState.animateDisabled}
-          onClick={() => lpvizRuntimeCommands.startReplay()}
+          onClick={() => runtimeActions.startReplay()}
         >
           Animate
         </button>
@@ -25,13 +26,13 @@ export function AnimationControlsPanel() {
         <button
           id="startRotateObjectiveButton"
           disabled={animationControlsUiState.startRotateDisabled}
-          onClick={() => lpvizRuntimeCommands.startRotation()}
+          onClick={() => runtimeActions.startRotation()}
         >
           Rotate Objective
         </button>
         <button
           disabled={animationControlsUiState.stopRotateDisabled}
-          onClick={() => lpvizRuntimeCommands.stopRotation()}
+          onClick={() => runtimeActions.stopRotation()}
         >
           Stop Rotation
         </button>
@@ -52,7 +53,7 @@ export function AnimationControlsPanel() {
               step="0.01"
               value={settings.objectiveAngleStep}
               onChange={(e) => {
-                lpvizRuntimeCommands.updateSolverSetting("objectiveAngleStep", parseFloat(e.target.value));
+                runtimeActions.updateSolverSetting("objectiveAngleStep", parseFloat(e.target.value));
               }}
               autoComplete="off"
             />
@@ -69,7 +70,7 @@ export function AnimationControlsPanel() {
               step="0.1"
               value={settings.objectiveRotationSpeed}
               onChange={(e) => {
-                lpvizRuntimeCommands.updateSolverSetting("objectiveRotationSpeed", parseFloat(e.target.value));
+                runtimeActions.updateSolverSetting("objectiveRotationSpeed", parseFloat(e.target.value));
               }}
               autoComplete="off"
             />
@@ -83,7 +84,7 @@ export function AnimationControlsPanel() {
               id="traceCheckbox"
               checked={animationControlsUiState.traceEnabled}
               onChange={(e) => {
-                lpvizRuntimeCommands.setTraceEnabled(e.target.checked);
+                runtimeActions.setTraceEnabled(e.target.checked);
               }}
             />
           </div>

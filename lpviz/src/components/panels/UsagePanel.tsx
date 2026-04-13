@@ -1,13 +1,14 @@
 import { useCallback } from "react";
 import { AutoSizer, List, type ListRowProps } from "react-virtualized";
 
-import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
+import { useLpvizRuntime } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "../../app/uiSelectors";
 import { TerminalFrame } from "../layout/TerminalFrame";
 import { useResultTypography } from "./useResultTypography";
 
 export function UsagePanel() {
+  const runtimeActions = useLpvizRuntime();
   const resultPanelUiState = useLpvizSelector(selectResultPanelUiState, areResultPanelUiStatesEqual);
   const { resultRef, resultStyle } = useResultTypography({
     enabled: resultPanelUiState.mode !== "usage",
@@ -26,16 +27,16 @@ export function UsagePanel() {
         className={row.className}
         data-index={row.index}
         onMouseEnter={row.index === undefined ? undefined : () => {
-          lpvizRuntimeCommands.setIterateHighlight(row.index ?? null);
+          runtimeActions.setIterateHighlight(row.index ?? null);
         }}
         onMouseLeave={row.index === undefined ? undefined : () => {
-          lpvizRuntimeCommands.setIterateHighlight(null);
+          runtimeActions.setIterateHighlight(null);
         }}
       >
         {row.text}
       </div>
     );
-  }, [resultPanelUiState.virtualRows]);
+  }, [resultPanelUiState.virtualRows, runtimeActions]);
 
   return (
     <TerminalFrame containerId="terminal-container" delayClassName="scanlines--delay-12">
@@ -93,10 +94,10 @@ export function UsagePanel() {
                 className={block.className}
                 data-index={block.index}
                 onMouseEnter={block.index === undefined ? undefined : () => {
-                  lpvizRuntimeCommands.setIterateHighlight(block.index ?? null);
+                  runtimeActions.setIterateHighlight(block.index ?? null);
                 }}
                 onMouseLeave={block.index === undefined ? undefined : () => {
-                  lpvizRuntimeCommands.setIterateHighlight(null);
+                  runtimeActions.setIterateHighlight(null);
                 }}
               >
                 {block.text}

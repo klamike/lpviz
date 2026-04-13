@@ -1,4 +1,4 @@
-import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
+import { useLpvizRuntime } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
   areSolverControlsUiStatesEqual,
@@ -8,6 +8,7 @@ import {
 } from "../../app/uiSelectors";
 
 export function SolverControlsPanel() {
+  const runtimeActions = useLpvizRuntime();
   const solverControlsUiState = useLpvizSelector(selectSolverControlsUiState, areSolverControlsUiStatesEqual);
   const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
@@ -18,21 +19,21 @@ export function SolverControlsPanel() {
           id="ipmButton"
           className={solverControlsUiState.buttons.ipm.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.ipm.disabled}
-          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("ipm")}
+          onClick={() => runtimeActions.setActiveSolverMode("ipm")}
         >
           IPM
         </button>
         <button
           className={solverControlsUiState.buttons.pdhg.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.pdhg.disabled}
-          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("pdhg")}
+          onClick={() => runtimeActions.setActiveSolverMode("pdhg")}
         >
           PDHG
         </button>
         <button
           className={solverControlsUiState.buttons.simplex.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.simplex.disabled}
-          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("simplex")}
+          onClick={() => runtimeActions.setActiveSolverMode("simplex")}
         >
           Simplex
         </button>
@@ -40,7 +41,7 @@ export function SolverControlsPanel() {
           id="iteratePathButton"
           className={solverControlsUiState.buttons.central.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.central.disabled}
-          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("central")}
+          onClick={() => runtimeActions.setActiveSolverMode("central")}
         >
           Central Path
         </button>
@@ -60,8 +61,8 @@ export function SolverControlsPanel() {
             step="0.001"
             value={settings.alphaMax}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("alphaMax", parseFloat(e.target.value));
-              lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+              runtimeActions.updateSolverSetting("alphaMax", parseFloat(e.target.value));
+              runtimeActions.recomputeIfModeActive("ipm");
             }}
             autoComplete="off"
           />
@@ -78,8 +79,8 @@ export function SolverControlsPanel() {
             step="0.001"
             value={settings.correctorThreshold}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("correctorThreshold", parseFloat(e.target.value));
-              lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+              runtimeActions.updateSolverSetting("correctorThreshold", parseFloat(e.target.value));
+              runtimeActions.recomputeIfModeActive("ipm");
             }}
             autoComplete="off"
           />
@@ -90,8 +91,8 @@ export function SolverControlsPanel() {
             id="maxitInput"
             value={settings.maxitIPM}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("maxitIPM", Math.max(1, parseInt(e.target.value, 10) || 1));
-              lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+              runtimeActions.updateSolverSetting("maxitIPM", Math.max(1, parseInt(e.target.value, 10) || 1));
+              runtimeActions.recomputeIfModeActive("ipm");
             }}
             min="1"
             step="1"
@@ -105,8 +106,8 @@ export function SolverControlsPanel() {
                 id="ipmColorByPhase"
                 checked={settings.ipmColorByPhase}
                 onChange={(e) => {
-                  lpvizRuntimeCommands.updateSolverSetting("ipmColorByPhase", e.target.checked);
-                  lpvizRuntimeCommands.recomputeIfModeActive("ipm");
+                  runtimeActions.updateSolverSetting("ipmColorByPhase", e.target.checked);
+                  runtimeActions.recomputeIfModeActive("ipm");
                 }}
                 autoComplete="off"
               />
@@ -129,8 +130,8 @@ export function SolverControlsPanel() {
             step="0.001"
             value={settings.pdhgEta}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("pdhgEta", parseFloat(e.target.value));
-              lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+              runtimeActions.updateSolverSetting("pdhgEta", parseFloat(e.target.value));
+              runtimeActions.recomputeIfModeActive("pdhg");
             }}
             autoComplete="off"
           />
@@ -147,8 +148,8 @@ export function SolverControlsPanel() {
             step="0.001"
             value={settings.pdhgTau}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("pdhgTau", parseFloat(e.target.value));
-              lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+              runtimeActions.updateSolverSetting("pdhgTau", parseFloat(e.target.value));
+              runtimeActions.recomputeIfModeActive("pdhg");
             }}
             autoComplete="off"
           />
@@ -159,8 +160,8 @@ export function SolverControlsPanel() {
             id="maxitInputPDHG"
             value={settings.maxitPDHG}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("maxitPDHG", Math.max(1, parseInt(e.target.value, 10) || 1));
-              lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+              runtimeActions.updateSolverSetting("maxitPDHG", Math.max(1, parseInt(e.target.value, 10) || 1));
+              runtimeActions.recomputeIfModeActive("pdhg");
             }}
             min="1"
             step="1"
@@ -174,8 +175,8 @@ export function SolverControlsPanel() {
                 id="pdhgIneqMode"
                 checked={settings.pdhgIneqMode}
                 onChange={(e) => {
-                  lpvizRuntimeCommands.updateSolverSetting("pdhgIneqMode", e.target.checked);
-                  lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+                  runtimeActions.updateSolverSetting("pdhgIneqMode", e.target.checked);
+                  runtimeActions.recomputeIfModeActive("pdhg");
                 }}
               />
             </label>
@@ -186,8 +187,8 @@ export function SolverControlsPanel() {
                 id="pdhgHalpernMode"
                 checked={settings.pdhgHalpernMode}
                 onChange={(e) => {
-                  lpvizRuntimeCommands.updateSolverSetting("pdhgHalpernMode", e.target.checked);
-                  lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+                  runtimeActions.updateSolverSetting("pdhgHalpernMode", e.target.checked);
+                  runtimeActions.recomputeIfModeActive("pdhg");
                 }}
                 autoComplete="off"
               />
@@ -199,8 +200,8 @@ export function SolverControlsPanel() {
                 id="pdhgColorByBasis"
                 checked={settings.pdhgColorByBasis}
                 onChange={(e) => {
-                  lpvizRuntimeCommands.updateSolverSetting("pdhgColorByBasis", e.target.checked);
-                  lpvizRuntimeCommands.recomputeIfModeActive("pdhg");
+                  runtimeActions.updateSolverSetting("pdhgColorByBasis", e.target.checked);
+                  runtimeActions.recomputeIfModeActive("pdhg");
                 }}
                 autoComplete="off"
               />
@@ -217,8 +218,8 @@ export function SolverControlsPanel() {
             id="simplexDualMode"
             checked={settings.simplexDualMode}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("simplexDualMode", e.target.checked);
-              lpvizRuntimeCommands.recomputeIfModeActive("simplex");
+              runtimeActions.updateSolverSetting("simplexDualMode", e.target.checked);
+              runtimeActions.recomputeIfModeActive("simplex");
             }}
             autoComplete="off"
           />
@@ -239,8 +240,8 @@ export function SolverControlsPanel() {
             step="1"
             value={settings.centralPathIter}
             onChange={(e) => {
-              lpvizRuntimeCommands.updateSolverSetting("centralPathIter", parseInt(e.target.value, 10));
-              lpvizRuntimeCommands.recomputeIfModeActive("central");
+              runtimeActions.updateSolverSetting("centralPathIter", parseInt(e.target.value, 10));
+              runtimeActions.recomputeIfModeActive("central");
             }}
             autoComplete="off"
           />

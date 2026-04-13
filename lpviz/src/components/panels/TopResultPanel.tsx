@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 
-import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
+import { useLpvizRuntime } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
   areInequalitiesUiStatesEqual,
@@ -12,6 +12,7 @@ import { NullStateLogo } from "../logo/NullStateLogo";
 import { TerminalFrame } from "../layout/TerminalFrame";
 
 export function TopResultPanel({ topResultRef }: { topResultRef: RefObject<HTMLDivElement | null> }) {
+  const runtimeActions = useLpvizRuntime();
   const topResultUiState = useLpvizSelector(selectTopResultUiState, areTopResultUiStatesEqual);
   const inequalitiesUiState = useLpvizSelector(selectInequalitiesUiState, areInequalitiesUiStatesEqual);
 
@@ -37,10 +38,10 @@ export function TopResultPanel({ topResultRef }: { topResultRef: RefObject<HTMLD
                 key={`${index}-${inequality}`}
                 className="inequality-item"
                 onMouseEnter={() => {
-                  lpvizRuntimeCommands.setConstraintHighlight(index);
+                  runtimeActions.setConstraintHighlight(index);
                 }}
                 onMouseLeave={() => {
-                  lpvizRuntimeCommands.setConstraintHighlight(null);
+                  runtimeActions.setConstraintHighlight(null);
                 }}
               >
                 {inequality}
