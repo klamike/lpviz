@@ -76,15 +76,18 @@ export async function createViewportRuntime({
   });
   manager.setExternalGridEnabled(true);
 
-  const syncExternalPolytopeBase = () => {
+  const syncExternal2DLayers = () => {
     const state = getState();
-    manager.setExternalPolytopeBaseEnabled(
-      !state.is3DMode && !state.isTransitioning3D,
-    );
+    const external2DLayersEnabled = !state.is3DMode && !state.isTransitioning3D;
+    manager.setExternalPolytopeBaseEnabled(external2DLayersEnabled);
+    manager.setExternalPolytopeVerticesEnabled(external2DLayersEnabled);
+    manager.setExternalObjectiveEnabled(external2DLayersEnabled);
+    manager.setExternalTraceLineEnabled(external2DLayersEnabled);
+    manager.setExternalConstraintHighlightEnabled(external2DLayersEnabled);
   };
-  syncExternalPolytopeBase();
-  const unsubscribeExternalPolytopeBase = subscribe(() => {
-    syncExternalPolytopeBase();
+  syncExternal2DLayers();
+  const unsubscribeExternal2DLayers = subscribe(() => {
+    syncExternal2DLayers();
   });
 
   // Temporary compatibility bridge while ViewportManager still backs rendering.
@@ -121,7 +124,7 @@ export async function createViewportRuntime({
     getDraftPreviewDirtyFlags: () => manager.getDraftPreviewDirtyFlags(),
     getZScaleDirtyFlags: () => manager.getZScaleDirtyFlags(),
     destroy: () => {
-      unsubscribeExternalPolytopeBase();
+      unsubscribeExternal2DLayers();
       manager.setRenderSnapshotCallback(null);
       resetViewportRenderSnapshot();
       manager.destroy();

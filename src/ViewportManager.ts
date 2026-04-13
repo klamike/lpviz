@@ -354,6 +354,10 @@ export class ViewportManager {
     | null = null;
   private externalGridEnabled = false;
   private externalPolytopeBaseEnabled = false;
+  private externalPolytopeVerticesEnabled = false;
+  private externalObjectiveEnabled = false;
+  private externalTraceLineEnabled = false;
+  private externalConstraintHighlightEnabled = false;
 
   private constructor(
     canvas: HTMLCanvasElement,
@@ -547,6 +551,42 @@ export class ViewportManager {
     }
     this.externalPolytopeBaseEnabled = enabled;
     this.invalidateScene({ polytope: true });
+    this.draw();
+  }
+
+  setExternalPolytopeVerticesEnabled(enabled: boolean) {
+    if (this.externalPolytopeVerticesEnabled === enabled) {
+      return;
+    }
+    this.externalPolytopeVerticesEnabled = enabled;
+    this.invalidateScene({ polytope: true });
+    this.draw();
+  }
+
+  setExternalObjectiveEnabled(enabled: boolean) {
+    if (this.externalObjectiveEnabled === enabled) {
+      return;
+    }
+    this.externalObjectiveEnabled = enabled;
+    this.invalidateScene({ objective: true });
+    this.draw();
+  }
+
+  setExternalTraceLineEnabled(enabled: boolean) {
+    if (this.externalTraceLineEnabled === enabled) {
+      return;
+    }
+    this.externalTraceLineEnabled = enabled;
+    this.invalidateScene({ trace: true });
+    this.draw();
+  }
+
+  setExternalConstraintHighlightEnabled(enabled: boolean) {
+    if (this.externalConstraintHighlightEnabled === enabled) {
+      return;
+    }
+    this.externalConstraintHighlightEnabled = enabled;
+    this.invalidateScene({ constraints: true });
     this.draw();
   }
 
@@ -2607,31 +2647,38 @@ export class ViewportManager {
       });
     }
 
-    const vertexSizePx = VERTEX_POINT_PIXEL_SIZE;
-    displayVertices.forEach((v, index) => {
-      const position = this.getBlendedPointPosition(
-        [v.x, v.y],
-        VERTEX_Z_OFFSET,
-        context,
-      );
-      const isOpenRayAnchor =
-        completionMode === "open" &&
-        !hasDerivedClosedRegion &&
-        (index === 0 || index === displayVertices.length - 1);
-      this.getOrCreatePolytopeVertexSprite(
-        index,
-        isOpenRayAnchor ? "square" : "circle",
-        isOpenRayAnchor ? COLORS.polytopeHighlight : COLORS.vertex,
-        vertexSizePx,
-        position,
-      );
-    });
-    for (
-      let index = displayVertices.length;
-      index < this.persistentSceneObjects.polytopeVertexSprites.length;
-      index++
-    ) {
-      this.persistentSceneObjects.polytopeVertexSprites[index]!.visible = false;
+    if (!this.externalPolytopeVerticesEnabled) {
+      const vertexSizePx = VERTEX_POINT_PIXEL_SIZE;
+      displayVertices.forEach((v, index) => {
+        const position = this.getBlendedPointPosition(
+          [v.x, v.y],
+          VERTEX_Z_OFFSET,
+          context,
+        );
+        const isOpenRayAnchor =
+          completionMode === "open" &&
+          !hasDerivedClosedRegion &&
+          (index === 0 || index === displayVertices.length - 1);
+        this.getOrCreatePolytopeVertexSprite(
+          index,
+          isOpenRayAnchor ? "square" : "circle",
+          isOpenRayAnchor ? COLORS.polytopeHighlight : COLORS.vertex,
+          vertexSizePx,
+          position,
+        );
+      });
+      for (
+        let index = displayVertices.length;
+        index < this.persistentSceneObjects.polytopeVertexSprites.length;
+        index++
+      ) {
+        this.persistentSceneObjects.polytopeVertexSprites[index]!.visible =
+          false;
+      }
+    } else {
+      this.persistentSceneObjects.polytopeVertexSprites.forEach((sprite) => {
+        sprite.visible = false;
+      });
     }
   }
 
@@ -2642,6 +2689,7 @@ export class ViewportManager {
 
     const { completionMode, polytope, highlightIndex } = getState();
     if (
+      this.externalConstraintHighlightEnabled ||
       completionMode === "draft" ||
       highlightIndex === null ||
       !polytope ||
@@ -2686,7 +2734,7 @@ export class ViewportManager {
 
     const { objectiveHidden, objectiveVector, currentObjective, polytope } =
       getState();
-    if (objectiveHidden) {
+    if (this.externalObjectiveEnabled || objectiveHidden) {
       this.persistentSceneObjects.objectiveLines.forEach((line) => {
         line.visible = false;
       });
@@ -2778,6 +2826,11 @@ export class ViewportManager {
     }
 
     const sampledPositions: number[] = [];
+    if (this.externalTraceLineEnabled) {
+      this.persistentSceneObjects.traceLines.forEach((line) => {
+        line.visible = false;
+      });
+    }
     traceBuffer.forEach((traceEntry, index) => {
       const positions = this.buildTraceLinePositions(
         traceEntry.path,
@@ -2785,29 +2838,33 @@ export class ViewportManager {
         context,
         is3D,
       );
-      const line = this.getOrCreateTraceLine(index);
-      this.updateThickLine(line, positions, {
-        color: COLORS.trace,
-        width: TRACE_LINE_THICKNESS,
-        depthTest: is3D,
-        depthWrite: is3D,
-        renderOrder: RENDER_LAYERS.traceLine,
-        transparent: true,
-        opacity: TRACE_LINE_OPACITY,
-        replaceGeometry: true,
-      });
+      if (!this.externalTraceLineEnabled) {
+        const line = this.getOrCreateTraceLine(index);
+        this.updateThickLine(line, positions, {
+          color: COLORS.trace,
+          width: TRACE_LINE_THICKNESS,
+          depthTest: is3D,
+          depthWrite: is3D,
+          renderOrder: RENDER_LAYERS.traceLine,
+          transparent: true,
+          opacity: TRACE_LINE_OPACITY,
+          replaceGeometry: true,
+        });
+      }
 
       const pointPositions = this.buildTraceSamplePositions(positions);
       if (pointPositions.length) {
         sampledPositions.push(...pointPositions);
       }
     });
-    for (
-      let index = traceBuffer.length;
-      index < this.persistentSceneObjects.traceLines.length;
-      index++
-    ) {
-      this.persistentSceneObjects.traceLines[index]!.visible = false;
+    if (!this.externalTraceLineEnabled) {
+      for (
+        let index = traceBuffer.length;
+        index < this.persistentSceneObjects.traceLines.length;
+        index++
+      ) {
+        this.persistentSceneObjects.traceLines[index]!.visible = false;
+      }
     }
 
     if (sampledPositions.length) {
