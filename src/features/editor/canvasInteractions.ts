@@ -84,9 +84,10 @@ export function registerCanvasInteractions(
     },
 
     exceedsDragThreshold(clientX: number, clientY: number) {
+      const editorInteraction = getState().editorInteraction;
       const dragStartPos =
-        getState().editorInteraction.kind === "pending-drag"
-          ? getState().editorInteraction.dragStartPos
+        editorInteraction.kind === "pending-drag"
+          ? editorInteraction.dragStartPos
           : null;
       if (!dragStartPos) return false;
       return Math.hypot(clientX - dragStartPos.x, clientY - dragStartPos.y) > 5;

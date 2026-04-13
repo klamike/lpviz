@@ -1,5 +1,4 @@
-import type { PointXY } from "../../lib/math/blas";
-import { ViewportManager } from "../../lib/viewport/ViewportManager";
+import type { PointXY } from "../../math/blas";
 import { VRep } from "../../polytope/polygon";
 import {
   computeDrawingPhase,
@@ -10,6 +9,7 @@ import {
   type DrawingPhase,
   type State,
 } from "../../store/lpvizStore";
+import { ViewportManager } from "../../ViewportManager";
 import type {
   OnboardingActionTarget,
   OnboardingUiController,
