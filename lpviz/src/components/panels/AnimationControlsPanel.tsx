@@ -1,10 +1,17 @@
 import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
-import { areAnimationControlsUiStatesEqual, selectAnimationControlsUiState } from "../../app/uiSelectors";
+import {
+  areAnimationControlsUiStatesEqual,
+  areSolverSettingsEqual,
+  selectAnimationControlsUiState,
+  selectSolverSettings,
+} from "../../app/uiSelectors";
 
 export function AnimationControlsPanel() {
   const refs = useLegacyRuntimeElementRefs();
   const animationControlsUiState = useLpvizSelector(selectAnimationControlsUiState, areAnimationControlsUiStatesEqual);
+  const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
   return (
     <div className="controlPanel controlPanel--compact">
@@ -38,11 +45,13 @@ export function AnimationControlsPanel() {
             <input
               type="range"
               id="objectiveAngleStepSlider"
-              ref={refs.objectiveAngleStepSlider}
               min="0.01"
               max="0.5"
               step="0.01"
-              defaultValue="0.1"
+              value={settings.objectiveAngleStep}
+              onChange={(e) => {
+                lpvizRuntimeCommands.updateSolverSetting("objectiveAngleStep", parseFloat(e.target.value));
+              }}
               autoComplete="off"
             />
           </div>
@@ -53,11 +62,13 @@ export function AnimationControlsPanel() {
             <input
               type="range"
               id="objectiveRotationSpeedSlider"
-              ref={refs.objectiveRotationSpeedSlider}
               min="0.2"
               max="3"
               step="0.1"
-              defaultValue="1"
+              value={settings.objectiveRotationSpeed}
+              onChange={(e) => {
+                lpvizRuntimeCommands.updateSolverSetting("objectiveRotationSpeed", parseFloat(e.target.value));
+              }}
               autoComplete="off"
             />
           </div>
@@ -65,7 +76,14 @@ export function AnimationControlsPanel() {
             <label htmlFor="traceCheckbox" className="label-centered">
               Trace
             </label>
-            <input type="checkbox" id="traceCheckbox" ref={refs.traceCheckbox} />
+            <input
+              type="checkbox"
+              id="traceCheckbox"
+              checked={animationControlsUiState.traceEnabled}
+              onChange={(e) => {
+                lpvizRuntimeCommands.setTraceEnabled(e.target.checked);
+              }}
+            />
           </div>
         </div>
       </div>

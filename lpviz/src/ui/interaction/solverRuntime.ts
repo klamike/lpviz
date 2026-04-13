@@ -19,9 +19,6 @@ type SolverControl = {
 export function createSolverRuntime({
   canvasManager,
   getSolverControl,
-  objectiveAngleStepSlider,
-  objectiveRotationSpeedSlider,
-  replaySpeedSlider,
   rotationSettings,
   setElementVisibility,
   resultRuntime,
@@ -29,9 +26,6 @@ export function createSolverRuntime({
 }: {
   canvasManager: ViewportManager;
   getSolverControl: (mode: SolverMode) => SolverControl | undefined;
-  objectiveAngleStepSlider: HTMLInputElement;
-  objectiveRotationSpeedSlider: HTMLInputElement;
-  replaySpeedSlider: HTMLInputElement;
   rotationSettings: HTMLElement;
   setElementVisibility: (element: HTMLElement, visible: boolean, visibleClass?: "is-block" | "is-flex" | null) => void;
   resultRuntime: {
@@ -87,7 +81,7 @@ export function createSolverRuntime({
         this.rotationLastFrameTime = timestamp;
       }
 
-      const speed = Math.max(0.1, parseFloat(objectiveRotationSpeedSlider.value) || 1);
+      const speed = Math.max(0.1, getState().solverSettings.objectiveRotationSpeed || 1);
       const intervalMs = Math.max(1, this.baseRotationWaitMs / speed);
       if (!this.rotationComputeInFlight && this.rotationElapsedMs >= intervalMs) {
         this.rotationElapsedMs = 0;
@@ -132,7 +126,7 @@ export function createSolverRuntime({
     },
 
     syncTraceCapacity() {
-      const angleStep = Math.max(0.001, parseFloat(objectiveAngleStepSlider.value) || 0.001);
+      const angleStep = Math.max(0.001, getState().solverSettings.objectiveAngleStep || 0.001);
       setTraceCapacity(Math.max(1, Math.ceil((2 * Math.PI) / angleStep)));
     },
 
@@ -288,7 +282,7 @@ export function createSolverRuntime({
       this.rotationComputeInFlight = true;
 
       const objectiveVector = state.objectiveVector ?? { x: 1, y: 0 };
-      const angleStep = Math.max(0.001, parseFloat(objectiveAngleStepSlider.value) || 0.001);
+      const angleStep = Math.max(0.001, state.solverSettings.objectiveAngleStep || 0.001);
       const rotationStep = computeObjectiveRotationStep({
         objectiveVector,
         angleStep,
@@ -329,7 +323,7 @@ export function createSolverRuntime({
       }
       setState({ animationIntervalId: null }, { viewportDirty: {} });
 
-      const intervalTime = parseInt(replaySpeedSlider.value, 10) || 500;
+      const intervalTime = getState().solverSettings.replaySpeed || 500;
       const iteratesToAnimate = [...solverSnapshot.originalIteratePath];
       const phasesToAnimate = [...solverSnapshot.originalIteratePhases];
       setState({
