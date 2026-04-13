@@ -9,7 +9,8 @@ import {
 import { hasPolytopeLines } from "../../solvers/utils/polytopeTypes";
 import type { ShareSettings } from "../sharedState";
 import type { ResultTextBlock } from "../resultPayload";
-import { getState, type SolverMode, type SolverSettings, type State } from "../../state/store";
+import { getState, type SolverMode, type State } from "../../state/store";
+import type { SolverSettingUpdater } from "./runtimeTypes";
 
 export type SolverControl = {
   mode: SolverMode;
@@ -25,7 +26,7 @@ export function createSolverControls({
   updateSolverSetting,
   hasUnboundedObjectiveDirection,
 }: {
-  updateSolverSetting: <K extends keyof SolverSettings>(key: K, value: SolverSettings[K]) => void;
+  updateSolverSetting: SolverSettingUpdater;
   hasUnboundedObjectiveDirection: (state: State) => boolean;
 }): SolverControl[] {
   const createResultBlock = (className: ResultTextBlock["className"], text: string, index?: number): ResultTextBlock => ({

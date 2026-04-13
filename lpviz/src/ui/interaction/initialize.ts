@@ -1,13 +1,15 @@
 import type { RegisterLpvizRuntimeActions } from "../../app/lpvizRuntime";
 import type { OnboardingUiController } from "../../app/onboardingUi";
-import { getState, mutate, resetTraceState, setState, subscribe } from "../../state/store";
+import { getState, mutate, resetTraceState, subscribe } from "../../state/store";
 import type { SolverMode } from "../../state/store";
 import { ViewportManager } from "../viewport";
 import { registerCanvasInteractions } from "./canvas";
-import { computeEditorRegionForState } from "./editorSession";
 import { createHistoryRuntime } from "./historyRuntime";
 import { createOnboardingRuntime } from "./onboardingRuntime";
+import { createPolytopeRuntime } from "./polytopeRuntime";
 import { createResultRuntime } from "./resultRuntime";
+import { registerCanvasRuntimeActions } from "./runtimeActions";
+import type { SolverSettingUpdater } from "./runtimeTypes";
 import { createSolverControls } from "./solverControls";
 import { createSolverRuntime } from "./solverRuntime";
 import { createUiRuntime } from "./uiRuntime";
@@ -37,10 +39,7 @@ export async function initializeCanvasRuntime(
 
   const canvasManager = await ViewportManager.create(canvas);
   let currentSidebarWidth = layout.initialSidebarWidth;
-  const updateSolverSetting = <K extends keyof import("../../state/store").SolverSettings>(
-    key: K,
-    value: import("../../state/store").SolverSettings[K],
-  ) => {
+  const updateSolverSetting: SolverSettingUpdater = (key, value) => {
     mutate((draft) => {
       draft.solverSettings[key] = value;
     });
@@ -58,17 +57,14 @@ export async function initializeCanvasRuntime(
     canvasManager.draw();
   };
 
-  const resultRuntime = createResultRuntime({
-    canvasManager,
-  });
+  const resultRuntime = createResultRuntime({ canvasManager });
   let wasNavigatingViewport = getState().isNavigatingViewport;
-  const unsubscribeViewportNavigation = subscribe((snapshot) => {
+  registerCleanup(subscribe((snapshot) => {
     if (wasNavigatingViewport && !snapshot.isNavigatingViewport) {
       resultRuntime.flushDeferredRender();
     }
     wasNavigatingViewport = snapshot.isNavigatingViewport;
-  });
-  registerCleanup(unsubscribeViewportNavigation);
+  }));
   registerCleanup(() => {
     resultRuntime.teardown();
   });
@@ -81,12 +77,6 @@ export async function initializeCanvasRuntime(
     return solverRuntime;
   };
 
-  const solverControls = createSolverControls({
-    updateSolverSetting,
-    hasUnboundedObjectiveDirection: (state) => getSolverRuntime().hasUnboundedObjectiveDirection(state),
-  });
-  const getSolverControl = (mode: SolverMode) => solverControls.find((solverControl) => solverControl.mode === mode) ?? null;
-
   let onboardingRuntime: ReturnType<typeof createOnboardingRuntime> | null = null;
   const getOnboardingRuntime = () => {
     if (!onboardingRuntime) {
@@ -95,64 +85,24 @@ export async function initializeCanvasRuntime(
     return onboardingRuntime;
   };
 
-  const polytopeRuntime = {
-    send() {
-      const state = getState();
-
-      try {
-        const regionResult = computeEditorRegionForState(state);
-
-        if (regionResult.status === "nonconvex") {
-          mutate((draft) => {
-            draft.polytope = null;
-            draft.inequalitiesMessage = "Nonconvex";
-            draft.highlightIndex = null;
-          });
-          getSolverRuntime().handleProblemChange();
-          getOnboardingRuntime().scheduleNonconvexHint();
-          return;
-        }
-
-        if (regionResult.promotion) {
-          mutate((draft) => {
-            draft.vertices = regionResult.promotion!.vertices;
-            draft.completionMode = regionResult.promotion!.completionMode;
-            draft.interiorPoint = regionResult.promotion!.interiorPoint;
-          });
-        }
-
-        const result = regionResult.polytope;
-        if (!result.inequalities) {
-          mutate((draft) => {
-            draft.polytope = null;
-            draft.inequalitiesMessage = "No inequalities returned.";
-            draft.highlightIndex = null;
-          });
-          getSolverRuntime().handleProblemChange();
-          return;
-        }
-
-        mutate((draft) => {
-          draft.polytope = result;
-          draft.inequalitiesMessage = null;
-          if (draft.highlightIndex !== null && draft.highlightIndex >= result.inequalities.length) {
-            draft.highlightIndex = null;
-          }
-        });
-        getOnboardingRuntime().scheduleNonconvexHint();
-        getSolverRuntime().handleProblemChange();
-      } catch (error) {
-        console.error("Error:", error);
-        mutate((draft) => {
-          draft.polytope = null;
-          draft.inequalitiesMessage = "Error computing inequalities.";
-          draft.highlightIndex = null;
-        });
-        getSolverRuntime().handleProblemChange();
-        getOnboardingRuntime().scheduleNonconvexHint();
-      }
-    },
+  let uiRuntime: ReturnType<typeof createUiRuntime> | null = null;
+  const getUiRuntime = () => {
+    if (!uiRuntime) {
+      throw new Error("UI runtime is not ready");
+    }
+    return uiRuntime;
   };
+
+  const solverControls = createSolverControls({
+    updateSolverSetting,
+    hasUnboundedObjectiveDirection: (state) => getSolverRuntime().hasUnboundedObjectiveDirection(state),
+  });
+  const getSolverControl = (mode: SolverMode) => solverControls.find((solverControl) => solverControl.mode === mode) ?? null;
+
+  const polytopeRuntime = createPolytopeRuntime({
+    handleProblemChange: () => getSolverRuntime().handleProblemChange(),
+    scheduleNonconvexHint: () => getOnboardingRuntime().scheduleNonconvexHint(),
+  });
 
   const historyRuntime = createHistoryRuntime({
     onRestore() {
@@ -165,18 +115,18 @@ export async function initializeCanvasRuntime(
     canvasManager,
     ui: runtime.onboardingUi,
     saveHistory: historyRuntime.save,
-    sendPolytope: polytopeRuntime.send.bind(polytopeRuntime),
+    sendPolytope: polytopeRuntime.send,
     runAction(action) {
       if (action === "activate-ipm") {
-        uiRuntime.setActiveSolverMode("ipm", true);
+        getUiRuntime().setActiveSolverMode("ipm", true);
         return;
       }
       if (action === "activate-central") {
-        uiRuntime.setActiveSolverMode("central", true);
+        getUiRuntime().setActiveSolverMode("central", true);
         return;
       }
       if (action === "toggle-3d") {
-        uiRuntime.toggle3D();
+        getUiRuntime().toggle3D();
         return;
       }
       if (action === "start-rotation") {
@@ -187,7 +137,7 @@ export async function initializeCanvasRuntime(
     },
   });
 
-  const uiRuntime = createUiRuntime({
+  uiRuntime = createUiRuntime({
     params,
     canvasManager,
     getCurrentSidebarWidth: () => currentSidebarWidth,
@@ -199,81 +149,11 @@ export async function initializeCanvasRuntime(
     },
     invalidatePendingSolveResults: () => getSolverRuntime().invalidatePendingSolveResults(),
     computePath: () => getSolverRuntime().computePath(),
-    sendPolytope: polytopeRuntime.send.bind(polytopeRuntime),
+    sendPolytope: polytopeRuntime.send,
     resetTraceAndRedrawIfNeeded,
     resetOnboarding: onboardingRuntime.reset,
     startDemo: onboardingRuntime.start,
   });
-
-  registerCleanup(runtime.registerRuntimeActions({
-    setConstraintHighlight(index) {
-      if (getState().highlightIndex === index) {
-        return;
-      }
-
-      setState({ highlightIndex: index }, { viewportDirty: canvasManager.getConstraintDirtyFlags() });
-      canvasManager.draw();
-    },
-    setIterateHighlight(index) {
-      if (getState().highlightIteratePathIndex === index) {
-        return;
-      }
-
-      setState({ highlightIteratePathIndex: index }, { viewportDirty: canvasManager.getIterateDirtyFlags() });
-      canvasManager.draw();
-    },
-    updateSolverSetting,
-    recomputeIfModeActive(mode) {
-      resetTraceAndRedrawIfNeeded();
-      getSolverRuntime().recomputeIfModeActive(mode);
-    },
-    setTraceEnabled(enabled) {
-      getSolverRuntime().setTraceEnabled(enabled);
-    },
-    startReplay() {
-      getSolverRuntime().startReplay();
-    },
-    startRotation() {
-      getSolverRuntime().startRotation();
-    },
-    stopRotation() {
-      getSolverRuntime().stopRotation();
-    },
-    share() {
-      uiRuntime.share();
-    },
-    zoomToFit() {
-      uiRuntime.zoomToFitCurrentPolytope();
-    },
-    resetView() {
-      uiRuntime.resetView();
-    },
-    toggle3D() {
-      uiRuntime.toggle3D();
-    },
-    toggleZOffset() {
-      uiRuntime.toggleZOffsetOnly();
-    },
-    setZScale(value) {
-      setState({ zScale: value }, { viewportDirty: canvasManager.getZScaleDirtyFlags() });
-      const { is3DMode, isTransitioning3D } = getState();
-      if (is3DMode || isTransitioning3D) {
-        canvasManager.draw();
-      }
-    },
-    setActiveSolverMode(mode) {
-      uiRuntime.setActiveSolverMode(mode, true);
-    },
-    setSidebarWidth(width) {
-      currentSidebarWidth = width;
-      canvasManager.setSidebarWidth(width);
-      canvasManager.draw();
-    },
-    syncViewportLayout(sidebarWidth) {
-      currentSidebarWidth = sidebarWidth;
-      syncSidebarViewport();
-    },
-  }));
 
   solverRuntime = createSolverRuntime({
     canvasManager,
@@ -281,10 +161,23 @@ export async function initializeCanvasRuntime(
     resultRuntime,
   });
 
+  registerCleanup(registerCanvasRuntimeActions({
+    registerRuntimeActions: runtime.registerRuntimeActions,
+    canvasManager,
+    updateSolverSetting,
+    resetTraceAndRedrawIfNeeded,
+    getSolverRuntime,
+    getUiRuntime,
+    setCurrentSidebarWidth(width) {
+      currentSidebarWidth = width;
+    },
+    syncSidebarViewport,
+  }));
+
   const { teardown: teardownCanvasInteractions } = registerCanvasInteractions(
     canvasManager,
     historyRuntime.save,
-    polytopeRuntime.send.bind(polytopeRuntime),
+    polytopeRuntime.send,
     historyRuntime.handleUndoRedo,
   );
   registerCleanup(() => {
