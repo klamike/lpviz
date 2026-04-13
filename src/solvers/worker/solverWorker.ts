@@ -1,8 +1,8 @@
-import type { Lines, VecN, Vertices } from "../../lib/math/blas";
-import { centralPath } from "../algorithms/centralPath";
-import { ipm } from "../algorithms/ipm";
-import { pdhg } from "../algorithms/pdhg";
-import { simplex } from "../algorithms/simplex";
+import type { Lines, VecN, Vertices } from "../../math/blas";
+import { centralPath } from "../centralPath";
+import { ipm } from "../ipm";
+import { pdhg } from "../pdhg";
+import { simplex } from "../simplex";
 
 import type {
   CentralPathResult,

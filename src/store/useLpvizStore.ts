@@ -1,11 +1,18 @@
 import { useRef, useSyncExternalStore } from "react";
 
-import { getState, mutate, setState, subscribe, type State } from "./lpvizStore";
+import {
+  getState,
+  mutate,
+  setState,
+  subscribe,
+  type State,
+} from "./lpvizStore";
 
 export type LpvizSelector<T> = (state: State) => T;
 export type LpvizEqualityFn<T> = (current: T, next: T) => boolean;
 
-const subscribeToLpvizStore = (listener: () => void) => subscribe(() => listener());
+const subscribeToLpvizStore = (listener: () => void) =>
+  subscribe(() => listener());
 
 export const lpvizStateCommands = {
   getState,
@@ -40,5 +47,9 @@ export function useLpvizSelector<T>(
     return nextSelectedState;
   };
 
-  return useSyncExternalStore(subscribeToLpvizStore, getSelectedSnapshot, getSelectedSnapshot);
+  return useSyncExternalStore(
+    subscribeToLpvizStore,
+    getSelectedSnapshot,
+    getSelectedSnapshot,
+  );
 }

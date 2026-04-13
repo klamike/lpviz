@@ -1,4 +1,4 @@
-import type { Vertices } from "../lib/math/blas";
+import type { Vertices } from "../math/blas";
 import { buildConstraintDerivation } from "./constraintDerivation";
 import { classifyRegion, findFeasiblePoint } from "./feasibleRegion";
 import { verticesFromLines } from "./halfPlaneIntersection";
