@@ -1,4 +1,5 @@
 import { useLpvizRuntime } from "../../app/lpvizRuntime";
+import { useOnboardingActionTarget } from "../../app/onboardingUi";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
   areAnimationControlsUiStatesEqual,
@@ -9,6 +10,8 @@ import {
 
 export function AnimationControlsPanel() {
   const runtimeActions = useLpvizRuntime();
+  const startRotationTargetRef = useOnboardingActionTarget("start-rotation");
+  const toggleTraceTargetRef = useOnboardingActionTarget("toggle-trace");
   const animationControlsUiState = useLpvizSelector(selectAnimationControlsUiState, areAnimationControlsUiStatesEqual);
   const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
@@ -25,6 +28,7 @@ export function AnimationControlsPanel() {
       <div className="button-group">
         <button
           id="startRotateObjectiveButton"
+          ref={startRotationTargetRef}
           disabled={animationControlsUiState.startRotateDisabled}
           onClick={() => runtimeActions.startRotation()}
         >
@@ -81,6 +85,7 @@ export function AnimationControlsPanel() {
             </label>
             <input
               type="checkbox"
+              ref={toggleTraceTargetRef}
               id="traceCheckbox"
               checked={animationControlsUiState.traceEnabled}
               onChange={(e) => {

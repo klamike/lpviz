@@ -1,9 +1,9 @@
+import type { OnboardingActionTarget, OnboardingUiController } from "../../app/onboardingUi";
 import { computeDrawingPhase, getState, mutate, setState, subscribe, type DrawingPhase, type State } from "../../state/store";
 import type { PointXY } from "../../solvers/utils/blas";
 import { VRep } from "../../solvers/utils/polygon";
 import { ViewportManager } from "../viewport";
 
-const POPUP_ANIMATION_MS = 300;
 const TOUR_CURSOR_TRANSITION_MS = 700;
 const TOUR_DEFAULT_DELAY_MS = 300;
 const TOUR_STEP_PAUSE_MS = 250;
@@ -17,27 +17,25 @@ type TourStep =
   | { type: "draw-vertex"; point: PointXY }
   | { type: "close-polytope"; point: PointXY }
   | { type: "set-objective"; point: PointXY }
-  | { type: "click-button"; id: string };
+  | { type: "run-action"; target: OnboardingActionTarget };
 
 export function createOnboardingRuntime({
   canvasManager,
+  ui,
   saveHistory,
   sendPolytope,
-  getButtonTarget,
+  runAction,
 }: {
   canvasManager: ViewportManager;
+  ui: OnboardingUiController;
   saveHistory: () => void;
   sendPolytope: () => void;
-  getButtonTarget: (id: string) => HTMLElement | null;
+  runAction: (target: OnboardingActionTarget) => void;
 }) {
-  let cursor: HTMLElement | null = null;
   let running = false;
-  let allowNextClick = false;
   let clickBlocker: ((event: Event) => void) | null = null;
-  let nonconvexHintPopup: HTMLElement | null = null;
   let nonconvexHintTimer: number | null = null;
   let nonconvexHintShown = false;
-  let helpOverlayPopup: HTMLElement | null = null;
   let helpOverlayTimer: number | null = null;
   let helpOverlayShown = false;
   let lastHelpPhase: DrawingPhase | null = null;
@@ -61,15 +59,15 @@ export function createOnboardingRuntime({
     steps.push({ type: "wait", duration: 1000 });
     steps.push({ type: "set-objective", point: objective });
     steps.push({ type: "wait", duration: 1000 });
-    steps.push({ type: "click-button", id: "ipmButton" });
+    steps.push({ type: "run-action", target: "activate-ipm" });
     steps.push({ type: "wait", duration: 750 });
-    steps.push({ type: "click-button", id: "toggle3DButton" });
+    steps.push({ type: "run-action", target: "toggle-3d" });
     steps.push({ type: "wait", duration: 750 });
-    steps.push({ type: "click-button", id: "startRotateObjectiveButton" });
+    steps.push({ type: "run-action", target: "start-rotation" });
     steps.push({ type: "wait", duration: 2000 });
-    steps.push({ type: "click-button", id: "iteratePathButton" });
+    steps.push({ type: "run-action", target: "activate-central" });
     steps.push({ type: "wait", duration: 1500 });
-    steps.push({ type: "click-button", id: "traceCheckbox" });
+    steps.push({ type: "run-action", target: "toggle-trace" });
     return steps;
   };
 
@@ -103,12 +101,8 @@ export function createOnboardingRuntime({
         return;
       }
       clickBlocker = (event: Event) => {
-        if (allowNextClick) {
-          allowNextClick = false;
-          return;
-        }
         const target = event.target as HTMLElement;
-        if (target?.id === "tourCursor" || target?.closest("#helpPopup")) {
+        if (target?.id === "tourCursor" || target?.closest("#helpPopup") || target?.closest("#nonconvexHint")) {
           return;
         }
         event.preventDefault();
@@ -131,31 +125,11 @@ export function createOnboardingRuntime({
   };
 
   const ensureCursor = () => {
-    if (cursor) {
-      return;
-    }
-    cursor = document.createElement("div");
-    cursor.id = "tourCursor";
-    cursor.innerHTML = "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z\" fill=\"#4A90E2\" stroke=\"#fff\" stroke-width=\"1.5\"/></svg>";
-    Object.assign(cursor.style, {
-      position: "fixed",
-      zIndex: "10000",
-      width: "24px",
-      height: "24px",
-      pointerEvents: "none",
-      transition: `all ${TOUR_CURSOR_TRANSITION_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
-      transform: "translate(-25%, -25%)",
-      filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))",
-    });
-    document.body.appendChild(cursor);
+    ui.showCursor();
   };
 
   const moveCursorToScreen = async (x: number, y: number) => {
-    if (!cursor) {
-      return;
-    }
-    cursor.style.left = `${x}px`;
-    cursor.style.top = `${y}px`;
+    ui.moveCursor(x, y);
     await delay(TOUR_CURSOR_TRANSITION_MS);
   };
 
@@ -165,14 +139,9 @@ export function createOnboardingRuntime({
   };
 
   const animateCursorClick = async () => {
-    if (!cursor) {
-      return;
-    }
-    cursor.style.transform = "translate(-25%, -25%) scale(1.8)";
-    cursor.style.filter = "drop-shadow(2px 2px 8px rgba(74,144,226,0.6))";
+    ui.setCursorClicking(true);
     await delay(TOUR_CURSOR_CLICK_ANIMATION_MS);
-    cursor.style.transform = "translate(-25%, -25%) scale(1)";
-    cursor.style.filter = "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))";
+    ui.setCursorClicking(false);
   };
 
   const resetWorkspace = () => {
@@ -194,16 +163,14 @@ export function createOnboardingRuntime({
     await delay(TOUR_CLICK_AT_POINT_DELAY_MS);
   };
 
-  const clickButton = async (id: string) => {
-    const element = getButtonTarget(id);
-    if (!element) {
-      return;
+  const clickActionTarget = async (target: OnboardingActionTarget) => {
+    const element = ui.getActionTarget(target);
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      await moveCursorToScreen(rect.left + rect.width / 2, rect.top + rect.height / 2);
     }
-    const rect = element.getBoundingClientRect();
-    await moveCursorToScreen(rect.left + rect.width / 2, rect.top + rect.height / 2);
     await animateCursorClick();
-    allowNextClick = true;
-    element.click();
+    runAction(target);
     await delay(TOUR_BUTTON_CLICK_DELAY_MS);
   };
 
@@ -212,8 +179,8 @@ export function createOnboardingRuntime({
       await delay(step.duration);
       return;
     }
-    if (step.type === "click-button") {
-      await clickButton(step.id);
+    if (step.type === "run-action") {
+      await clickActionTarget(step.target);
       return;
     }
     if (step.type === "draw-vertex") {
@@ -251,8 +218,7 @@ export function createOnboardingRuntime({
 
   const stop = () => {
     running = false;
-    cursor?.remove();
-    cursor = null;
+    ui.hideCursor();
     setClickBlocker(false);
     setState({ currentMouse: null, currentObjective: null, tourActive: false });
     canvasManager.draw();
@@ -285,101 +251,13 @@ export function createOnboardingRuntime({
     }
   };
 
-  const createOverlayPopup = (options: {
-    id: string;
-    text: string;
-    side: "left" | "right";
-    gradient: string;
-    onClick?: () => void;
-    onClose?: () => void;
-  }) => {
-    const popup = document.createElement("div");
-    popup.id = options.id;
-    popup.innerHTML = `
-      <div class="tour-popup__content">
-        <div class="tour-popup__text">${options.text}</div>
-        <button class="tour-popup__close" aria-label="Close">×</button>
-      </div>
-    `;
-    Object.assign(popup.style, {
-      position: "fixed",
-      bottom: "20px",
-      [options.side]: "20px",
-      background: options.gradient,
-      color: "#fff",
-      borderRadius: "12px",
-      boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-      zIndex: "9999",
-      fontFamily: "JuliaMono, monospace",
-      cursor: "pointer",
-      transform: "translateY(100px)",
-      opacity: "0",
-      transition: `all ${POPUP_ANIMATION_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
-      backdropFilter: "blur(10px)",
-      border: "1px solid rgba(255,255,255,0.15)",
-      maxWidth: "min(320px, calc(100% - 40px))",
-    });
-    const content = popup.querySelector(".tour-popup__content") as HTMLElement;
-    Object.assign(content.style, {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "16px 20px",
-      gap: "12px",
-    });
-    const closeButton = popup.querySelector(".tour-popup__close") as HTMLButtonElement;
-    Object.assign(closeButton.style, {
-      background: "rgba(255,255,255,0.2)",
-      border: "none",
-      color: "#fff",
-      width: "24px",
-      height: "24px",
-      borderRadius: "50%",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "16px",
-    });
-    closeButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      options.onClose?.();
-    });
-    if (options.onClick) {
-      popup.addEventListener("click", (event) => {
-        if (event.target === closeButton) {
-          return;
-        }
-        options.onClick?.();
-      });
-    }
-    return popup;
-  };
-
-  const showOverlayPopup = (popup: HTMLElement) => {
-    document.body.appendChild(popup);
-    requestAnimationFrame(() => {
-      Object.assign(popup.style, { transform: "translateY(0)", opacity: "1" });
-    });
-  };
-
-  const dismissOverlayPopup = (popup: HTMLElement | null) => {
-    if (!popup) {
-      return;
-    }
-    Object.assign(popup.style, { transform: "translateY(100px)", opacity: "0" });
-    setTimeout(() => popup.remove(), POPUP_ANIMATION_MS);
-  };
-
   const dismissNonconvexHint = () => {
     nonconvexHintShown = false;
     if (nonconvexHintTimer !== null) {
       clearTimeout(nonconvexHintTimer);
       nonconvexHintTimer = null;
     }
-    dismissOverlayPopup(nonconvexHintPopup);
-    nonconvexHintPopup = null;
+    ui.hideNonconvexHint();
   };
 
   const scheduleNonconvexHint = () => {
@@ -390,23 +268,20 @@ export function createOnboardingRuntime({
       dismissNonconvexHint();
       return;
     }
-    if (nonconvexHintShown || nonconvexHintTimer !== null || nonconvexHintPopup) {
+    if (nonconvexHintShown || nonconvexHintTimer !== null) {
       return;
     }
     nonconvexHintTimer = window.setTimeout(() => {
       nonconvexHintTimer = null;
-      if (getState().tourActive || nonconvexHintPopup) {
+      if (getState().tourActive) {
         return;
       }
       nonconvexHintShown = true;
-      nonconvexHintPopup = createOverlayPopup({
-        id: "nonconvexHint",
+      ui.showNonconvexHint({
         text: "Tip: double-click inside the polytope to replace it with its convex hull.",
-        side: "left",
         gradient: "linear-gradient(135deg,#ff9966 0%,#ff5e62 100%)",
         onClose: dismissNonconvexHint,
       });
-      showOverlayPopup(nonconvexHintPopup);
     }, 4000);
   };
 
@@ -415,19 +290,16 @@ export function createOnboardingRuntime({
       clearTimeout(helpOverlayTimer);
       helpOverlayTimer = null;
     }
-    dismissOverlayPopup(helpOverlayPopup);
-    helpOverlayPopup = null;
+    ui.hideHelpPopup();
   };
 
   const show = () => {
-    if (running || helpOverlayPopup) {
+    if (running || helpOverlayShown) {
       return;
     }
     helpOverlayShown = true;
-    helpOverlayPopup = createOverlayPopup({
-      id: "helpPopup",
+    ui.showHelpPopup({
       text: "Stuck? Try a random LP",
-      side: "right",
       gradient: "linear-gradient(135deg,#667eea 0%,#764ba2 100%)",
       onClose: dismiss,
       onClick: () => {
@@ -435,7 +307,6 @@ export function createOnboardingRuntime({
         void start();
       },
     });
-    showOverlayPopup(helpOverlayPopup);
   };
 
   const scheduleIfNeeded = () => {

@@ -2,6 +2,7 @@ import { CanvasStage } from "../components/layout/CanvasStage";
 import { Sidebar } from "../components/layout/Sidebar";
 import { useSidebarLayout } from "../components/layout/useSidebarLayout";
 import { LpvizRuntimeProvider } from "./lpvizRuntime";
+import { OnboardingUiProvider } from "./onboardingUi";
 import { SmallScreenOverlay } from "./SmallScreenOverlay";
 
 function AppContent() {
@@ -19,7 +20,9 @@ function AppContent() {
 export function App() {
   return (
     <LpvizRuntimeProvider>
-      <AppContent />
+      <OnboardingUiProvider>
+        <AppContent />
+      </OnboardingUiProvider>
     </LpvizRuntimeProvider>
   );
 }
