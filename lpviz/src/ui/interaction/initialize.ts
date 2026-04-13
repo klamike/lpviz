@@ -1,7 +1,7 @@
 import JSONCrush from "jsoncrush";
 import type { LegacyRuntimeElements } from "../../app/legacyRuntimeElements";
 import { registerLpvizRuntimeCommands } from "../../app/lpvizRuntime";
-import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
+import { DEFAULT_VIEW_ANGLE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
 import type { DrawingPhase, SolverMode } from "../../state/store";
 import { subscribe } from "../../state/store";
 import { applyCentralPathResult, applyIPMResult, applyPDHGResult, applySimplexResult } from "../../solvers/worker/solverService";
@@ -29,25 +29,11 @@ export async function initializeUI(
 ): Promise<LegacyUiCleanup> {
   const {
     canvas,
-    shareButton,
-    zoomButton,
-    unzoomButton,
-    toggle3DButton,
-    toggleZOffsetButton,
-    zScaleSlider,
     sidebarHandle,
     sidebar,
     topResult,
     result: resultDiv,
     resultVirtualHost,
-    iteratePathButton,
-    ipmButton,
-    simplexButton,
-    pdhgButton,
-    animateButton,
-    startRotateObjectiveButton: startRotateButton,
-    stopRotateObjectiveButton: stopRotateButton,
-    objectiveRotationSettings: rotationSettings,
   } = runtimeElements;
   const POPUP_ANIMATION_MS = 300;
   const TOUR_CURSOR_TRANSITION_MS = 700;
@@ -115,6 +101,43 @@ export async function initializeUI(
     },
     stopRotation() {
       solverRuntime.stopRotation();
+    },
+    share() {
+      uiRuntime.share();
+    },
+    zoomToFit() {
+      uiRuntime.zoomToFitCurrentPolytope();
+    },
+    resetView() {
+      uiRuntime.resetView();
+    },
+    toggle3D() {
+      uiRuntime.toggle3D();
+    },
+    toggleZOffset() {
+      uiRuntime.toggleZOffsetOnly();
+    },
+    setZScale(value) {
+      setState({ zScale: value }, { viewportDirty: canvasManager.getZScaleDirtyFlags() });
+      const { is3DMode, isTransitioning3D } = getState();
+      if (is3DMode || isTransitioning3D) {
+        canvasManager.draw();
+      }
+    },
+    setActiveSolverMode(mode) {
+      uiRuntime.setActiveSolverMode(mode, true);
+    },
+    beginResize(clientX) {
+      uiRuntime.beginResize(clientX);
+    },
+    updateResize(clientX) {
+      uiRuntime.updateResize(clientX);
+    },
+    finishResize() {
+      uiRuntime.finishResize();
+    },
+    scheduleViewportSync() {
+      uiRuntime.scheduleViewportSync();
     },
   }));
   const historyRuntime = {
@@ -187,7 +210,6 @@ export async function initializeUI(
   const solverControls = [
     {
       mode: "central",
-      button: iteratePathButton,
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) &&
         (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded") &&
@@ -232,7 +254,6 @@ export async function initializeUI(
     },
     {
       mode: "ipm",
-      button: ipmButton,
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) && (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded"),
       getRunBlock: (state: State): ResultRenderPayload | null =>
@@ -275,7 +296,6 @@ export async function initializeUI(
     },
     {
       mode: "simplex",
-      button: simplexButton,
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) && (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded"),
       getRunBlock: (state: State): ResultRenderPayload | null =>
@@ -305,7 +325,6 @@ export async function initializeUI(
     },
     {
       mode: "pdhg",
-      button: pdhgButton,
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) && (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded"),
       getRunBlock: (): ResultRenderPayload | null => null,
@@ -351,7 +370,6 @@ export async function initializeUI(
     },
   ] satisfies Array<{
     mode: SolverMode;
-    button: HTMLButtonElement | null;
     isSelectable: (state: State) => boolean;
     getRunBlock: (state: State) => ResultRenderPayload | null;
     collectShareSettings: () => ShareSettings;
@@ -951,18 +969,8 @@ export async function initializeUI(
       }
     },
   };
-  const tourButtonTargets: Record<string, HTMLElement | null> = {
-    ipmButton,
-    toggle3DButton,
-    startRotateObjectiveButton: startRotateButton,
-    iteratePathButton,
-    traceCheckbox: null,
-  };
   const getTourButtonTarget = (id: string): HTMLElement | null => {
-    if (id === "traceCheckbox") {
-      return document.getElementById("traceCheckbox");
-    }
-    return tourButtonTargets[id] ?? null;
+    return document.getElementById(id);
   };
   const unsubscribeHelpOverlay = subscribe((state: State) => {
     const phase = computeDrawingPhase(state);
@@ -993,23 +1001,10 @@ export async function initializeUI(
     resetTraceState();
     canvasManager.draw();
   };
-  const setElementVisibility = (
-    element: HTMLElement,
-    visible: boolean,
-    visibleClass: "is-block" | "is-flex" | null = "is-block",
-  ) => {
-    element.style.removeProperty("display");
-    element.classList.toggle("is-hidden", !visible);
-    if (visibleClass) {
-      element.classList.toggle(visibleClass, visible);
-    }
-  };
   const uiRuntime = {
     hideNullStateMessage() {},
 
     syncButtonStates() {
-      zoomButton.disabled = false;
-      unzoomButton.disabled = false;
     },
 
     synchronize() {
@@ -1096,13 +1091,9 @@ export async function initializeUI(
       canvasManager.draw();
     },
 
-    setZScale() {
-      const newScale = parseFloat(zScaleSlider.value || DEFAULT_Z_SCALE.toString());
-      setState({ zScale: newScale }, { viewportDirty: canvasManager.getZScaleDirtyFlags() });
-      const { is3DMode, isTransitioning3D } = getState();
-      if (is3DMode || isTransitioning3D) {
-        canvasManager.draw();
-      }
+    share() {
+      const crushed = JSONCrush.crush(JSON.stringify(this.buildSharedState()));
+      window.prompt("Share this link:", `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`);
     },
 
     getMinSidebarWidth() {
@@ -1129,14 +1120,13 @@ export async function initializeUI(
       }, 16);
     },
 
-    beginResize(event: MouseEvent) {
+    beginResize(_clientX: number) {
       this.isResizing = true;
-      event.preventDefault();
     },
 
-    updateResize(event: MouseEvent) {
+    updateResize(clientX: number) {
       if (!this.isResizing) return;
-      const newWidth = Math.max(this.getMinSidebarWidth(), Math.min(event.clientX, 1000));
+      const newWidth = Math.max(this.getMinSidebarWidth(), Math.min(clientX, 1000));
       applySidebarWidth(newWidth, { draw: true, syncResponsive: true });
     },
 
@@ -1181,59 +1171,24 @@ export async function initializeUI(
     },
 
     initialize() {
-      this.bindControls();
+      bindEvent(window, "resize", () => {
+        this.scheduleViewportSync();
+      });
+      bindEvent(document, "mousemove", (event: MouseEvent) => {
+        this.updateResize(event.clientX);
+      });
+      bindEvent(document, "mouseup", () => {
+        this.finishResize();
+      });
       this.synchronize();
       syncSidebarViewport();
       this.handleStartupParams();
       this.synchronize();
     },
-
-    bindControls() {
-      bindEvent(shareButton, "click", () => {
-        const crushed = JSONCrush.crush(JSON.stringify(this.buildSharedState()));
-        window.prompt("Share this link:", `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`);
-      });
-
-      solverControls.forEach(({ button, mode }) => {
-        bindEvent(button, "click", () => {
-          this.setActiveSolverMode(mode, true);
-        });
-      });
-
-      bindEvent(window, "resize", () => {
-        this.scheduleViewportSync();
-      });
-      bindEvent(zoomButton, "click", () => {
-        this.zoomToFitCurrentPolytope();
-      });
-      bindEvent(unzoomButton, "click", () => {
-        this.resetView();
-      });
-      bindEvent(toggle3DButton, "click", () => {
-        this.toggle3D();
-      });
-      bindEvent(toggleZOffsetButton, "click", () => {
-        this.toggleZOffsetOnly();
-      });
-      bindEvent(zScaleSlider, "input", () => {
-        this.setZScale();
-      });
-      bindEvent(sidebarHandle, "mousedown", (event: MouseEvent) => {
-        this.beginResize(event);
-      });
-      bindEvent(document, "mousemove", (event: MouseEvent) => {
-        this.updateResize(event);
-      });
-      bindEvent(document, "mouseup", () => {
-        this.finishResize();
-      });
-    },
   };
   const solverRuntime = createSolverRuntime({
     canvasManager,
     getSolverControl,
-    rotationSettings,
-    setElementVisibility,
     resultRuntime,
     uiRuntime: {
       syncButtonStates: () => uiRuntime.syncButtonStates(),
@@ -1255,15 +1210,6 @@ export async function initializeUI(
   );
   registerCleanup(() => {
     teardownCanvasInteractions();
-  });
-  bindEvent(animateButton, "click", () => {
-    solverRuntime.startReplay();
-  });
-  bindEvent(startRotateButton, "click", () => {
-    solverRuntime.startRotation();
-  });
-  bindEvent(stopRotateButton, "click", () => {
-    solverRuntime.stopRotation();
   });
   uiRuntime.initialize();
 

@@ -1,4 +1,3 @@
-import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
@@ -9,7 +8,6 @@ import {
 } from "../../app/uiSelectors";
 
 export function SolverControlsPanel() {
-  const refs = useLegacyRuntimeElementRefs();
   const solverControlsUiState = useLpvizSelector(selectSolverControlsUiState, areSolverControlsUiStatesEqual);
   const settings = useLpvizSelector(selectSolverSettings, areSolverSettingsEqual);
 
@@ -18,33 +16,33 @@ export function SolverControlsPanel() {
       <div className="button-group">
         <button
           id="ipmButton"
-          ref={refs.ipmButton}
           className={solverControlsUiState.buttons.ipm.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.ipm.disabled}
+          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("ipm")}
         >
           IPM
         </button>
         <button
           id="pdhgButton"
-          ref={refs.pdhgButton}
           className={solverControlsUiState.buttons.pdhg.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.pdhg.disabled}
+          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("pdhg")}
         >
           PDHG
         </button>
         <button
           id="simplexButton"
-          ref={refs.simplexButton}
           className={solverControlsUiState.buttons.simplex.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.simplex.disabled}
+          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("simplex")}
         >
           Simplex
         </button>
         <button
           id="iteratePathButton"
-          ref={refs.iteratePathButton}
           className={solverControlsUiState.buttons.central.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.central.disabled}
+          onClick={() => lpvizRuntimeCommands.setActiveSolverMode("central")}
         >
           Central Path
         </button>

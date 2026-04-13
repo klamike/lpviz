@@ -19,15 +19,11 @@ type SolverControl = {
 export function createSolverRuntime({
   canvasManager,
   getSolverControl,
-  rotationSettings,
-  setElementVisibility,
   resultRuntime,
   uiRuntime,
 }: {
   canvasManager: ViewportManager;
   getSolverControl: (mode: SolverMode) => SolverControl | undefined;
-  rotationSettings: HTMLElement;
-  setElementVisibility: (element: HTMLElement, visible: boolean, visibleClass?: "is-block" | "is-flex" | null) => void;
   resultRuntime: {
     render: (payload: ResultRenderPayload, options?: { limitVirtualRows?: boolean }) => void;
     restoreFullVirtualResult: () => void;
@@ -212,7 +208,6 @@ export function createSolverRuntime({
         rotateObjectiveMode: active,
         highlightIteratePathIndex: null,
       }, { viewportDirty: canvasManager.getIterateDirtyFlags() });
-      setElementVisibility(rotationSettings, active);
       uiRuntime.syncButtonStates();
       if (!active) {
         resultRuntime.restoreFullVirtualResult();
@@ -235,7 +230,6 @@ export function createSolverRuntime({
         highlightIteratePathIndex: null,
         animationIntervalId: null,
       }, { viewportDirty: canvasManager.getIterateDirtyFlags() });
-      setElementVisibility(rotationSettings, false);
       uiRuntime.syncButtonStates();
       if (wasRotating) {
         resultRuntime.restoreFullVirtualResult();

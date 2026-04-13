@@ -1,4 +1,4 @@
-import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { useRef } from "react";
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
@@ -7,29 +7,30 @@ import {
   selectInequalitiesUiState,
   selectTopResultUiState,
 } from "../../app/uiSelectors";
+import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
 import { TerminalFrame } from "../layout/TerminalFrame";
 import { useNullStateLogo } from "./useNullStateLogo";
 
 export function TopResultPanel() {
   const refs = useLegacyRuntimeElementRefs();
+  const nullStateMessageRef = useRef<HTMLDivElement>(null);
   const topResultUiState = useLpvizSelector(selectTopResultUiState, areTopResultUiStatesEqual);
   const inequalitiesUiState = useLpvizSelector(selectInequalitiesUiState, areInequalitiesUiStatesEqual);
-  useNullStateLogo(refs.nullStateMessage);
+  useNullStateLogo(nullStateMessageRef);
 
   return (
     <TerminalFrame containerId="terminal-container2" delayClassName="scanlines--delay-8">
       <div id="topResult" ref={refs.topResult}>
-        <div id="nullStateMessage" ref={refs.nullStateMessage} className={topResultUiState.nullStateVisible ? undefined : "is-hidden"} aria-label="lpviz logo"></div>
-        <div id="maximize" ref={refs.maximize} className={topResultUiState.maximizeVisible ? "is-block" : "is-hidden"}>maximize</div>
+        <div id="nullStateMessage" ref={nullStateMessageRef} className={topResultUiState.nullStateVisible ? undefined : "is-hidden"} aria-label="lpviz logo"></div>
+        <div id="maximize" className={topResultUiState.maximizeVisible ? "is-block" : "is-hidden"}>maximize</div>
         <div
           id="objectiveDisplay"
-          ref={refs.objectiveDisplay}
           className={topResultUiState.objectiveActive ? "objective-item objective-active" : undefined}
         >
           {topResultUiState.objectiveDisplayText}
         </div>
-        <div id="subjectTo" ref={refs.subjectTo} className={topResultUiState.subjectToVisible ? "is-block" : "is-hidden"}>subject to</div>
-        <div id="inequalities" ref={refs.inequalities}>
+        <div id="subjectTo" className={topResultUiState.subjectToVisible ? "is-block" : "is-hidden"}>subject to</div>
+        <div id="inequalities">
           {inequalitiesUiState.message !== null
             ? inequalitiesUiState.message
             : inequalitiesUiState.items.map((inequality, index) => (

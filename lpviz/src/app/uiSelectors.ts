@@ -26,6 +26,7 @@ export type AnimationControlsUiState = {
   animateDisabled: boolean;
   startRotateDisabled: boolean;
   stopRotateDisabled: boolean;
+  rotateObjectiveMode: boolean;
   traceEnabled: boolean;
 };
 
@@ -106,6 +107,7 @@ export function selectAnimationControlsUiState(state: State): AnimationControlsU
     animateDisabled: !hasComputedLines || !hasSolution || isAnimating || isRotating,
     startRotateDisabled: !hasComputedLines || !hasObjective || isAnimating || isRotating,
     stopRotateDisabled: !isRotating,
+    rotateObjectiveMode: isRotating,
     traceEnabled: state.traceEnabled,
   };
 }
@@ -115,6 +117,7 @@ export function areAnimationControlsUiStatesEqual(a: AnimationControlsUiState, b
     a.animateDisabled === b.animateDisabled &&
     a.startRotateDisabled === b.startRotateDisabled &&
     a.stopRotateDisabled === b.stopRotateDisabled &&
+    a.rotateObjectiveMode === b.rotateObjectiveMode &&
     a.traceEnabled === b.traceEnabled
   );
 }
