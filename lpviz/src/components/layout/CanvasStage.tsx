@@ -1,8 +1,9 @@
-import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import { useRef } from "react";
+
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areCanvasControlsUiStatesEqual, selectCanvasControlsUiState } from "../../app/uiSelectors";
-import { useLegacyCanvasRuntime } from "./useLegacyCanvasRuntime";
+import { useCanvasRuntime } from "./useCanvasRuntime";
 
 export function CanvasStage({
   sidebarWidth,
@@ -11,13 +12,13 @@ export function CanvasStage({
   sidebarWidth: number;
   onResizeStart: () => void;
 }) {
-  const refs = useLegacyRuntimeElementRefs();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasControlsUiState = useLpvizSelector(selectCanvasControlsUiState, areCanvasControlsUiStatesEqual);
-  useLegacyCanvasRuntime(refs, sidebarWidth);
+  useCanvasRuntime(canvasRef, sidebarWidth);
 
   return (
     <main>
-      <canvas id="gridCanvas" ref={refs.canvas} tabIndex={0}></canvas>
+      <canvas id="gridCanvas" ref={canvasRef} tabIndex={0}></canvas>
       <div id="zoomControls">
         <button title="Reset Zoom (Home)" onClick={() => lpvizRuntimeCommands.resetView()}>
           <svg width="25" height="25" viewBox="0 0 24 24">
