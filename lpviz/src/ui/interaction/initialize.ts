@@ -1,4 +1,5 @@
 import type { RegisterLpvizRuntimeActions } from "../../app/lpvizRuntime";
+import type { OnboardingUiController } from "../../app/onboardingUi";
 import { getState, mutate, resetTraceState, setState, subscribe } from "../../state/store";
 import type { SolverMode } from "../../state/store";
 import { ViewportManager } from "../viewport";
@@ -25,6 +26,7 @@ export async function initializeCanvasRuntime(
   },
   runtime: {
     registerRuntimeActions: RegisterLpvizRuntimeActions;
+    onboardingUi: OnboardingUiController;
   },
 ): Promise<CanvasRuntimeCleanup> {
   const { canvas } = runtimeElements;
@@ -161,10 +163,27 @@ export async function initializeCanvasRuntime(
 
   onboardingRuntime = createOnboardingRuntime({
     canvasManager,
+    ui: runtime.onboardingUi,
     saveHistory: historyRuntime.save,
     sendPolytope: polytopeRuntime.send.bind(polytopeRuntime),
-    getButtonTarget(id) {
-      return document.getElementById(id);
+    runAction(action) {
+      if (action === "activate-ipm") {
+        uiRuntime.setActiveSolverMode("ipm", true);
+        return;
+      }
+      if (action === "activate-central") {
+        uiRuntime.setActiveSolverMode("central", true);
+        return;
+      }
+      if (action === "toggle-3d") {
+        uiRuntime.toggle3D();
+        return;
+      }
+      if (action === "start-rotation") {
+        getSolverRuntime().startRotation();
+        return;
+      }
+      getSolverRuntime().setTraceEnabled(!getState().traceEnabled);
     },
   });
 

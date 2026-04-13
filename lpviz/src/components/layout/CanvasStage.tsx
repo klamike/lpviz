@@ -1,6 +1,7 @@
 import { useRef } from "react";
 
 import { useLpvizRuntime } from "../../app/lpvizRuntime";
+import { useOnboardingActionTarget } from "../../app/onboardingUi";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areCanvasControlsUiStatesEqual, selectCanvasControlsUiState } from "../../app/uiSelectors";
 import { useCanvasRuntime } from "./useCanvasRuntime";
@@ -14,6 +15,7 @@ export function CanvasStage({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeActions = useLpvizRuntime();
+  const toggle3DTargetRef = useOnboardingActionTarget("toggle-3d");
   const canvasControlsUiState = useLpvizSelector(selectCanvasControlsUiState, areCanvasControlsUiStatesEqual);
   useCanvasRuntime(canvasRef, sidebarWidth);
 
@@ -42,6 +44,7 @@ export function CanvasStage({
         </button>
         <button
           id="toggle3DButton"
+          ref={toggle3DTargetRef}
           className={canvasControlsUiState.is3DMode ? "button-active" : undefined}
           title="Toggle 3D Mode"
           onClick={() => runtimeActions.toggle3D()}

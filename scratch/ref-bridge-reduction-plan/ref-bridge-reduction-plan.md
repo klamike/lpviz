@@ -520,9 +520,9 @@ Outcome:
 
 Tasks:
 
-- [ ] move popup/cursor DOM creation into React components or portals
-- [ ] replace `getTourButtonTarget(id)` with direct action calls where possible
-- [ ] only keep ids for CSS/testing compatibility, not runtime lookup
+- [x] move popup/cursor DOM creation into React components or portals
+- [x] replace `getTourButtonTarget(id)` with direct action calls where possible
+- [x] only keep ids for CSS/testing compatibility, not runtime lookup
 
 Likely files:
 
@@ -609,11 +609,11 @@ Mitigation:
 
 ## Immediate Next Step
 
-Phases 1, 2, 3, 4, 5, 6, 7, and 8 are done.
+Phases 1, 2, 3, 4, 5, 6, 7, 8, and 9 are done.
 
 The next practical coding task should be:
 
-1. start Phase 9 and port the remaining imperative UI DOM (tour / overlay)
-2. replace DOM button lookups and popup/cursor ownership with React-owned UI where practical
+1. do a cleanup pass on the remaining imperative canvas runtime surface
+2. optionally tighten tests/manual checks around tour, share/load, resize, and solver interactions
 
-That should leave the canvas runtime as the only meaningful imperative surface.
+That should leave any future work focused on polish rather than bridge removal.
