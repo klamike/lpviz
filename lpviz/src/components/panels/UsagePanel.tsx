@@ -52,7 +52,7 @@ export function UsagePanel() {
           </div>
         ) : null}
         {resultPanelUiState.mode === "blocks" && resultPanelUiState.blocks !== null ? (
-          <div id="resultBlocksContent">
+          <div>
             {resultPanelUiState.blocks.map((block, index) => (
               <div
                 key={`${index}-${block.className}-${block.text}`}
@@ -73,7 +73,6 @@ export function UsagePanel() {
         <div className={resultPanelUiState.mode === "virtual" ? undefined : "is-hidden"}>
           <div className="iterate-header">{resultPanelUiState.virtualHeader ?? ""}</div>
           <div
-            id="resultVirtualHost"
             ref={refs.resultVirtualHost}
             className="iterate-scroll"
           >

@@ -890,11 +890,3 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
     opacity: 0.8;
   }
 }
-
-
-#simplexSettings {
-    display: none !important;
-}
-#ipmColorByPhaseBox {
-    display: none !important;
-}

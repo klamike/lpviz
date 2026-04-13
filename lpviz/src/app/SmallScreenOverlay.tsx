@@ -17,7 +17,7 @@ export function SmallScreenOverlay() {
   const tooSmall = windowWidth < MIN_SCREEN_WIDTH;
 
   return (
-    <div id="smallScreenOverlay" className={`small-screen-overlay${tooSmall ? " is-flex" : " is-hidden"}`}>
+    <div className={`small-screen-overlay${tooSmall ? " is-flex" : " is-hidden"}`}>
       {`The window is not wide enough (${windowWidth}px < ${MIN_SCREEN_WIDTH}px) for lpviz.`}
     </div>
   );
