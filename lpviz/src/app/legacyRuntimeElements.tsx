@@ -10,7 +10,6 @@ export type LegacyRuntimeElements = {
   zScaleSlider: HTMLInputElement;
   sidebarHandle: HTMLDivElement;
   sidebar: HTMLDivElement;
-  replaySpeedSlider: HTMLInputElement;
   topResult: HTMLDivElement;
   nullStateMessage: HTMLDivElement;
   maximize: HTMLDivElement;
@@ -22,31 +21,11 @@ export type LegacyRuntimeElements = {
   iteratePathButton: HTMLButtonElement;
   ipmButton: HTMLButtonElement;
   simplexButton: HTMLButtonElement;
-  simplexDualMode: HTMLInputElement;
   pdhgButton: HTMLButtonElement;
   animateButton: HTMLButtonElement;
   startRotateObjectiveButton: HTMLButtonElement;
   stopRotateObjectiveButton: HTMLButtonElement;
-  traceCheckbox: HTMLInputElement;
   objectiveRotationSettings: HTMLDivElement;
-  alphaMaxSlider: HTMLInputElement;
-  correctorThresholdSlider: HTMLInputElement;
-  ipmColorByPhase: HTMLInputElement;
-  pdhgEtaSlider: HTMLInputElement;
-  pdhgTauSlider: HTMLInputElement;
-  centralPathIterSlider: HTMLInputElement;
-  objectiveAngleStepSlider: HTMLInputElement;
-  objectiveRotationSpeedSlider: HTMLInputElement;
-  maxitInput: HTMLInputElement;
-  maxitInputPDHG: HTMLInputElement;
-  pdhgIneqMode: HTMLInputElement;
-  pdhgHalpernMode: HTMLInputElement;
-  pdhgColorByBasis: HTMLInputElement;
-  alphaMaxValue: HTMLSpanElement;
-  correctorThresholdValue: HTMLSpanElement;
-  pdhgEtaValue: HTMLSpanElement;
-  pdhgTauValue: HTMLSpanElement;
-  centralPathIterValue: HTMLSpanElement;
 };
 
 export type LegacyRuntimeElementRefs = {
@@ -66,7 +45,6 @@ export function LegacyRuntimeElementsProvider({ children }: PropsWithChildren) {
     zScaleSlider: createRef<HTMLInputElement>(),
     sidebarHandle: createRef<HTMLDivElement>(),
     sidebar: createRef<HTMLDivElement>(),
-    replaySpeedSlider: createRef<HTMLInputElement>(),
     topResult: createRef<HTMLDivElement>(),
     nullStateMessage: createRef<HTMLDivElement>(),
     maximize: createRef<HTMLDivElement>(),
@@ -78,31 +56,11 @@ export function LegacyRuntimeElementsProvider({ children }: PropsWithChildren) {
     iteratePathButton: createRef<HTMLButtonElement>(),
     ipmButton: createRef<HTMLButtonElement>(),
     simplexButton: createRef<HTMLButtonElement>(),
-    simplexDualMode: createRef<HTMLInputElement>(),
     pdhgButton: createRef<HTMLButtonElement>(),
     animateButton: createRef<HTMLButtonElement>(),
     startRotateObjectiveButton: createRef<HTMLButtonElement>(),
     stopRotateObjectiveButton: createRef<HTMLButtonElement>(),
-    traceCheckbox: createRef<HTMLInputElement>(),
     objectiveRotationSettings: createRef<HTMLDivElement>(),
-    alphaMaxSlider: createRef<HTMLInputElement>(),
-    correctorThresholdSlider: createRef<HTMLInputElement>(),
-    ipmColorByPhase: createRef<HTMLInputElement>(),
-    pdhgEtaSlider: createRef<HTMLInputElement>(),
-    pdhgTauSlider: createRef<HTMLInputElement>(),
-    centralPathIterSlider: createRef<HTMLInputElement>(),
-    objectiveAngleStepSlider: createRef<HTMLInputElement>(),
-    objectiveRotationSpeedSlider: createRef<HTMLInputElement>(),
-    maxitInput: createRef<HTMLInputElement>(),
-    maxitInputPDHG: createRef<HTMLInputElement>(),
-    pdhgIneqMode: createRef<HTMLInputElement>(),
-    pdhgHalpernMode: createRef<HTMLInputElement>(),
-    pdhgColorByBasis: createRef<HTMLInputElement>(),
-    alphaMaxValue: createRef<HTMLSpanElement>(),
-    correctorThresholdValue: createRef<HTMLSpanElement>(),
-    pdhgEtaValue: createRef<HTMLSpanElement>(),
-    pdhgTauValue: createRef<HTMLSpanElement>(),
-    centralPathIterValue: createRef<HTMLSpanElement>(),
   }), []);
 
   return <LegacyRuntimeElementRefsContext.Provider value={refs}>{children}</LegacyRuntimeElementRefsContext.Provider>;

@@ -1,4 +1,4 @@
-import { computeDrawingPhase, type SolverMode, type State } from "../state/store";
+import { computeDrawingPhase, type SolverMode, type SolverSettings, type State } from "../state/store";
 import { isObjectiveDirectionUnbounded } from "../solvers/utils/objectiveDirection";
 import { hasPolytopeLines } from "../solvers/utils/polytopeTypes";
 import type { ResultTextBlock } from "../ui/resultPayload";
@@ -26,6 +26,7 @@ export type AnimationControlsUiState = {
   animateDisabled: boolean;
   startRotateDisabled: boolean;
   stopRotateDisabled: boolean;
+  traceEnabled: boolean;
 };
 
 export type TopResultUiState = {
@@ -105,6 +106,7 @@ export function selectAnimationControlsUiState(state: State): AnimationControlsU
     animateDisabled: !hasComputedLines || !hasSolution || isAnimating || isRotating,
     startRotateDisabled: !hasComputedLines || !hasObjective || isAnimating || isRotating,
     stopRotateDisabled: !isRotating,
+    traceEnabled: state.traceEnabled,
   };
 }
 
@@ -112,7 +114,8 @@ export function areAnimationControlsUiStatesEqual(a: AnimationControlsUiState, b
   return (
     a.animateDisabled === b.animateDisabled &&
     a.startRotateDisabled === b.startRotateDisabled &&
-    a.stopRotateDisabled === b.stopRotateDisabled
+    a.stopRotateDisabled === b.stopRotateDisabled &&
+    a.traceEnabled === b.traceEnabled
   );
 }
 
@@ -245,6 +248,30 @@ function isSolverSelectable(state: State, mode: SolverMode): boolean {
   }
 
   return !isObjectiveDirectionUnbounded(state.polytope.lines, [state.objectiveVector.x, state.objectiveVector.y]);
+}
+
+export function selectSolverSettings(state: State): SolverSettings {
+  return state.solverSettings;
+}
+
+export function areSolverSettingsEqual(a: SolverSettings, b: SolverSettings): boolean {
+  return (
+    a.alphaMax === b.alphaMax &&
+    a.correctorThreshold === b.correctorThreshold &&
+    a.maxitIPM === b.maxitIPM &&
+    a.ipmColorByPhase === b.ipmColorByPhase &&
+    a.simplexDualMode === b.simplexDualMode &&
+    a.pdhgEta === b.pdhgEta &&
+    a.pdhgTau === b.pdhgTau &&
+    a.maxitPDHG === b.maxitPDHG &&
+    a.pdhgIneqMode === b.pdhgIneqMode &&
+    a.pdhgHalpernMode === b.pdhgHalpernMode &&
+    a.pdhgColorByBasis === b.pdhgColorByBasis &&
+    a.centralPathIter === b.centralPathIter &&
+    a.objectiveAngleStep === b.objectiveAngleStep &&
+    a.objectiveRotationSpeed === b.objectiveRotationSpeed &&
+    a.replaySpeed === b.replaySpeed
+  );
 }
 
 function formatObjectiveDisplay(objectiveVector: State["objectiveVector"]): string {

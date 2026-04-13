@@ -1,7 +1,6 @@
 import JSONCrush from "jsoncrush";
 import type { LegacyRuntimeElements } from "../../app/legacyRuntimeElements";
 import { registerLpvizRuntimeCommands } from "../../app/lpvizRuntime";
-import { MIN_SCREEN_WIDTH } from "../../app/uiConstants";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE, computeDrawingPhase, getState, mutate, resetTraceState, setState } from "../../state/store";
 import type { DrawingPhase, SolverMode } from "../../state/store";
 import { subscribe } from "../../state/store";
@@ -38,41 +37,17 @@ export async function initializeUI(
     zScaleSlider,
     sidebarHandle,
     sidebar,
-    replaySpeedSlider,
     topResult,
-    nullStateMessage,
-    maximize,
-    objectiveDisplay,
     result: resultDiv,
     resultVirtualHost,
     iteratePathButton,
     ipmButton,
     simplexButton,
-    simplexDualMode,
     pdhgButton,
     animateButton,
     startRotateObjectiveButton: startRotateButton,
     stopRotateObjectiveButton: stopRotateButton,
-    traceCheckbox,
     objectiveRotationSettings: rotationSettings,
-    alphaMaxSlider,
-    correctorThresholdSlider,
-    ipmColorByPhase,
-    pdhgEtaSlider,
-    pdhgTauSlider,
-    centralPathIterSlider,
-    objectiveAngleStepSlider,
-    objectiveRotationSpeedSlider,
-    maxitInput,
-    maxitInputPDHG,
-    pdhgIneqMode,
-    pdhgHalpernMode,
-    pdhgColorByBasis,
-    alphaMaxValue,
-    correctorThresholdValue,
-    pdhgEtaValue,
-    pdhgTauValue,
-    centralPathIterValue,
   } = runtimeElements;
   const POPUP_ANIMATION_MS = 300;
   const TOUR_CURSOR_TRANSITION_MS = 700;
@@ -100,6 +75,12 @@ export async function initializeUI(
   };
 
   const canvasManager = await ViewportManager.create(canvas);
+  const updateSolverSetting = <K extends keyof import("../../state/store").SolverSettings>(key: K, value: import("../../state/store").SolverSettings[K]) => {
+    mutate((draft) => {
+      draft.solverSettings[key] = value;
+    });
+  };
+
   registerCleanup(registerLpvizRuntimeCommands({
     setConstraintHighlight(index) {
       if (getState().highlightIndex === index) {
@@ -116,6 +97,24 @@ export async function initializeUI(
 
       setState({ highlightIteratePathIndex: index }, { viewportDirty: canvasManager.getIterateDirtyFlags() });
       canvasManager.draw();
+    },
+    updateSolverSetting,
+    recomputeIfModeActive(mode) {
+      resetTraceAndRedrawIfNeeded();
+      solverRuntime.recomputeIfModeActive(mode);
+      syncResponsiveUi({ forceResultFont: true });
+    },
+    setTraceEnabled(enabled) {
+      solverRuntime.setTraceEnabled(enabled);
+    },
+    startReplay() {
+      solverRuntime.startReplay();
+    },
+    startRotation() {
+      solverRuntime.startRotation();
+    },
+    stopRotation() {
+      solverRuntime.stopRotation();
     },
   }));
   const historyRuntime = {
@@ -173,10 +172,6 @@ export async function initializeUI(
       polytopeRuntime.send();
     },
   };
-  const readSolverNumber = (value: string, fallback = 0): number => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  };
   const createResultBlock = (className: ResultTextBlock["className"], text: string, index?: number): ResultTextBlock => ({
     className,
     text,
@@ -212,10 +207,13 @@ export async function initializeUI(
         return null;
       },
       collectShareSettings: (): ShareSettings => ({
-        centralPathIter: parseInt(centralPathIterSlider.value, 10),
+        centralPathIter: getState().solverSettings.centralPathIter,
       }),
-      applySharedSettings: (settings: ShareSettings) =>
-        applySliderSetting(settings.centralPathIter, centralPathIterSlider, centralPathIterValue, 0),
+      applySharedSettings: (settings: ShareSettings) => {
+        if (settings.centralPathIter !== undefined) {
+          updateSolverSetting("centralPathIter", settings.centralPathIter);
+        }
+      },
       buildRequest: (state: State) => {
         if (!state.objectiveVector || !hasPolytopeLines(state.polytope) || !state.polytope) {
           return null;
@@ -225,7 +223,7 @@ export async function initializeUI(
           vertices: state.polytope.vertices,
           lines: state.polytope.lines,
           objective: [state.objectiveVector.x, state.objectiveVector.y],
-          niter: Math.max(1, parseInt(centralPathIterSlider.value, 10) || 1),
+          niter: Math.max(1, state.solverSettings.centralPathIter || 1),
         };
       },
       applyResult: (response: SolverWorkerSuccessResponse, updateResult: (payload: ResultRenderPayload) => void) => {
@@ -241,34 +239,34 @@ export async function initializeUI(
         hasPolytopeLines(state.polytope) && state.polytope.kind === "empty"
           ? createMessageResult("No valid region", "IPM requires a feasible region.")
           : null,
-      collectShareSettings: (): ShareSettings => ({
-        alphaMax: parseFloat(alphaMaxSlider.value),
-        correctorThreshold: parseFloat(correctorThresholdSlider.value),
-        maxitIPM: parseInt(maxitInput.value, 10),
-        ipmColorByPhase: ipmColorByPhase.checked,
-      }),
+      collectShareSettings: (): ShareSettings => {
+        const s = getState().solverSettings;
+        return {
+          alphaMax: s.alphaMax,
+          correctorThreshold: s.correctorThreshold,
+          maxitIPM: s.maxitIPM,
+          ipmColorByPhase: s.ipmColorByPhase,
+        };
+      },
       applySharedSettings: (settings: ShareSettings) => {
-        applySliderSetting(settings.alphaMax, alphaMaxSlider, alphaMaxValue, 3);
-        applySliderSetting(settings.correctorThreshold, correctorThresholdSlider, correctorThresholdValue, 3);
-        if (settings.maxitIPM !== undefined) {
-          maxitInput.value = settings.maxitIPM.toString();
-        }
-        if (settings.ipmColorByPhase !== undefined) {
-          ipmColorByPhase.checked = settings.ipmColorByPhase;
-        }
+        if (settings.alphaMax !== undefined) updateSolverSetting("alphaMax", settings.alphaMax);
+        if (settings.correctorThreshold !== undefined) updateSolverSetting("correctorThreshold", settings.correctorThreshold);
+        if (settings.maxitIPM !== undefined) updateSolverSetting("maxitIPM", settings.maxitIPM);
+        if (settings.ipmColorByPhase !== undefined) updateSolverSetting("ipmColorByPhase", settings.ipmColorByPhase);
       },
       buildRequest: (state: State) => {
         if (!state.objectiveVector || !hasPolytopeLines(state.polytope)) {
           return null;
         }
+        const s = state.solverSettings;
         return {
           solver: "ipm",
           lines: state.polytope.lines,
           objective: [state.objectiveVector.x, state.objectiveVector.y],
-          alphaMax: readSolverNumber(alphaMaxSlider.value),
-          correctorThreshold: readSolverNumber(correctorThresholdSlider.value, 0.9),
-          maxit: Math.max(1, parseInt(maxitInput.value, 10) || 1),
-          colorByPhase: ipmColorByPhase.checked,
+          alphaMax: s.alphaMax,
+          correctorThreshold: s.correctorThreshold,
+          maxit: Math.max(1, s.maxitIPM || 1),
+          colorByPhase: s.ipmColorByPhase,
         };
       },
       applyResult: (response: SolverWorkerSuccessResponse, updateResult: (payload: ResultRenderPayload) => void) => {
@@ -285,12 +283,10 @@ export async function initializeUI(
           ? createMessageResult("No valid region", "Simplex requires a valid feasible region.")
           : null,
       collectShareSettings: (): ShareSettings => ({
-        simplexDualMode: simplexDualMode.checked,
+        simplexDualMode: getState().solverSettings.simplexDualMode,
       }),
       applySharedSettings: (settings: ShareSettings) => {
-        if (settings.simplexDualMode !== undefined) {
-          simplexDualMode.checked = settings.simplexDualMode;
-        }
+        if (settings.simplexDualMode !== undefined) updateSolverSetting("simplexDualMode", settings.simplexDualMode);
       },
       buildRequest: (state: State) => {
         if (!state.objectiveVector || !hasPolytopeLines(state.polytope)) {
@@ -300,7 +296,7 @@ export async function initializeUI(
           solver: "simplex",
           lines: state.polytope.lines,
           objective: [state.objectiveVector.x, state.objectiveVector.y],
-          dual: simplexDualMode.checked,
+          dual: state.solverSettings.simplexDualMode,
         };
       },
       applyResult: (response: SolverWorkerSuccessResponse, updateResult: (payload: ResultRenderPayload) => void) => {
@@ -313,44 +309,40 @@ export async function initializeUI(
       isSelectable: (state: State) =>
         hasPolytopeLines(state.polytope) && (state.polytope.kind === "bounded" || state.polytope.kind === "unbounded"),
       getRunBlock: (): ResultRenderPayload | null => null,
-      collectShareSettings: (): ShareSettings => ({
-        pdhgEta: parseFloat(pdhgEtaSlider.value),
-        pdhgTau: parseFloat(pdhgTauSlider.value),
-        maxitPDHG: parseInt(maxitInputPDHG.value, 10),
-        pdhgIneqMode: pdhgIneqMode.checked,
-        pdhgHalpernMode: pdhgHalpernMode.checked,
-        pdhgColorByBasis: pdhgColorByBasis.checked,
-      }),
+      collectShareSettings: (): ShareSettings => {
+        const s = getState().solverSettings;
+        return {
+          pdhgEta: s.pdhgEta,
+          pdhgTau: s.pdhgTau,
+          maxitPDHG: s.maxitPDHG,
+          pdhgIneqMode: s.pdhgIneqMode,
+          pdhgHalpernMode: s.pdhgHalpernMode,
+          pdhgColorByBasis: s.pdhgColorByBasis,
+        };
+      },
       applySharedSettings: (settings: ShareSettings) => {
-        applySliderSetting(settings.pdhgEta, pdhgEtaSlider, pdhgEtaValue, 3);
-        applySliderSetting(settings.pdhgTau, pdhgTauSlider, pdhgTauValue, 3);
-        if (settings.maxitPDHG !== undefined) {
-          maxitInputPDHG.value = settings.maxitPDHG.toString();
-        }
-        if (settings.pdhgIneqMode !== undefined) {
-          pdhgIneqMode.checked = settings.pdhgIneqMode;
-        }
-        if (settings.pdhgHalpernMode !== undefined) {
-          pdhgHalpernMode.checked = settings.pdhgHalpernMode;
-        }
-        if (settings.pdhgColorByBasis !== undefined) {
-          pdhgColorByBasis.checked = settings.pdhgColorByBasis;
-        }
+        if (settings.pdhgEta !== undefined) updateSolverSetting("pdhgEta", settings.pdhgEta);
+        if (settings.pdhgTau !== undefined) updateSolverSetting("pdhgTau", settings.pdhgTau);
+        if (settings.maxitPDHG !== undefined) updateSolverSetting("maxitPDHG", settings.maxitPDHG);
+        if (settings.pdhgIneqMode !== undefined) updateSolverSetting("pdhgIneqMode", settings.pdhgIneqMode);
+        if (settings.pdhgHalpernMode !== undefined) updateSolverSetting("pdhgHalpernMode", settings.pdhgHalpernMode);
+        if (settings.pdhgColorByBasis !== undefined) updateSolverSetting("pdhgColorByBasis", settings.pdhgColorByBasis);
       },
       buildRequest: (state: State) => {
         if (!state.objectiveVector || !hasPolytopeLines(state.polytope)) {
           return null;
         }
+        const s = state.solverSettings;
         return {
           solver: "pdhg",
           lines: state.polytope.lines,
           objective: [state.objectiveVector.x, state.objectiveVector.y],
-          ineq: pdhgIneqMode.checked,
-          halpern: pdhgHalpernMode.checked,
-          maxit: Math.max(1, parseInt(maxitInputPDHG.value, 10) || 1),
-          eta: readSolverNumber(pdhgEtaSlider.value),
-          tau: readSolverNumber(pdhgTauSlider.value),
-          colorByBasis: pdhgColorByBasis.checked,
+          ineq: s.pdhgIneqMode,
+          halpern: s.pdhgHalpernMode,
+          maxit: Math.max(1, s.maxitPDHG || 1),
+          eta: s.pdhgEta,
+          tau: s.pdhgTau,
+          colorByBasis: s.pdhgColorByBasis,
         };
       },
       applyResult: (response: SolverWorkerSuccessResponse, updateResult: (payload: ResultRenderPayload) => void) => {
@@ -865,7 +857,7 @@ export async function initializeUI(
     },
 
     async clickButton(id: string) {
-      const element = tourButtonTargets[id as keyof typeof tourButtonTargets];
+      const element = getTourButtonTarget(id);
       if (!element) return;
       const rect = element.getBoundingClientRect();
       await this.moveCursorToScreen(rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -959,13 +951,19 @@ export async function initializeUI(
       }
     },
   };
-  const tourButtonTargets = {
+  const tourButtonTargets: Record<string, HTMLElement | null> = {
     ipmButton,
     toggle3DButton,
     startRotateObjectiveButton: startRotateButton,
     iteratePathButton,
-    traceCheckbox,
-  } as const;
+    traceCheckbox: null,
+  };
+  const getTourButtonTarget = (id: string): HTMLElement | null => {
+    if (id === "traceCheckbox") {
+      return document.getElementById("traceCheckbox");
+    }
+    return tourButtonTargets[id] ?? null;
+  };
   const unsubscribeHelpOverlay = subscribe((state: State) => {
     const phase = computeDrawingPhase(state);
     if (state.objectiveVector !== null || state.tourActive) {
@@ -995,10 +993,6 @@ export async function initializeUI(
     resetTraceState();
     canvasManager.draw();
   };
-  const setSliderDisplay = (slider: HTMLInputElement, valueElement: HTMLElement | null, digits: number | null) => {
-    if (!valueElement || digits === null) return;
-    valueElement.textContent = parseFloat(slider.value).toFixed(digits);
-  };
   const setElementVisibility = (
     element: HTMLElement,
     visible: boolean,
@@ -1009,11 +1003,6 @@ export async function initializeUI(
     if (visibleClass) {
       element.classList.toggle(visibleClass, visible);
     }
-  };
-  const applySliderSetting = (value: number | undefined, slider: HTMLInputElement, valueElement: HTMLElement | null, digits: number | null) => {
-    if (value === undefined) return;
-    slider.value = value.toString();
-    setSliderDisplay(slider, valueElement, digits);
   };
   const uiRuntime = {
     hideNullStateMessage() {},
@@ -1029,16 +1018,17 @@ export async function initializeUI(
     },
 
     collectShareSettings(solverMode: SolverMode): ShareSettings {
+      const s = getState().solverSettings;
       const settings: ShareSettings = {
-        objectiveAngleStep: parseFloat(objectiveAngleStepSlider.value),
-        objectiveRotationSpeed: parseFloat(objectiveRotationSpeedSlider.value),
+        objectiveAngleStep: s.objectiveAngleStep,
+        objectiveRotationSpeed: s.objectiveRotationSpeed,
       };
       return { ...settings, ...(getSolverControl(solverMode)?.collectShareSettings() ?? {}) };
     },
 
     applySharedSettings(settings: ShareSettings = {}) {
-      applySliderSetting(settings.objectiveAngleStep, objectiveAngleStepSlider, null, null);
-      applySliderSetting(settings.objectiveRotationSpeed, objectiveRotationSpeedSlider, null, null);
+      if (settings.objectiveAngleStep !== undefined) updateSolverSetting("objectiveAngleStep", settings.objectiveAngleStep);
+      if (settings.objectiveRotationSpeed !== undefined) updateSolverSetting("objectiveRotationSpeed", settings.objectiveRotationSpeed);
       solverControls.forEach((solverControl) => solverControl.applySharedSettings(settings));
     },
 
@@ -1242,9 +1232,6 @@ export async function initializeUI(
   const solverRuntime = createSolverRuntime({
     canvasManager,
     getSolverControl,
-    objectiveAngleStepSlider,
-    objectiveRotationSpeedSlider,
-    replaySpeedSlider,
     rotationSettings,
     setElementVisibility,
     resultRuntime,
@@ -1269,84 +1256,15 @@ export async function initializeUI(
   registerCleanup(() => {
     teardownCanvasInteractions();
   });
-  const bindSolverControls = () => {
-    const bindSlider = (
-      slider: HTMLInputElement,
-      valueElement: HTMLElement | null,
-      digits: number | null,
-      onInput: () => void,
-    ) => {
-      setSliderDisplay(slider, valueElement, digits);
-      bindEvent(slider, "input", () => {
-        setSliderDisplay(slider, valueElement, digits);
-        onInput();
-        syncResponsiveUi({ forceResultFont: true });
-      });
-    };
-    const bindSolverInput = (
-      control: HTMLInputElement,
-      eventName: "input" | "change",
-      mode: SolverMode,
-    ) => {
-      bindEvent(control, eventName, () => {
-        resetTraceAndRedrawIfNeeded();
-        solverRuntime.recomputeIfModeActive(mode);
-        syncResponsiveUi({ forceResultFont: true });
-      });
-    };
-
-    traceCheckbox.checked = false;
-    bindEvent(traceCheckbox, "change", () => {
-      solverRuntime.setTraceEnabled(traceCheckbox.checked);
-    });
-    bindEvent(animateButton, "click", () => {
-      solverRuntime.startReplay();
-    });
-
-    bindSlider(alphaMaxSlider, alphaMaxValue, 3, () => {
-      resetTraceAndRedrawIfNeeded();
-      solverRuntime.recomputeIfModeActive("ipm");
-    });
-    bindSlider(correctorThresholdSlider, correctorThresholdValue, 3, () => {
-      resetTraceAndRedrawIfNeeded();
-      solverRuntime.recomputeIfModeActive("ipm");
-    });
-    bindSlider(pdhgEtaSlider, pdhgEtaValue, 3, () => {
-      resetTraceAndRedrawIfNeeded();
-      solverRuntime.recomputeIfModeActive("pdhg");
-    });
-    bindSlider(pdhgTauSlider, pdhgTauValue, 3, () => {
-      resetTraceAndRedrawIfNeeded();
-      solverRuntime.recomputeIfModeActive("pdhg");
-    });
-    bindSlider(centralPathIterSlider, centralPathIterValue, 0, () => {
-      resetTraceAndRedrawIfNeeded();
-      solverRuntime.recomputeIfModeActive("central");
-    });
-    bindSlider(objectiveAngleStepSlider, null, null, () => {
-      if (getState().traceEnabled) {
-        solverRuntime.syncTraceCapacity();
-        canvasManager.draw();
-      }
-    });
-    bindSlider(objectiveRotationSpeedSlider, null, null, () => {});
-
-    bindSolverInput(maxitInput, "input", "ipm");
-    bindSolverInput(ipmColorByPhase, "change", "ipm");
-    bindSolverInput(maxitInputPDHG, "input", "pdhg");
-    bindSolverInput(pdhgIneqMode, "change", "pdhg");
-    bindSolverInput(pdhgHalpernMode, "change", "pdhg");
-    bindSolverInput(pdhgColorByBasis, "change", "pdhg");
-    bindSolverInput(simplexDualMode, "change", "simplex");
-
-    bindEvent(startRotateButton, "click", () => {
-      solverRuntime.startRotation();
-    });
-    bindEvent(stopRotateButton, "click", () => {
-      solverRuntime.stopRotation();
-    });
-  };
-  bindSolverControls();
+  bindEvent(animateButton, "click", () => {
+    solverRuntime.startReplay();
+  });
+  bindEvent(startRotateButton, "click", () => {
+    solverRuntime.startRotation();
+  });
+  bindEvent(stopRotateButton, "click", () => {
+    solverRuntime.stopRotation();
+  });
   uiRuntime.initialize();
 
   return () => {
