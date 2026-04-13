@@ -492,10 +492,10 @@ Suggested split:
 
 Tasks:
 
-- [ ] extract self-contained runtime modules out of `initialize.ts`
-- [ ] pass domain dependencies, not whole bags of DOM nodes
-- [ ] keep the top-level initializer small and declarative
-- [ ] rename the initializer to match its actual responsibility after the split
+- [x] extract self-contained runtime modules out of `initialize.ts`
+- [x] pass domain dependencies, not whole bags of DOM nodes
+- [x] keep the top-level initializer small and declarative
+- [x] rename the initializer to match its actual responsibility after the split
 
 Likely files:
 
@@ -609,11 +609,11 @@ Mitigation:
 
 ## Immediate Next Step
 
-Phases 1, 2, 3, 4, 5, 6, and 7 are done.
+Phases 1, 2, 3, 4, 5, 6, 7, and 8 are done.
 
 The next practical coding task should be:
 
-1. start Phase 8 and split `initialize.ts` into smaller feature runtimes
-2. keep the top-level initializer focused on assembly only
+1. start Phase 9 and port the remaining imperative UI DOM (tour / overlay)
+2. replace DOM button lookups and popup/cursor ownership with React-owned UI where practical
 
-That should make the remaining imperative layer much easier to shrink.
+That should leave the canvas runtime as the only meaningful imperative surface.
