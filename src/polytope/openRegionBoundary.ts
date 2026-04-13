@@ -1,4 +1,4 @@
-import type { Lines, Vertices } from "../lib/math/blas";
+import type { Lines, Vertices } from "../math/blas";
 import { satisfiesLines } from "./feasibleRegion";
 
 export interface BoundaryRay {

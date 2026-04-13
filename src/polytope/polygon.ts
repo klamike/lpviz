@@ -1,4 +1,4 @@
-import type { PointXY, Vertices } from "../lib/math/blas";
+import type { PointXY, Vertices } from "../math/blas";
 
 interface BoundingBox {
   minX: number;

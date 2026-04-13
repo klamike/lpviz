@@ -1,5 +1,5 @@
-import type { ResultTextBlock } from "../features/solver/types/resultPayload";
-import type { Line, PointXY, PointXYZ, VecNs } from "../lib/math/blas";
+import type { ResultTextBlock } from "../features/solver/resultPayload";
+import type { Line, PointXY, PointXYZ, VecNs } from "../math/blas";
 import type { PolytopeRepresentation } from "../polytope/polytopeTypes";
 
 export const MAX_TRACE_POINT_SPRITES = 1200;
