@@ -23,7 +23,6 @@ export function SolverControlsPanel() {
           IPM
         </button>
         <button
-          id="pdhgButton"
           className={solverControlsUiState.buttons.pdhg.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.pdhg.disabled}
           onClick={() => lpvizRuntimeCommands.setActiveSolverMode("pdhg")}
@@ -31,7 +30,6 @@ export function SolverControlsPanel() {
           PDHG
         </button>
         <button
-          id="simplexButton"
           className={solverControlsUiState.buttons.simplex.active ? "button-active" : undefined}
           disabled={solverControlsUiState.buttons.simplex.disabled}
           onClick={() => lpvizRuntimeCommands.setActiveSolverMode("simplex")}
@@ -49,12 +47,11 @@ export function SolverControlsPanel() {
       </div>
 
       <div
-        id="ipmSettings"
         className={solverControlsUiState.activeMode === "ipm" ? "settings-section is-block" : "settings-section is-hidden"}
       >
         <label htmlFor="alphaMaxSlider">
           {"\u03B1"}max (maximum step size ratio):
-          <span id="alphaMaxValue">{settings.alphaMax.toFixed(3)}</span>
+          <span>{settings.alphaMax.toFixed(3)}</span>
         </label>
         <input
           type="range"
@@ -72,7 +69,7 @@ export function SolverControlsPanel() {
         <br />
         <label htmlFor="correctorThresholdSlider">
           Corrector threshold:
-          <span id="correctorThresholdValue">{settings.correctorThreshold.toFixed(3)}</span>
+          <span>{settings.correctorThreshold.toFixed(3)}</span>
         </label>
         <input
           type="range"
@@ -101,7 +98,7 @@ export function SolverControlsPanel() {
           step="1"
           autoComplete="off"
         />
-        <div id="ipmColorByPhaseBox" className="settings-checkbox-row">
+        <div className="settings-checkbox-row">
           <label htmlFor="ipmColorByPhase">
             Color by phase{" "}
             <input
@@ -119,12 +116,11 @@ export function SolverControlsPanel() {
       </div>
 
       <div
-        id="pdhgSettings"
         className={solverControlsUiState.activeMode === "pdhg" ? "settings-section is-block" : "settings-section is-hidden"}
       >
         <label htmlFor="pdhgEtaSlider">
           {"\u03B7"} (primal step size factor):
-          <span id="pdhgEtaValue">{settings.pdhgEta.toFixed(3)}</span>
+          <span>{settings.pdhgEta.toFixed(3)}</span>
         </label>
         <input
           type="range"
@@ -142,7 +138,7 @@ export function SolverControlsPanel() {
         <br />
         <label htmlFor="pdhgTauSlider">
           {"\u03C4"} (dual step size factor):
-          <span id="pdhgTauValue">{settings.pdhgTau.toFixed(3)}</span>
+          <span>{settings.pdhgTau.toFixed(3)}</span>
         </label>
         <input
           type="range"
@@ -214,7 +210,6 @@ export function SolverControlsPanel() {
       </div>
 
       <div
-        id="simplexSettings"
         className={solverControlsUiState.activeMode === "simplex" ? "settings-section is-block" : "settings-section is-hidden"}
       >
         <label htmlFor="simplexDualMode">Dual simplex mode</label>
@@ -231,12 +226,11 @@ export function SolverControlsPanel() {
       </div>
 
       <div
-        id="centralPathSettings"
         className={solverControlsUiState.activeMode === "central" ? "settings-section is-block" : "settings-section is-hidden"}
       >
         <label htmlFor="centralPathIterSlider">
           {" "}
-          N (number of steps): <span id="centralPathIterValue">{settings.centralPathIter}</span>{" "}
+          N (number of steps): <span>{settings.centralPathIter}</span>{" "}
         </label>
         <input
           type="range"
