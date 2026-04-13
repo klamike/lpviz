@@ -101,6 +101,7 @@ export type State = {
   resultVirtualRows: ResultTextBlock[];
   resultVirtualPaddingTop: number;
   resultVirtualPaddingBottom: number;
+  resultMaxLineChars: number;
 
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -161,6 +162,7 @@ const initialState: State = {
   resultVirtualRows: [],
   resultVirtualPaddingTop: 0,
   resultVirtualPaddingBottom: 0,
+  resultMaxLineChars: 0,
 
   objectiveVector: null,
   currentObjective: null,

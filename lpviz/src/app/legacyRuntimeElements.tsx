@@ -2,7 +2,6 @@ import { createContext, createRef, useContext, useMemo, type PropsWithChildren, 
 
 export type LegacyRuntimeElements = {
   canvas: HTMLCanvasElement;
-  result: HTMLDivElement;
   resultVirtualHost: HTMLDivElement;
 };
 
@@ -15,7 +14,6 @@ const LegacyRuntimeElementRefsContext = createContext<LegacyRuntimeElementRefs |
 export function LegacyRuntimeElementsProvider({ children }: PropsWithChildren) {
   const refs = useMemo<LegacyRuntimeElementRefs>(() => ({
     canvas: createRef<HTMLCanvasElement>(),
-    result: createRef<HTMLDivElement>(),
     resultVirtualHost: createRef<HTMLDivElement>(),
   }), []);
 

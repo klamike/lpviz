@@ -3,14 +3,24 @@ import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "../../app/uiSelectors";
 import { TerminalFrame } from "../layout/TerminalFrame";
+import { useResultTypography } from "./useResultTypography";
 
 export function UsagePanel() {
   const refs = useLegacyRuntimeElementRefs();
   const resultPanelUiState = useLpvizSelector(selectResultPanelUiState, areResultPanelUiStatesEqual);
+  const { resultRef, resultStyle } = useResultTypography({
+    enabled: resultPanelUiState.mode !== "usage",
+    maxLineChars: resultPanelUiState.maxLineChars,
+  });
 
   return (
     <TerminalFrame containerId="terminal-container" delayClassName="scanlines--delay-12">
-      <div id="result" ref={refs.result} className={resultPanelUiState.mode === "virtual" ? "virtualized" : undefined}>
+      <div
+        id="result"
+        ref={resultRef}
+        style={resultStyle}
+        className={resultPanelUiState.mode === "virtual" ? "virtualized" : undefined}
+      >
         {resultPanelUiState.mode === "usage" ? (
           <div id="usageTips">
             <br />
