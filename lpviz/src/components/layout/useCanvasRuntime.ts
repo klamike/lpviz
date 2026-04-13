@@ -1,7 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 
-import { type LegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
-import { initializeUI } from "../../ui/interaction/initialize";
+import { initializeCanvasRuntime } from "../../ui/interaction/initialize";
 
 const noop = () => {};
 
@@ -13,23 +12,17 @@ const getRequiredElement = <T extends HTMLElement>(ref: RefObject<T | null>, id:
   return element;
 };
 
-export function useLegacyCanvasRuntime(runtimeElementRefs: LegacyRuntimeElementRefs, initialSidebarWidth: number) {
-  const {
-    canvas,
-  } = runtimeElementRefs;
+export function useCanvasRuntime(canvasRef: RefObject<HTMLCanvasElement | null>, initialSidebarWidth: number) {
   const initialSidebarWidthRef = useRef(initialSidebarWidth);
 
   useEffect(() => {
-    const runtimeElements = {
-      canvas: getRequiredElement(canvas, "gridCanvas"),
-    };
-
-    runtimeElements.canvas.focus();
+    const canvas = getRequiredElement(canvasRef, "gridCanvas");
+    canvas.focus();
 
     let disposed = false;
     let cleanup = noop;
 
-    void initializeUI(runtimeElements, new URLSearchParams(window.location.search), {
+    void initializeCanvasRuntime({ canvas }, new URLSearchParams(window.location.search), {
       initialSidebarWidth: initialSidebarWidthRef.current,
     })
       .then((nextCleanup) => {
@@ -47,7 +40,5 @@ export function useLegacyCanvasRuntime(runtimeElementRefs: LegacyRuntimeElementR
       disposed = true;
       cleanup();
     };
-  }, [
-    canvas,
-  ]);
+  }, [canvasRef]);
 }
