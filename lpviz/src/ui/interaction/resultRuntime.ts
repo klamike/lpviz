@@ -1,5 +1,4 @@
 import { getState, setState } from "../../state/store";
-import type { SolverMode } from "../../state/store";
 import { formatVirtualResultRow } from "../../solvers/worker/solverService";
 import type { ResultRenderPayload, VirtualResultPayload } from "../../solvers/worker/solverService";
 import { ViewportManager } from "../viewport";
@@ -8,23 +7,21 @@ import type { ResultTextBlock } from "../resultPayload";
 const ROTATE_ROW_LIMIT = 20;
 const ESTIMATED_ROW_HEIGHT = 22;
 
-type ResponsiveSyncOptions = { includeTerminal?: boolean; forceResultFont?: boolean };
+const getMaxLineChars = (lines: string[]) => lines.reduce((maxChars, line) => {
+  const lineMaxChars = line.split("\n").reduce((maxLineChars, textLine) => Math.max(maxLineChars, textLine.length), 0);
+  return Math.max(maxChars, lineMaxChars);
+}, 0);
 
 export function createResultRuntime({
   canvasManager,
-  resultDiv,
   resultVirtualHost,
-  syncResponsiveUi,
 }: {
   canvasManager: ViewportManager;
-  resultDiv: HTMLElement;
   resultVirtualHost: HTMLElement;
-  syncResponsiveUi: (options?: ResponsiveSyncOptions) => void;
 }) {
   const runtime = {
     lastVirtualResult: null as VirtualResultPayload | null,
     activeVirtualizer: null as { destroy(): void; refresh(): void } | null,
-    lastSolverFontMode: null as SolverMode | null,
     pendingRender: null as { payload: ResultRenderPayload; options: { limitVirtualRows?: boolean } } | null,
 
     setHighlight(index: number | null) {
@@ -140,17 +137,17 @@ export function createResultRuntime({
           resultVirtualRows: [],
           resultVirtualPaddingTop: 0,
           resultVirtualPaddingBottom: 0,
+          resultMaxLineChars: getMaxLineChars([
+            payload.header || "",
+            ...(payload.footer ? [payload.footer] : []),
+            ...rowsForLayout.map((row) => formatVirtualResultRow(row)),
+          ]),
           highlightIteratePathIndex: null,
         });
         this.setHighlight(null);
         this.activeVirtualizer?.destroy();
         this.activeVirtualizer = null;
 
-        const maxLineChars = [payload.header || "", ...(payload.footer ? [payload.footer] : []), ...rowsForLayout.map((row) => formatVirtualResultRow(row))].reduce(
-          (max, line) => Math.max(max, line.length),
-          0,
-        );
-        resultDiv.dataset.virtualMaxChars = String(maxLineChars);
         if (rowsForLayout.length > 0) {
           this.activeVirtualizer = this.createVirtualizer(resultVirtualHost, rowsForLayout);
         }
@@ -158,7 +155,6 @@ export function createResultRuntime({
         this.lastVirtualResult = null;
         this.activeVirtualizer?.destroy();
         this.activeVirtualizer = null;
-        delete resultDiv.dataset.virtualMaxChars;
         setState({
           resultDisplayMode: "blocks",
           resultBlocks: payload.blocks,
@@ -168,15 +164,12 @@ export function createResultRuntime({
           resultVirtualRows: [],
           resultVirtualPaddingTop: 0,
           resultVirtualPaddingBottom: 0,
+          resultMaxLineChars: getMaxLineChars(payload.blocks.map((block) => block.text)),
           highlightIteratePathIndex: null,
         });
       }
 
       canvasManager.draw();
-      const currentMode = getState().solverMode;
-      const forceFont = this.lastSolverFontMode !== currentMode;
-      this.lastSolverFontMode = currentMode;
-      syncResponsiveUi({ forceResultFont: forceFont });
       this.activeVirtualizer?.refresh();
     },
 
@@ -209,7 +202,6 @@ export function createResultRuntime({
       this.pendingRender = null;
       this.activeVirtualizer?.destroy();
       this.activeVirtualizer = null;
-      delete resultDiv.dataset.virtualMaxChars;
       setState({
         resultDisplayMode: "usage",
         resultBlocks: null,
@@ -219,10 +211,10 @@ export function createResultRuntime({
         resultVirtualRows: [],
         resultVirtualPaddingTop: 0,
         resultVirtualPaddingBottom: 0,
+        resultMaxLineChars: 0,
         highlightIteratePathIndex: null,
       });
       this.setHighlight(null);
-      syncResponsiveUi({ forceResultFont: true });
     },
 
     restoreFullVirtualResult() {
