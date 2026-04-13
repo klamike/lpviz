@@ -107,7 +107,7 @@ export async function initializeCanvasRuntime(
       getSolverRuntime().hasUnboundedObjectiveDirection(state),
   });
   const getSolverControl = (mode: SolverMode) =>
-    solverControls.find((solverControl) => solverControl.mode === mode) ?? null;
+    solverControls.find((solverControl) => solverControl.mode === mode);
 
   const polytopeRuntime = createPolytopeRuntime({
     handleProblemChange: () => getSolverRuntime().handleProblemChange(),
