@@ -50,8 +50,6 @@ export type ResultPanelUiState = {
   virtualFooter: string | null;
   virtualShowEmpty: boolean;
   virtualRows: ResultTextBlock[];
-  virtualPaddingTop: number;
-  virtualPaddingBottom: number;
   maxLineChars: number;
 };
 
@@ -185,8 +183,6 @@ export function selectResultPanelUiState(state: State): ResultPanelUiState {
     virtualFooter: state.resultVirtualFooter,
     virtualShowEmpty: state.resultVirtualShowEmpty,
     virtualRows: state.resultVirtualRows,
-    virtualPaddingTop: state.resultVirtualPaddingTop,
-    virtualPaddingBottom: state.resultVirtualPaddingBottom,
     maxLineChars: state.resultMaxLineChars,
   };
 }
@@ -198,8 +194,6 @@ export function areResultPanelUiStatesEqual(a: ResultPanelUiState, b: ResultPane
     a.virtualHeader !== b.virtualHeader ||
     a.virtualFooter !== b.virtualFooter ||
     a.virtualShowEmpty !== b.virtualShowEmpty ||
-    a.virtualPaddingTop !== b.virtualPaddingTop ||
-    a.virtualPaddingBottom !== b.virtualPaddingBottom ||
     a.maxLineChars !== b.maxLineChars ||
     a.virtualRows.length !== b.virtualRows.length
   ) {

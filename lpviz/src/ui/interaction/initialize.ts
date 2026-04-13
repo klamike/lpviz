@@ -31,7 +31,6 @@ export async function initializeUI(
 ): Promise<LegacyUiCleanup> {
   const {
     canvas,
-    resultVirtualHost,
   } = runtimeElements;
   const POPUP_ANIMATION_MS = 300;
   const TOUR_CURSOR_TRANSITION_MS = 700;
@@ -380,7 +379,6 @@ export async function initializeUI(
 
   const resultRuntime = createResultRuntime({
     canvasManager,
-    resultVirtualHost,
   });
   let wasNavigatingViewport = getState().isNavigatingViewport;
   const unsubscribeViewportNavigation = subscribe((snapshot) => {
