@@ -1,9 +1,10 @@
 import { CanvasStage } from "../components/layout/CanvasStage";
 import { Sidebar } from "../components/layout/Sidebar";
 import { useSidebarLayout } from "../components/layout/useSidebarLayout";
+import { LpvizRuntimeProvider } from "./lpvizRuntime";
 import { SmallScreenOverlay } from "./SmallScreenOverlay";
 
-export function App() {
+function AppContent() {
   const { sidebarWidth, topResultRef, beginResize } = useSidebarLayout();
 
   return (
@@ -12,5 +13,13 @@ export function App() {
       <CanvasStage sidebarWidth={sidebarWidth} onResizeStart={beginResize} />
       <SmallScreenOverlay />
     </>
+  );
+}
+
+export function App() {
+  return (
+    <LpvizRuntimeProvider>
+      <AppContent />
+    </LpvizRuntimeProvider>
   );
 }

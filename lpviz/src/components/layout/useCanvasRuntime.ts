@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 
+import { useRegisterLpvizRuntimeActions } from "../../app/lpvizRuntime";
 import { initializeCanvasRuntime } from "../../ui/interaction/initialize";
 
 const noop = () => {};
@@ -14,6 +15,7 @@ const getRequiredElement = <T extends HTMLElement>(ref: RefObject<T | null>, id:
 
 export function useCanvasRuntime(canvasRef: RefObject<HTMLCanvasElement | null>, initialSidebarWidth: number) {
   const initialSidebarWidthRef = useRef(initialSidebarWidth);
+  const registerRuntimeActions = useRegisterLpvizRuntimeActions();
 
   useEffect(() => {
     const canvas = getRequiredElement(canvasRef, "gridCanvas");
@@ -22,9 +24,12 @@ export function useCanvasRuntime(canvasRef: RefObject<HTMLCanvasElement | null>,
     let disposed = false;
     let cleanup = noop;
 
-    void initializeCanvasRuntime({ canvas }, new URLSearchParams(window.location.search), {
-      initialSidebarWidth: initialSidebarWidthRef.current,
-    })
+    void initializeCanvasRuntime(
+      { canvas },
+      new URLSearchParams(window.location.search),
+      { initialSidebarWidth: initialSidebarWidthRef.current },
+      { registerRuntimeActions },
+    )
       .then((nextCleanup) => {
         if (disposed) {
           nextCleanup();
@@ -40,5 +45,5 @@ export function useCanvasRuntime(canvasRef: RefObject<HTMLCanvasElement | null>,
       disposed = true;
       cleanup();
     };
-  }, [canvasRef]);
+  }, [canvasRef, registerRuntimeActions]);
 }
