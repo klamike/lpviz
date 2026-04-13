@@ -1,4 +1,5 @@
-import { useLegacyRuntimeElementRefs } from "../../app/legacyRuntimeElements";
+import type { RefObject } from "react";
+
 import { lpvizRuntimeCommands } from "../../app/lpvizRuntime";
 import { useLpvizSelector } from "../../app/lpvizStore";
 import {
@@ -11,8 +12,13 @@ import { TopResultPanel } from "../panels/TopResultPanel";
 import { UsagePanel } from "../panels/UsagePanel";
 import { AppHeader } from "./AppHeader";
 
-export function Sidebar() {
-  const refs = useLegacyRuntimeElementRefs();
+export function Sidebar({
+  sidebarWidth,
+  topResultRef,
+}: {
+  sidebarWidth: number;
+  topResultRef: RefObject<HTMLDivElement | null>;
+}) {
   const settings = useLpvizSelector(
     selectSolverSettings,
     areSolverSettingsEqual,
@@ -20,11 +26,11 @@ export function Sidebar() {
 
   return (
     <header>
-      <div id="sidebar" ref={refs.sidebar}>
+      <div id="sidebar" style={{ width: sidebarWidth }}>
         <div id="sidebarContent">
           <AppHeader />
           <div id="uiContainer">
-            <TopResultPanel />
+            <TopResultPanel topResultRef={topResultRef} />
             <SolverControlsPanel />
             <AnimationControlsPanel />
             <label className="is-hidden" htmlFor="replaySpeedSlider">

@@ -20,12 +20,6 @@ type ConstraintDragTarget = Extract<DragTarget, { kind: "constraint" }>;
 const EPS = 1e-10;
 export function registerCanvasInteractions(
   canvasManager: ViewportManager,
-  ui: {
-    hideNullStateMessage(): void;
-    updateSolverModeButtons(): void;
-    updateObjectiveDisplay(): void;
-    updateMaximizeVisibility(): void;
-  },
   saveToHistory: (
     snapshotSource?: Pick<State, "vertices" | "objectiveVector" | "completionMode">,
     options?: { clearRedo?: boolean },
@@ -308,7 +302,6 @@ export function registerCanvasInteractions(
         highlightIndex: null,
         ...(options.extraPatch ?? {}),
       }, { viewportDirty: canvasManager.getPolytopeDirtyFlags() });
-      ui.hideNullStateMessage();
       canvasManager.draw();
       sendPolytope();
       this.updatePanControls();
@@ -322,7 +315,6 @@ export function registerCanvasInteractions(
 
       if (transition.kind === "edit") {
         this.commitEdit(transition.result, { saveToHistory: transition.saveToHistory });
-        ui.hideNullStateMessage();
         return;
       }
 
@@ -330,9 +322,6 @@ export function registerCanvasInteractions(
         saveToHistory();
       }
       setState({ objectiveVector: transition.objectiveVector }, { viewportDirty: canvasManager.getObjectiveDirtyFlags() });
-      ui.updateMaximizeVisibility();
-      ui.updateSolverModeButtons();
-      ui.updateObjectiveDisplay();
       sendPolytope();
       canvasManager.draw();
       this.updatePanControls();
@@ -431,11 +420,6 @@ export function registerCanvasInteractions(
                 ? "dragged-constraint"
                 : "dragged-objective",
         }, { viewportDirty: {} });
-        if (interaction.target.kind === "objective") {
-          ui.updateMaximizeVisibility();
-          ui.updateObjectiveDisplay();
-          ui.updateSolverModeButtons();
-        }
         sendPolytope();
       }
 
@@ -473,7 +457,6 @@ export function registerCanvasInteractions(
         saveToHistory: finishResult.saveToHistory,
         extraPatch: { currentMouse: null },
       });
-      ui.updateSolverModeButtons();
       canvasManager.set2DPanEnabled(true);
     },
 

@@ -16,10 +16,8 @@ type LpvizRuntimeCommandHandlers = {
   toggleZOffset: () => void;
   setZScale: (value: number) => void;
   setActiveSolverMode: (mode: SolverMode) => void;
-  beginResize: (clientX: number) => void;
-  updateResize: (clientX: number) => void;
-  finishResize: () => void;
-  scheduleViewportSync: () => void;
+  setSidebarWidth: (width: number) => void;
+  syncViewportLayout: (sidebarWidth: number) => void;
 };
 
 const noop = () => {};
@@ -40,10 +38,8 @@ let runtimeCommandHandlers: LpvizRuntimeCommandHandlers = {
   toggleZOffset: noop,
   setZScale: noop,
   setActiveSolverMode: noop,
-  beginResize: noop,
-  updateResize: noop,
-  finishResize: noop,
-  scheduleViewportSync: noop,
+  setSidebarWidth: noop,
+  syncViewportLayout: noop,
 };
 
 export const lpvizRuntimeCommands = {
@@ -92,17 +88,11 @@ export const lpvizRuntimeCommands = {
   setActiveSolverMode(mode: SolverMode) {
     runtimeCommandHandlers.setActiveSolverMode(mode);
   },
-  beginResize(clientX: number) {
-    runtimeCommandHandlers.beginResize(clientX);
+  setSidebarWidth(width: number) {
+    runtimeCommandHandlers.setSidebarWidth(width);
   },
-  updateResize(clientX: number) {
-    runtimeCommandHandlers.updateResize(clientX);
-  },
-  finishResize() {
-    runtimeCommandHandlers.finishResize();
-  },
-  scheduleViewportSync() {
-    runtimeCommandHandlers.scheduleViewportSync();
+  syncViewportLayout(sidebarWidth: number) {
+    runtimeCommandHandlers.syncViewportLayout(sidebarWidth);
   },
 };
 
@@ -126,10 +116,8 @@ export function registerLpvizRuntimeCommands(handlers: LpvizRuntimeCommandHandle
       toggleZOffset: noop,
       setZScale: noop,
       setActiveSolverMode: noop,
-      beginResize: noop,
-      updateResize: noop,
-      finishResize: noop,
-      scheduleViewportSync: noop,
+      setSidebarWidth: noop,
+      syncViewportLayout: noop,
     };
   };
 }
