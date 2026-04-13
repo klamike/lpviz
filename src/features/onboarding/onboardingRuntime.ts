@@ -9,7 +9,7 @@ import {
   type DrawingPhase,
   type State,
 } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
+import type { ViewportApi } from "../canvas/viewportApi";
 import type {
   OnboardingActionTarget,
   OnboardingUiController,
@@ -37,7 +37,7 @@ export function createOnboardingRuntime({
   sendPolytope,
   runAction,
 }: {
-  canvasManager: ViewportManager;
+  canvasManager: ViewportApi;
   ui: OnboardingUiController;
   saveHistory: () => void;
   sendPolytope: () => void;
@@ -59,7 +59,7 @@ export function createOnboardingRuntime({
     new Promise((resolve) => setTimeout(resolve, ms));
 
   const logicalToScreen = (point: { x: number; y: number }) => {
-    const rect = canvasManager.canvas.getBoundingClientRect();
+    const rect = canvasManager.getCanvasRect();
     const canvasPoint = canvasManager.toCanvasCoords(point.x, point.y);
     return { x: rect.left + canvasPoint.x, y: rect.top + canvasPoint.y };
   };

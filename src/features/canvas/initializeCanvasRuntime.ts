@@ -6,7 +6,6 @@ import {
   resetTraceState,
   subscribe,
 } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
 import { registerCanvasInteractions } from "../editor/canvasInteractions";
 import { createHistoryRuntime } from "../editor/historyRuntime";
 import { createPolytopeRuntime } from "../editor/polytopeRuntime";
@@ -18,6 +17,7 @@ import { createSolverControls } from "../solver/solverControls";
 import { createSolverRuntime } from "../solver/solverRuntime";
 import { registerCanvasRuntimeActions } from "./registerRuntimeActions";
 import { createUiRuntime } from "./uiRuntime";
+import { createViewportRuntime } from "./viewportApi";
 
 export type CanvasRuntimeElements = {
   canvas: HTMLCanvasElement;
@@ -42,7 +42,7 @@ export async function initializeCanvasRuntime(
     cleanupHandlers.push(cleanup);
   };
 
-  const canvasManager = await ViewportManager.create(canvas);
+  const canvasManager = await createViewportRuntime(canvas);
   let currentSidebarWidth = layout.initialSidebarWidth;
   const updateSolverSetting: SolverSettingUpdater = (key, value) => {
     mutate((draft) => {

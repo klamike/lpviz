@@ -4,7 +4,7 @@ import type {
 } from "../../solvers/worker/solverService";
 import { formatVirtualResultRow } from "../../solvers/worker/solverService";
 import { getState, setState } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
+import type { ViewportApi } from "../canvas/viewportApi";
 import type { ResultTextBlock } from "./resultPayload";
 
 const ROTATE_ROW_LIMIT = 20;
@@ -32,7 +32,7 @@ const createVirtualBlock = (
 export function createResultRuntime({
   canvasManager,
 }: {
-  canvasManager: ViewportManager;
+  canvasManager: ViewportApi;
 }) {
   const runtime = {
     lastVirtualResult: null as VirtualResultPayload | null,

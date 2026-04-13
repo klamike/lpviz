@@ -8,11 +8,11 @@ const noop = () => {};
 
 const getRequiredElement = <T extends HTMLElement>(
   ref: RefObject<T | null>,
-  id: string,
+  label: string,
 ): T => {
   const element = ref.current;
   if (!element) {
-    throw new Error(`Element with id "${id}" not found`);
+    throw new Error(`${label} is not ready`);
   }
   return element;
 };
@@ -26,7 +26,7 @@ export function useCanvasRuntime(
   const onboardingUi = useOnboardingUiController();
 
   useEffect(() => {
-    const canvas = getRequiredElement(canvasRef, "gridCanvas");
+    const canvas = getRequiredElement(canvasRef, "Canvas stage");
     canvas.focus();
 
     let disposed = false;

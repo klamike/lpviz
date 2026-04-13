@@ -7,8 +7,8 @@ import {
   setState,
   type SolverMode,
 } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
 import type { SolverSettingUpdater } from "../shared/runtimeTypes";
+import type { ViewportApi } from "./viewportApi";
 import {
   buildSharedStatePatch,
   compactSharedAppState,
@@ -34,7 +34,7 @@ export function createUiRuntime({
   startDemo,
 }: {
   params: URLSearchParams;
-  canvasManager: ViewportManager;
+  canvasManager: ViewportApi;
   getCurrentSidebarWidth: () => number;
   syncSidebarViewport: () => void;
   updateSolverSetting: SolverSettingUpdater;

@@ -46,16 +46,32 @@ body {
 /* ================================
     Canvas
     ================================ */
-canvas {
+.canvas-stage__viewport {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   z-index: 0;
 }
 
-#gridCanvas:focus {
+.canvas-stage__viewport > * {
+  position: absolute;
+  inset: 0;
+}
+
+.canvas-stage__r3f {
+  pointer-events: none;
+}
+
+.canvas-stage__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-stage__canvas--legacy {
+  z-index: 1;
+}
+
+.canvas-stage__canvas:focus {
   outline: none;
 }
 
@@ -413,7 +429,6 @@ canvas {
   outline: none;
   overflow-anchor: none;
 }
-
 
 /* -------------------------------
     GitHub Icon

@@ -20,6 +20,7 @@
     "vite": "^8.0.8"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.5.0",
     "@types/react-virtualized": "^9.22.3",
     "jsoncrush": "^1.1.8",
     "react": "^19.2.0",

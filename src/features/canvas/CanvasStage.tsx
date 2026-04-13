@@ -8,6 +8,7 @@ import {
 import { useLpvizSelector } from "../../store/useLpvizStore";
 import { useOnboardingActionTarget } from "../onboarding/OnboardingProvider";
 import { useCanvasRuntime } from "./useCanvasRuntime";
+import { LpvizCanvas } from "./r3f/LpvizCanvas";
 
 export function CanvasStage({
   sidebarWidth,
@@ -26,8 +27,15 @@ export function CanvasStage({
   useCanvasRuntime(canvasRef, sidebarWidth);
 
   return (
-    <main>
-      <canvas id="gridCanvas" ref={canvasRef} tabIndex={0}></canvas>
+    <main className="canvas-stage">
+      <div className="canvas-stage__viewport">
+        <LpvizCanvas />
+        <canvas
+          className="canvas-stage__canvas canvas-stage__canvas--legacy"
+          ref={canvasRef}
+          tabIndex={0}
+        ></canvas>
+      </div>
       <div id="zoomControls">
         <button
           title="Reset Zoom (Home)"

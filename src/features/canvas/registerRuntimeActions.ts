@@ -1,7 +1,7 @@
 import type { RegisterLpvizRuntimeActions } from "../../context/LpvizRuntimeProvider";
 import { getState, setState, type SolverMode } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
 import type { SolverSettingUpdater } from "../shared/runtimeTypes";
+import type { ViewportApi } from "./viewportApi";
 
 export function registerCanvasRuntimeActions({
   registerRuntimeActions,
@@ -14,7 +14,7 @@ export function registerCanvasRuntimeActions({
   syncSidebarViewport,
 }: {
   registerRuntimeActions: RegisterLpvizRuntimeActions;
-  canvasManager: ViewportManager;
+  canvasManager: ViewportApi;
   updateSolverSetting: SolverSettingUpdater;
   resetTraceAndRedrawIfNeeded: () => void;
   getSolverRuntime: () => {

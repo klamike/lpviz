@@ -15,7 +15,7 @@ import {
   mutate,
   setState,
 } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
+import type { ViewportApi } from "../canvas/viewportApi";
 import { getEditorContext, getEditorTransition } from "./editorSession";
 
 const VERTEX_HIT_RADIUS = 12;
@@ -28,7 +28,7 @@ type Bounds = {
 type ConstraintDragTarget = Extract<DragTarget, { kind: "constraint" }>;
 const EPS = 1e-10;
 export function registerCanvasInteractions(
-  canvasManager: ViewportManager,
+  canvasManager: ViewportApi,
   saveToHistory: (
     snapshotSource?: Pick<
       State,
@@ -39,7 +39,7 @@ export function registerCanvasInteractions(
   sendPolytope: () => void,
   handleUndoRedo: (isRedo: boolean) => void,
 ) {
-  const canvas = canvasManager.canvas;
+  const canvas = canvasManager.getCanvasElement();
   const cleanupHandlers: Array<() => void> = [];
   const bindEvent = (
     target: EventTarget,
@@ -94,7 +94,7 @@ export function registerCanvasInteractions(
     },
 
     getLogicalFromClient(clientX: number, clientY: number): PointXY {
-      const rect = canvas.getBoundingClientRect();
+      const rect = canvasManager.getCanvasRect();
       return canvasManager.toLogicalCoords(
         clientX - rect.left,
         clientY - rect.top,
@@ -102,7 +102,7 @@ export function registerCanvasInteractions(
     },
 
     getLocalFromClient(clientX: number, clientY: number) {
-      const rect = canvas.getBoundingClientRect();
+      const rect = canvasManager.getCanvasRect();
       return {
         x: clientX - rect.left,
         y: clientY - rect.top,

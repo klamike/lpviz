@@ -21,7 +21,7 @@ import {
   type SolverMode,
   type State,
 } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
+import type { ViewportApi } from "../canvas/viewportApi";
 import type { ResultTextBlock } from "./resultPayload";
 
 type SolverControl = {
@@ -40,7 +40,7 @@ export function createSolverRuntime({
   getSolverControl,
   resultRuntime,
 }: {
-  canvasManager: ViewportManager;
+  canvasManager: ViewportApi;
   getSolverControl: (mode: SolverMode) => SolverControl | undefined;
   resultRuntime: {
     render: (
