@@ -107,7 +107,17 @@ export const ThickLine = memo(function ThickLine({
 
   useEffect(() => {
     invalidate();
-  }, [positions, color, width, renderOrder, depthTest, depthWrite, transparent, opacity, invalidate]);
+  }, [
+    positions,
+    color,
+    width,
+    renderOrder,
+    depthTest,
+    depthWrite,
+    transparent,
+    opacity,
+    invalidate,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -141,11 +151,7 @@ export function ThickLineSegments(props: ThickLineSegmentsProps) {
   return (
     <>
       {segments.map((segment, index) => (
-        <ThickLine
-          key={index}
-          {...props}
-          positions={segment}
-        />
+        <ThickLine key={index} {...props} positions={segment} />
       ))}
     </>
   );

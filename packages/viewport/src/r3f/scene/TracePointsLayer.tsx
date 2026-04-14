@@ -142,7 +142,10 @@ function buildTraceSamplePositions(pathPositions: Float32Array) {
   return samples;
 }
 
-const tracePointPositionCache = new WeakMap<object, Map<string, Float32Array>>();
+const tracePointPositionCache = new WeakMap<
+  object,
+  Map<string, Float32Array>
+>();
 
 function getCachedTracePointPositions(
   entry: State["traceBuffer"][number],
