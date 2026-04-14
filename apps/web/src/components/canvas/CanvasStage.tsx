@@ -1,13 +1,13 @@
 import { useCallback, useState } from "react";
 
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import {
   areCanvasControlsUiStatesEqual,
   selectCanvasControlsUiState,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
-import { useTourActionTarget } from "../tour/TourProvider";
-import { useCanvasRuntime } from "./useCanvasRuntime";
+import { useCanvasRuntime } from "../../hooks/useCanvasRuntime";
+import { useLpvizRuntime } from "../../providers/LpvizRuntimeProvider";
+import { useTourActionTarget } from "../../providers/TourProvider";
 import { LpvizCanvas, type R3FViewportBridge } from "@lpviz/viewport/react";
 
 export function CanvasStage({

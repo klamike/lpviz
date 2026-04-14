@@ -1,6 +1,6 @@
-import { GitHubLink } from "../branding/GitHubLink";
+import { GitHubLink } from "./GitHubLink";
 
-export function Header() {
+export function SidebarHeader() {
   return (
     <div className="header controlPanel">
       <h1>lpviz</h1>

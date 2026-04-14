@@ -6,9 +6,9 @@ import {
   selectResultPanelUiState,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
-import { TerminalFrame } from "../layout/TerminalFrame";
-import { useResultTypography } from "./useResultTypography";
+import { useResultTypography } from "../../hooks/useResultTypography";
+import { useLpvizRuntime } from "../../providers/LpvizRuntimeProvider";
+import { TerminalFrame } from "./TerminalFrame";
 
 export function UsagePanel() {
   const runtimeActions = useLpvizRuntime();

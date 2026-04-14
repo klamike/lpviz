@@ -2,12 +2,12 @@ import type { RefObject } from "react";
 
 import { areSolverSettingsEqual, selectSolverSettings } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
-import { AnimationControlsPanel } from "../solver/AnimationControlsPanel";
-import { SolverControlsPanel } from "../solver/SolverControlsPanel";
-import { TopResultPanel } from "../solver/TopResultPanel";
-import { UsagePanel } from "../solver/UsagePanel";
-import { Header } from "./Header";
+import { useLpvizRuntime } from "../../providers/LpvizRuntimeProvider";
+import { AnimationControlsPanel } from "./AnimationControlsPanel";
+import { SolverControlsPanel } from "./SolverControlsPanel";
+import { TopResultPanel } from "./TopResultPanel";
+import { UsagePanel } from "./UsagePanel";
+import { SidebarHeader } from "./SidebarHeader";
 
 export function Sidebar({
   sidebarWidth,
@@ -26,7 +26,7 @@ export function Sidebar({
     <header>
       <div id="sidebar" style={{ width: sidebarWidth }}>
         <div id="sidebarContent">
-          <Header />
+          <SidebarHeader />
           <div id="uiContainer">
             <TopResultPanel topResultRef={topResultRef} />
             <SolverControlsPanel />

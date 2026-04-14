@@ -1,14 +1,29 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { useLpvizRuntime } from "../context/LpvizRuntimeProvider";
-import {
-  NULL_STATE_LOGO_VIEWBOX_HEIGHT,
-  NULL_STATE_LOGO_VIEWBOX_WIDTH,
-} from "../features/branding/logo.constants";
+import { useLpvizRuntime } from "../providers/LpvizRuntimeProvider";
 
 const DEFAULT_SIDEBAR_WIDTH = 450;
 const MIN_SIDEBAR_WIDTH = 375;
 const MAX_SIDEBAR_WIDTH = 1000;
+const NULL_STATE_LOGO_LINE_HEIGHT = 18;
+const NULL_STATE_LOGO_CHAR_ADVANCE = 9.6;
+const NULL_STATE_LOGO_LINES = [
+  "  ___                                   ",
+  " /\\_ \\                   __             ",
+  " \\//\\ \\   ______  __  __/\\_\\  _____     ",
+  "   \\ \\ \\ /\\  __ \\/\\ \\/\\ \\/\\ \\/\\__  \\    ",
+  "    \\_\\ \\\\ \\ \\_\\ \\ \\ \\_/ \\ \\ \\/_/  /_   ",
+  "    /\\____\\ \\  __/\\ \\___/ \\ \\_\\/\\____\\  ",
+  "    \\/____/\\ \\ \\/  \\/__/   \\/_/\\/____/  ",
+  "            \\ \\_\\                       ",
+  "             \\/_/               v0.1.0",
+  "                                        ",
+] as const;
+const NULL_STATE_LOGO_VIEWBOX_WIDTH =
+  Math.max(...NULL_STATE_LOGO_LINES.map((line) => line.length)) *
+  NULL_STATE_LOGO_CHAR_ADVANCE;
+const NULL_STATE_LOGO_VIEWBOX_HEIGHT =
+  NULL_STATE_LOGO_LINES.length * NULL_STATE_LOGO_LINE_HEIGHT;
 
 const getMinSidebarWidth = (topResult: HTMLDivElement | null) => {
   if (!topResult) {

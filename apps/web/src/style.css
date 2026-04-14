@@ -1,5 +1,5 @@
 /* ================================
-  Global style
+  App Global
   ================================ */
 @font-face {
   font-family: "JuliaMono";
@@ -44,7 +44,7 @@ body {
 }
 
 /* ================================
-    Canvas
+    Canvas Area
     ================================ */
 .canvas-stage__viewport {
   position: fixed;
@@ -70,7 +70,7 @@ body {
 }
 
 /* ================================
-    Small Screen Overlay
+    Overlay: Small Screen
     ================================ */
 .small-screen-overlay {
   position: fixed;
@@ -90,7 +90,7 @@ body {
 }
 
 /* ================================
-    Tour Overlay
+    Overlay: Tour
     ================================ */
 .tour-layer {
   position: fixed;
@@ -179,7 +179,7 @@ body {
 }
 
 /* ================================
-    Sidebar
+    Sidebar Area
     ================================ */
 #sidebar {
   position: fixed;
@@ -239,7 +239,7 @@ body {
 }
 
 /* ================================
-    Terminals
+    Sidebar Terminals
     ================================ */
 #terminal-container {
   flex-grow: 1;
@@ -440,7 +440,7 @@ body {
 }
 
 /* ================================
-    Main button style
+    Shared Button Styles
     ================================ */
 #sidebar button,
 #zoomControls button {
@@ -502,7 +502,7 @@ body {
 }
 
 /* ================================
-    Home/Zoom Buttons
+    Canvas Controls
     ================================ */
 #zoomControls {
   position: fixed;
@@ -834,7 +834,7 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
 }
 
 /* ================================
-    Control Panel
+    Sidebar Control Panels
     ================================ */
 .controlPanel {
   background-color: #fafafa;

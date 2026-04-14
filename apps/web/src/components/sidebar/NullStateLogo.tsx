@@ -1,11 +1,25 @@
-import {
-  NULL_STATE_LOGO_CHAR_ADVANCE,
-  NULL_STATE_LOGO_FONT_SIZE,
-  NULL_STATE_LOGO_LINES,
-  NULL_STATE_LOGO_LINE_HEIGHT,
-  NULL_STATE_LOGO_VIEWBOX_HEIGHT,
-  NULL_STATE_LOGO_VIEWBOX_WIDTH,
-} from "./logo.constants";
+const NULL_STATE_LOGO_FONT_SIZE = 16;
+const NULL_STATE_LOGO_LINE_HEIGHT = 18;
+const NULL_STATE_LOGO_CHAR_ADVANCE = 9.6;
+
+const NULL_STATE_LOGO_LINES = [
+  "  ___                                   ",
+  " /\\_ \\                   __             ",
+  " \\//\\ \\   ______  __  __/\\_\\  _____     ",
+  "   \\ \\ \\ /\\  __ \\/\\ \\/\\ \\/\\ \\/\\__  \\    ",
+  "    \\_\\ \\\\ \\ \\_\\ \\ \\ \\_/ \\ \\ \\/_/  /_   ",
+  "    /\\____\\ \\  __/\\ \\___/ \\ \\_\\/\\____\\  ",
+  "    \\/____/\\ \\ \\/  \\/__/   \\/_/\\/____/  ",
+  "            \\ \\_\\                       ",
+  "             \\/_/               v0.1.0",
+  "                                        ",
+] as const;
+
+const NULL_STATE_LOGO_VIEWBOX_WIDTH =
+  Math.max(...NULL_STATE_LOGO_LINES.map((line) => line.length)) *
+  NULL_STATE_LOGO_CHAR_ADVANCE;
+const NULL_STATE_LOGO_VIEWBOX_HEIGHT =
+  NULL_STATE_LOGO_LINES.length * NULL_STATE_LOGO_LINE_HEIGHT;
 
 const glyphs = NULL_STATE_LOGO_LINES.flatMap((line, row) =>
   Array.from(line).flatMap((glyph, column) => {

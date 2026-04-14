@@ -5,8 +5,8 @@ import {
   selectSolverSettings,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
-import { useTourActionTarget } from "../tour/TourProvider";
+import { useLpvizRuntime } from "../../providers/LpvizRuntimeProvider";
+import { useTourActionTarget } from "../../providers/TourProvider";
 
 export function SolverControlsPanel() {
   const runtimeActions = useLpvizRuntime();
