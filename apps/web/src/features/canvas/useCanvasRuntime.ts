@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 
-import { useRegisterLpvizRuntimeActions } from "../../context/LpvizRuntimeProvider";
-import { useOnboardingUiController } from "../onboarding/OnboardingProvider";
 import { initializeCanvasRuntime } from "@lpviz/runtime";
 import type { R3FViewportBridge } from "@lpviz/viewport";
+import { useRegisterLpvizRuntimeActions } from "../../context/LpvizRuntimeProvider";
+import { useOnboardingUiController } from "../onboarding/OnboardingProvider";
 
 const noop = () => {};
 

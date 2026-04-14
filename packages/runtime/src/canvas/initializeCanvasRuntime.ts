@@ -1,19 +1,21 @@
-import type { RegisterLpvizRuntimeActions } from "../uiContracts";
 import type { SolverMode } from "@lpviz/state";
 import { getState, mutate, resetTraceState, subscribe } from "@lpviz/state";
+import type { R3FViewportBridge } from "@lpviz/viewport";
+import { createViewportRuntime } from "@lpviz/viewport";
 import { registerCanvasInteractions } from "../editor/canvasInteractions";
 import { createHistoryRuntime } from "../editor/historyRuntime";
 import { createPolytopeRuntime } from "../editor/polytopeRuntime";
-import type { OnboardingUiController } from "../uiContracts";
 import { createOnboardingRuntime } from "../onboarding/onboardingRuntime";
 import type { SolverSettingUpdater } from "../shared/runtimeTypes";
 import { createResultRuntime } from "../solver/resultRuntime";
 import { createSolverControls } from "../solver/solverControls";
 import { createSolverRuntime } from "../solver/solverRuntime";
+import type {
+  OnboardingUiController,
+  RegisterLpvizRuntimeActions,
+} from "../uiContracts";
 import { registerCanvasRuntimeActions } from "./registerRuntimeActions";
 import { createUiRuntime } from "./uiRuntime";
-import { createViewportRuntime } from "@lpviz/viewport";
-import type { R3FViewportBridge } from "@lpviz/viewport";
 
 export type CanvasRuntimeElements = {
   viewportBridge: R3FViewportBridge;

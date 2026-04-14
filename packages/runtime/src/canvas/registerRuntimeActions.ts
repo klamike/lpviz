@@ -1,7 +1,7 @@
-import type { RegisterLpvizRuntimeActions } from "../uiContracts";
 import { getState, setState, type SolverMode } from "@lpviz/state";
-import type { SolverSettingUpdater } from "../shared/runtimeTypes";
 import type { ViewportApi } from "@lpviz/viewport";
+import type { SolverSettingUpdater } from "../shared/runtimeTypes";
+import type { RegisterLpvizRuntimeActions } from "../uiContracts";
 
 export function registerCanvasRuntimeActions({
   registerRuntimeActions,

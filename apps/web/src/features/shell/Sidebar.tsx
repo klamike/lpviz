@@ -1,8 +1,8 @@
 import type { RefObject } from "react";
 
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import { areSolverSettingsEqual, selectSolverSettings } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import { AnimationControlsPanel } from "../solver/AnimationControlsPanel";
 import { SolverControlsPanel } from "../solver/SolverControlsPanel";
 import { TopResultPanel } from "../solver/TopResultPanel";

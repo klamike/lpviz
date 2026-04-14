@@ -1,6 +1,5 @@
 import type { RefObject } from "react";
 
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import {
   areInequalitiesUiStatesEqual,
   areTopResultUiStatesEqual,
@@ -8,6 +7,7 @@ import {
   selectTopResultUiState,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import { NullStateLogo } from "../branding/NullStateLogo";
 import { TerminalFrame } from "../layout/TerminalFrame";
 

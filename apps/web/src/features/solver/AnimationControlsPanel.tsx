@@ -1,4 +1,3 @@
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import {
   areAnimationControlsUiStatesEqual,
   areSolverSettingsEqual,
@@ -6,6 +5,7 @@ import {
   selectSolverSettings,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import { useOnboardingActionTarget } from "../onboarding/OnboardingProvider";
 
 export function AnimationControlsPanel() {

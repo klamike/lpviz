@@ -1,12 +1,12 @@
 import { useCallback } from "react";
 import { AutoSizer, List, type ListRowProps } from "react-virtualized";
 
-import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import {
   areResultPanelUiStatesEqual,
   selectResultPanelUiState,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import { TerminalFrame } from "../layout/TerminalFrame";
 import { useResultTypography } from "./useResultTypography";
 

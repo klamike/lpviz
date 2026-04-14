@@ -6,6 +6,7 @@ export function GitHubLink() {
       rel="noreferrer"
       aria-label="GitHub Repository for lpviz"
     >
+      {/* TODO: Move this to a separate SVG file and import to use here */}
       <svg
         className="github-icon"
         xmlns="http://www.w3.org/2000/svg"

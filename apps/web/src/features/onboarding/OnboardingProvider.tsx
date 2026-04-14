@@ -1,3 +1,9 @@
+// TODO: This isn't really onboarding. Rename all "onboarding" wording to "tour"
+
+import type {
+  OnboardingActionTarget,
+  OnboardingUiController,
+} from "@lpviz/runtime";
 import {
   createContext,
   useCallback,
@@ -9,10 +15,6 @@ import {
   type PropsWithChildren,
 } from "react";
 import { createPortal } from "react-dom";
-import type {
-  OnboardingActionTarget,
-  OnboardingUiController,
-} from "@lpviz/runtime";
 
 export type {
   OnboardingActionTarget,
