@@ -19,18 +19,16 @@
     "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist-ts",
-    "baseUrl": ".",
     "paths": {
-      "@lpviz/contracts": ["packages/contracts/src/index.ts"],
-      "@lpviz/math": ["packages/math/src/index.ts"],
-      "@lpviz/polytope": ["packages/polytope/src/index.ts"],
-      "@lpviz/solver-engine": ["packages/solver-engine/src/index.ts"],
-      "@lpviz/state": ["packages/state/src/index.ts"],
-      "@lpviz/state/react": ["packages/state/src/react.ts"],
-      "@lpviz/viewport": ["packages/viewport/src/index.ts"],
-      "@lpviz/viewport/react": ["packages/viewport/src/react.ts"],
-      "@lpviz/runtime": ["packages/runtime/src/index.ts"]
+      "@lpviz/contracts": ["./packages/contracts/src/index.ts"],
+      "@lpviz/math": ["./packages/math/src/index.ts"],
+      "@lpviz/polytope": ["./packages/polytope/src/index.ts"],
+      "@lpviz/solver-engine": ["./packages/solver-engine/src/index.ts"],
+      "@lpviz/state": ["./packages/state/src/index.ts"],
+      "@lpviz/state/react": ["./packages/state/src/react.ts"],
+      "@lpviz/viewport": ["./packages/viewport/src/index.ts"],
+      "@lpviz/viewport/react": ["./packages/viewport/src/react.ts"],
+      "@lpviz/runtime": ["./packages/runtime/src/index.ts"]
     }
   }
 }
