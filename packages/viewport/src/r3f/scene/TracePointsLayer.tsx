@@ -4,49 +4,33 @@ import { CanvasTexture } from "three";
 import type { PointXY } from "@lpviz/math";
 import { MAX_TRACE_POINT_SPRITES, type State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;
 const TRACE_POINT_PIXEL_SIZE = 6;
-const TRACE_POINTS_RENDER_ORDER = 14;
+const TRACE_POINTS_RENDER_ORDER = RENDER_ORDER.tracePoints;
 
 type TracePointsLayerState = {
-  cacheKey: string;
   traceEnabled: boolean;
   traceBuffer: State["traceBuffer"];
+  traceCount: number;
+  traceFirstEntry: State["traceBuffer"][number] | undefined;
+  traceLastEntry: State["traceBuffer"][number] | undefined;
   zScale: number;
   zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
 };
 
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializeNumberPath = (path: ReadonlyArray<ReadonlyArray<number>>) =>
-  path.map((entry) => entry.join(",")).join(";");
-
-const serializeTraceBuffer = (traceBuffer: State["traceBuffer"]) =>
-  traceBuffer
-    .map(
-      (entry) =>
-        `${serializePoint(entry.objectiveVector)}:${serializeNumberPath(entry.path)}`,
-    )
-    .join("|");
-
 const selectTracePointsLayerState = (state: State): TracePointsLayerState => ({
-  cacheKey: [
-    state.traceEnabled ? "1" : "0",
-    state.zScale,
-    state.zAxisOffsetOnly ? "1" : "0",
-    serializeTraceBuffer(state.traceBuffer),
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   traceEnabled: state.traceEnabled,
   traceBuffer: state.traceBuffer,
+  traceCount: state.traceBuffer.length,
+  traceFirstEntry: state.traceBuffer[0],
+  traceLastEntry: state.traceBuffer[state.traceBuffer.length - 1],
   zScale: state.zScale,
   zAxisOffsetOnly: state.zAxisOffsetOnly,
   is3DMode: state.is3DMode,
@@ -56,7 +40,15 @@ const selectTracePointsLayerState = (state: State): TracePointsLayerState => ({
 const areTracePointsLayerStatesEqual = (
   current: TracePointsLayerState,
   next: TracePointsLayerState,
-) => current.cacheKey === next.cacheKey;
+) =>
+  current.traceEnabled === next.traceEnabled &&
+  current.traceCount === next.traceCount &&
+  current.traceFirstEntry === next.traceFirstEntry &&
+  current.traceLastEntry === next.traceLastEntry &&
+  current.zScale === next.zScale &&
+  current.zAxisOffsetOnly === next.zAxisOffsetOnly &&
+  current.is3DMode === next.is3DMode &&
+  current.isTransitioning3D === next.isTransitioning3D;
 
 function createCircleTexture() {
   const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
@@ -150,6 +142,38 @@ function buildTraceSamplePositions(pathPositions: Float32Array) {
   return samples;
 }
 
+const tracePointPositionCache = new WeakMap<object, Map<string, Float32Array>>();
+
+function getCachedTracePointPositions(
+  entry: State["traceBuffer"][number],
+  state: Pick<TracePointsLayerState, "zScale" | "zAxisOffsetOnly">,
+  mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
+) {
+  const cacheKey = `${mode}:${state.zScale}:${state.zAxisOffsetOnly ? 1 : 0}`;
+  let cache = tracePointPositionCache.get(entry);
+  if (!cache) {
+    cache = new Map();
+    tracePointPositionCache.set(entry, cache);
+  }
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const pathPositions = buildTracePathPositions(
+    entry.path,
+    entry.objectiveVector,
+    state.zScale,
+    state.zAxisOffsetOnly,
+    mode === "3d",
+  );
+  const sampled =
+    pathPositions.length === 0
+      ? new Float32Array()
+      : new Float32Array(buildTraceSamplePositions(pathPositions));
+  cache.set(cacheKey, sampled);
+  return sampled;
+}
+
 function buildTracePointPositions(
   state: TracePointsLayerState,
   mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
@@ -162,23 +186,19 @@ function buildTracePointPositions(
     return new Float32Array();
   }
 
-  const is3D = mode === "3d";
-  const positions: number[] = [];
-  state.traceBuffer.forEach((entry) => {
-    const pathPositions = buildTracePathPositions(
-      entry.path,
-      entry.objectiveVector,
-      state.zScale,
-      state.zAxisOffsetOnly,
-      is3D,
-    );
-    if (pathPositions.length === 0) {
-      return;
-    }
-    positions.push(...buildTraceSamplePositions(pathPositions));
+  const chunks = state.traceBuffer
+    .map((entry) => getCachedTracePointPositions(entry, state, mode))
+    .filter((chunk) => chunk.length > 0);
+
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const positions = new Float32Array(totalLength);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    positions.set(chunk, offset);
+    offset += chunk.length;
   });
 
-  return new Float32Array(positions);
+  return positions;
 }
 
 export function TracePointsLayer() {
@@ -212,6 +232,7 @@ export function TracePointsLayer() {
         color={TRACE_COLOR}
         size={TRACE_POINT_PIXEL_SIZE}
         sizeAttenuation={false}
+        transparent
         depthTest={false}
         depthWrite={false}
         alphaMap={circleTexture}

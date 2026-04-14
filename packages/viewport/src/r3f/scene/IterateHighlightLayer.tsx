@@ -4,13 +4,14 @@ import { CanvasTexture } from "three";
 import type { PointXY } from "@lpviz/math";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const ITERATE_HIGHLIGHT_COLOR = "#008000";
 const ITERATE_HIGHLIGHT_Z = 0.03;
 const ITERATE_HIGHLIGHT_PIXEL_SIZE = 8 * 1.3;
-const ITERATE_HIGHLIGHT_RENDER_ORDER = 26;
+const ITERATE_HIGHLIGHT_RENDER_ORDER = RENDER_ORDER.iterateHighlight;
 
 type IterateHighlightLayerState = {
   cacheKey: string;
@@ -154,6 +155,7 @@ export function IterateHighlightLayer() {
         color={ITERATE_HIGHLIGHT_COLOR}
         size={ITERATE_HIGHLIGHT_PIXEL_SIZE}
         sizeAttenuation={false}
+        transparent
         depthTest={false}
         depthWrite={false}
         alphaMap={circleTexture}

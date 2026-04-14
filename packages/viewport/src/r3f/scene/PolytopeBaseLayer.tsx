@@ -11,7 +11,9 @@ import { VRep } from "@lpviz/polytope";
 import { hasPolytopeLines } from "@lpviz/polytope";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { ThickLineSegments } from "./ThickLineSegments";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
@@ -19,6 +21,7 @@ const POLYTOPE_HIGHLIGHT_COLOR = "#ff0000";
 const POLYTOPE_OUTLINE_COLOR = "#000000";
 const FILL_Z = 0.001;
 const EDGE_Z = 0.002;
+const POLY_LINE_THICKNESS = 2;
 const CLIP_MARGIN_PX = 50;
 const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_UNBOUNDED_EXTENT = 5000;
@@ -475,7 +478,7 @@ export function PolytopeBaseLayer() {
     <group>
       {geometry.fillGeometry ? (
         <mesh
-          renderOrder={2}
+          renderOrder={RENDER_ORDER.polytopeFill}
           position={[0, 0, is3D ? 0 : FILL_Z]}
           frustumCulled={false}
           geometry={geometry.fillGeometry}
@@ -494,34 +497,24 @@ export function PolytopeBaseLayer() {
         </mesh>
       ) : null}
       {geometry.normalSegments.length > 0 ? (
-        <lineSegments renderOrder={3} frustumCulled={false}>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[geometry.normalSegments, 3]}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial
-            color={POLYTOPE_OUTLINE_COLOR}
-            depthTest={is3D}
-            depthWrite={is3D}
-          />
-        </lineSegments>
+        <ThickLineSegments
+          positions={geometry.normalSegments}
+          color={POLYTOPE_OUTLINE_COLOR}
+          width={POLY_LINE_THICKNESS}
+          renderOrder={RENDER_ORDER.polyEdges}
+          depthTest={is3D}
+          depthWrite={is3D}
+        />
       ) : null}
       {geometry.highlightSegments.length > 0 ? (
-        <lineSegments renderOrder={4} frustumCulled={false}>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[geometry.highlightSegments, 3]}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial
-            color={POLYTOPE_HIGHLIGHT_COLOR}
-            depthTest={is3D}
-            depthWrite={is3D}
-          />
-        </lineSegments>
+        <ThickLineSegments
+          positions={geometry.highlightSegments}
+          color={POLYTOPE_HIGHLIGHT_COLOR}
+          width={POLY_LINE_THICKNESS}
+          renderOrder={RENDER_ORDER.polyEdges}
+          depthTest={is3D}
+          depthWrite={is3D}
+        />
       ) : null}
     </group>
   );

@@ -6,12 +6,15 @@ import { hasPolytopeLines } from "@lpviz/polytope";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { RENDER_ORDER } from "./renderOrder";
+import { ThickLineSegments } from "./ThickLineSegments";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";
 const OBJECTIVE_Z = 0.015;
-const OBJECTIVE_RENDER_ORDER = 5;
+const OBJECTIVE_RENDER_ORDER = RENDER_ORDER.objective;
+const OBJECTIVE_LINE_THICKNESS = 3;
 const OBJECTIVE_HEAD_LENGTH_PX = 16;
 const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
@@ -165,18 +168,14 @@ export function ObjectiveLayer() {
   const is3D = snapshot.mode === "3d";
 
   return (
-    <lineSegments renderOrder={OBJECTIVE_RENDER_ORDER} frustumCulled={false}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[geometry.positions, 3]}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial
-        color={geometry.color}
-        depthTest={is3D}
-        depthWrite={is3D}
-      />
-    </lineSegments>
+    <ThickLineSegments
+      positions={geometry.positions}
+      color={geometry.color}
+      width={OBJECTIVE_LINE_THICKNESS}
+      renderOrder={OBJECTIVE_RENDER_ORDER}
+      depthTest={is3D}
+      depthWrite={is3D}
+      transparent
+    />
   );
 }

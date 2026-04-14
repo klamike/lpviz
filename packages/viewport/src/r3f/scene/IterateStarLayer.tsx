@@ -4,13 +4,14 @@ import { CanvasTexture } from "three";
 import type { PointXY } from "@lpviz/math";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const ITERATE_STAR_COLOR = "#008000";
 const ITERATE_STAR_Z = 0.03;
 const ITERATE_STAR_PIXEL_SIZE = 18;
-const ITERATE_STAR_RENDER_ORDER = 24;
+const ITERATE_STAR_RENDER_ORDER = RENDER_ORDER.iterateStar;
 
 type IterateStarLayerState = {
   cacheKey: string;
@@ -154,6 +155,7 @@ export function IterateStarLayer() {
         color={ITERATE_STAR_COLOR}
         size={ITERATE_STAR_PIXEL_SIZE}
         sizeAttenuation={false}
+        transparent
         depthTest={false}
         depthWrite={false}
         alphaMap={starTexture}

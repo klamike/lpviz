@@ -4,48 +4,34 @@ import type { PointXY } from "@lpviz/math";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { RENDER_ORDER } from "./renderOrder";
+import { ThickLine } from "./ThickLineSegments";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;
 const TRACE_OPACITY = 0.4;
-const TRACE_RENDER_ORDER = 6;
+const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
+const TRACE_LINE_THICKNESS = 2;
 
 type TraceLineLayerState = {
-  cacheKey: string;
   traceEnabled: boolean;
   traceBuffer: State["traceBuffer"];
+  traceCount: number;
+  traceFirstEntry: State["traceBuffer"][number] | undefined;
+  traceLastEntry: State["traceBuffer"][number] | undefined;
   zScale: number;
   zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
 };
 
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializeNumberPath = (path: ReadonlyArray<ReadonlyArray<number>>) =>
-  path.map((entry) => entry.join(",")).join(";");
-
-const serializeTraceBuffer = (traceBuffer: State["traceBuffer"]) =>
-  traceBuffer
-    .map(
-      (entry) =>
-        `${serializePoint(entry.objectiveVector)}:${serializeNumberPath(entry.path)}`,
-    )
-    .join("|");
-
 const selectTraceLineLayerState = (state: State): TraceLineLayerState => ({
-  cacheKey: [
-    state.traceEnabled ? "1" : "0",
-    state.zScale,
-    state.zAxisOffsetOnly ? "1" : "0",
-    serializeTraceBuffer(state.traceBuffer),
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   traceEnabled: state.traceEnabled,
   traceBuffer: state.traceBuffer,
+  traceCount: state.traceBuffer.length,
+  traceFirstEntry: state.traceBuffer[0],
+  traceLastEntry: state.traceBuffer[state.traceBuffer.length - 1],
   zScale: state.zScale,
   zAxisOffsetOnly: state.zAxisOffsetOnly,
   is3DMode: state.is3DMode,
@@ -55,7 +41,15 @@ const selectTraceLineLayerState = (state: State): TraceLineLayerState => ({
 const areTraceLineLayerStatesEqual = (
   current: TraceLineLayerState,
   next: TraceLineLayerState,
-) => current.cacheKey === next.cacheKey;
+) =>
+  current.traceEnabled === next.traceEnabled &&
+  current.traceCount === next.traceCount &&
+  current.traceFirstEntry === next.traceFirstEntry &&
+  current.traceLastEntry === next.traceLastEntry &&
+  current.zScale === next.zScale &&
+  current.zAxisOffsetOnly === next.zAxisOffsetOnly &&
+  current.is3DMode === next.is3DMode &&
+  current.isTransitioning3D === next.isTransitioning3D;
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -69,7 +63,7 @@ function getDisplayedTraceZ(
   return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
 }
 
-function buildTraceSegmentPositions(
+function buildTraceLinePositions(
   path: number[][],
   objectiveVector: PointXY | null,
   zScale: number,
@@ -80,28 +74,57 @@ function buildTraceSegmentPositions(
     return new Float32Array();
   }
 
-  const points = path.map((entry) => ({
-    x: entry[0]!,
-    y: entry[1]!,
-    z:
+  const positions = new Float32Array(path.length * 3);
+  for (let index = 0; index < path.length; index += 1) {
+    const entry = path[index]!;
+    const baseIndex = index * 3;
+    positions[baseIndex] = entry[0]!;
+    positions[baseIndex + 1] = entry[1]!;
+    positions[baseIndex + 2] =
       (getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) /
         100 +
-      (is3D ? 0 : TRACE_Z_OFFSET),
-  }));
-  const positions = new Float32Array((points.length - 1) * 6);
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const start = points[index]!;
-    const end = points[index + 1]!;
-    const baseIndex = index * 6;
-    positions[baseIndex] = start.x;
-    positions[baseIndex + 1] = start.y;
-    positions[baseIndex + 2] = start.z;
-    positions[baseIndex + 3] = end.x;
-    positions[baseIndex + 4] = end.y;
-    positions[baseIndex + 5] = end.z;
+      (is3D ? 0 : TRACE_Z_OFFSET);
   }
 
+  return positions;
+}
+
+const traceEntryIds = new WeakMap<object, number>();
+let nextTraceEntryId = 1;
+const traceLinePositionCache = new WeakMap<object, Map<string, Float32Array>>();
+
+function getTraceEntryId(entry: State["traceBuffer"][number]) {
+  let id = traceEntryIds.get(entry);
+  if (id === undefined) {
+    id = nextTraceEntryId++;
+    traceEntryIds.set(entry, id);
+  }
+  return id;
+}
+
+function getCachedTraceLinePositions(
+  entry: State["traceBuffer"][number],
+  state: Pick<TraceLineLayerState, "zScale" | "zAxisOffsetOnly">,
+  mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
+) {
+  const cacheKey = `${mode}:${state.zScale}:${state.zAxisOffsetOnly ? 1 : 0}`;
+  let cache = traceLinePositionCache.get(entry);
+  if (!cache) {
+    cache = new Map();
+    traceLinePositionCache.set(entry, cache);
+  }
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const positions = buildTraceLinePositions(
+    entry.path,
+    entry.objectiveVector,
+    state.zScale,
+    state.zAxisOffsetOnly,
+    mode === "3d",
+  );
+  cache.set(cacheKey, positions);
   return positions;
 }
 
@@ -117,18 +140,11 @@ function buildTraceLines(
     return [] as Array<{ key: number; positions: Float32Array }>;
   }
 
-  const is3D = mode === "3d";
   const lines: Array<{ key: number; positions: Float32Array }> = [];
-  state.traceBuffer.forEach((entry, index) => {
-    const positions = buildTraceSegmentPositions(
-      entry.path,
-      entry.objectiveVector,
-      state.zScale,
-      state.zAxisOffsetOnly,
-      is3D,
-    );
+  state.traceBuffer.forEach((entry) => {
+    const positions = getCachedTraceLinePositions(entry, state, mode);
     if (positions.length > 0) {
-      lines.push({ key: index, positions });
+      lines.push({ key: getTraceEntryId(entry), positions });
     }
   });
   return lines;
@@ -154,25 +170,17 @@ export function TraceLineLayer() {
   return (
     <group>
       {lines.map((line) => (
-        <lineSegments
+        <ThickLine
           key={line.key}
+          positions={line.positions}
+          color={TRACE_COLOR}
+          width={TRACE_LINE_THICKNESS}
           renderOrder={TRACE_RENDER_ORDER}
-          frustumCulled={false}
-        >
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[line.positions, 3]}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial
-            color={TRACE_COLOR}
-            transparent
-            opacity={TRACE_OPACITY}
-            depthTest={is3D}
-            depthWrite={is3D}
-          />
-        </lineSegments>
+          depthTest={is3D}
+          depthWrite={is3D}
+          transparent
+          opacity={TRACE_OPACITY}
+        />
       ))}
     </group>
   );

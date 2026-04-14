@@ -4,6 +4,7 @@ import { CanvasTexture, Color } from "three";
 import type { PointXY } from "@lpviz/math";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
@@ -22,7 +23,7 @@ const PHASE_COLORS = [
 ];
 const ITERATE_Z = 0.03;
 const ITERATE_RESTART_POINT_SIZE = 8 * 1.4;
-const ITERATE_RESTART_POINTS_RENDER_ORDER = 23;
+const ITERATE_RESTART_POINTS_RENDER_ORDER = RENDER_ORDER.iterateRestartPoints;
 
 type IterateRestartPointsLayerState = {
   cacheKey: string;
@@ -206,6 +207,7 @@ export function IterateRestartPointsLayer() {
         color={geometry.colors ? "#ffffff" : ITERATE_RESTART_POINT_COLOR}
         size={ITERATE_RESTART_POINT_SIZE}
         sizeAttenuation={false}
+        transparent
         depthTest={false}
         depthWrite={false}
         alphaMap={squareTexture}

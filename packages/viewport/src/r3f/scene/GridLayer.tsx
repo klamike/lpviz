@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { RENDER_ORDER } from "./renderOrder";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const GRID_MARGIN_PX = 100;
@@ -51,7 +52,7 @@ export function GridLayer() {
 
   return (
     <group>
-      <lineSegments frustumCulled={false} renderOrder={0}>
+      <lineSegments frustumCulled={false} renderOrder={RENDER_ORDER.grid}>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
@@ -60,7 +61,7 @@ export function GridLayer() {
         </bufferGeometry>
         <lineBasicMaterial color={GRID_COLOR} depthTest depthWrite={false} />
       </lineSegments>
-      <lineSegments frustumCulled={false} renderOrder={1}>
+      <lineSegments frustumCulled={false} renderOrder={RENDER_ORDER.axis}>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"

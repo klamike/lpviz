@@ -4,6 +4,7 @@ import { CanvasTexture, Color } from "three";
 import type { PointXY } from "@lpviz/math";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
@@ -22,7 +23,7 @@ const PHASE_COLORS = [
 ];
 const ITERATE_Z = 0.03;
 const ITERATE_POINT_PIXEL_SIZE = 8;
-const ITERATE_POINTS_RENDER_ORDER = 22;
+const ITERATE_POINTS_RENDER_ORDER = RENDER_ORDER.iteratePoints;
 
 type IteratePointsLayerState = {
   cacheKey: string;
@@ -193,6 +194,7 @@ export function IteratePointsLayer() {
         color={geometry.colors ? "#ffffff" : ITERATE_POINT_COLOR}
         size={ITERATE_POINT_PIXEL_SIZE}
         sizeAttenuation={false}
+        transparent
         depthTest={false}
         depthWrite={false}
         alphaMap={circleTexture}

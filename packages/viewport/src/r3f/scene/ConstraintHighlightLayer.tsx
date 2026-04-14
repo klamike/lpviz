@@ -5,11 +5,14 @@ import { hasPolytopeLines } from "@lpviz/polytope";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { RENDER_ORDER } from "./renderOrder";
+import { ThickLineSegments } from "./ThickLineSegments";
 import { projectCanvasPointToWorldPlane } from "../viewport3dTransition";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const CONSTRAINT_COLOR = "#ff0000";
-const CONSTRAINT_RENDER_ORDER = 7;
+const CONSTRAINT_RENDER_ORDER = RENDER_ORDER.constraintLines;
+const CONSTRAINT_LINE_THICKNESS = 2;
 const CLIP_MARGIN_PX = 50;
 const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_3D_EXTENT = 5000;
@@ -187,15 +190,13 @@ export function ConstraintHighlightLayer() {
   const is3D = snapshot.mode === "3d";
 
   return (
-    <lineSegments renderOrder={CONSTRAINT_RENDER_ORDER} frustumCulled={false}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <lineBasicMaterial
-        color={CONSTRAINT_COLOR}
-        depthTest={is3D}
-        depthWrite={is3D}
-      />
-    </lineSegments>
+    <ThickLineSegments
+      positions={positions}
+      color={CONSTRAINT_COLOR}
+      width={CONSTRAINT_LINE_THICKNESS}
+      renderOrder={CONSTRAINT_RENDER_ORDER}
+      depthTest={is3D}
+      depthWrite={is3D}
+    />
   );
 }

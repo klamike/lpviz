@@ -4,6 +4,7 @@ import { CanvasTexture } from "three";
 import type { PointXY } from "@lpviz/math";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
+import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
@@ -11,7 +12,7 @@ const VERTEX_COLOR = "#ff0000";
 const OPEN_ANCHOR_COLOR = "#ff0000";
 const VERTEX_Z = 0.004;
 const VERTEX_PIXEL_SIZE = 10;
-const VERTEX_RENDER_ORDER = 12;
+const VERTEX_RENDER_ORDER = RENDER_ORDER.polytopeVertices;
 const CIRCLE_SEGMENTS = 24;
 
 type PolytopeVerticesLayerState = {
@@ -243,6 +244,7 @@ export function PolytopeVerticesLayer() {
             )}
             <meshBasicMaterial
               color={vertex.color}
+              transparent
               depthTest={false}
               depthWrite={false}
             />
@@ -266,6 +268,7 @@ export function PolytopeVerticesLayer() {
             color={VERTEX_COLOR}
             size={VERTEX_PIXEL_SIZE}
             sizeAttenuation={false}
+            transparent
             depthTest={false}
             depthWrite={false}
             alphaMap={circleTexture}
@@ -285,6 +288,7 @@ export function PolytopeVerticesLayer() {
             color={OPEN_ANCHOR_COLOR}
             size={VERTEX_PIXEL_SIZE}
             sizeAttenuation={false}
+            transparent
             depthTest={false}
             depthWrite={false}
             alphaMap={squareTexture}

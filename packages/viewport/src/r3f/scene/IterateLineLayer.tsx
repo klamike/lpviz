@@ -4,6 +4,8 @@ import type { PointXY } from "@lpviz/math";
 import type { State } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { RENDER_ORDER } from "./renderOrder";
+import { ThickLine } from "./ThickLineSegments";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const ITERATE_LINE_COLOR = "#800080";
@@ -20,7 +22,8 @@ const PHASE_COLORS = [
   "#17becf",
 ];
 const ITERATE_Z = 0.03;
-const ITERATE_LINE_RENDER_ORDER = 20;
+const ITERATE_LINE_RENDER_ORDER = RENDER_ORDER.iterateLine;
+const ITERATE_LINE_THICKNESS = 3;
 
 type IterateLineLayerState = {
   cacheKey: string;
@@ -105,7 +108,7 @@ function getIterateRenderZ(
   );
 }
 
-function buildSegmentPositions(
+function buildLinePositions(
   path: ReadonlyArray<ReadonlyArray<number>>,
   state: Pick<
     IterateLineLayerState,
@@ -117,17 +120,13 @@ function buildSegmentPositions(
     return new Float32Array();
   }
 
-  const positions = new Float32Array((path.length - 1) * 6);
-  for (let index = 0; index < path.length - 1; index += 1) {
-    const start = path[index]!;
-    const end = path[index + 1]!;
-    const baseIndex = index * 6;
-    positions[baseIndex] = start[0]!;
-    positions[baseIndex + 1] = start[1]!;
-    positions[baseIndex + 2] = getIterateRenderZ(start, state, is3D);
-    positions[baseIndex + 3] = end[0]!;
-    positions[baseIndex + 4] = end[1]!;
-    positions[baseIndex + 5] = getIterateRenderZ(end, state, is3D);
+  const positions = new Float32Array(path.length * 3);
+  for (let index = 0; index < path.length; index += 1) {
+    const entry = path[index]!;
+    const baseIndex = index * 3;
+    positions[baseIndex] = entry[0]!;
+    positions[baseIndex + 1] = entry[1]!;
+    positions[baseIndex + 2] = getIterateRenderZ(entry, state, is3D);
   }
 
   return positions;
@@ -151,7 +150,7 @@ function buildIterateLineEntries(
       {
         key: "iterate-line",
         color: ITERATE_LINE_COLOR,
-        positions: buildSegmentPositions(state.iteratePath, state, is3D),
+        positions: buildLinePositions(state.iteratePath, state, is3D),
       },
     ];
   }
@@ -166,7 +165,7 @@ function buildIterateLineEntries(
     const previousPhase = state.iteratePhases[index - 1]!;
     if (currentPhase !== previousPhase) {
       const segmentPath = state.iteratePath.slice(segmentStart, index + 1);
-      const positions = buildSegmentPositions(segmentPath, state, is3D);
+      const positions = buildLinePositions(segmentPath, state, is3D);
       if (positions.length > 0) {
         entries.push({
           key: `phase-${segmentCount}`,
@@ -181,7 +180,7 @@ function buildIterateLineEntries(
   }
 
   const segmentPath = state.iteratePath.slice(segmentStart);
-  const positions = buildSegmentPositions(segmentPath, state, is3D);
+  const positions = buildLinePositions(segmentPath, state, is3D);
   if (positions.length > 0) {
     entries.push({
       key: `phase-${segmentCount}`,
@@ -211,23 +210,15 @@ export function IterateLineLayer() {
   return (
     <group>
       {lines.map((line) => (
-        <lineSegments
+        <ThickLine
           key={line.key}
+          positions={line.positions}
+          color={line.color}
+          width={ITERATE_LINE_THICKNESS}
           renderOrder={ITERATE_LINE_RENDER_ORDER}
-          frustumCulled={false}
-        >
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[line.positions, 3]}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial
-            color={line.color}
-            depthTest={false}
-            depthWrite={false}
-          />
-        </lineSegments>
+          depthTest={false}
+          depthWrite={false}
+        />
       ))}
     </group>
   );
