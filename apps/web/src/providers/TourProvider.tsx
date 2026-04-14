@@ -1,7 +1,4 @@
-import type {
-  TourActionTarget,
-  TourUiController,
-} from "@lpviz/runtime";
+import type { TourActionTarget, TourUiController } from "@lpviz/runtime";
 import {
   createContext,
   useCallback,
@@ -14,10 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-export type {
-  TourActionTarget,
-  TourUiController,
-} from "@lpviz/runtime";
+export type { TourActionTarget, TourUiController } from "@lpviz/runtime";
 
 const POPUP_ANIMATION_MS = 300;
 
@@ -110,9 +104,9 @@ function OverlayPopup({ popup }: { popup: Exclude<PopupState, null> }) {
 }
 
 export function TourProvider({ children }: PropsWithChildren) {
-  const actionTargetsRef = useRef<Partial<Record<TourActionTarget, HTMLElement>>>(
-    {},
-  );
+  const actionTargetsRef = useRef<
+    Partial<Record<TourActionTarget, HTMLElement>>
+  >({});
   const popupTimersRef = useRef<{
     help: number | null;
     nonconvex: number | null;

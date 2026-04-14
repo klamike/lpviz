@@ -5,10 +5,11 @@ import {
   selectCanvasControlsUiState,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
-import { useCanvasRuntime } from "../../hooks/useCanvasRuntime";
-import { useLpvizRuntime } from "../../providers/LpvizRuntimeProvider";
-import { useTourActionTarget } from "../../providers/TourProvider";
 import { LpvizCanvas, type R3FViewportBridge } from "@lpviz/viewport/react";
+
+import { useCanvasRuntime } from "@/hooks/useCanvasRuntime";
+import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
+import { useTourActionTarget } from "@/providers/TourProvider";
 
 export function CanvasStage({
   sidebarWidth,

@@ -2,8 +2,9 @@ import { useEffect, useRef } from "react";
 
 import { initializeCanvasRuntime } from "@lpviz/runtime";
 import type { R3FViewportBridge } from "@lpviz/viewport";
-import { useRegisterLpvizRuntimeActions } from "../providers/LpvizRuntimeProvider";
-import { useTourUiController } from "../providers/TourProvider";
+
+import { useRegisterLpvizRuntimeActions } from "@/providers/LpvizRuntimeProvider";
+import { useTourUiController } from "@/providers/TourProvider";
 
 const noop = () => {};
 

@@ -7,9 +7,10 @@ import {
   selectTopResultUiState,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
-import { useLpvizRuntime } from "../../providers/LpvizRuntimeProvider";
-import { NullStateLogo } from "./NullStateLogo";
-import { TerminalFrame } from "./TerminalFrame";
+
+import { NullStateLogo } from "@/components/sidebar/NullStateLogo";
+import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
+import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
 
 export function TopResultPanel({
   topResultRef,

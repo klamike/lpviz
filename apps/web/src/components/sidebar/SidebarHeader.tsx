@@ -1,4 +1,4 @@
-import { GitHubLink } from "./GitHubLink";
+import { GitHubLink } from "@/components/sidebar/GitHubLink";
 
 export function SidebarHeader() {
   return (

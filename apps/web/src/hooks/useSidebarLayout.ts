@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { useLpvizRuntime } from "../providers/LpvizRuntimeProvider";
+import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
 
 const DEFAULT_SIDEBAR_WIDTH = 450;
 const MIN_SIDEBAR_WIDTH = 375;

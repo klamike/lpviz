@@ -28,6 +28,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: "@",
+        replacement: resolve(__dirname, "apps/web/src"),
+      },
+      {
         find: "@lpviz/state/react",
         replacement: resolve(__dirname, "packages/state/src/react.ts"),
       },

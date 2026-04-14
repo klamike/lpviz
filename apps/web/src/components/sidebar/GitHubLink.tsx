@@ -1,4 +1,4 @@
-import GitHubMark from "../../assets/github-mark.svg?react";
+import GitHubIcon from "@/assets/github.svg?react";
 
 export function GitHubLink() {
   return (
@@ -9,7 +9,11 @@ export function GitHubLink() {
       rel="noreferrer"
       aria-label="GitHub Repository for lpviz"
     >
-      <GitHubMark className="github-icon" aria-hidden="true" focusable="false" />
+      <GitHubIcon
+        className="github-icon"
+        aria-hidden="true"
+        focusable="false"
+      />
     </a>
   );
 }
