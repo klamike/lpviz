@@ -4,6 +4,7 @@ import { CanvasTexture } from "three";
 import type { PointXY } from "../../../../math/blas";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const ITERATE_STAR_COLOR = "#008000";
@@ -103,7 +104,7 @@ function buildStarPositions(
   mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
 ) {
   const entry = state.iteratePath[state.iteratePath.length - 1];
-  if (!entry || state.isTransitioning3D || (mode === "3d" && !state.is3DMode)) {
+  if (!entry || !shouldRenderSnapshotMode(mode, state)) {
     return new Float32Array();
   }
 

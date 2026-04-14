@@ -21,7 +21,6 @@ import { createViewportRuntime } from "./viewportApi";
 import type { R3FViewportBridge } from "./r3f/ViewportBridge";
 
 export type CanvasRuntimeElements = {
-  canvas: HTMLCanvasElement;
   viewportBridge: R3FViewportBridge;
 };
 
@@ -38,14 +37,13 @@ export async function initializeCanvasRuntime(
     onboardingUi: OnboardingUiController;
   },
 ): Promise<CanvasRuntimeCleanup> {
-  const { canvas, viewportBridge } = runtimeElements;
+  const { viewportBridge } = runtimeElements;
   const cleanupHandlers: Array<() => void> = [];
   const registerCleanup = (cleanup: () => void) => {
     cleanupHandlers.push(cleanup);
   };
 
   const canvasManager = await createViewportRuntime({
-    canvas,
     viewportBridge,
   });
   let currentSidebarWidth = layout.initialSidebarWidth;

@@ -6,7 +6,6 @@ import {
   subscribe,
   type ViewportDirtyFlags,
 } from "../../store/lpvizStore";
-import { ViewportManager } from "../../ViewportManager";
 import {
   getViewport2DControlsConfig,
   getViewport2DControlsSnapshot,
@@ -28,6 +27,7 @@ import {
   setViewportTransitionConfig,
 } from "./r3f/viewportTransitionStore";
 import {
+  buildViewport2DSnapshot,
   fitViewport2DToBounds,
   isDefault2DView,
   toCanvasCoords2D,
@@ -42,10 +42,13 @@ import {
   buildResetViewport3DView,
   buildViewport3DSnapshot,
   fitViewport3DToBounds,
+  getDefaultPerspectiveDistance3D,
   getMaxPerspectiveDistance3D,
+  getViewAngleFromSnapshot3D,
   isDefault3DView,
 } from "./r3f/viewport3dView";
 import {
+  buildPerspectivePoseFromViewAngle,
   buildTransitionCompleteState,
   buildTransitionProgressState,
   buildTransitionStartState,
@@ -56,7 +59,21 @@ import {
   type ViewportTransitionPlan,
 } from "./r3f/viewport3dTransition";
 import type { R3FViewportBridge } from "./r3f/ViewportBridge";
-import type { ViewportRenderSnapshot } from "./viewportRenderTypes";
+import {
+  DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
+  type ViewportRenderSnapshot,
+} from "./viewportRenderTypes";
+import {
+  getConstraintViewportDirtyFlags,
+  getDraftPreviewViewportDirtyFlags,
+  getIterateViewportDirtyFlags,
+  getObjectiveViewportDirtyFlags,
+  getPolytopeViewportDirtyFlags,
+  getTraceViewportDirtyFlags,
+  getViewportUnboundedClipBounds,
+  getZScaleViewportDirtyFlags,
+  isViewport3DState,
+} from "./viewportRuntimeUtils";
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 
@@ -108,21 +125,16 @@ export type ViewportRuntime = ViewportApi & {
 };
 
 export async function createViewportRuntime({
-  canvas,
   viewportBridge,
 }: {
-  canvas: HTMLCanvasElement;
   viewportBridge: R3FViewportBridge;
 }): Promise<ViewportRuntime> {
-  const manager = await ViewportManager.create(
-    canvas,
-    viewportBridge.getCanvasElement(),
-  );
-
   let currentSidebarWidth = 0;
   let navigationFrameCallback: (() => void) | null = null;
   let navigationIdleTimeoutId: number | null = null;
-  let managerSnapshot = manager.getRenderSnapshot();
+  let managerSnapshot: ViewportRenderSnapshot = {
+    ...DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
+  };
   let externalControlsBlocked = false;
   let external2DViewportActive = false;
   let external3DControlsActive = false;
@@ -131,7 +143,6 @@ export async function createViewportRuntime({
   let externalTransitionSnapshotActive = false;
   let externalTransitionProgress = 0;
   let activeTransitionPlan: ViewportTransitionPlan | null = null;
-  let shouldAdoptManager2DStateFromNextSnapshot = false;
 
   const shouldUseExternal2DViewport = () => {
     const state = getState();
@@ -212,32 +223,26 @@ export async function createViewportRuntime({
     return managerSnapshot;
   };
 
-  const captureManagerSnapshot = (
-    snapshot: ViewportRenderSnapshot = manager.getRenderSnapshot(),
-  ) => {
-    managerSnapshot =
-      external3DControlsActive && !externalTransitionSnapshotActive
-        ? buildViewport3DSnapshot(
-            snapshot,
-            buildPoseFromSnapshot(snapshot),
-            getViewportRect(),
-          )
-        : snapshot;
-    return managerSnapshot;
-  };
-
   const getExternal2DSnapshot = () =>
     getViewport2DControlsSnapshot(getViewportRect());
 
-  const syncManagerPlanarState = () => {
-    const { state } = getViewport2DControlsConfig();
-    manager.setSidebarWidth(currentSidebarWidth);
-    manager.syncPlanarViewState(
-      state.scaleFactor,
-      state.offsetX,
-      state.offsetY,
+  const buildInitialSnapshot = () => {
+    const initial2DSnapshot = getExternal2DSnapshot();
+    const state = getState();
+    if (!isViewport3DState(state)) {
+      return initial2DSnapshot;
+    }
+
+    const pose = buildPerspectivePoseFromViewAngle(
+      state.viewAngle,
+      getDefaultPerspectiveDistance3D(initial2DSnapshot, getViewportRect()),
+      initial2DSnapshot.target,
     );
-    captureManagerSnapshot();
+    return buildViewport3DSnapshot(initial2DSnapshot, pose, getViewportRect());
+  };
+
+  const syncManagerPlanarState = () => {
+    managerSnapshot = getExternal2DSnapshot();
     setViewport2DControlsConfig(
       {
         sidebarWidth: currentSidebarWidth,
@@ -272,12 +277,6 @@ export async function createViewportRuntime({
       notify: false,
       emit: false,
     });
-    manager.syncPlanarViewState(
-      planarState.scaleFactor,
-      planarState.offsetX,
-      planarState.offsetY,
-      { syncTarget: false },
-    );
     return planarState;
   };
 
@@ -290,7 +289,6 @@ export async function createViewportRuntime({
     options: { syncControls?: boolean } = {},
   ) => {
     const previousScaleFactor = managerSnapshot.scaleFactor;
-    manager.syncExternalPerspectivePose(pose);
     rebuildExternal3DSnapshot(pose);
     if (Math.abs(managerSnapshot.scaleFactor - previousScaleFactor) > 1e-6) {
       setState({}, { viewportDirty: { objective: true } });
@@ -334,62 +332,6 @@ export async function createViewportRuntime({
     });
   };
 
-  const syncExternal2DLayers = (
-    enabled: boolean,
-    options: {
-      enablePolytopeBaseInStable3D?: boolean;
-      enablePolytopeVerticesInStable3D?: boolean;
-      enableConstraintHighlightInStable3D?: boolean;
-      enableObjectiveInStable3D?: boolean;
-      enableTraceInStable3D?: boolean;
-      enableIterateLineInStable3D?: boolean;
-      enableIteratePointsInStable3D?: boolean;
-      enableIterateRestartPointsInStable3D?: boolean;
-      enableIterateHighlightInStable3D?: boolean;
-      enableIterateStarInStable3D?: boolean;
-      hideLegacyCanvasInStable3D?: boolean;
-    } = {},
-  ) => {
-    manager.setExternal2DControlsEnabled(enabled);
-    manager.setExternalPolytopeBaseEnabled(
-      enabled || options.enablePolytopeBaseInStable3D === true,
-    );
-    manager.setExternalPolytopeVerticesEnabled(
-      enabled || options.enablePolytopeVerticesInStable3D === true,
-    );
-    manager.setExternalObjectiveEnabled(
-      enabled || options.enableObjectiveInStable3D === true,
-    );
-    manager.setExternalTraceLineEnabled(
-      enabled || options.enableTraceInStable3D === true,
-    );
-    manager.setExternalTracePointsEnabled(
-      enabled || options.enableTraceInStable3D === true,
-    );
-    manager.setExternalConstraintHighlightEnabled(
-      enabled || options.enableConstraintHighlightInStable3D === true,
-    );
-    manager.setExternalIterateLineEnabled(
-      enabled || options.enableIterateLineInStable3D === true,
-    );
-    manager.setExternalIteratePointsEnabled(
-      enabled || options.enableIteratePointsInStable3D === true,
-    );
-    manager.setExternalIterateRestartPointsEnabled(
-      enabled || options.enableIterateRestartPointsInStable3D === true,
-    );
-    manager.setExternalIterateHighlightEnabled(
-      enabled || options.enableIterateHighlightInStable3D === true,
-    );
-    manager.setExternalIterateStarEnabled(
-      enabled || options.enableIterateStarInStable3D === true,
-    );
-    canvas.classList.toggle(
-      "canvas-stage__canvas--legacy-hidden",
-      enabled || options.hideLegacyCanvasInStable3D === true,
-    );
-  };
-
   const syncExternal2DControls = (
     enabled: boolean,
     options: { syncStateFromSnapshot?: boolean } = {},
@@ -418,22 +360,12 @@ export async function createViewportRuntime({
     options: { syncFromSnapshot?: boolean } = {},
   ) => {
     external3DControlsActive = enabled;
-    manager.setExternal3DControlsEnabled(enabled);
     if (enabled) {
-      manager.syncExternalPerspectivePose({
-        position: { ...managerSnapshot.perspective.position },
-        up: { ...managerSnapshot.perspective.up },
-        target: { ...managerSnapshot.target },
-      });
       rebuildExternal3DSnapshot();
     }
     publish3DControlsConfig({
       syncFromSnapshot: enabled && options.syncFromSnapshot,
     });
-  };
-
-  const syncExternalStable3DRendering = (enabled: boolean) => {
-    manager.setExternalStable3DRenderingEnabled(enabled);
   };
 
   setViewport2DControlsConfig(
@@ -460,49 +392,16 @@ export async function createViewportRuntime({
       emit: false,
     },
   );
-
-  manager.setRenderSnapshotCallback((snapshot) => {
-    captureManagerSnapshot(snapshot);
-    if (shouldUseExternal2DViewport()) {
-      if (shouldAdoptManager2DStateFromNextSnapshot && snapshot.mode === "2d") {
-        syncViewport2DControlsStateFromSnapshot(snapshot, currentSidebarWidth, {
-          emit: false,
-        });
-        shouldAdoptManager2DStateFromNextSnapshot = false;
-      } else {
-        setViewport2DControlsConfig(
-          {
-            sidebarWidth: currentSidebarWidth,
-            fallbackSnapshot: snapshot,
-          },
-          { emit: false },
-        );
-      }
-      publishSnapshot(getExternal2DSnapshot());
-      return;
-    }
-    if (externalTransitionSnapshotActive) {
-      return;
-    }
-    publishSnapshot(managerSnapshot);
-  });
-  manager.setExternalGridEnabled(true);
+  managerSnapshot = buildInitialSnapshot();
+  setViewport2DControlsConfig(
+    {
+      sidebarWidth: currentSidebarWidth,
+      fallbackSnapshot: managerSnapshot,
+    },
+    { emit: false },
+  );
 
   external2DViewportActive = shouldUseExternal2DViewport();
-  syncExternalStable3DRendering(shouldUseExternal3DControls());
-  syncExternal2DLayers(external2DViewportActive, {
-    enablePolytopeBaseInStable3D: shouldUseExternal3DControls(),
-    enablePolytopeVerticesInStable3D: shouldUseExternal3DControls(),
-    enableConstraintHighlightInStable3D: shouldUseExternal3DControls(),
-    enableObjectiveInStable3D: shouldUseExternal3DControls(),
-    enableTraceInStable3D: shouldUseExternal3DControls(),
-    enableIterateLineInStable3D: shouldUseExternal3DControls(),
-    enableIteratePointsInStable3D: shouldUseExternal3DControls(),
-    enableIterateRestartPointsInStable3D: shouldUseExternal3DControls(),
-    enableIterateHighlightInStable3D: shouldUseExternal3DControls(),
-    enableIterateStarInStable3D: shouldUseExternal3DControls(),
-    hideLegacyCanvasInStable3D: shouldUseExternal3DControls(),
-  });
   syncExternal2DControls(external2DViewportActive, {
     syncStateFromSnapshot: external2DViewportActive,
   });
@@ -525,24 +424,9 @@ export async function createViewportRuntime({
       return;
     }
 
-    syncExternalStable3DRendering(nextExternal3DControlsActive);
-    syncExternal2DLayers(nextExternal2DViewportActive, {
-      enablePolytopeBaseInStable3D: nextExternal3DControlsActive,
-      enablePolytopeVerticesInStable3D: nextExternal3DControlsActive,
-      enableConstraintHighlightInStable3D: nextExternal3DControlsActive,
-      enableObjectiveInStable3D: nextExternal3DControlsActive,
-      enableTraceInStable3D: nextExternal3DControlsActive,
-      enableIterateLineInStable3D: nextExternal3DControlsActive,
-      enableIteratePointsInStable3D: nextExternal3DControlsActive,
-      enableIterateRestartPointsInStable3D: nextExternal3DControlsActive,
-      enableIterateHighlightInStable3D: nextExternal3DControlsActive,
-      enableIterateStarInStable3D: nextExternal3DControlsActive,
-      hideLegacyCanvasInStable3D: nextExternal3DControlsActive,
-    });
     syncExternal2DControls(nextExternal2DViewportActive);
 
     if (external3DChanged) {
-      captureManagerSnapshot();
       syncExternal3DControls(nextExternal3DControlsActive, {
         syncFromSnapshot: nextExternal3DControlsActive,
       });
@@ -551,35 +435,34 @@ export async function createViewportRuntime({
     external2DViewportActive = nextExternal2DViewportActive;
 
     if (externalTransitionSnapshotActive) {
-      shouldAdoptManager2DStateFromNextSnapshot = false;
       return;
     }
 
     if (external2DViewportActive) {
-      captureManagerSnapshot();
-      syncExternal2DControls(true, { syncStateFromSnapshot: true });
-      shouldAdoptManager2DStateFromNextSnapshot = true;
-      publishSnapshot(getExternal2DSnapshot());
+      managerSnapshot = getExternal2DSnapshot();
+      setViewport2DControlsConfig(
+        {
+          sidebarWidth: currentSidebarWidth,
+          fallbackSnapshot: managerSnapshot,
+        },
+        { emit: false },
+      );
+      syncExternal2DControls(true);
+      publishSnapshot(managerSnapshot);
       return;
     }
 
-    shouldAdoptManager2DStateFromNextSnapshot = false;
-    captureManagerSnapshot();
     publishSnapshot(managerSnapshot);
   });
 
-  // Temporary compatibility bridge while ViewportManager still backs transitions/fallback 3D.
+  // Fully external viewport runtime backed by R3F-side state/snapshots.
   return {
     draw: () => {
-      if (!shouldUseExternal2DViewport() && !external3DControlsActive) {
-        manager.draw();
-      }
       viewportBridge.invalidate();
     },
     updateDimensions: () => {
-      manager.updateDimensions();
       if (shouldUseExternal2DViewport()) {
-        captureManagerSnapshot();
+        managerSnapshot = getExternal2DSnapshot();
         setViewport2DControlsConfig(
           {
             sidebarWidth: currentSidebarWidth,
@@ -587,7 +470,7 @@ export async function createViewportRuntime({
           },
           { emit: false },
         );
-        publishSnapshot(getExternal2DSnapshot());
+        publishSnapshot(managerSnapshot);
         return;
       }
       if (externalTransitionSnapshotActive && activeTransitionPlan) {
@@ -596,17 +479,7 @@ export async function createViewportRuntime({
           externalTransitionProgress,
           getViewportRect(),
         );
-        const planarState = syncTransitionPlanarState(
-          activeTransitionPlan,
-          frame,
-        );
-        manager.syncExternal3DTransitionProgress(
-          activeTransitionPlan.direction === "to3d",
-          externalTransitionProgress,
-          frame.pose,
-          planarState,
-          { applyState: false },
-        );
+        syncTransitionPlanarState(activeTransitionPlan, frame);
         managerSnapshot = frame.snapshot;
         publishSnapshot(frame.snapshot);
         return;
@@ -617,12 +490,10 @@ export async function createViewportRuntime({
         publishSnapshot(managerSnapshot);
         return;
       }
-      captureManagerSnapshot();
-      viewportBridge.invalidate();
+      publishSnapshot(managerSnapshot);
     },
     setSidebarWidth: (width) => {
       currentSidebarWidth = width;
-      manager.setSidebarWidth(width);
       setViewport2DControlsConfig({ sidebarWidth: width }, { emit: false });
       if (shouldUseExternal2DViewport()) {
         syncManagerPlanarState();
@@ -635,17 +506,7 @@ export async function createViewportRuntime({
           externalTransitionProgress,
           getViewportRect(),
         );
-        const planarState = syncTransitionPlanarState(
-          activeTransitionPlan,
-          frame,
-        );
-        manager.syncExternal3DTransitionProgress(
-          activeTransitionPlan.direction === "to3d",
-          externalTransitionProgress,
-          frame.pose,
-          planarState,
-          { applyState: false },
-        );
+        syncTransitionPlanarState(activeTransitionPlan, frame);
         managerSnapshot = frame.snapshot;
         publishSnapshot(frame.snapshot);
         return;
@@ -656,12 +517,10 @@ export async function createViewportRuntime({
         publishSnapshot(managerSnapshot);
         return;
       }
-      captureManagerSnapshot();
-      viewportBridge.invalidate();
+      publishSnapshot(managerSnapshot);
     },
     setNavigationFrameCallback: (callback) => {
       navigationFrameCallback = callback;
-      manager.setNavigationFrameCallback(callback);
     },
     isDefaultView: () => {
       if (shouldUseExternal2DViewport()) {
@@ -671,25 +530,43 @@ export async function createViewportRuntime({
         );
       }
 
-      if (external3DControlsActive) {
+      if (!getState().isTransitioning3D) {
         return isDefault3DView(managerSnapshot);
       }
 
-      return manager.isDefaultView();
+      return false;
     },
     setViewState: (scale, offsetX, offsetY) => {
-      if (!shouldUseExternal2DViewport()) {
-        manager.setViewState(scale, offsetX, offsetY);
-        return;
-      }
-
       const { state } = getViewport2DControlsConfig();
-      setViewport2DControlsState({
+      const nextPlanarState = {
         gridSpacing: state.gridSpacing,
         scaleFactor: scale,
         offsetX,
         offsetY,
+      };
+
+      if (shouldUseExternal2DViewport()) {
+        setViewport2DControlsState(nextPlanarState);
+        return;
+      }
+
+      setViewport2DControlsState(nextPlanarState, {
+        notify: false,
+        emit: false,
       });
+      managerSnapshot = buildViewport2DSnapshot(
+        nextPlanarState,
+        currentSidebarWidth,
+        getViewportRect(),
+        managerSnapshot,
+      );
+      setViewport2DControlsConfig(
+        {
+          sidebarWidth: currentSidebarWidth,
+          fallbackSnapshot: managerSnapshot,
+        },
+        { emit: false },
+      );
     },
     zoomToFit: (bounds, padding, zBounds) => {
       if (shouldUseExternal2DViewport()) {
@@ -707,7 +584,7 @@ export async function createViewportRuntime({
         return;
       }
 
-      if (external3DControlsActive) {
+      if (!getState().isTransitioning3D) {
         const state = getState();
         const nextView = fitViewport3DToBounds(
           managerSnapshot,
@@ -729,7 +606,7 @@ export async function createViewportRuntime({
         return;
       }
 
-      manager.zoomToFit(bounds, padding, zBounds);
+      return;
     },
     resetView: () => {
       setState({ viewAngle: { ...DEFAULT_VIEW_ANGLE } }, { viewportDirty: {} });
@@ -745,7 +622,7 @@ export async function createViewportRuntime({
         return;
       }
 
-      if (external3DControlsActive) {
+      if (!getState().isTransitioning3D) {
         const nextView = buildResetViewport3DView(
           managerSnapshot,
           getViewportRect(),
@@ -754,11 +631,10 @@ export async function createViewportRuntime({
         return;
       }
 
-      manager.resetView();
+      return;
     },
     setControlsBlocked: (blocked) => {
       externalControlsBlocked = blocked;
-      manager.setControlsBlocked(blocked);
       setViewport2DControlsConfig({ blocked }, { emit: false });
       if (external3DControlsActive) {
         publish3DControlsConfig();
@@ -766,7 +642,6 @@ export async function createViewportRuntime({
     },
     set2DPanEnabled: (enabled) => {
       setViewport2DControlsConfig({ panEnabled: enabled }, { emit: false });
-      manager.set2DPanEnabled(enabled);
     },
     toLogicalCoords: (x, y) => {
       if (shouldUseExternal2DViewport()) {
@@ -779,19 +654,15 @@ export async function createViewportRuntime({
       }
 
       const state = getState();
-      if (state.is3DMode || state.isTransitioning3D) {
-        return toLogicalCoords3D(managerSnapshot, getViewportRect(), x, y, {
-          objectiveVector: state.objectiveVector,
-          zScale: state.zScale,
-          zAxisOffsetOnly: state.zAxisOffsetOnly,
-          snapToGrid: state.snapToGrid,
-          editorInteractionKind: state.editorInteraction.kind,
-          is3DMode: state.is3DMode,
-          isTransitioning3D: state.isTransitioning3D,
-        });
-      }
-
-      return manager.toLogicalCoords(x, y);
+      return toLogicalCoords3D(managerSnapshot, getViewportRect(), x, y, {
+        objectiveVector: state.objectiveVector,
+        zScale: state.zScale,
+        zAxisOffsetOnly: state.zAxisOffsetOnly,
+        snapToGrid: state.snapToGrid,
+        editorInteractionKind: state.editorInteraction.kind,
+        is3DMode: state.is3DMode,
+        isTransitioning3D: state.isTransitioning3D,
+      });
     },
     toCanvasCoords: (x, y, z) => {
       if (shouldUseExternal2DViewport()) {
@@ -801,18 +672,13 @@ export async function createViewportRuntime({
         });
       }
 
-      const state = getState();
-      if (state.is3DMode || state.isTransitioning3D) {
-        return toCanvasCoords3D(
-          managerSnapshot,
-          getViewportRect(),
-          { x, y },
-          z,
-          state.zScale,
-        );
-      }
-
-      return manager.toCanvasCoords(x, y, z);
+      return toCanvasCoords3D(
+        managerSnapshot,
+        getViewportRect(),
+        { x, y },
+        z,
+        getState().zScale,
+      );
     },
     getObjectiveScreenPosition: (point) => {
       if (shouldUseExternal2DViewport()) {
@@ -823,93 +689,49 @@ export async function createViewportRuntime({
         );
       }
 
-      const state = getState();
-      if (state.is3DMode || state.isTransitioning3D) {
-        return getObjectiveScreenPosition3D(
-          managerSnapshot,
-          getViewportRect(),
-          point,
-        );
+      return getObjectiveScreenPosition3D(
+        managerSnapshot,
+        getViewportRect(),
+        point,
+      );
+    },
+    getUnboundedClipBounds: () => getViewportUnboundedClipBounds(),
+    start3DTransition: (targetMode) => {
+      if (getState().isTransitioning3D) {
+        return;
       }
 
-      return manager.getObjectiveScreenPosition(point);
-    },
-    getUnboundedClipBounds: () => manager.getUnboundedClipBounds(),
-    start3DTransition: (targetMode) => {
-      const wasExternal2DViewportActive = external2DViewportActive;
-      const wasExternal3DControlsActive = external3DControlsActive;
+      const transitionBaseSnapshot = shouldUseExternal2DViewport()
+        ? getExternal2DSnapshot()
+        : managerSnapshot;
+      const transitionViewAngle = external3DControlsActive
+        ? getViewAngleFromSnapshot3D(transitionBaseSnapshot)
+        : getState().viewAngle;
+      const transitionStartTime = performance.now();
 
       if (shouldUseExternal2DViewport()) {
         syncManagerPlanarState();
         syncExternal2DControls(false);
       }
       if (external3DControlsActive) {
-        manager.capturePerspectiveViewAngle();
+        setState({ viewAngle: transitionViewAngle }, { viewportDirty: {} });
         syncExternal3DControls(false);
       }
-      syncExternal2DLayers(false);
-      syncExternalStable3DRendering(false);
 
       const transitionPlan = buildViewportTransitionPlan({
-        snapshot: shouldUseExternal2DViewport()
-          ? getExternal2DSnapshot()
-          : managerSnapshot,
+        snapshot: transitionBaseSnapshot,
         targetMode,
-        viewAngle: getState().viewAngle,
+        viewAngle: transitionViewAngle,
       });
 
       externalTransitionSnapshotActive = true;
-      manager.setExternalTransitionCameraEnabled(true);
-      const transition = manager.beginExternal3DTransition(
-        targetMode,
-        {
-          duration: transitionPlan.duration,
-          startAngles: transitionPlan.startAngles,
-          endAngles: transitionPlan.endAngles,
-          startTarget: transitionPlan.startTarget,
-          endTarget: transitionPlan.endTarget,
-          perspectiveDistance: transitionPlan.perspectiveDistance,
-        },
-        { applyState: false },
-      );
-      if (!transition) {
-        externalTransitionSnapshotActive = false;
-        activeTransitionPlan = null;
-        manager.setExternalTransitionCameraEnabled(false);
-        syncExternalStable3DRendering(wasExternal3DControlsActive);
-        syncExternal2DLayers(wasExternal2DViewportActive, {
-          enablePolytopeBaseInStable3D: wasExternal3DControlsActive,
-          enablePolytopeVerticesInStable3D: wasExternal3DControlsActive,
-          enableConstraintHighlightInStable3D: wasExternal3DControlsActive,
-          enableObjectiveInStable3D: wasExternal3DControlsActive,
-          enableTraceInStable3D: wasExternal3DControlsActive,
-          enableIterateLineInStable3D: wasExternal3DControlsActive,
-          enableIteratePointsInStable3D: wasExternal3DControlsActive,
-          enableIterateRestartPointsInStable3D: wasExternal3DControlsActive,
-          enableIterateHighlightInStable3D: wasExternal3DControlsActive,
-          enableIterateStarInStable3D: wasExternal3DControlsActive,
-          hideLegacyCanvasInStable3D: wasExternal3DControlsActive,
-        });
-        syncExternal2DControls(wasExternal2DViewportActive, {
-          syncStateFromSnapshot: wasExternal2DViewportActive,
-        });
-        syncExternal3DControls(wasExternal3DControlsActive, {
-          syncFromSnapshot: wasExternal3DControlsActive,
-        });
-        publishSnapshot(
-          wasExternal2DViewportActive
-            ? getExternal2DSnapshot()
-            : managerSnapshot,
-        );
-        return;
-      }
 
       activeTransitionPlan = transitionPlan;
       externalTransitionProgress = 0;
       setState(
         buildTransitionStartState(
           targetMode,
-          transition.startTime,
+          transitionStartTime,
           transitionPlan,
         ),
         { viewportDirty: TRANSITION_VIEWPORT_DIRTY_FLAGS },
@@ -919,17 +741,7 @@ export async function createViewportRuntime({
         0,
         getViewportRect(),
       );
-      const initialPlanarState = syncTransitionPlanarState(
-        transitionPlan,
-        initialFrame,
-      );
-      manager.syncExternal3DTransitionProgress(
-        targetMode,
-        0,
-        initialFrame.pose,
-        initialPlanarState,
-        { applyState: false },
-      );
+      syncTransitionPlanarState(transitionPlan, initialFrame);
       managerSnapshot = initialFrame.snapshot;
       publishSnapshot(initialFrame.snapshot);
 
@@ -938,7 +750,7 @@ export async function createViewportRuntime({
         active: true,
         runId: externalTransitionRunId,
         targetMode,
-        startTime: transition.startTime,
+        startTime: transitionStartTime,
         duration: transitionPlan.duration,
         onFrame: (_progress, easedProgress) => {
           if (!activeTransitionPlan) {
@@ -956,17 +768,7 @@ export async function createViewportRuntime({
             easedProgress,
             getViewportRect(),
           );
-          const planarState = syncTransitionPlanarState(
-            activeTransitionPlan,
-            frame,
-          );
-          manager.syncExternal3DTransitionProgress(
-            targetMode,
-            easedProgress,
-            frame.pose,
-            planarState,
-            { applyState: false },
-          );
+          syncTransitionPlanarState(activeTransitionPlan, frame);
           managerSnapshot = frame.snapshot;
           publishSnapshot(frame.snapshot);
         },
@@ -982,48 +784,38 @@ export async function createViewportRuntime({
               1,
               getViewportRect(),
             );
-            const planarState = syncTransitionPlanarState(completedPlan, frame);
+            syncTransitionPlanarState(completedPlan, frame);
             managerSnapshot = frame.snapshot;
             publishSnapshot(frame.snapshot);
-            manager.finishExternal3DTransition(
-              targetMode,
-              frame.pose,
-              planarState,
-              { autoComplete: false, applyState: false },
-            );
-          } else {
-            manager.finishExternal3DTransition(
-              targetMode,
-              undefined,
-              undefined,
-              { autoComplete: false, applyState: false },
-            );
           }
           requestAnimationFrame(() => {
+            externalTransitionSnapshotActive = false;
+            activeTransitionPlan = null;
             if (completedPlan) {
               setState(buildTransitionCompleteState(completedPlan), {
                 viewportDirty: TRANSITION_VIEWPORT_DIRTY_FLAGS,
               });
             }
-            externalTransitionSnapshotActive = false;
-            activeTransitionPlan = null;
-            manager.completeExternal3DTransition(targetMode, {
-              applyState: false,
-            });
             resetViewportTransitionConfig();
+            publishSnapshot(
+              shouldUseExternal2DViewport()
+                ? getExternal2DSnapshot()
+                : managerSnapshot,
+            );
           });
         },
       });
     },
     getCanvasElement: () => viewportBridge.getCanvasElement(),
     getCanvasRect: () => viewportBridge.getCanvasRect(),
-    getObjectiveDirtyFlags: () => manager.getObjectiveDirtyFlags(),
-    getPolytopeDirtyFlags: () => manager.getPolytopeDirtyFlags(),
-    getTraceDirtyFlags: () => manager.getTraceDirtyFlags(),
-    getIterateDirtyFlags: () => manager.getIterateDirtyFlags(),
-    getConstraintDirtyFlags: () => manager.getConstraintDirtyFlags(),
-    getDraftPreviewDirtyFlags: () => manager.getDraftPreviewDirtyFlags(),
-    getZScaleDirtyFlags: () => manager.getZScaleDirtyFlags(),
+    getObjectiveDirtyFlags: () =>
+      getObjectiveViewportDirtyFlags(isViewport3DState(getState())),
+    getPolytopeDirtyFlags: () => getPolytopeViewportDirtyFlags(),
+    getTraceDirtyFlags: () => getTraceViewportDirtyFlags(),
+    getIterateDirtyFlags: () => getIterateViewportDirtyFlags(),
+    getConstraintDirtyFlags: () => getConstraintViewportDirtyFlags(),
+    getDraftPreviewDirtyFlags: () => getDraftPreviewViewportDirtyFlags(),
+    getZScaleDirtyFlags: () => getZScaleViewportDirtyFlags(),
     destroy: () => {
       clearViewportNavigationTimeout();
       setViewportNavigationActive(false);
@@ -1033,14 +825,7 @@ export async function createViewportRuntime({
       resetViewport3DControlsConfig();
       resetViewportTransitionConfig();
       unsubscribeExternalOwnership();
-      manager.setExternal2DControlsEnabled(false);
-      manager.setExternal3DControlsEnabled(false);
-      manager.setExternalStable3DRenderingEnabled(false);
-      manager.setExternalTransitionCameraEnabled(false);
-      canvas.classList.remove("canvas-stage__canvas--legacy-hidden");
-      manager.setRenderSnapshotCallback(null);
       resetViewportRenderSnapshot();
-      manager.destroy();
     },
   };
 }

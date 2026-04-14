@@ -11,6 +11,7 @@ import { VRep } from "../../../../polytope/polygon";
 import { hasPolytopeLines } from "../../../../polytope/polytopeTypes";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
@@ -326,8 +327,7 @@ function buildPolytopeRenderData(
 ): PolytopeRenderData {
   if (
     state.vertices.length === 0 ||
-    state.isTransitioning3D ||
-    (snapshot.mode === "3d" && !state.is3DMode)
+    !shouldRenderSnapshotMode(snapshot.mode, state)
   ) {
     return {
       fillGeometry: null,

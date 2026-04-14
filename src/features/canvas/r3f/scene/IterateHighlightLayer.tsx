@@ -4,6 +4,7 @@ import { CanvasTexture } from "three";
 import type { PointXY } from "../../../../math/blas";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const ITERATE_HIGHLIGHT_COLOR = "#008000";
@@ -97,8 +98,7 @@ function buildHighlightPositions(
     index === null ||
     index < 0 ||
     index >= state.iteratePath.length ||
-    state.isTransitioning3D ||
-    (mode === "3d" && !state.is3DMode)
+    !shouldRenderSnapshotMode(mode, state)
   ) {
     return new Float32Array();
   }

@@ -4,6 +4,7 @@ import { CanvasTexture, Color } from "three";
 import type { PointXY } from "../../../../math/blas";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const ITERATE_RESTART_POINT_COLOR = "#800080";
@@ -106,7 +107,7 @@ function buildIterateRestartPointGeometry(
   state: IterateRestartPointsLayerState,
   mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
 ) {
-  if (state.isTransitioning3D || (mode === "3d" && !state.is3DMode)) {
+  if (!shouldRenderSnapshotMode(mode, state)) {
     return {
       positions: new Float32Array(),
       colors: null as Float32Array | null,

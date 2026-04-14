@@ -5,6 +5,7 @@ import { isObjectiveDirectionUnbounded } from "../../../../polytope/objectiveDir
 import { hasPolytopeLines } from "../../../../polytope/polytopeTypes";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const OBJECTIVE_COLOR = "#008000";
@@ -101,8 +102,7 @@ function buildObjectiveGeometry(
 ) {
   if (
     state.objectiveHidden ||
-    state.isTransitioning3D ||
-    (snapshot.mode === "3d" && !state.is3DMode)
+    !shouldRenderSnapshotMode(snapshot.mode, state)
   ) {
     return {
       positions: new Float32Array(),

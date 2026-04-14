@@ -4,6 +4,7 @@ import { CanvasTexture } from "three";
 import type { PointXY } from "../../../../math/blas";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const VERTEX_COLOR = "#ff0000";
@@ -134,11 +135,7 @@ function buildVertexEntries(
   state: PolytopeVerticesLayerState,
   mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
 ): VertexEntry[] {
-  if (
-    state.vertices.length === 0 ||
-    state.isTransitioning3D ||
-    (mode === "3d" && !state.is3DMode)
-  ) {
+  if (state.vertices.length === 0 || !shouldRenderSnapshotMode(mode, state)) {
     return [];
   }
 

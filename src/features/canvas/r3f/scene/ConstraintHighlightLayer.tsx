@@ -4,6 +4,7 @@ import type { Line, PointXY } from "../../../../math/blas";
 import { hasPolytopeLines } from "../../../../polytope/polytopeTypes";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { projectCanvasPointToWorldPlane } from "../viewport3dTransition";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
@@ -149,8 +150,7 @@ function buildConstraintPositions(
     state.highlightIndex === null ||
     !state.polytope ||
     !hasPolytopeLines(state.polytope) ||
-    state.isTransitioning3D ||
-    (snapshot.mode === "3d" && !state.is3DMode)
+    !shouldRenderSnapshotMode(snapshot.mode, state)
   ) {
     return new Float32Array();
   }

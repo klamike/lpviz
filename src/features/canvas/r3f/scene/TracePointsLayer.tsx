@@ -7,6 +7,7 @@ import {
   type State,
 } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const TRACE_COLOR = "#ffa500";
@@ -159,8 +160,7 @@ function buildTracePointPositions(
   if (
     !state.traceEnabled ||
     state.traceBuffer.length === 0 ||
-    state.isTransitioning3D ||
-    (mode === "3d" && !state.is3DMode)
+    !shouldRenderSnapshotMode(mode, state)
   ) {
     return new Float32Array();
   }

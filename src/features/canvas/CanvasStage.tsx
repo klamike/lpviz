@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
 import {
@@ -17,7 +17,6 @@ export function CanvasStage({
   sidebarWidth: number;
   onResizeStart: () => void;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [viewportBridge, setViewportBridge] =
     useState<R3FViewportBridge | null>(null);
   const runtimeActions = useLpvizRuntime();
@@ -26,7 +25,7 @@ export function CanvasStage({
     selectCanvasControlsUiState,
     areCanvasControlsUiStatesEqual,
   );
-  useCanvasRuntime({ canvasRef, viewportBridge }, sidebarWidth);
+  useCanvasRuntime({ viewportBridge }, sidebarWidth);
 
   const handleBridgeReady = useCallback((bridge: R3FViewportBridge) => {
     setViewportBridge(bridge);
@@ -43,11 +42,6 @@ export function CanvasStage({
           onBridgeReady={handleBridgeReady}
           onBridgeDispose={handleBridgeDispose}
         />
-        <canvas
-          className="canvas-stage__canvas canvas-stage__canvas--legacy"
-          ref={canvasRef}
-          tabIndex={0}
-        ></canvas>
       </div>
       <div id="zoomControls">
         <button

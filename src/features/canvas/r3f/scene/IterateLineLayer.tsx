@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { PointXY } from "../../../../math/blas";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const ITERATE_LINE_COLOR = "#800080";
@@ -136,11 +137,7 @@ function buildIterateLineEntries(
   state: IterateLineLayerState,
   mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
 ): IterateLineEntry[] {
-  if (
-    state.iteratePath.length < 2 ||
-    state.isTransitioning3D ||
-    (mode === "3d" && !state.is3DMode)
-  ) {
+  if (state.iteratePath.length < 2 || !shouldRenderSnapshotMode(mode, state)) {
     return [];
   }
 
