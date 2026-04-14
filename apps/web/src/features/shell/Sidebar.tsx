@@ -7,7 +7,7 @@ import { AnimationControlsPanel } from "../solver/AnimationControlsPanel";
 import { SolverControlsPanel } from "../solver/SolverControlsPanel";
 import { TopResultPanel } from "../solver/TopResultPanel";
 import { UsagePanel } from "../solver/UsagePanel";
-import { AppHeader } from "./AppHeader";
+import { Header } from "./Header";
 
 export function Sidebar({
   sidebarWidth,
@@ -26,7 +26,7 @@ export function Sidebar({
     <header>
       <div id="sidebar" style={{ width: sidebarWidth }}>
         <div id="sidebarContent">
-          <AppHeader />
+          <Header />
           <div id="uiContainer">
             <TopResultPanel topResultRef={topResultRef} />
             <SolverControlsPanel />

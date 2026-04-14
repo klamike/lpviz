@@ -27,15 +27,15 @@ export type RegisterLpvizRuntimeActions = (
   actions: LpvizRuntimeActions,
 ) => () => void;
 
-export type OnboardingActionTarget =
+export type TourActionTarget =
   | "activate-ipm"
   | "activate-central"
   | "toggle-3d"
   | "start-rotation"
   | "toggle-trace";
 
-export type OnboardingUiController = {
-  getActionTarget: (target: OnboardingActionTarget) => HTMLElement | null;
+export type TourUiController = {
+  getActionTarget: (target: TourActionTarget) => HTMLElement | null;
   showCursor: () => void;
   hideCursor: () => void;
   moveCursor: (x: number, y: number) => void;

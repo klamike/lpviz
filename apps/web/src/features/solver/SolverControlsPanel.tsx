@@ -6,13 +6,12 @@ import {
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
 import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
-import { useOnboardingActionTarget } from "../onboarding/OnboardingProvider";
+import { useTourActionTarget } from "../tour/TourProvider";
 
 export function SolverControlsPanel() {
   const runtimeActions = useLpvizRuntime();
-  const activateIpmTargetRef = useOnboardingActionTarget("activate-ipm");
-  const activateCentralTargetRef =
-    useOnboardingActionTarget("activate-central");
+  const activateIpmTargetRef = useTourActionTarget("activate-ipm");
+  const activateCentralTargetRef = useTourActionTarget("activate-central");
   const solverControlsUiState = useLpvizSelector(
     selectSolverControlsUiState,
     areSolverControlsUiStatesEqual,

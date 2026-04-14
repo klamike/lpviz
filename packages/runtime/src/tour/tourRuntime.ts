@@ -11,8 +11,8 @@ import {
 } from "@lpviz/state";
 import type { ViewportApi } from "@lpviz/viewport";
 import type {
-  OnboardingActionTarget,
-  OnboardingUiController,
+  TourActionTarget,
+  TourUiController,
 } from "../uiContracts";
 
 const TOUR_CURSOR_TRANSITION_MS = 700;
@@ -28,9 +28,9 @@ type TourStep =
   | { type: "draw-vertex"; point: PointXY }
   | { type: "close-polytope"; point: PointXY }
   | { type: "set-objective"; point: PointXY }
-  | { type: "run-action"; target: OnboardingActionTarget };
+  | { type: "run-action"; target: TourActionTarget };
 
-export function createOnboardingRuntime({
+export function createTourRuntime({
   canvasManager,
   ui,
   saveHistory,
@@ -38,10 +38,10 @@ export function createOnboardingRuntime({
   runAction,
 }: {
   canvasManager: ViewportApi;
-  ui: OnboardingUiController;
+  ui: TourUiController;
   saveHistory: () => void;
   sendPolytope: () => void;
-  runAction: (target: OnboardingActionTarget) => void;
+  runAction: (target: TourActionTarget) => void;
 }) {
   let running = false;
   let clickBlocker: ((event: Event) => void) | null = null;
@@ -179,7 +179,7 @@ export function createOnboardingRuntime({
     await delay(TOUR_CLICK_AT_POINT_DELAY_MS);
   };
 
-  const clickActionTarget = async (target: OnboardingActionTarget) => {
+  const clickActionTarget = async (target: TourActionTarget) => {
     const element = ui.getActionTarget(target);
     if (element) {
       const rect = element.getBoundingClientRect();

@@ -6,7 +6,7 @@ import {
   selectCanvasControlsUiState,
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
-import { useOnboardingActionTarget } from "../onboarding/OnboardingProvider";
+import { useTourActionTarget } from "../tour/TourProvider";
 import { useCanvasRuntime } from "./useCanvasRuntime";
 import { LpvizCanvas, type R3FViewportBridge } from "@lpviz/viewport/react";
 
@@ -20,7 +20,7 @@ export function CanvasStage({
   const [viewportBridge, setViewportBridge] =
     useState<R3FViewportBridge | null>(null);
   const runtimeActions = useLpvizRuntime();
-  const toggle3DTargetRef = useOnboardingActionTarget("toggle-3d");
+  const toggle3DTargetRef = useTourActionTarget("toggle-3d");
   const canvasControlsUiState = useLpvizSelector(
     selectCanvasControlsUiState,
     areCanvasControlsUiStatesEqual,

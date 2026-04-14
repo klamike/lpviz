@@ -1,8 +1,6 @@
-// TODO: This isn't really onboarding. Rename all "onboarding" wording to "tour"
-
 import type {
-  OnboardingActionTarget,
-  OnboardingUiController,
+  TourActionTarget,
+  TourUiController,
 } from "@lpviz/runtime";
 import {
   createContext,
@@ -17,8 +15,8 @@ import {
 import { createPortal } from "react-dom";
 
 export type {
-  OnboardingActionTarget,
-  OnboardingUiController,
+  TourActionTarget,
+  TourUiController,
 } from "@lpviz/runtime";
 
 const POPUP_ANIMATION_MS = 300;
@@ -41,17 +39,15 @@ type TourCursorState = {
   clicking: boolean;
 };
 
-type OnboardingUiContextValue = {
-  controller: OnboardingUiController;
+type TourContextValue = {
+  controller: TourUiController;
   registerActionTarget: (
-    target: OnboardingActionTarget,
+    target: TourActionTarget,
     element: HTMLElement | null,
   ) => void;
 };
 
-const OnboardingUiContext = createContext<OnboardingUiContextValue | null>(
-  null,
-);
+const TourContext = createContext<TourContextValue | null>(null);
 
 function TourCursor({ cursor }: { cursor: TourCursorState }) {
   return (
@@ -113,10 +109,10 @@ function OverlayPopup({ popup }: { popup: Exclude<PopupState, null> }) {
   );
 }
 
-export function OnboardingUiProvider({ children }: PropsWithChildren) {
-  const actionTargetsRef = useRef<
-    Partial<Record<OnboardingActionTarget, HTMLElement>>
-  >({});
+export function TourProvider({ children }: PropsWithChildren) {
+  const actionTargetsRef = useRef<Partial<Record<TourActionTarget, HTMLElement>>>(
+    {},
+  );
   const popupTimersRef = useRef<{
     help: number | null;
     nonconvex: number | null;
@@ -151,7 +147,7 @@ export function OnboardingUiProvider({ children }: PropsWithChildren) {
   }, []);
 
   const registerActionTarget = useCallback(
-    (target: OnboardingActionTarget, element: HTMLElement | null) => {
+    (target: TourActionTarget, element: HTMLElement | null) => {
       if (element) {
         actionTargetsRef.current[target] = element;
         return;
@@ -231,7 +227,7 @@ export function OnboardingUiProvider({ children }: PropsWithChildren) {
     });
   }, []);
 
-  const controller = useMemo<OnboardingUiController>(
+  const controller = useMemo<TourUiController>(
     () => ({
       getActionTarget(target) {
         return actionTargetsRef.current[target] ?? null;
@@ -276,7 +272,7 @@ export function OnboardingUiProvider({ children }: PropsWithChildren) {
     [hidePopup, showPopup],
   );
 
-  const contextValue = useMemo<OnboardingUiContextValue>(
+  const contextValue = useMemo<TourContextValue>(
     () => ({
       controller,
       registerActionTarget,
@@ -285,11 +281,11 @@ export function OnboardingUiProvider({ children }: PropsWithChildren) {
   );
 
   return (
-    <OnboardingUiContext.Provider value={contextValue}>
+    <TourContext.Provider value={contextValue}>
       {children}
       {typeof document !== "undefined"
         ? createPortal(
-            <div className="onboarding-layer" aria-hidden="true">
+            <div className="tour-layer" aria-hidden="true">
               <TourCursor cursor={cursor} />
               {nonconvexPopup ? <OverlayPopup popup={nonconvexPopup} /> : null}
               {helpPopup ? <OverlayPopup popup={helpPopup} /> : null}
@@ -297,24 +293,24 @@ export function OnboardingUiProvider({ children }: PropsWithChildren) {
             document.body,
           )
         : null}
-    </OnboardingUiContext.Provider>
+    </TourContext.Provider>
   );
 }
 
-export function useOnboardingUiController() {
-  const context = useContext(OnboardingUiContext);
+export function useTourUiController() {
+  const context = useContext(TourContext);
   if (!context) {
-    throw new Error("OnboardingUiProvider is missing");
+    throw new Error("TourProvider is missing");
   }
   return context.controller;
 }
 
-export function useOnboardingActionTarget<T extends HTMLElement = HTMLElement>(
-  target: OnboardingActionTarget,
+export function useTourActionTarget<T extends HTMLElement = HTMLElement>(
+  target: TourActionTarget,
 ) {
-  const context = useContext(OnboardingUiContext);
+  const context = useContext(TourContext);
   if (!context) {
-    throw new Error("OnboardingUiProvider is missing");
+    throw new Error("TourProvider is missing");
   }
 
   return useCallback(

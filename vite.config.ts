@@ -2,6 +2,7 @@
 import { readdirSync, statSync } from "fs";
 import { resolve } from "path";
 import { defineConfig } from "vite";
+import svgr from "vite-plugin-svgr";
 
 function findHtmlFiles(dir: string): string[] {
   const entries = readdirSync(dir);
@@ -23,6 +24,7 @@ const docsDir = resolve(__dirname, "docs");
 const docHtmlInputs = findHtmlFiles(docsDir);
 
 export default defineConfig({
+  plugins: [svgr()],
   resolve: {
     alias: [
       {

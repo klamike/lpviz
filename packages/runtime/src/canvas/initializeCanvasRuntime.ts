@@ -5,13 +5,13 @@ import { createViewportRuntime } from "@lpviz/viewport";
 import { registerCanvasInteractions } from "../editor/canvasInteractions";
 import { createHistoryRuntime } from "../editor/historyRuntime";
 import { createPolytopeRuntime } from "../editor/polytopeRuntime";
-import { createOnboardingRuntime } from "../onboarding/onboardingRuntime";
+import { createTourRuntime } from "../tour/tourRuntime";
 import type { SolverSettingUpdater } from "../shared/runtimeTypes";
 import { createResultRuntime } from "../solver/resultRuntime";
 import { createSolverControls } from "../solver/solverControls";
 import { createSolverRuntime } from "../solver/solverRuntime";
 import type {
-  OnboardingUiController,
+  TourUiController,
   RegisterLpvizRuntimeActions,
 } from "../uiContracts";
 import { registerCanvasRuntimeActions } from "./registerRuntimeActions";
@@ -31,7 +31,7 @@ export async function initializeCanvasRuntime(
   },
   runtime: {
     registerRuntimeActions: RegisterLpvizRuntimeActions;
-    onboardingUi: OnboardingUiController;
+    tourUi: TourUiController;
   },
 ): Promise<CanvasRuntimeCleanup> {
   const { viewportBridge } = runtimeElements;
@@ -84,13 +84,12 @@ export async function initializeCanvasRuntime(
     return solverRuntime;
   };
 
-  let onboardingRuntime: ReturnType<typeof createOnboardingRuntime> | null =
-    null;
-  const getOnboardingRuntime = () => {
-    if (!onboardingRuntime) {
-      throw new Error("Onboarding runtime is not ready");
+  let tourRuntime: ReturnType<typeof createTourRuntime> | null = null;
+  const getTourRuntime = () => {
+    if (!tourRuntime) {
+      throw new Error("Tour runtime is not ready");
     }
-    return onboardingRuntime;
+    return tourRuntime;
   };
 
   let uiRuntime: ReturnType<typeof createUiRuntime> | null = null;
@@ -111,7 +110,7 @@ export async function initializeCanvasRuntime(
 
   const polytopeRuntime = createPolytopeRuntime({
     handleProblemChange: () => getSolverRuntime().handleProblemChange(),
-    scheduleNonconvexHint: () => getOnboardingRuntime().scheduleNonconvexHint(),
+    scheduleNonconvexHint: () => getTourRuntime().scheduleNonconvexHint(),
   });
 
   const historyRuntime = createHistoryRuntime({
@@ -121,9 +120,9 @@ export async function initializeCanvasRuntime(
     },
   });
 
-  onboardingRuntime = createOnboardingRuntime({
+  tourRuntime = createTourRuntime({
     canvasManager,
-    ui: runtime.onboardingUi,
+    ui: runtime.tourUi,
     saveHistory: historyRuntime.save,
     sendPolytope: polytopeRuntime.send,
     runAction(action) {
@@ -165,8 +164,8 @@ export async function initializeCanvasRuntime(
     computePath: () => getSolverRuntime().computePath(),
     sendPolytope: polytopeRuntime.send,
     resetTraceAndRedrawIfNeeded,
-    resetOnboarding: onboardingRuntime.reset,
-    startDemo: onboardingRuntime.start,
+    resetTour: tourRuntime.reset,
+    startDemo: tourRuntime.start,
   });
 
   solverRuntime = createSolverRuntime({
@@ -200,11 +199,11 @@ export async function initializeCanvasRuntime(
     teardownCanvasInteractions();
   });
 
-  onboardingRuntime.initialize();
+  tourRuntime.initialize();
   uiRuntime.initialize();
 
   return () => {
-    onboardingRuntime.teardown();
+    tourRuntime.teardown();
     getSolverRuntime().stopActiveMotion();
 
     while (cleanupHandlers.length > 0) {

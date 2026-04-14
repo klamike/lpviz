@@ -22,7 +22,8 @@
     "@types/three": "^0.181.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
-    "vite": "^8.0.8"
+    "vite": "^8.0.8",
+    "vite-plugin-svgr": "^5.2.0"
   },
   "dependencies": {
     "@lpviz/contracts": "workspace:*",

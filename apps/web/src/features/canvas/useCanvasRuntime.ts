@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { initializeCanvasRuntime } from "@lpviz/runtime";
 import type { R3FViewportBridge } from "@lpviz/viewport";
 import { useRegisterLpvizRuntimeActions } from "../../context/LpvizRuntimeProvider";
-import { useOnboardingUiController } from "../onboarding/OnboardingProvider";
+import { useTourUiController } from "../tour/TourProvider";
 
 const noop = () => {};
 
@@ -17,7 +17,7 @@ export function useCanvasRuntime(
 ) {
   const initialSidebarWidthRef = useRef(initialSidebarWidth);
   const registerRuntimeActions = useRegisterLpvizRuntimeActions();
-  const onboardingUi = useOnboardingUiController();
+  const tourUi = useTourUiController();
 
   useEffect(() => {
     if (!viewportBridge) {
@@ -33,7 +33,7 @@ export function useCanvasRuntime(
       { viewportBridge },
       new URLSearchParams(window.location.search),
       { initialSidebarWidth: initialSidebarWidthRef.current },
-      { registerRuntimeActions, onboardingUi },
+      { registerRuntimeActions, tourUi },
     )
       .then((nextCleanup) => {
         if (disposed) {
@@ -50,5 +50,5 @@ export function useCanvasRuntime(
       disposed = true;
       cleanup();
     };
-  }, [onboardingUi, registerRuntimeActions, viewportBridge]);
+  }, [registerRuntimeActions, tourUi, viewportBridge]);
 }

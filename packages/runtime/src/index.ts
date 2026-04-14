@@ -5,7 +5,7 @@ export type {
 } from "./canvas/initializeCanvasRuntime";
 export type {
   LpvizRuntimeActions,
-  OnboardingActionTarget,
-  OnboardingUiController,
+  TourActionTarget,
+  TourUiController,
   RegisterLpvizRuntimeActions,
 } from "./uiContracts";

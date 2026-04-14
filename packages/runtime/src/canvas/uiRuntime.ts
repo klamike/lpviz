@@ -24,7 +24,7 @@ export function createUiRuntime({
   computePath,
   sendPolytope,
   resetTraceAndRedrawIfNeeded,
-  resetOnboarding,
+  resetTour,
   startDemo,
 }: {
   params: URLSearchParams;
@@ -38,7 +38,7 @@ export function createUiRuntime({
   computePath: () => Promise<void> | void;
   sendPolytope: () => void;
   resetTraceAndRedrawIfNeeded: () => void;
-  resetOnboarding: () => void;
+  resetTour: () => void;
   startDemo: () => Promise<void> | void;
 }) {
   const collectShareSettings = (solverMode: SolverMode): ShareSettings => {
@@ -172,7 +172,7 @@ export function createUiRuntime({
           applySharedState(expandSharedAppState(data) as SharedAppState);
         }
         history.replaceState(null, "", window.location.pathname);
-        resetOnboarding();
+        resetTour();
       } catch (error) {
         console.error("Failed to load shared state", error);
       }

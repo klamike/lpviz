@@ -1,11 +1,11 @@
 import { LpvizRuntimeProvider } from "./context/LpvizRuntimeProvider";
 import { CanvasStage } from "./features/canvas/CanvasStage";
-import { OnboardingUiProvider } from "./features/onboarding/OnboardingProvider";
+import { TourProvider } from "./features/tour/TourProvider";
 import { Sidebar } from "./features/shell/Sidebar";
 import { SmallScreenOverlay } from "./features/shell/SmallScreenOverlay";
 import { useSidebarLayout } from "./hooks/useSidebarLayout";
 
-function AppContent() {
+function RootLayout() {
   const { sidebarWidth, topResultRef, beginResize } = useSidebarLayout();
 
   return (
@@ -20,9 +20,9 @@ function AppContent() {
 export function App() {
   return (
     <LpvizRuntimeProvider>
-      <OnboardingUiProvider>
-        <AppContent />
-      </OnboardingUiProvider>
+      <TourProvider>
+        <RootLayout />
+      </TourProvider>
     </LpvizRuntimeProvider>
   );
 }

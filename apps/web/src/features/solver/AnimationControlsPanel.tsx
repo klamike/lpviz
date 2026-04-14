@@ -6,12 +6,12 @@ import {
 } from "@lpviz/state";
 import { useLpvizSelector } from "@lpviz/state/react";
 import { useLpvizRuntime } from "../../context/LpvizRuntimeProvider";
-import { useOnboardingActionTarget } from "../onboarding/OnboardingProvider";
+import { useTourActionTarget } from "../tour/TourProvider";
 
 export function AnimationControlsPanel() {
   const runtimeActions = useLpvizRuntime();
-  const startRotationTargetRef = useOnboardingActionTarget("start-rotation");
-  const toggleTraceTargetRef = useOnboardingActionTarget("toggle-trace");
+  const startRotationTargetRef = useTourActionTarget("start-rotation");
+  const toggleTraceTargetRef = useTourActionTarget("toggle-trace");
   const animationControlsUiState = useLpvizSelector(
     selectAnimationControlsUiState,
     areAnimationControlsUiStatesEqual,
