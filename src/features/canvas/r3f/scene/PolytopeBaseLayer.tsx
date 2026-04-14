@@ -1,5 +1,10 @@
-import { useMemo } from "react";
-import { DoubleSide, Shape } from "three";
+import { useEffect, useMemo } from "react";
+import {
+  DoubleSide,
+  Float32BufferAttribute,
+  Shape,
+  ShapeGeometry,
+} from "three";
 
 import type { Line, PointXY } from "../../../../math/blas";
 import { VRep } from "../../../../polytope/polygon";
@@ -33,6 +38,18 @@ type PolytopeLayerState = {
   currentMouse: PointXY | null;
   polytope: State["polytope"];
   tourActive: boolean;
+  objectiveVector: PointXY | null;
+  zScale: number;
+  zAxisOffsetOnly: boolean;
+  is3DMode: boolean;
+  isTransitioning3D: boolean;
+};
+
+type PolytopeRenderData = {
+  fillGeometry: ShapeGeometry | null;
+  fillColor: string;
+  normalSegments: Float32Array;
+  highlightSegments: Float32Array;
 };
 
 const serializePoint = (point: PointXY | null) =>
@@ -70,6 +87,11 @@ const selectPolytopeLayerState = (state: State): PolytopeLayerState => ({
     serializePoint(state.currentMouse),
     serializePolytope(state.polytope),
     state.tourActive ? "1" : "0",
+    serializePoint(state.objectiveVector),
+    state.zScale,
+    state.zAxisOffsetOnly ? "1" : "0",
+    state.is3DMode ? "1" : "0",
+    state.isTransitioning3D ? "1" : "0",
   ].join("|"),
   vertices: state.vertices,
   completionMode: state.completionMode,
@@ -77,6 +99,11 @@ const selectPolytopeLayerState = (state: State): PolytopeLayerState => ({
   currentMouse: state.currentMouse,
   polytope: state.polytope,
   tourActive: state.tourActive,
+  objectiveVector: state.objectiveVector,
+  zScale: state.zScale,
+  zAxisOffsetOnly: state.zAxisOffsetOnly,
+  is3DMode: state.is3DMode,
+  isTransitioning3D: state.isTransitioning3D,
 });
 
 const arePolytopeLayerStatesEqual = (
@@ -225,13 +252,85 @@ function getVisibleBounds(
   };
 }
 
+function getDisplayedObjectiveZ(
+  x: number,
+  y: number,
+  objectiveVector: PointXY | null,
+  zAxisOffsetOnly: boolean,
+) {
+  const objectiveValue = objectiveVector
+    ? objectiveVector.x * x + objectiveVector.y * y
+    : 0;
+  return zAxisOffsetOnly ? 0 : objectiveValue;
+}
+
+function getRenderZ(
+  x: number,
+  y: number,
+  state: Pick<
+    PolytopeLayerState,
+    "objectiveVector" | "zScale" | "zAxisOffsetOnly"
+  >,
+  is3D: boolean,
+  offset: number,
+) {
+  if (!is3D) {
+    return offset;
+  }
+
+  return (
+    (getDisplayedObjectiveZ(
+      x,
+      y,
+      state.objectiveVector,
+      state.zAxisOffsetOnly,
+    ) *
+      state.zScale) /
+      100 +
+    offset
+  );
+}
+
+function buildFillGeometry(
+  fillVertices: ReadonlyArray<PointXY>,
+  state: Pick<
+    PolytopeLayerState,
+    "objectiveVector" | "zScale" | "zAxisOffsetOnly"
+  >,
+  mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
+) {
+  if (fillVertices.length < 3) {
+    return null;
+  }
+
+  const geometry = new ShapeGeometry(buildShapeFromVertices(fillVertices));
+  if (mode === "3d") {
+    const positions = geometry.getAttribute(
+      "position",
+    ) as Float32BufferAttribute;
+    for (let index = 0; index < positions.count; index += 1) {
+      const x = positions.getX(index);
+      const y = positions.getY(index);
+      positions.setZ(index, getRenderZ(x, y, state, true, 0));
+    }
+    positions.needsUpdate = true;
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+  }
+  return geometry;
+}
+
 function buildPolytopeRenderData(
   state: PolytopeLayerState,
   snapshot: ReturnType<typeof useViewportRenderSnapshot>,
-) {
-  if (snapshot.mode !== "2d" || state.vertices.length === 0) {
+): PolytopeRenderData {
+  if (
+    state.vertices.length === 0 ||
+    state.isTransitioning3D ||
+    (snapshot.mode === "3d" && !state.is3DMode)
+  ) {
     return {
-      fillShape: null as Shape | null,
+      fillGeometry: null,
       fillColor: POLYTOPE_FILL_COLOR,
       normalSegments: new Float32Array(),
       highlightSegments: new Float32Array(),
@@ -267,6 +366,7 @@ function buildPolytopeRenderData(
           maxY: DEFAULT_UNBOUNDED_EXTENT,
         }
       : getVisibleBounds(snapshot);
+  const is3D = snapshot.mode === "3d";
 
   const fillVertices: PointXY[] =
     isClosedRegion && displayVertices.length >= 3
@@ -279,8 +379,15 @@ function buildPolytopeRenderData(
 
   const normalSegments: number[] = [];
   const highlightSegments: number[] = [];
-  const appendSegment = (points: number[], highlighted = false) =>
-    (highlighted ? highlightSegments : normalSegments).push(...points);
+  const appendSegment = (start: PointXY, end: PointXY, highlighted = false) =>
+    (highlighted ? highlightSegments : normalSegments).push(
+      start.x,
+      start.y,
+      getRenderZ(start.x, start.y, state, is3D, EDGE_Z),
+      end.x,
+      end.y,
+      getRenderZ(end.x, end.y, state, is3D, EDGE_Z),
+    );
 
   const edgeCount = regionFinished
     ? Math.max(0, displayVertices.length - (isClosedRegion ? 0 : 1))
@@ -290,10 +397,11 @@ function buildPolytopeRenderData(
     if (!isClosedRegion && nextIndex >= displayVertices.length) {
       break;
     }
-    const start = displayVertices[index];
-    const end = displayVertices[nextIndex];
+    const start = displayVertices[index]!;
+    const end = displayVertices[nextIndex]!;
     appendSegment(
-      [start.x, start.y, EDGE_Z, end.x, end.y, EDGE_Z],
+      start,
+      end,
       !hasDerivedClosedRegion && highlightIndex === index,
     );
   }
@@ -313,7 +421,7 @@ function buildPolytopeRenderData(
         return;
       }
       const [start, end] = clipped;
-      appendSegment([start.x, start.y, EDGE_Z, end.x, end.y, EDGE_Z]);
+      appendSegment(start, end);
     });
   }
 
@@ -323,20 +431,12 @@ function buildPolytopeRenderData(
     currentMouse &&
     !tourActive
   ) {
-    const last = displayVertices[displayVertices.length - 1];
-    appendSegment([
-      last.x,
-      last.y,
-      EDGE_Z,
-      currentMouse.x,
-      currentMouse.y,
-      EDGE_Z,
-    ]);
+    const last = displayVertices[displayVertices.length - 1]!;
+    appendSegment(last, currentMouse);
   }
 
   return {
-    fillShape:
-      fillVertices.length >= 3 ? buildShapeFromVertices(fillVertices) : null,
+    fillGeometry: buildFillGeometry(fillVertices, state, snapshot.mode),
     fillColor: isNonconvex ? POLYTOPE_HIGHLIGHT_COLOR : POLYTOPE_FILL_COLOR,
     normalSegments: new Float32Array(normalSegments),
     highlightSegments: new Float32Array(highlightSegments),
@@ -354,20 +454,42 @@ export function PolytopeBaseLayer() {
     [polytopeState, snapshot],
   );
 
-  if (snapshot.mode !== "2d" || polytopeState.vertices.length === 0) {
+  useEffect(() => {
+    return () => {
+      geometry.fillGeometry?.dispose();
+    };
+  }, [geometry.fillGeometry]);
+
+  if (
+    polytopeState.vertices.length === 0 ||
+    (!geometry.fillGeometry &&
+      geometry.normalSegments.length === 0 &&
+      geometry.highlightSegments.length === 0)
+  ) {
     return null;
   }
 
+  const is3D = snapshot.mode === "3d";
+
   return (
     <group>
-      {geometry.fillShape ? (
-        <mesh renderOrder={2} position={[0, 0, FILL_Z]} frustumCulled={false}>
-          <shapeGeometry args={[geometry.fillShape]} />
+      {geometry.fillGeometry ? (
+        <mesh
+          renderOrder={2}
+          position={[0, 0, is3D ? 0 : FILL_Z]}
+          frustumCulled={false}
+          geometry={geometry.fillGeometry}
+        >
           <meshBasicMaterial
             color={geometry.fillColor}
+            transparent
+            opacity={0.6}
             depthTest={false}
             depthWrite={false}
             side={DoubleSide}
+            polygonOffset
+            polygonOffsetFactor={1}
+            polygonOffsetUnits={1}
           />
         </mesh>
       ) : null}
@@ -381,8 +503,8 @@ export function PolytopeBaseLayer() {
           </bufferGeometry>
           <lineBasicMaterial
             color={POLYTOPE_OUTLINE_COLOR}
-            depthTest={false}
-            depthWrite={false}
+            depthTest={is3D}
+            depthWrite={is3D}
           />
         </lineSegments>
       ) : null}
@@ -396,8 +518,8 @@ export function PolytopeBaseLayer() {
           </bufferGeometry>
           <lineBasicMaterial
             color={POLYTOPE_HIGHLIGHT_COLOR}
-            depthTest={false}
-            depthWrite={false}
+            depthTest={is3D}
+            depthWrite={is3D}
           />
         </lineSegments>
       ) : null}

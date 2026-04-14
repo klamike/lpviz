@@ -352,12 +352,22 @@ export class ViewportManager {
   private renderSnapshotCallback:
     | ((snapshot: ViewportRenderSnapshot) => void)
     | null = null;
+  private external2DControlsEnabled = false;
+  private external3DControlsEnabled = false;
+  private externalStable3DRenderingEnabled = false;
+  private externalTransitionCameraEnabled = false;
   private externalGridEnabled = false;
   private externalPolytopeBaseEnabled = false;
   private externalPolytopeVerticesEnabled = false;
   private externalObjectiveEnabled = false;
   private externalTraceLineEnabled = false;
+  private externalTracePointsEnabled = false;
   private externalConstraintHighlightEnabled = false;
+  private externalIterateLineEnabled = false;
+  private externalIteratePointsEnabled = false;
+  private externalIterateRestartPointsEnabled = false;
+  private externalIterateHighlightEnabled = false;
+  private externalIterateStarEnabled = false;
 
   private constructor(
     canvas: HTMLCanvasElement,
@@ -527,6 +537,55 @@ export class ViewportManager {
     this.navigationFrameCallback = callback;
   }
 
+  setExternal2DControlsEnabled(enabled: boolean) {
+    if (this.external2DControlsEnabled === enabled) {
+      return;
+    }
+    this.external2DControlsEnabled = enabled;
+    const state = getState();
+    this.controls.ortho.enabled =
+      !enabled &&
+      !state.is3DMode &&
+      !state.isTransitioning3D &&
+      !this.controlState.orthographicSuspended;
+  }
+
+  setExternal3DControlsEnabled(enabled: boolean) {
+    if (this.external3DControlsEnabled === enabled) {
+      return;
+    }
+    this.external3DControlsEnabled = enabled;
+    const state = getState();
+    this.controls.orbit.enabled =
+      !enabled &&
+      state.is3DMode &&
+      !state.isTransitioning3D &&
+      this.controlState.orbitActive &&
+      !this.controlState.orbitTemporarilyDisabled &&
+      !this.controlState.orthographicSuspended;
+  }
+
+  setExternalStable3DRenderingEnabled(enabled: boolean) {
+    this.externalStable3DRenderingEnabled = enabled;
+  }
+
+  setExternalTransitionCameraEnabled(enabled: boolean) {
+    this.externalTransitionCameraEnabled = enabled;
+    if (enabled) {
+      this.controls.orbit.enabled = false;
+      return;
+    }
+
+    const state = getState();
+    this.controls.orbit.enabled =
+      !this.external3DControlsEnabled &&
+      state.is3DMode &&
+      !state.isTransitioning3D &&
+      this.controlState.orbitActive &&
+      !this.controlState.orbitTemporarilyDisabled &&
+      !this.controlState.orthographicSuspended;
+  }
+
   setRenderSnapshotCallback(
     callback: ((snapshot: ViewportRenderSnapshot) => void) | null,
   ) {
@@ -581,12 +640,66 @@ export class ViewportManager {
     this.draw();
   }
 
+  setExternalTracePointsEnabled(enabled: boolean) {
+    if (this.externalTracePointsEnabled === enabled) {
+      return;
+    }
+    this.externalTracePointsEnabled = enabled;
+    this.invalidateScene({ trace: true });
+    this.draw();
+  }
+
   setExternalConstraintHighlightEnabled(enabled: boolean) {
     if (this.externalConstraintHighlightEnabled === enabled) {
       return;
     }
     this.externalConstraintHighlightEnabled = enabled;
     this.invalidateScene({ constraints: true });
+    this.draw();
+  }
+
+  setExternalIterateLineEnabled(enabled: boolean) {
+    if (this.externalIterateLineEnabled === enabled) {
+      return;
+    }
+    this.externalIterateLineEnabled = enabled;
+    this.invalidateScene({ iterate: true });
+    this.draw();
+  }
+
+  setExternalIteratePointsEnabled(enabled: boolean) {
+    if (this.externalIteratePointsEnabled === enabled) {
+      return;
+    }
+    this.externalIteratePointsEnabled = enabled;
+    this.invalidateScene({ iterate: true });
+    this.draw();
+  }
+
+  setExternalIterateRestartPointsEnabled(enabled: boolean) {
+    if (this.externalIterateRestartPointsEnabled === enabled) {
+      return;
+    }
+    this.externalIterateRestartPointsEnabled = enabled;
+    this.invalidateScene({ iterate: true });
+    this.draw();
+  }
+
+  setExternalIterateHighlightEnabled(enabled: boolean) {
+    if (this.externalIterateHighlightEnabled === enabled) {
+      return;
+    }
+    this.externalIterateHighlightEnabled = enabled;
+    this.invalidateScene({ iterate: true });
+    this.draw();
+  }
+
+  setExternalIterateStarEnabled(enabled: boolean) {
+    if (this.externalIterateStarEnabled === enabled) {
+      return;
+    }
+    this.externalIterateStarEnabled = enabled;
+    this.invalidateScene({ iterate: true });
     this.draw();
   }
 
@@ -1395,18 +1508,23 @@ export class ViewportManager {
     this.deactivateOrbitControls();
   }
 
-  private complete3DTransition(targetMode: boolean) {
-    mutate(
-      (draft) => {
-        draft.isTransitioning3D = false;
-        draft.transitionDirection = null;
-        draft.transitionProgress = 0;
-        draft.viewAngle.x = targetMode ? DEFAULT_VIEW_ANGLE.x : 0;
-        draft.viewAngle.y = targetMode ? DEFAULT_VIEW_ANGLE.y : 0;
-        draft.viewAngle.z = targetMode ? DEFAULT_VIEW_ANGLE.z : 0;
-      },
-      { viewportDirty: this.getTransitionDirtyFlags() },
-    );
+  private complete3DTransition(
+    targetMode: boolean,
+    options: { applyState?: boolean } = {},
+  ) {
+    if (options.applyState !== false) {
+      mutate(
+        (draft) => {
+          draft.isTransitioning3D = false;
+          draft.transitionDirection = null;
+          draft.transitionProgress = 0;
+          draft.viewAngle.x = targetMode ? DEFAULT_VIEW_ANGLE.x : 0;
+          draft.viewAngle.y = targetMode ? DEFAULT_VIEW_ANGLE.y : 0;
+          draft.viewAngle.z = targetMode ? DEFAULT_VIEW_ANGLE.z : 0;
+        },
+        { viewportDirty: this.getTransitionDirtyFlags() },
+      );
+    }
 
     if (!targetMode && this.controlState.pendingScaleFactorFrom3D !== null) {
       this.viewState.scaleFactor = this.controlState.pendingScaleFactorFrom3D;
@@ -1575,6 +1693,50 @@ export class ViewportManager {
       { viewAngle: this.getOrbitAngles(this.cameras.perspective.rotation) },
       { viewportDirty: {} },
     );
+  }
+
+  capturePerspectiveViewAngle() {
+    this.captureOrbitViewAngle();
+  }
+
+  private syncExternalPerspectiveCameraPose(pose: {
+    position: PointXYZ;
+    up: PointXYZ;
+    target: PointXYZ;
+  }) {
+    const target = new Vector3(pose.target.x, pose.target.y, pose.target.z);
+    const position = new Vector3(
+      pose.position.x,
+      pose.position.y,
+      pose.position.z,
+    );
+    const up = new Vector3(pose.up.x, pose.up.y, pose.up.z);
+    this.cameras.perspective.position.copy(position);
+    this.cameras.perspective.up.copy(up);
+    this.cameras.perspective.lookAt(target);
+    this.cameras.perspective.updateMatrixWorld();
+    this.controls.orbit.target.copy(target);
+    this.controlState.lastOrbitTarget.copy(target);
+    return { target, position };
+  }
+
+  syncExternalPerspectivePose(pose: {
+    position: PointXYZ;
+    up: PointXYZ;
+    target: PointXYZ;
+  }) {
+    const { target, position } = this.syncExternalPerspectiveCameraPose(pose);
+    this.controlState.orbitActive = true;
+    const distance = position.distanceTo(target);
+    this.controlState.currentPerspectiveDistance = Number.isFinite(distance)
+      ? distance
+      : this.controlState.currentPerspectiveDistance;
+    this.viewState.scaleFactor = this.getScaleFactorFromDistance(
+      this.controlState.currentPerspectiveDistance,
+    );
+    this.syncOffsetFromTarget(target.x, target.y);
+    this.controls.orbit.maxDistance = this.getMaxPerspectiveDistance();
+    this.controls.orbit.update();
   }
 
   private syncOrthoTarget(
@@ -2255,8 +2417,19 @@ export class ViewportManager {
     });
   }
 
+  private shouldSkipStable3DLegacyDraw() {
+    const { is3DMode, isTransitioning3D } = getState();
+    return (
+      this.externalStable3DRenderingEnabled && is3DMode && !isTransitioning3D
+    );
+  }
+
   draw() {
-    if (!this.initialized || this.renderScheduled) {
+    if (
+      !this.initialized ||
+      this.renderScheduled ||
+      this.shouldSkipStable3DLegacyDraw()
+    ) {
       return;
     }
 
@@ -2867,7 +3040,7 @@ export class ViewportManager {
       }
     }
 
-    if (sampledPositions.length) {
+    if (sampledPositions.length && !this.externalTracePointsEnabled) {
       const tracePoints = this.getOrCreatePointCloud(
         this.persistentSceneObjects.tracePoints,
         groups.trace,
@@ -3038,17 +3211,45 @@ export class ViewportManager {
     }
 
     if (hasPhases) {
-      if (this.persistentSceneObjects.iterateLine)
+      if (this.persistentSceneObjects.iterateLine) {
         this.persistentSceneObjects.iterateLine.visible = false;
-      let segmentStart = 0;
-      let segmentPhase = iteratePhases[0]!;
-      let segmentCount = 0;
-      for (let i = 1; i < iteratePath.length; i++) {
-        const currentPhase = iteratePhases[i]!;
-        const previousPhase = iteratePhases[i - 1]!;
-        if (currentPhase !== previousPhase) {
+      }
+      if (!this.externalIterateLineEnabled) {
+        let segmentStart = 0;
+        let segmentPhase = iteratePhases[0]!;
+        let segmentCount = 0;
+        for (let i = 1; i < iteratePath.length; i++) {
+          const currentPhase = iteratePhases[i]!;
+          const previousPhase = iteratePhases[i - 1]!;
+          if (currentPhase !== previousPhase) {
+            const segmentPositions: number[] = [];
+            for (let j = segmentStart; j <= i; j++) {
+              segmentPositions.push(
+                positions[j * 3],
+                positions[j * 3 + 1],
+                positions[j * 3 + 2],
+              );
+            }
+            if (segmentPositions.length >= 6) {
+              const iterateLine = this.getOrCreateIteratePhaseLine(
+                segmentCount++,
+              );
+              this.updateThickLine(iterateLine, segmentPositions, {
+                color: PHASE_COLORS[segmentPhase % PHASE_COLORS.length],
+                width: ITERATE_LINE_THICKNESS,
+                depthTest: false,
+                depthWrite: false,
+                renderOrder: RENDER_LAYERS.iterateLine,
+                replaceGeometry: true,
+              });
+            }
+            segmentStart = i - 1;
+            segmentPhase = currentPhase;
+          }
+        }
+        if (segmentStart < iteratePath.length) {
           const segmentPositions: number[] = [];
-          for (let j = segmentStart; j <= i; j++) {
+          for (let j = segmentStart; j < iteratePath.length; j++) {
             segmentPositions.push(
               positions[j * 3],
               positions[j * 3 + 1],
@@ -3068,98 +3269,94 @@ export class ViewportManager {
               replaceGeometry: true,
             });
           }
-          segmentStart = i - 1;
-          segmentPhase = currentPhase;
         }
-      }
-      if (segmentStart < iteratePath.length) {
-        const segmentPositions: number[] = [];
-        for (let j = segmentStart; j < iteratePath.length; j++) {
-          segmentPositions.push(
-            positions[j * 3],
-            positions[j * 3 + 1],
-            positions[j * 3 + 2],
-          );
+        for (
+          let index = segmentCount;
+          index < this.persistentSceneObjects.iteratePhaseLines.length;
+          index++
+        ) {
+          this.persistentSceneObjects.iteratePhaseLines[index]!.visible = false;
         }
-        if (segmentPositions.length >= 6) {
-          const iterateLine = this.getOrCreateIteratePhaseLine(segmentCount++);
-          this.updateThickLine(iterateLine, segmentPositions, {
-            color: PHASE_COLORS[segmentPhase % PHASE_COLORS.length],
-            width: ITERATE_LINE_THICKNESS,
-            depthTest: false,
-            depthWrite: false,
-            renderOrder: RENDER_LAYERS.iterateLine,
-            replaceGeometry: true,
-          });
-        }
-      }
-      for (
-        let index = segmentCount;
-        index < this.persistentSceneObjects.iteratePhaseLines.length;
-        index++
-      ) {
-        this.persistentSceneObjects.iteratePhaseLines[index]!.visible = false;
+      } else {
+        this.persistentSceneObjects.iteratePhaseLines.forEach((line) => {
+          line.visible = false;
+        });
       }
     } else {
       this.persistentSceneObjects.iteratePhaseLines.forEach((line) => {
         line.visible = false;
       });
-      const iterateLine =
-        this.persistentSceneObjects.iterateLine ??
-        this.createThickLine(Array.from(positions), {
+      if (!this.externalIterateLineEnabled) {
+        const iterateLine =
+          this.persistentSceneObjects.iterateLine ??
+          this.createThickLine(Array.from(positions), {
+            color: COLORS.iteratePath,
+            width: ITERATE_LINE_THICKNESS,
+            depthTest: false,
+            depthWrite: false,
+          });
+        if (!this.persistentSceneObjects.iterateLine) {
+          groups.iterate.add(iterateLine);
+          this.persistentSceneObjects.iterateLine = iterateLine;
+        }
+        this.updateThickLine(iterateLine, Array.from(positions), {
           color: COLORS.iteratePath,
           width: ITERATE_LINE_THICKNESS,
           depthTest: false,
           depthWrite: false,
+          renderOrder: RENDER_LAYERS.iterateLine,
+          replaceGeometry: true,
         });
-      if (!this.persistentSceneObjects.iterateLine) {
-        groups.iterate.add(iterateLine);
-        this.persistentSceneObjects.iterateLine = iterateLine;
+      } else if (this.persistentSceneObjects.iterateLine) {
+        this.persistentSceneObjects.iterateLine.visible = false;
       }
-      this.updateThickLine(iterateLine, Array.from(positions), {
-        color: COLORS.iteratePath,
-        width: ITERATE_LINE_THICKNESS,
-        depthTest: false,
-        depthWrite: false,
-        renderOrder: RENDER_LAYERS.iterateLine,
-        replaceGeometry: true,
-      });
-      const iteratePoints = this.getOrCreatePointCloud(
-        this.persistentSceneObjects.iteratePoints,
-        groups.iterate,
-        helpers,
-        {
-          color: COLORS.iteratePath,
-          size: ITERATE_POINT_PIXEL_SIZE,
-          renderOrder: RENDER_LAYERS.iteratePoints,
-        },
-      );
-      this.updatePointCloudGeometry(iteratePoints, positions);
-      iteratePoints.visible = true;
-      this.persistentSceneObjects.iteratePoints = iteratePoints;
+      if (!this.externalIteratePointsEnabled) {
+        const iteratePoints = this.getOrCreatePointCloud(
+          this.persistentSceneObjects.iteratePoints,
+          groups.iterate,
+          helpers,
+          {
+            color: COLORS.iteratePath,
+            size: ITERATE_POINT_PIXEL_SIZE,
+            renderOrder: RENDER_LAYERS.iteratePoints,
+          },
+        );
+        this.updatePointCloudGeometry(iteratePoints, positions);
+        iteratePoints.visible = true;
+        this.persistentSceneObjects.iteratePoints = iteratePoints;
+      } else if (this.persistentSceneObjects.iteratePoints) {
+        this.persistentSceneObjects.iteratePoints.visible = false;
+      }
     }
 
     if (hasPhases) {
-      const iteratePoints = this.getOrCreatePointCloud(
-        this.persistentSceneObjects.iteratePoints,
-        groups.iterate,
-        helpers,
-        {
-          color: 0xffffff,
-          size: ITERATE_POINT_PIXEL_SIZE,
-          renderOrder: RENDER_LAYERS.iteratePoints,
-          colors,
-        },
-      );
-      this.updatePointCloudGeometry(iteratePoints, positions, colors);
-      iteratePoints.visible = true;
-      this.persistentSceneObjects.iteratePoints = iteratePoints;
+      if (!this.externalIteratePointsEnabled) {
+        const iteratePoints = this.getOrCreatePointCloud(
+          this.persistentSceneObjects.iteratePoints,
+          groups.iterate,
+          helpers,
+          {
+            color: 0xffffff,
+            size: ITERATE_POINT_PIXEL_SIZE,
+            renderOrder: RENDER_LAYERS.iteratePoints,
+            colors,
+          },
+        );
+        this.updatePointCloudGeometry(iteratePoints, positions, colors);
+        iteratePoints.visible = true;
+        this.persistentSceneObjects.iteratePoints = iteratePoints;
+      } else if (this.persistentSceneObjects.iteratePoints) {
+        this.persistentSceneObjects.iteratePoints.visible = false;
+      }
     }
 
     const visibleRestartIndices = iterateRestartIndices.filter(
       (index) => index >= 0 && index < iteratePath.length,
     );
-    if (visibleRestartIndices.length > 0) {
+    if (
+      visibleRestartIndices.length > 0 &&
+      !this.externalIterateRestartPointsEnabled
+    ) {
       const restartPositions = new Float32Array(
         visibleRestartIndices.length * 3,
       );
@@ -3202,6 +3399,7 @@ export class ViewportManager {
     }
 
     if (
+      !this.externalIterateHighlightEnabled &&
       highlightIteratePathIndex !== null &&
       highlightIteratePathIndex < iteratePath.length
     ) {
@@ -3234,22 +3432,26 @@ export class ViewportManager {
       this.persistentSceneObjects.iterateHighlight.visible = false;
     }
 
-    const lastPos = this.getBlendedPointPosition(
-      iteratePath[iteratePath.length - 1],
-      ITERATE_Z_OFFSET,
-      context,
-      iterateObjectiveVector,
-    );
-    const starSprite =
-      this.persistentSceneObjects.iterateStar ??
-      this.createStarSprite(lastPos, COLORS.iterateHighlight);
-    if (!this.persistentSceneObjects.iterateStar) {
-      groups.overlay.add(starSprite);
-      this.persistentSceneObjects.iterateStar = starSprite;
+    if (!this.externalIterateStarEnabled) {
+      const lastPos = this.getBlendedPointPosition(
+        iteratePath[iteratePath.length - 1],
+        ITERATE_Z_OFFSET,
+        context,
+        iterateObjectiveVector,
+      );
+      const starSprite =
+        this.persistentSceneObjects.iterateStar ??
+        this.createStarSprite(lastPos, COLORS.iterateHighlight);
+      if (!this.persistentSceneObjects.iterateStar) {
+        groups.overlay.add(starSprite);
+        this.persistentSceneObjects.iterateStar = starSprite;
+      }
+      starSprite.position.copy(lastPos);
+      starSprite.renderOrder = RENDER_LAYERS.iterateStar;
+      starSprite.visible = true;
+    } else if (this.persistentSceneObjects.iterateStar) {
+      this.persistentSceneObjects.iterateStar.visible = false;
     }
-    starSprite.position.copy(lastPos);
-    starSprite.renderOrder = RENDER_LAYERS.iterateStar;
-    starSprite.visible = true;
   }
 
   private updateCamera() {
@@ -3283,7 +3485,8 @@ export class ViewportManager {
       this.controls.ortho.enabled =
         !state.is3DMode &&
         !state.isTransitioning3D &&
-        !this.controlState.orthographicSuspended;
+        !this.controlState.orthographicSuspended &&
+        !this.external2DControlsEnabled;
       this.syncOrthoTarget(frame.target);
       return;
     }
@@ -3295,16 +3498,20 @@ export class ViewportManager {
     this.cameras.perspective.updateProjectionMatrix();
 
     if (transitioning) {
-      this.deactivateOrbitControls();
-      const distanceOverride =
-        state.isTransitioning3D && state.transitionDirection === "to2d"
-          ? this.controlState.currentPerspectiveDistance
-          : undefined;
-      this.applyPerspectivePose(
-        state.viewAngle,
-        distanceOverride,
-        this.getCurrentTransitionTarget(),
-      );
+      if (this.controlState.orbitActive) {
+        this.deactivateOrbitControls();
+      }
+      if (!this.externalTransitionCameraEnabled) {
+        const distanceOverride =
+          state.isTransitioning3D && state.transitionDirection === "to2d"
+            ? this.controlState.currentPerspectiveDistance
+            : undefined;
+        this.applyPerspectivePose(
+          state.viewAngle,
+          distanceOverride,
+          this.getCurrentTransitionTarget(),
+        );
+      }
       return;
     }
 
@@ -3316,6 +3523,7 @@ export class ViewportManager {
   private handleOrthoControlsChange = () => {
     const { is3DMode, isTransitioning3D } = getState();
     if (this.controlState.suppressOrthoChange) return;
+    if (this.external2DControlsEnabled) return;
     if (is3DMode || isTransitioning3D) return;
     this.beginViewportNavigation();
     this.navigationFrameCallback?.();
@@ -3350,7 +3558,7 @@ export class ViewportManager {
   };
 
   private handleOrbitControlsChange = () => {
-    if (!this.controlState.orbitActive) {
+    if (!this.controlState.orbitActive || this.external3DControlsEnabled) {
       return;
     }
     this.beginViewportNavigation();
@@ -3384,11 +3592,22 @@ export class ViewportManager {
     this.scheduleViewportNavigationEnd();
   };
 
-  setViewState(scale: number, offsetX: number, offsetY: number) {
+  syncPlanarViewState(
+    scale: number,
+    offsetX: number,
+    offsetY: number,
+    options: { syncTarget?: boolean } = {},
+  ) {
     this.viewState.scaleFactor = this.clampScaleFactor(scale);
     this.viewState.offset.x = offsetX;
     this.viewState.offset.y = offsetY;
-    this.syncOrthoTarget(this.getViewportTarget(), true);
+    if (options.syncTarget !== false) {
+      this.syncOrthoTarget(this.getViewportTarget(), true);
+    }
+  }
+
+  setViewState(scale: number, offsetX: number, offsetY: number) {
+    this.syncPlanarViewState(scale, offsetX, offsetY);
     this.invalidateScene({
       grid: true,
       polytope: false,
@@ -3518,8 +3737,12 @@ export class ViewportManager {
     this.controlState.orthographicSuspended = blocked;
     const state = getState();
     this.controls.ortho.enabled =
-      !blocked && !state.is3DMode && !state.isTransitioning3D;
+      !blocked &&
+      !state.is3DMode &&
+      !state.isTransitioning3D &&
+      !this.external2DControlsEnabled;
     if (
+      !this.external3DControlsEnabled &&
       this.controlState.orbitActive &&
       !this.controlState.orbitTemporarilyDisabled &&
       blocked
@@ -3527,6 +3750,7 @@ export class ViewportManager {
       this.controls.orbit.enabled = false;
       this.controlState.orbitTemporarilyDisabled = true;
     } else if (
+      !this.external3DControlsEnabled &&
       this.controlState.orbitActive &&
       this.controlState.orbitTemporarilyDisabled &&
       !blocked
@@ -3616,7 +3840,9 @@ export class ViewportManager {
     const pose = this.applyPerspectivePose(this.getProjectionViewAngle());
     this.controls.orbit.target.copy(pose.target);
     this.controlState.lastOrbitTarget.copy(pose.target);
-    this.controls.orbit.enabled = true;
+    this.controls.orbit.enabled =
+      !this.external3DControlsEnabled &&
+      !this.controlState.orthographicSuspended;
     this.controlState.orbitActive = true;
     this.controls.orbit.enableRotate = true;
     this.controls.orbit.enablePan = true;
@@ -3627,79 +3853,219 @@ export class ViewportManager {
     this.controls.orbit.update();
   }
 
-  private deactivateOrbitControls() {
+  private deactivateOrbitControls(
+    options: { captureViewAngle?: boolean } = {},
+  ) {
     if (!this.controlState.orbitActive) {
       return;
     }
     this.controlState.lastOrbitTarget.copy(this.controls.orbit.target);
     this.controls.orbit.enabled = false;
     this.controlState.orbitActive = false;
-    this.captureOrbitViewAngle();
+    if (options.captureViewAngle !== false) {
+      this.captureOrbitViewAngle();
+    }
   }
 
-  start3DTransition(targetMode: boolean) {
+  beginExternal3DTransition(
+    targetMode: boolean,
+    plan?: {
+      duration: number;
+      startAngles: PointXYZ;
+      endAngles: PointXYZ;
+      startTarget: PointXYZ;
+      endTarget: PointXYZ;
+      perspectiveDistance: number;
+    },
+    options: { applyState?: boolean } = {},
+  ) {
     const { isTransitioning3D, viewAngle } = getState();
-    if (isTransitioning3D) return;
+    if (isTransitioning3D) {
+      return null;
+    }
+
     this.beginViewportNavigation();
 
-    const transitionDuration = targetMode ? 400 : 500;
-    const startAngles = targetMode ? { x: 0, y: 0, z: 0 } : { ...viewAngle };
-    const endAngles = targetMode
-      ? { ...DEFAULT_VIEW_ANGLE }
-      : { x: 0, y: 0, z: 0 };
-    this.initializeTransitionTargets(targetMode);
+    const transitionDuration = plan?.duration ?? (targetMode ? 400 : 500);
+    const startAngles = plan
+      ? { ...plan.startAngles }
+      : targetMode
+        ? { x: 0, y: 0, z: 0 }
+        : { ...viewAngle };
+    const endAngles = plan
+      ? { ...plan.endAngles }
+      : targetMode
+        ? { ...DEFAULT_VIEW_ANGLE }
+        : { x: 0, y: 0, z: 0 };
+    const direction = targetMode ? "to3d" : "to2d";
+    const startTime = performance.now();
+    if (plan) {
+      if (targetMode) {
+        this.controlState.transitionStartTarget.set(
+          plan.startTarget.x,
+          plan.startTarget.y,
+          plan.startTarget.z,
+        );
+        this.controlState.transitionEndTarget.set(
+          plan.endTarget.x,
+          plan.endTarget.y,
+          plan.endTarget.z,
+        );
+        this.controlState.currentPerspectiveDistance =
+          this.clampPerspectiveDistance(plan.perspectiveDistance);
+        if (this.controlState.orbitActive && options.applyState !== false) {
+          this.captureOrbitViewAngle();
+        }
+        this.controlState.pendingScaleFactorFrom3D = null;
+      } else {
+        this.snapshotOrbitState();
+        this.controlState.transitionStartTarget.set(
+          plan.startTarget.x,
+          plan.startTarget.y,
+          plan.startTarget.z,
+        );
+        this.controlState.transitionEndTarget.set(
+          plan.endTarget.x,
+          plan.endTarget.y,
+          plan.endTarget.z,
+        );
+        this.controlState.currentPerspectiveDistance =
+          this.clampPerspectiveDistance(plan.perspectiveDistance);
+        this.syncOffsetFromTarget(plan.endTarget.x, plan.endTarget.y);
+        this.controlState.pendingScaleFactorFrom3D =
+          this.getScaleFactorFromDistance(
+            this.controlState.currentPerspectiveDistance,
+          );
+        this.deactivateOrbitControls({
+          captureViewAngle: options.applyState !== false,
+        });
+      }
+    } else {
+      this.initializeTransitionTargets(targetMode);
+    }
 
-    setState(
-      {
-        isTransitioning3D: true,
-        transitionStartTime: performance.now(),
-        transition3DStartAngles: startAngles,
-        transition3DEndAngles: endAngles,
-        transitionDirection: targetMode ? "to3d" : "to2d",
-        transitionProgress: 0,
-        is3DMode: targetMode,
+    if (options.applyState !== false) {
+      setState(
+        {
+          isTransitioning3D: true,
+          transitionStartTime: startTime,
+          transition3DStartAngles: startAngles,
+          transition3DEndAngles: endAngles,
+          transitionDirection: direction,
+          transitionProgress: 0,
+          is3DMode: targetMode,
+        },
+        { viewportDirty: this.getTransitionDirtyFlags() },
+      );
+
+      this.updateCamera();
+      this.emitRenderSnapshot();
+      this.draw();
+    }
+
+    return {
+      duration: transitionDuration,
+      startTime,
+      plan: {
+        baseSnapshot: this.getRenderSnapshot(),
+        direction,
+        duration: transitionDuration,
+        startAngles: { ...startAngles },
+        endAngles: { ...endAngles },
+        startTarget: {
+          x: this.controlState.transitionStartTarget.x,
+          y: this.controlState.transitionStartTarget.y,
+          z: this.controlState.transitionStartTarget.z,
+        },
+        endTarget: {
+          x: this.controlState.transitionEndTarget.x,
+          y: this.controlState.transitionEndTarget.y,
+          z: this.controlState.transitionEndTarget.z,
+        },
+        perspectiveDistance: this.controlState.currentPerspectiveDistance,
       },
-      { viewportDirty: this.getTransitionDirtyFlags() },
-    );
+    };
+  }
 
-    const animate3DTransition = () => {
-      const currentTime = performance.now();
-      const snapshot = getState();
-      const elapsed = currentTime - snapshot.transitionStartTime;
-      const progress = Math.min(elapsed / transitionDuration, 1);
-      const easedProgress = this.easeInOutCubic(progress);
-
+  syncExternal3DTransitionProgress(
+    targetMode: boolean,
+    progress: number,
+    pose?: {
+      position: PointXYZ;
+      up: PointXYZ;
+      target: PointXYZ;
+    },
+    planarState?: {
+      scaleFactor: number;
+      offsetX: number;
+      offsetY: number;
+    },
+    options: { applyState?: boolean } = {},
+  ) {
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    if (options.applyState !== false) {
       mutate(
         (draft) => {
           draft.viewAngle.x = this.lerpAngle(
             draft.transition3DStartAngles.x,
             draft.transition3DEndAngles.x,
-            easedProgress,
+            clampedProgress,
           );
           draft.viewAngle.y = this.lerpAngle(
             draft.transition3DStartAngles.y,
             draft.transition3DEndAngles.y,
-            easedProgress,
+            clampedProgress,
           );
           draft.viewAngle.z = this.lerpAngle(
             draft.transition3DStartAngles.z,
             draft.transition3DEndAngles.z,
-            easedProgress,
+            clampedProgress,
           );
-          draft.transitionProgress = easedProgress;
+          draft.transitionProgress = clampedProgress;
         },
         { viewportDirty: this.getTransitionDirtyFlags() },
       );
+    }
 
-      if (!targetMode) {
+    if (!targetMode) {
+      if (planarState) {
+        this.controlState.pendingScaleFactorFrom3D = planarState.scaleFactor;
+        this.syncPlanarViewState(
+          planarState.scaleFactor,
+          planarState.offsetX,
+          planarState.offsetY,
+          { syncTarget: false },
+        );
+      } else {
         this.align2DStateToCurrentTransitionView();
       }
+    }
 
-      if (progress < 1) {
-        this.draw();
-        requestAnimationFrame(animate3DTransition);
-        return;
-      }
+    if (pose) {
+      this.syncExternalPerspectiveCameraPose(pose);
+    } else {
+      this.updateCamera();
+      this.emitRenderSnapshot();
+    }
+
+    this.draw();
+  }
+
+  finishExternal3DTransition(
+    targetMode: boolean,
+    pose?: {
+      position: PointXYZ;
+      up: PointXYZ;
+      target: PointXYZ;
+    },
+    planarState?: {
+      scaleFactor: number;
+      offsetX: number;
+      offsetY: number;
+    },
+    options: { autoComplete?: boolean; applyState?: boolean } = {},
+  ) {
+    if (options.applyState !== false) {
       mutate(
         (draft) => {
           draft.viewAngle.x = targetMode ? DEFAULT_VIEW_ANGLE.x : 0;
@@ -3709,14 +4075,67 @@ export class ViewportManager {
         },
         { viewportDirty: this.getTransitionDirtyFlags() },
       );
+    }
 
-      if (!targetMode) {
+    if (!targetMode) {
+      if (planarState) {
+        this.controlState.pendingScaleFactorFrom3D = planarState.scaleFactor;
+        this.syncPlanarViewState(
+          planarState.scaleFactor,
+          planarState.offsetX,
+          planarState.offsetY,
+          { syncTarget: false },
+        );
+      } else {
         this.align2DStateToCurrentTransitionView();
       }
+    }
 
-      this.draw();
+    if (pose) {
+      this.syncExternalPerspectiveCameraPose(pose);
+    } else {
+      this.updateCamera();
+      this.emitRenderSnapshot();
+    }
 
-      requestAnimationFrame(() => this.complete3DTransition(targetMode));
+    this.draw();
+    if (options.autoComplete === false) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      this.completeExternal3DTransition(targetMode, {
+        applyState: options.applyState,
+      });
+    });
+  }
+
+  completeExternal3DTransition(
+    targetMode: boolean,
+    options: { applyState?: boolean } = {},
+  ) {
+    this.externalTransitionCameraEnabled = false;
+    this.complete3DTransition(targetMode, options);
+  }
+
+  start3DTransition(targetMode: boolean) {
+    const transition = this.beginExternal3DTransition(targetMode);
+    if (!transition) {
+      return;
+    }
+
+    const animate3DTransition = () => {
+      const elapsed = performance.now() - transition.startTime;
+      const progress = Math.min(elapsed / transition.duration, 1);
+      const easedProgress = this.easeInOutCubic(progress);
+
+      this.syncExternal3DTransitionProgress(targetMode, easedProgress);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate3DTransition);
+        return;
+      }
+
+      this.finishExternal3DTransition(targetMode);
     };
 
     animate3DTransition();

@@ -23,6 +23,8 @@ type ObjectiveLayerState = {
   completionMode: State["completionMode"];
   polytope: State["polytope"];
   tourActive: boolean;
+  is3DMode: boolean;
+  isTransitioning3D: boolean;
 };
 
 const serializePoint = (point: PointXY | null) =>
@@ -44,6 +46,8 @@ const selectObjectiveLayerState = (state: State): ObjectiveLayerState => ({
     state.completionMode,
     serializeObjectivePolytope(state.polytope),
     state.tourActive ? "1" : "0",
+    state.is3DMode ? "1" : "0",
+    state.isTransitioning3D ? "1" : "0",
   ].join("|"),
   objectiveHidden: state.objectiveHidden,
   objectiveVector: state.objectiveVector,
@@ -51,6 +55,8 @@ const selectObjectiveLayerState = (state: State): ObjectiveLayerState => ({
   completionMode: state.completionMode,
   polytope: state.polytope,
   tourActive: state.tourActive,
+  is3DMode: state.is3DMode,
+  isTransitioning3D: state.isTransitioning3D,
 });
 
 const areObjectiveLayerStatesEqual = (
@@ -71,11 +77,33 @@ function buildArrowHeadSegments(
   });
 }
 
+function getWorldSizeFromPixels(
+  snapshot: ReturnType<typeof useViewportRenderSnapshot>,
+  pixels: number,
+) {
+  if (snapshot.mode === "2d") {
+    return pixels * snapshot.unitsPerPixel;
+  }
+
+  const distance = Math.hypot(
+    snapshot.perspective.position.x,
+    snapshot.perspective.position.y,
+    snapshot.perspective.position.z,
+  );
+  const fovRadians = (snapshot.perspective.fov * Math.PI) / 180;
+  const viewportHeight = 2 * Math.tan(fovRadians / 2) * distance;
+  return (pixels / Math.max(1, snapshot.height)) * viewportHeight;
+}
+
 function buildObjectiveGeometry(
   state: ObjectiveLayerState,
   snapshot: ReturnType<typeof useViewportRenderSnapshot>,
 ) {
-  if (snapshot.mode !== "2d" || state.objectiveHidden) {
+  if (
+    state.objectiveHidden ||
+    state.isTransitioning3D ||
+    (snapshot.mode === "3d" && !state.is3DMode)
+  ) {
     return {
       positions: new Float32Array(),
       color: OBJECTIVE_COLOR,
@@ -96,12 +124,13 @@ function buildObjectiveGeometry(
     };
   }
 
-  const positions = [0, 0, OBJECTIVE_Z, target.x, target.y, OBJECTIVE_Z];
+  const objectiveZ = snapshot.mode === "2d" ? OBJECTIVE_Z : 0;
+  const positions = [0, 0, objectiveZ, target.x, target.y, objectiveZ];
   const angle = Math.atan2(target.y, target.x);
-  const headLength = OBJECTIVE_HEAD_LENGTH_PX * snapshot.unitsPerPixel;
+  const headLength = getWorldSizeFromPixels(snapshot, OBJECTIVE_HEAD_LENGTH_PX);
   buildArrowHeadSegments(target, angle, headLength).forEach(
     ([x1, y1, x2, y2]) => {
-      positions.push(x1, y1, OBJECTIVE_Z, x2, y2, OBJECTIVE_Z);
+      positions.push(x1, y1, objectiveZ, x2, y2, objectiveZ);
     },
   );
 
@@ -129,9 +158,11 @@ export function ObjectiveLayer() {
     [objectiveState, snapshot],
   );
 
-  if (snapshot.mode !== "2d" || geometry.positions.length === 0) {
+  if (geometry.positions.length === 0) {
     return null;
   }
+
+  const is3D = snapshot.mode === "3d";
 
   return (
     <lineSegments renderOrder={OBJECTIVE_RENDER_ORDER} frustumCulled={false}>
@@ -143,8 +174,8 @@ export function ObjectiveLayer() {
       </bufferGeometry>
       <lineBasicMaterial
         color={geometry.color}
-        depthTest={false}
-        depthWrite={false}
+        depthTest={is3D}
+        depthWrite={is3D}
       />
     </lineSegments>
   );

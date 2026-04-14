@@ -16,6 +16,8 @@ type TraceLineLayerState = {
   traceBuffer: State["traceBuffer"];
   zScale: number;
   zAxisOffsetOnly: boolean;
+  is3DMode: boolean;
+  isTransitioning3D: boolean;
 };
 
 const serializePoint = (point: PointXY | null) =>
@@ -38,11 +40,15 @@ const selectTraceLineLayerState = (state: State): TraceLineLayerState => ({
     state.zScale,
     state.zAxisOffsetOnly ? "1" : "0",
     serializeTraceBuffer(state.traceBuffer),
+    state.is3DMode ? "1" : "0",
+    state.isTransitioning3D ? "1" : "0",
   ].join("|"),
   traceEnabled: state.traceEnabled,
   traceBuffer: state.traceBuffer,
   zScale: state.zScale,
   zAxisOffsetOnly: state.zAxisOffsetOnly,
+  is3DMode: state.is3DMode,
+  isTransitioning3D: state.isTransitioning3D,
 });
 
 const areTraceLineLayerStatesEqual = (
@@ -67,6 +73,7 @@ function buildTraceSegmentPositions(
   objectiveVector: PointXY | null,
   zScale: number,
   zAxisOffsetOnly: boolean,
+  is3D: boolean,
 ) {
   if (path.length < 2) {
     return new Float32Array();
@@ -78,7 +85,7 @@ function buildTraceSegmentPositions(
     z:
       (getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) /
         100 +
-      TRACE_Z_OFFSET,
+      (is3D ? 0 : TRACE_Z_OFFSET),
   }));
   const positions = new Float32Array((points.length - 1) * 6);
 
@@ -97,11 +104,20 @@ function buildTraceSegmentPositions(
   return positions;
 }
 
-function buildTraceLines(state: TraceLineLayerState) {
-  if (!state.traceEnabled || state.traceBuffer.length === 0) {
+function buildTraceLines(
+  state: TraceLineLayerState,
+  mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
+) {
+  if (
+    !state.traceEnabled ||
+    state.traceBuffer.length === 0 ||
+    state.isTransitioning3D ||
+    (mode === "3d" && !state.is3DMode)
+  ) {
     return [] as Array<{ key: number; positions: Float32Array }>;
   }
 
+  const is3D = mode === "3d";
   const lines: Array<{ key: number; positions: Float32Array }> = [];
   state.traceBuffer.forEach((entry, index) => {
     const positions = buildTraceSegmentPositions(
@@ -109,6 +125,7 @@ function buildTraceLines(state: TraceLineLayerState) {
       entry.objectiveVector,
       state.zScale,
       state.zAxisOffsetOnly,
+      is3D,
     );
     if (positions.length > 0) {
       lines.push({ key: index, positions });
@@ -124,13 +141,15 @@ export function TraceLineLayer() {
     areTraceLineLayerStatesEqual,
   );
   const lines = useMemo(
-    () => (snapshot.mode === "2d" ? buildTraceLines(traceState) : []),
+    () => buildTraceLines(traceState, snapshot.mode),
     [traceState, snapshot.mode],
   );
 
-  if (snapshot.mode !== "2d" || lines.length === 0) {
+  if (lines.length === 0) {
     return null;
   }
+
+  const is3D = snapshot.mode === "3d";
 
   return (
     <group>
@@ -150,8 +169,8 @@ export function TraceLineLayer() {
             color={TRACE_COLOR}
             transparent
             opacity={TRACE_OPACITY}
-            depthTest={false}
-            depthWrite={false}
+            depthTest={is3D}
+            depthWrite={is3D}
           />
         </lineSegments>
       ))}

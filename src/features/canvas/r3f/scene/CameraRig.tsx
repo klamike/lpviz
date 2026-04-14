@@ -1,7 +1,11 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { OrthographicCamera, PerspectiveCamera } from "three";
 
+import {
+  resetViewportCameraRefs,
+  setViewportCameraRefs,
+} from "../viewportCameraStore";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 export function CameraRig() {
@@ -9,6 +13,23 @@ export function CameraRig() {
   const perspectiveRef = useRef<PerspectiveCamera>(null);
   const snapshot = useViewportRenderSnapshot();
   const set = useThree((state) => state.set);
+
+  useEffect(() => {
+    const orthoCamera = orthoRef.current;
+    const perspectiveCamera = perspectiveRef.current;
+    if (!orthoCamera || !perspectiveCamera) {
+      return;
+    }
+
+    setViewportCameraRefs({
+      ortho: orthoCamera,
+      perspective: perspectiveCamera,
+    });
+
+    return () => {
+      resetViewportCameraRefs();
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const orthoCamera = orthoRef.current;

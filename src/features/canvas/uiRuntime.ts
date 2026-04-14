@@ -1,7 +1,6 @@
 import JSONCrush from "jsoncrush";
 
 import {
-  DEFAULT_VIEW_ANGLE,
   getState,
   mutate,
   setState,
@@ -121,8 +120,7 @@ export function createUiRuntime({
   };
 
   const resetView = () => {
-    canvasManager.setViewState(1, 0, 0);
-    setState({ viewAngle: { ...DEFAULT_VIEW_ANGLE } }, { viewportDirty: {} });
+    canvasManager.resetView();
   };
 
   const toggle3D = () => {

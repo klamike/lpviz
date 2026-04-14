@@ -4,12 +4,14 @@ import type { Line, PointXY } from "../../../../math/blas";
 import { hasPolytopeLines } from "../../../../polytope/polytopeTypes";
 import type { State } from "../../../../store/lpvizStore";
 import { useLpvizSelector } from "../../../../store/useLpvizStore";
+import { projectCanvasPointToWorldPlane } from "../viewport3dTransition";
 import { useViewportRenderSnapshot } from "../viewportRenderStore";
 
 const CONSTRAINT_COLOR = "#ff0000";
 const CONSTRAINT_RENDER_ORDER = 7;
 const CLIP_MARGIN_PX = 50;
 const CLIP_MARGIN_UNITS = 50;
+const DEFAULT_3D_EXTENT = 5000;
 const EPS = 1e-10;
 
 type Bounds = {
@@ -24,6 +26,8 @@ type ConstraintHighlightLayerState = {
   completionMode: State["completionMode"];
   highlightIndex: number | null;
   polytope: State["polytope"];
+  is3DMode: boolean;
+  isTransitioning3D: boolean;
 };
 
 const serializeConstraintPolytope = (polytope: State["polytope"]) =>
@@ -41,10 +45,14 @@ const selectConstraintHighlightLayerState = (
     state.completionMode,
     state.highlightIndex ?? "",
     serializeConstraintPolytope(state.polytope),
+    state.is3DMode ? "1" : "0",
+    state.isTransitioning3D ? "1" : "0",
   ].join("|"),
   completionMode: state.completionMode,
   highlightIndex: state.highlightIndex,
   polytope: state.polytope,
+  is3DMode: state.is3DMode,
+  isTransitioning3D: state.isTransitioning3D,
 });
 
 const areConstraintHighlightLayerStatesEqual = (
@@ -55,18 +63,58 @@ const areConstraintHighlightLayerStatesEqual = (
 function getVisibleBounds(
   snapshot: ReturnType<typeof useViewportRenderSnapshot>,
 ): Bounds {
-  const halfWidth =
-    (snapshot.orthographic.right - snapshot.orthographic.left) / 2;
-  const halfHeight =
-    (snapshot.orthographic.top - snapshot.orthographic.bottom) / 2;
-  const marginUnits =
-    CLIP_MARGIN_PX * snapshot.unitsPerPixel + CLIP_MARGIN_UNITS;
+  if (snapshot.mode === "2d") {
+    const halfWidth =
+      (snapshot.orthographic.right - snapshot.orthographic.left) / 2;
+    const halfHeight =
+      (snapshot.orthographic.top - snapshot.orthographic.bottom) / 2;
+    const marginUnits =
+      CLIP_MARGIN_PX * snapshot.unitsPerPixel + CLIP_MARGIN_UNITS;
+
+    return {
+      minX: snapshot.target.x - halfWidth - marginUnits,
+      maxX: snapshot.target.x + halfWidth + marginUnits,
+      minY: snapshot.target.y - halfHeight - marginUnits,
+      maxY: snapshot.target.y + halfHeight + marginUnits,
+    };
+  }
+
+  const rect = {
+    width: Math.max(1, snapshot.width),
+    height: Math.max(1, snapshot.height),
+  };
+  const screenPoints = [
+    { x: 0, y: 0 },
+    { x: rect.width / 2, y: 0 },
+    { x: rect.width, y: 0 },
+    { x: 0, y: rect.height / 2 },
+    { x: rect.width, y: rect.height / 2 },
+    { x: 0, y: rect.height },
+    { x: rect.width / 2, y: rect.height },
+    { x: rect.width, y: rect.height },
+  ];
+  const projectedPoints = screenPoints
+    .map((point) => projectCanvasPointToWorldPlane(snapshot, rect, point, 0))
+    .filter((point): point is PointXY => point !== null);
+
+  if (projectedPoints.length === 0) {
+    return {
+      minX: -DEFAULT_3D_EXTENT,
+      maxX: DEFAULT_3D_EXTENT,
+      minY: -DEFAULT_3D_EXTENT,
+      maxY: DEFAULT_3D_EXTENT,
+    };
+  }
 
   return {
-    minX: snapshot.target.x - halfWidth - marginUnits,
-    maxX: snapshot.target.x + halfWidth + marginUnits,
-    minY: snapshot.target.y - halfHeight - marginUnits,
-    maxY: snapshot.target.y + halfHeight + marginUnits,
+    minX:
+      Math.min(...projectedPoints.map((point) => point.x)) - CLIP_MARGIN_UNITS,
+    maxX:
+      Math.max(...projectedPoints.map((point) => point.x)) + CLIP_MARGIN_UNITS,
+    minY:
+      Math.min(...projectedPoints.map((point) => point.y)) - CLIP_MARGIN_UNITS,
+    maxY:
+      Math.max(...projectedPoints.map((point) => point.y)) + CLIP_MARGIN_UNITS,
   };
 }
 
@@ -97,11 +145,12 @@ function buildConstraintPositions(
   snapshot: ReturnType<typeof useViewportRenderSnapshot>,
 ) {
   if (
-    snapshot.mode !== "2d" ||
     state.completionMode === "draft" ||
     state.highlightIndex === null ||
     !state.polytope ||
-    !hasPolytopeLines(state.polytope)
+    !hasPolytopeLines(state.polytope) ||
+    state.isTransitioning3D ||
+    (snapshot.mode === "3d" && !state.is3DMode)
   ) {
     return new Float32Array();
   }
@@ -131,9 +180,11 @@ export function ConstraintHighlightLayer() {
     [constraintState, snapshot],
   );
 
-  if (snapshot.mode !== "2d" || positions.length === 0) {
+  if (positions.length === 0) {
     return null;
   }
+
+  const is3D = snapshot.mode === "3d";
 
   return (
     <lineSegments renderOrder={CONSTRAINT_RENDER_ORDER} frustumCulled={false}>
@@ -142,8 +193,8 @@ export function ConstraintHighlightLayer() {
       </bufferGeometry>
       <lineBasicMaterial
         color={CONSTRAINT_COLOR}
-        depthTest={false}
-        depthWrite={false}
+        depthTest={is3D}
+        depthWrite={is3D}
       />
     </lineSegments>
   );
