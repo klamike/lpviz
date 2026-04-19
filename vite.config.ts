@@ -32,10 +32,6 @@ export default defineConfig({
         replacement: resolve(__dirname, "apps/web/src"),
       },
       {
-        find: "@lpviz/contracts",
-        replacement: resolve(__dirname, "packages/contracts/src/index.ts"),
-      },
-      {
         find: "@lpviz/math",
         replacement: resolve(__dirname, "packages/math/src/index.ts"),
       },

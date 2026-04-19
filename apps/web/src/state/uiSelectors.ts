@@ -1,4 +1,4 @@
-import type { ResultTextBlock } from "@lpviz/contracts";
+import type { ResultTextBlock } from "@/contracts";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope";
 import { hasPolytopeLines } from "@lpviz/polytope";
 import {

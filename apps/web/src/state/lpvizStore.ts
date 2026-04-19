@@ -1,4 +1,4 @@
-import type { ResultTextBlock } from "@lpviz/contracts";
+import type { ResultTextBlock } from "@/contracts";
 import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math";
 import type { PolytopeRepresentation } from "@lpviz/polytope";
 

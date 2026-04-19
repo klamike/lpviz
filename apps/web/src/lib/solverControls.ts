@@ -12,7 +12,7 @@ import type {
 } from "@/solver/solverWorker";
 import { getState, type SolverMode, type SolverSettings, type State } from "@/state";
 import type { ShareSettings } from "./sharedState";
-import type { ResultTextBlock } from "@lpviz/contracts";
+import type { ResultTextBlock } from "@/contracts";
 
 export type SolverSettingUpdater = <K extends keyof SolverSettings>(
   key: K,

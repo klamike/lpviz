@@ -14,7 +14,7 @@ const rules = [
     pattern: /from\s+["']@lpviz\/[^"']+\/src\//,
   },
   {
-    name: "Use @lpviz/contracts instead of feature-owned result payload imports",
+    name: "Use @/contracts instead of feature-owned result payload imports",
     appliesTo: isAppFile,
     pattern: /from\s+["'][^"']*features\/solver\/resultPayload["']/,
   },

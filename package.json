@@ -26,7 +26,6 @@
     "vite-plugin-svgr": "^5.2.0"
   },
   "dependencies": {
-    "@lpviz/contracts": "workspace:*",
     "@lpviz/math": "workspace:*",
     "@lpviz/polytope": "workspace:*",
     "@lpviz/solver-engine": "workspace:*",

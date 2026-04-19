@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { ResultTextBlock } from "@lpviz/contracts";
+import type { ResultTextBlock } from "@/contracts";
 import {
   computeObjectiveRotationStep,
   hasPolytopeLines,

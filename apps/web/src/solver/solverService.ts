@@ -1,5 +1,5 @@
 import { sprintf } from "sprintf-js";
-import type { ResultTextBlock } from "@lpviz/contracts";
+import type { ResultTextBlock } from "@/contracts";
 import {
   addTraceToBuffer,
   getState,
