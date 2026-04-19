@@ -34,28 +34,6 @@ const rules = [
     pattern:
       /from\s+["'][^"']*solvers\/(?:centralPath|ipm|pdhg|pdhg_eq|pdhg_ineq|simplex)["']/,
   },
-  {
-    name: "Use @lpviz/state instead of legacy store source imports",
-    appliesTo: isAppFile,
-    pattern: /from\s+["'][^"']*store\/(?:lpvizStore|uiSelectors)["']/,
-  },
-  {
-    name: "Use @lpviz/state/react instead of legacy React store bindings",
-    appliesTo: isAppFile,
-    pattern: /from\s+["'][^"']*store\/useLpvizStore["']/,
-  },
-  {
-    name: "Use @lpviz/viewport instead of legacy viewport source imports",
-    appliesTo: isAppFile,
-    pattern:
-      /from\s+["'][^"']*features\/canvas\/(?:viewportApi|viewportRenderTypes|viewportRuntimeUtils|r3f\/[^"']+)["']/,
-  },
-  {
-    name: "Use @lpviz/runtime instead of legacy runtime source imports",
-    appliesTo: isAppFile,
-    pattern:
-      /from\s+["'][^"']*(?:features\/canvas\/(?:initializeCanvasRuntime|registerRuntimeActions|uiRuntime|viewBounds)|features\/editor\/[^"']+|features\/onboarding\/onboardingRuntime|features\/shared\/(?:runtimeTypes|sharedState)|features\/solver\/(?:resultRuntime|solverControls|solverRuntime)|solvers\/worker\/(?:client|solverService|solverWorker))["']/,
-  },
 ];
 
 function walk(dir) {

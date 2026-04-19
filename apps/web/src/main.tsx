@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
 
 import { App } from "@/App";
-import { LpvizRuntimeProvider } from "@/providers/LpvizRuntimeProvider";
 import { TourProvider } from "@/providers/TourProvider";
 import "@/style.css";
 
@@ -12,9 +11,7 @@ if (!container) {
 }
 
 createRoot(container).render(
-  <LpvizRuntimeProvider>
-    <TourProvider>
-      <App />
-    </TourProvider>
-  </LpvizRuntimeProvider>,
+  <TourProvider>
+    <App />
+  </TourProvider>,
 );

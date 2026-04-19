@@ -1,14 +1,14 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import {
   areCanvasControlsUiStatesEqual,
   selectCanvasControlsUiState,
-} from "@lpviz/state";
-import { useLpvizSelector } from "@lpviz/state/react";
-import { LpvizCanvas, type R3FViewportBridge } from "@lpviz/viewport/react";
+} from "@/state";
+import { useLpvizSelector } from "@/state/react";
+import { LpvizCanvas, type R3FViewportBridge } from "@/viewport/react";
 
-import { useCanvasRuntime } from "@/hooks/useCanvasRuntime";
-import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
+import { useLpvizActions } from "@/controller/LpvizActionsContext";
+import { useViewportBridgeSetter } from "@/controller/ViewportBridgeContext";
 import { useTourActionTarget } from "@/providers/TourProvider";
 
 export function CanvasStage({
@@ -18,23 +18,24 @@ export function CanvasStage({
   sidebarWidth: number;
   onResizeStart: () => void;
 }) {
-  const [viewportBridge, setViewportBridge] =
-    useState<R3FViewportBridge | null>(null);
-  const runtimeActions = useLpvizRuntime();
+  const runtimeActions = useLpvizActions();
+  const setViewportBridge = useViewportBridgeSetter();
   const toggle3DTargetRef = useTourActionTarget("toggle-3d");
   const canvasControlsUiState = useLpvizSelector(
     selectCanvasControlsUiState,
     areCanvasControlsUiStatesEqual,
   );
-  useCanvasRuntime({ viewportBridge }, sidebarWidth);
 
-  const handleBridgeReady = useCallback((bridge: R3FViewportBridge) => {
-    setViewportBridge(bridge);
-  }, []);
+  const handleBridgeReady = useCallback(
+    (bridge: R3FViewportBridge) => {
+      setViewportBridge(bridge);
+    },
+    [setViewportBridge],
+  );
 
   const handleBridgeDispose = useCallback(() => {
     setViewportBridge(null);
-  }, []);
+  }, [setViewportBridge]);
 
   return (
     <main className="canvas-stage">

@@ -1,4 +1,4 @@
-import type { TourActionTarget, TourUiController } from "@lpviz/runtime";
+import type { TourActionTarget, TourUiController } from "@/types/tour";
 import {
   createContext,
   useCallback,
@@ -11,7 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-export type { TourActionTarget, TourUiController } from "@lpviz/runtime";
+export type { TourActionTarget, TourUiController } from "@/types/tour";
 
 const POPUP_ANIMATION_MS = 300;
 

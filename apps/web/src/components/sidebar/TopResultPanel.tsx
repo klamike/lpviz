@@ -5,19 +5,19 @@ import {
   areTopResultUiStatesEqual,
   selectInequalitiesUiState,
   selectTopResultUiState,
-} from "@lpviz/state";
-import { useLpvizSelector } from "@lpviz/state/react";
+} from "@/state";
+import { useLpvizSelector } from "@/state/react";
 
 import { NullStateLogo } from "@/components/sidebar/NullStateLogo";
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
-import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
+import { useLpvizActions } from "@/controller/LpvizActionsContext";
 
 export function TopResultPanel({
   topResultRef,
 }: {
   topResultRef: RefObject<HTMLDivElement | null>;
 }) {
-  const runtimeActions = useLpvizRuntime();
+  const runtimeActions = useLpvizActions();
   const topResultUiState = useLpvizSelector(
     selectTopResultUiState,
     areTopResultUiStatesEqual,

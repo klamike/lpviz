@@ -3,14 +3,14 @@ import {
   areSolverSettingsEqual,
   selectAnimationControlsUiState,
   selectSolverSettings,
-} from "@lpviz/state";
-import { useLpvizSelector } from "@lpviz/state/react";
+} from "@/state";
+import { useLpvizSelector } from "@/state/react";
 
-import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
+import { useLpvizActions } from "@/controller/LpvizActionsContext";
 import { useTourActionTarget } from "@/providers/TourProvider";
 
 export function AnimationControlsPanel() {
-  const runtimeActions = useLpvizRuntime();
+  const runtimeActions = useLpvizActions();
   const startRotationTargetRef = useTourActionTarget("start-rotation");
   const toggleTraceTargetRef = useTourActionTarget("toggle-trace");
   const animationControlsUiState = useLpvizSelector(

@@ -1,6 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-
-import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
+import { useEffect, useRef, useState } from "react";
 
 const DEFAULT_SIDEBAR_WIDTH = 450;
 const MIN_SIDEBAR_WIDTH = 375;
@@ -50,21 +48,11 @@ const getMinSidebarWidth = (topResult: HTMLDivElement | null) => {
 };
 
 export function useSidebarLayout() {
-  const runtimeActions = useLpvizRuntime();
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const topResultRef = useRef<HTMLDivElement>(null);
-  const sidebarWidthRef = useRef(sidebarWidth);
   const isResizingRef = useRef(false);
 
-  useLayoutEffect(() => {
-    sidebarWidthRef.current = sidebarWidth;
-    runtimeActions.setSidebarWidth(sidebarWidth);
-  }, [runtimeActions, sidebarWidth]);
-
   useEffect(() => {
-    const handleWindowResize = () => {
-      runtimeActions.syncViewportLayout(sidebarWidthRef.current);
-    };
     const handleMouseMove = (event: MouseEvent) => {
       if (!isResizingRef.current) {
         return;
@@ -79,16 +67,14 @@ export function useSidebarLayout() {
       isResizingRef.current = false;
     };
 
-    window.addEventListener("resize", handleWindowResize);
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      window.removeEventListener("resize", handleWindowResize);
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [runtimeActions]);
+  }, []);
 
   return {
     sidebarWidth,

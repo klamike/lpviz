@@ -4,15 +4,15 @@ import { AutoSizer, List, type ListRowProps } from "react-virtualized";
 import {
   areResultPanelUiStatesEqual,
   selectResultPanelUiState,
-} from "@lpviz/state";
-import { useLpvizSelector } from "@lpviz/state/react";
+} from "@/state";
+import { useLpvizSelector } from "@/state/react";
 
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
 import { useResultTypography } from "@/hooks/useResultTypography";
-import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
+import { useLpvizActions } from "@/controller/LpvizActionsContext";
 
 export function UsagePanel() {
-  const runtimeActions = useLpvizRuntime();
+  const runtimeActions = useLpvizActions();
   const resultPanelUiState = useLpvizSelector(
     selectResultPanelUiState,
     areResultPanelUiStatesEqual,

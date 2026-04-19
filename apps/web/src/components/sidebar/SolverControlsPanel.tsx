@@ -3,14 +3,14 @@ import {
   areSolverSettingsEqual,
   selectSolverControlsUiState,
   selectSolverSettings,
-} from "@lpviz/state";
-import { useLpvizSelector } from "@lpviz/state/react";
+} from "@/state";
+import { useLpvizSelector } from "@/state/react";
 
-import { useLpvizRuntime } from "@/providers/LpvizRuntimeProvider";
+import { useLpvizActions } from "@/controller/LpvizActionsContext";
 import { useTourActionTarget } from "@/providers/TourProvider";
 
 export function SolverControlsPanel() {
-  const runtimeActions = useLpvizRuntime();
+  const runtimeActions = useLpvizActions();
   const activateIpmTargetRef = useTourActionTarget("activate-ipm");
   const activateCentralTargetRef = useTourActionTarget("activate-central");
   const solverControlsUiState = useLpvizSelector(
