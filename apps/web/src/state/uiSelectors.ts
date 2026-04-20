@@ -305,7 +305,7 @@ function isSolverSelectable(state: State, mode: SolverMode): boolean {
 }
 
 export function selectSolverSettings(state: State): SolverSettings {
-  return state.solverSettings;
+  return { ...state.solverSettings };
 }
 
 export function areSolverSettingsEqual(
