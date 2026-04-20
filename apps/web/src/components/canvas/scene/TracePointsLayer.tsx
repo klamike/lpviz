@@ -6,7 +6,7 @@ import { MAX_TRACE_POINT_SPRITES, type State } from "@/state";
 import { useLpvizSelector } from "@/state/react";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { useViewportRenderSnapshot } from "../viewportRenderStore";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;

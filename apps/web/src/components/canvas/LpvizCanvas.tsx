@@ -1,9 +1,9 @@
 import { Canvas } from "@react-three/fiber";
 
-import { ViewportBridge, type R3FViewportBridge } from "./ViewportBridge";
-import { SceneRoot } from "./scene/SceneRoot";
+import type { R3FViewportBridge } from "@/viewport";
 
-export type { R3FViewportBridge } from "./ViewportBridge";
+import { ViewportBridge } from "./ViewportBridge";
+import { SceneRoot } from "./scene/SceneRoot";
 
 export function LpvizCanvas({
   onBridgeReady,

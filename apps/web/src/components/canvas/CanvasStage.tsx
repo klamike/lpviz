@@ -5,7 +5,9 @@ import {
   selectCanvasControlsUiState,
 } from "@/state";
 import { useLpvizSelector } from "@/state/react";
-import { LpvizCanvas, type R3FViewportBridge } from "@/viewport/react";
+import type { R3FViewportBridge } from "@/viewport";
+
+import { LpvizCanvas } from "./LpvizCanvas";
 
 import { useLpvizActions } from "@/controller/LpvizActionsContext";
 import { useViewportBridgeSetter } from "@/controller/ViewportBridgeContext";

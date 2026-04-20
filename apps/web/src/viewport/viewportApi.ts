@@ -58,9 +58,9 @@ import {
   TRANSITION_VIEWPORT_DIRTY_FLAGS,
   type ViewportTransitionPlan,
 } from "./r3f/viewport3dTransition";
-import type { R3FViewportBridge } from "./r3f/ViewportBridge";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
+  type R3FViewportBridge,
   type ViewportRenderSnapshot,
 } from "./viewportRenderTypes";
 import {

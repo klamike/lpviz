@@ -8,7 +8,7 @@ import { useLpvizSelector } from "@/state/react";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { RENDER_ORDER } from "./renderOrder";
 import { ThickLineSegments } from "./ThickLineSegments";
-import { useViewportRenderSnapshot } from "../viewportRenderStore";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";

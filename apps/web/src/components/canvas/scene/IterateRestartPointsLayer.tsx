@@ -6,7 +6,7 @@ import type { State } from "@/state";
 import { useLpvizSelector } from "@/state/react";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { useViewportRenderSnapshot } from "../viewportRenderStore";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const ITERATE_RESTART_POINT_COLOR = "#800080";
 const PHASE_COLORS = [

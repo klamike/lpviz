@@ -6,7 +6,7 @@ import { useLpvizSelector } from "@/state/react";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { RENDER_ORDER } from "./renderOrder";
 import { ThickLine } from "./ThickLineSegments";
-import { useViewportRenderSnapshot } from "../viewportRenderStore";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;

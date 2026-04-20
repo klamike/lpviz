@@ -1,3 +1,9 @@
+export type R3FViewportBridge = {
+  getCanvasElement: () => HTMLCanvasElement;
+  getCanvasRect: () => DOMRect;
+  invalidate: () => void;
+};
+
 export type ViewportRenderSnapshot = {
   mode: "2d" | "3d";
   width: number;

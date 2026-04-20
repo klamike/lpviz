@@ -14,7 +14,7 @@ import { useLpvizSelector } from "@/state/react";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLineSegments } from "./ThickLineSegments";
-import { useViewportRenderSnapshot } from "../viewportRenderStore";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
 const POLYTOPE_HIGHLIGHT_COLOR = "#ff0000";

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 
-import { useViewportTransitionConfig } from "../viewportTransitionStore";
+import { useViewportTransitionConfig } from "@/viewport/r3f/viewportTransitionStore";
 
 const easeInOutCubic = (t: number) =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;

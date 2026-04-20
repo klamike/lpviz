@@ -5,8 +5,8 @@ import type { OrthographicCamera, PerspectiveCamera } from "three";
 import {
   resetViewportCameraRefs,
   setViewportCameraRefs,
-} from "../viewportCameraStore";
-import { useViewportRenderSnapshot } from "../viewportRenderStore";
+} from "@/viewport/r3f/viewportCameraStore";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 export function CameraRig() {
   const orthoRef = useRef<OrthographicCamera>(null);

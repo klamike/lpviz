@@ -9,12 +9,12 @@ import {
   stopViewport2DPan,
   updateViewport2DPan,
   zoomViewport2DAtCanvasPoint,
-} from "../viewport2DControlsStore";
-import { useViewportCameraRefs } from "../viewportCameraStore";
+} from "@/viewport/r3f/viewport2DControlsStore";
+import { useViewportCameraRefs } from "@/viewport/r3f/viewportCameraStore";
 import {
   type ViewportPerspectivePose,
   useViewport3DControlsConfig,
-} from "../viewport3DControlsStore";
+} from "@/viewport/r3f/viewport3DControlsStore";
 
 const WHEEL_ZOOM_FACTOR = 1.05;
 

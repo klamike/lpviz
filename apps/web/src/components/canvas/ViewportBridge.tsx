@@ -1,11 +1,7 @@
 import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 
-export type R3FViewportBridge = {
-  getCanvasElement: () => HTMLCanvasElement;
-  getCanvasRect: () => DOMRect;
-  invalidate: () => void;
-};
+import type { R3FViewportBridge } from "@/viewport";
 
 export function ViewportBridge({
   onReady,

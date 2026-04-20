@@ -7,8 +7,8 @@ import { useLpvizSelector } from "@/state/react";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { RENDER_ORDER } from "./renderOrder";
 import { ThickLineSegments } from "./ThickLineSegments";
-import { projectCanvasPointToWorldPlane } from "../viewport3dTransition";
-import { useViewportRenderSnapshot } from "../viewportRenderStore";
+import { projectCanvasPointToWorldPlane } from "@/viewport/r3f/viewport3dTransition";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const CONSTRAINT_COLOR = "#ff0000";
 const CONSTRAINT_RENDER_ORDER = RENDER_ORDER.constraintLines;
