@@ -2,34 +2,25 @@ import { compactSharedAppState, type ShareSettings } from "@/lib/sharedState";
 import type { SolverControl } from "@/lib/solverControls";
 import { getState, type SolverMode } from "@/state";
 import JSONCrush from "jsoncrush";
-import { useCallback, useMemo } from "react";
-
-export type ShareActions = {
-  share: () => void;
-  collectShareSettings: (mode: SolverMode) => ShareSettings;
-};
 
 export function useShare({
   solverControls,
 }: {
   solverControls: SolverControl[];
-}): ShareActions {
-  const collectShareSettings = useCallback(
-    (mode: SolverMode): ShareSettings => {
-      const settings = getState().solverSettings;
-      const solverControl = solverControls.find(
-        (control) => control.mode === mode,
-      );
-      return {
-        objectiveAngleStep: settings.objectiveAngleStep,
-        objectiveRotationSpeed: settings.objectiveRotationSpeed,
-        ...(solverControl?.collectShareSettings() ?? {}),
-      };
-    },
-    [solverControls],
-  );
+}) {
+  const collectShareSettings = (mode: SolverMode): ShareSettings => {
+    const settings = getState().solverSettings;
+    const solverControl = solverControls.find(
+      (control) => control.mode === mode,
+    );
+    return {
+      objectiveAngleStep: settings.objectiveAngleStep,
+      objectiveRotationSpeed: settings.objectiveRotationSpeed,
+      ...(solverControl?.collectShareSettings() ?? {}),
+    };
+  };
 
-  const share = useCallback(() => {
+  const share = () => {
     const {
       vertices,
       completionMode,
@@ -52,10 +43,7 @@ export function useShare({
       "Share this link:",
       `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`,
     );
-  }, [collectShareSettings]);
+  };
 
-  return useMemo(
-    () => ({ share, collectShareSettings }),
-    [share, collectShareSettings],
-  );
+  return () => ({ share, collectShareSettings });
 }

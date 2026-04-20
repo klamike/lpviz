@@ -1,11 +1,6 @@
 import { computeEditorRegionForState } from "@/lib/editorSession";
 import { getState, mutate } from "@/state";
-import { useCallback, useMemo, useRef } from "react";
-
-export type PolytopeActions = {
-  send: () => void;
-  sendRef: React.MutableRefObject<() => void>;
-};
+import { useRef } from "react";
 
 export function usePolytope({
   handleProblemChange,
@@ -13,13 +8,13 @@ export function usePolytope({
 }: {
   handleProblemChange: () => void;
   scheduleNonconvexHint: () => void;
-}): PolytopeActions {
+}) {
   const handleProblemChangeRef = useRef(handleProblemChange);
   handleProblemChangeRef.current = handleProblemChange;
   const scheduleNonconvexHintRef = useRef(scheduleNonconvexHint);
   scheduleNonconvexHintRef.current = scheduleNonconvexHint;
 
-  const send = useCallback(() => {
+  const send = () => {
     const state = getState();
     try {
       const regionResult = computeEditorRegionForState(state);
@@ -77,10 +72,10 @@ export function usePolytope({
       handleProblemChangeRef.current();
       scheduleNonconvexHintRef.current();
     }
-  }, []);
+  };
 
   const sendRef = useRef(send);
   sendRef.current = send;
 
-  return useMemo(() => ({ send, sendRef }), [send]);
+  return () => ({ send, sendRef });
 }

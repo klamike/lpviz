@@ -1,10 +1,4 @@
-import {
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 const BASE_RESULT_FONT_SIZE = 18;
 
@@ -71,7 +65,7 @@ export function useResultTypography({
     };
   }, [enabled, maxLineChars]);
 
-  const resultStyle = useMemo<CSSProperties | undefined>(() => {
+  const resultStyle = () => {
     if (!enabled || fontSize === null) {
       return undefined;
     }
@@ -79,7 +73,7 @@ export function useResultTypography({
     return {
       ["--result-font-size" as string]: `${fontSize}px`,
     };
-  }, [enabled, fontSize]);
+  };
 
   return {
     resultRef,

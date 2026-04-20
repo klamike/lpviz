@@ -11,7 +11,7 @@ import type { TourActionTarget, TourUiController } from "@/types/tour";
 import type { ViewportApi } from "@/viewport";
 import type { PointXY } from "@lpviz/math";
 import { VRep } from "@lpviz/polytope";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 const TOUR_CURSOR_TRANSITION_MS = 700;
 const TOUR_DEFAULT_DELAY_MS = 300;
@@ -112,15 +112,15 @@ export function useTour({
   const helpOverlayTimerRef = useRef<number | null>(null);
   const helpOverlayShownRef = useRef(false);
 
-  const logicalToScreen = useCallback((point: PointXY) => {
+  const logicalToScreen = (point: PointXY) => {
     const cm = canvasManagerRef.current;
     if (!cm) return { x: 0, y: 0 };
     const rect = cm.getCanvasRect();
     const canvasPoint = cm.toCanvasCoords(point.x, point.y);
     return { x: rect.left + canvasPoint.x, y: rect.top + canvasPoint.y };
-  }, []);
+  };
 
-  const setClickBlocker = useCallback((enabled: boolean) => {
+  const setClickBlocker = (enabled: boolean) => {
     if (enabled) {
       if (clickBlockerRef.current) return;
       const handler = (event: Event) => {
@@ -149,28 +149,25 @@ export function useTour({
       document.removeEventListener(eventName, existing, true);
     });
     clickBlockerRef.current = null;
-  }, []);
+  };
 
-  const moveCursorToScreen = useCallback(async (x: number, y: number) => {
+  const moveCursorToScreen = async (x: number, y: number) => {
     uiRef.current.moveCursor(x, y);
     await delay(TOUR_CURSOR_TRANSITION_MS);
-  }, []);
+  };
 
-  const moveCursorToPoint = useCallback(
-    async (point: PointXY) => {
-      const screenPoint = logicalToScreen(point);
-      await moveCursorToScreen(screenPoint.x, screenPoint.y);
-    },
-    [logicalToScreen, moveCursorToScreen],
-  );
+  const moveCursorToPoint = async (point: PointXY) => {
+    const screenPoint = logicalToScreen(point);
+    await moveCursorToScreen(screenPoint.x, screenPoint.y);
+  };
 
-  const animateCursorClick = useCallback(async () => {
+  const animateCursorClick = async () => {
     uiRef.current.setCursorClicking(true);
     await delay(TOUR_CURSOR_CLICK_ANIMATION_MS);
     uiRef.current.setCursorClicking(false);
-  }, []);
+  };
 
-  const resetWorkspace = useCallback(() => {
+  const resetWorkspace = () => {
     setState({
       vertices: [],
       completionMode: "draft",
@@ -180,90 +177,81 @@ export function useTour({
       currentObjective: null,
     });
     canvasManagerRef.current?.draw();
-  }, []);
+  };
 
-  const clickPoint = useCallback(
-    async (point: PointXY, apply: () => void) => {
-      await moveCursorToPoint(point);
-      await animateCursorClick();
-      apply();
-      await delay(TOUR_CLICK_AT_POINT_DELAY_MS);
-    },
-    [moveCursorToPoint, animateCursorClick],
-  );
+  const clickPoint = async (point: PointXY, apply: () => void) => {
+    await moveCursorToPoint(point);
+    await animateCursorClick();
+    apply();
+    await delay(TOUR_CLICK_AT_POINT_DELAY_MS);
+  };
 
-  const clickActionTarget = useCallback(
-    async (target: TourActionTarget) => {
-      const element = uiRef.current.getActionTarget(target);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        await moveCursorToScreen(
-          rect.left + rect.width / 2,
-          rect.top + rect.height / 2,
-        );
-      }
-      await animateCursorClick();
-      runActionRef.current(target);
-      await delay(TOUR_BUTTON_CLICK_DELAY_MS);
-    },
-    [moveCursorToScreen, animateCursorClick],
-  );
+  const clickActionTarget = async (target: TourActionTarget) => {
+    const element = uiRef.current.getActionTarget(target);
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      await moveCursorToScreen(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+    }
+    await animateCursorClick();
+    runActionRef.current(target);
+    await delay(TOUR_BUTTON_CLICK_DELAY_MS);
+  };
 
-  const runStep = useCallback(
-    async (step: TourStep) => {
-      const cm = canvasManagerRef.current;
-      if (step.type === "wait") {
-        await delay(step.duration);
-        return;
-      }
-      if (step.type === "run-action") {
-        await clickActionTarget(step.target);
-        return;
-      }
-      if (step.type === "draw-vertex") {
-        await clickPoint(step.point, () => {
-          saveHistoryRef.current();
-          mutate((draft) => {
-            draft.vertices.push(step.point);
-            draft.completionMode = "draft";
-          });
-          cm?.draw();
-          sendPolytopeRef.current();
-        });
-        return;
-      }
-      if (step.type === "set-objective") {
-        await clickPoint(step.point, () => {
-          saveHistoryRef.current();
-          mutate((draft) => {
-            draft.objectiveVector = step.point;
-          });
-          cm?.draw();
-        });
-        return;
-      }
+  const runStep = async (step: TourStep) => {
+    const cm = canvasManagerRef.current;
+    if (step.type === "wait") {
+      await delay(step.duration);
+      return;
+    }
+    if (step.type === "run-action") {
+      await clickActionTarget(step.target);
+      return;
+    }
+    if (step.type === "draw-vertex") {
       await clickPoint(step.point, () => {
         saveHistoryRef.current();
         mutate((draft) => {
-          draft.completionMode = "closed";
-          draft.interiorPoint = step.point;
+          draft.vertices.push(step.point);
+          draft.completionMode = "draft";
         });
         cm?.draw();
         sendPolytopeRef.current();
       });
-    },
-    [clickActionTarget, clickPoint],
-  );
+      return;
+    }
+    if (step.type === "set-objective") {
+      await clickPoint(step.point, () => {
+        saveHistoryRef.current();
+        mutate((draft) => {
+          draft.objectiveVector = step.point;
+        });
+        cm?.draw();
+      });
+      return;
+    }
+    await clickPoint(step.point, () => {
+      saveHistoryRef.current();
+      mutate((draft) => {
+        draft.completionMode = "closed";
+        draft.interiorPoint = step.point;
+      });
+      cm?.draw();
+      sendPolytopeRef.current();
+    });
+  };
 
-  const stop = useCallback(() => {
+  const stop = () => {
     runningRef.current = false;
     uiRef.current.hideCursor();
     setClickBlocker(false);
     setState({ currentMouse: null, currentObjective: null, tourActive: false });
     canvasManagerRef.current?.draw();
-  }, [setClickBlocker]);
+  };
 
-  const start = useCallback(async () => {
+  const start = async () => {
     if (runningRef.current) return;
     runningRef.current = true;
     setState({ tourActive: true });
@@ -282,18 +270,18 @@ export function useTour({
     } finally {
       stop();
     }
-  }, [resetWorkspace, runStep, setClickBlocker, stop]);
+  };
 
-  const dismissNonconvexHint = useCallback(() => {
+  const dismissNonconvexHint = () => {
     nonconvexHintShownRef.current = false;
     if (nonconvexHintTimerRef.current !== null) {
       clearTimeout(nonconvexHintTimerRef.current);
       nonconvexHintTimerRef.current = null;
     }
     uiRef.current.hideNonconvexHint();
-  }, []);
+  };
 
-  const scheduleNonconvexHint = useCallback(() => {
+  const scheduleNonconvexHint = () => {
     const state = getState();
     const polytope = VRep.fromPoints(state.vertices);
     const nonconvex =
@@ -320,17 +308,17 @@ export function useTour({
         onClose: dismissNonconvexHint,
       });
     }, 4000);
-  }, [dismissNonconvexHint]);
+  };
 
-  const dismissHelpOverlay = useCallback(() => {
+  const dismissHelpOverlay = () => {
     if (helpOverlayTimerRef.current !== null) {
       clearTimeout(helpOverlayTimerRef.current);
       helpOverlayTimerRef.current = null;
     }
     uiRef.current.hideHelpPopup();
-  }, []);
+  };
 
-  const showHelpOverlay = useCallback(() => {
+  const showHelpOverlay = () => {
     if (runningRef.current || helpOverlayShownRef.current) return;
     helpOverlayShownRef.current = true;
     uiRef.current.showHelpPopup({
@@ -342,9 +330,9 @@ export function useTour({
         void start();
       },
     });
-  }, [dismissHelpOverlay, start]);
+  };
 
-  const scheduleHelpOverlayIfNeeded = useCallback(() => {
+  const scheduleHelpOverlayIfNeeded = () => {
     const state = getState();
     if (
       state.objectiveVector !== null ||
@@ -358,13 +346,13 @@ export function useTour({
       helpOverlayTimerRef.current = null;
       showHelpOverlay();
     }, TOUR_INACTIVITY_TIMEOUT_MS);
-  }, [showHelpOverlay]);
+  };
 
-  const reset = useCallback(() => {
+  const reset = () => {
     dismissHelpOverlay();
     helpOverlayShownRef.current = false;
     scheduleHelpOverlayIfNeeded();
-  }, [dismissHelpOverlay, scheduleHelpOverlayIfNeeded]);
+  };
 
   useEffect(() => {
     let lastHelpPhase: DrawingPhase | null = null;
@@ -403,8 +391,5 @@ export function useTour({
     setClickBlocker,
   ]);
 
-  return useMemo(
-    () => ({ start, stop, reset, scheduleNonconvexHint }),
-    [start, stop, reset, scheduleNonconvexHint],
-  );
+  return { start, stop, reset, scheduleNonconvexHint };
 }

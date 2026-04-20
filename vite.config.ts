@@ -1,4 +1,5 @@
 // @ts-nocheck
+import react from "@vitejs/plugin-react";
 import { readdirSync, statSync } from "fs";
 import { resolve } from "path";
 import { defineConfig } from "vite";
@@ -24,7 +25,14 @@ const docsDir = resolve(__dirname, "docs");
 const docHtmlInputs = findHtmlFiles(docsDir);
 
 export default defineConfig({
-  plugins: [svgr()],
+  plugins: [
+    react({
+      babel: {
+        plugins: ["babel-plugin-react-compiler"],
+      },
+    }),
+    svgr(),
+  ],
   resolve: {
     alias: [
       {

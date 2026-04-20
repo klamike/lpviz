@@ -1,19 +1,7 @@
 import { collectZoomFitBounds } from "@/lib/viewBounds";
 import { getState, setState } from "@/state";
 import type { ViewportApi } from "@/viewport";
-import { useCallback, useMemo, useRef } from "react";
-
-export type ViewportActions = {
-  resetView: () => void;
-  zoomToFit: () => void;
-  toggle3D: () => void;
-  toggleZOffset: () => void;
-  setZScale: (value: number) => void;
-  setSidebarWidth: (width: number) => void;
-  syncViewportLayout: (sidebarWidth: number) => void;
-  getCurrentSidebarWidth: () => number;
-  syncSidebarViewport: () => void;
-};
+import { useRef } from "react";
 
 export function useViewportActions({
   canvasManager,
@@ -21,30 +9,27 @@ export function useViewportActions({
 }: {
   canvasManager: ViewportApi | null;
   initialSidebarWidth: number;
-}): ViewportActions {
+}) {
   const canvasManagerRef = useRef<ViewportApi | null>(canvasManager);
   canvasManagerRef.current = canvasManager;
 
   const currentSidebarWidthRef = useRef(initialSidebarWidth);
 
-  const getCurrentSidebarWidth = useCallback(
-    () => currentSidebarWidthRef.current,
-    [],
-  );
+  const getCurrentSidebarWidth = () => currentSidebarWidthRef.current;
 
-  const syncSidebarViewport = useCallback(() => {
+  const syncSidebarViewport = () => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     cm.setSidebarWidth(currentSidebarWidthRef.current);
     cm.updateDimensions();
     cm.draw();
-  }, []);
+  };
 
-  const resetView = useCallback(() => {
+  const resetView = () => {
     canvasManagerRef.current?.resetView();
-  }, []);
+  };
 
-  const zoomToFit = useCallback(() => {
+  const zoomToFit = () => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     const state = getState();
@@ -60,17 +45,17 @@ export function useViewportActions({
       zoomFit?.zBounds,
     );
     cm.setSidebarWidth(currentSidebarWidthRef.current);
-  }, []);
+  };
 
-  const toggle3D = useCallback(() => {
+  const toggle3D = () => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     const viewState = getState();
     if (viewState.isTransitioning3D) return;
     cm.start3DTransition(!viewState.is3DMode);
-  }, []);
+  };
 
-  const toggleZOffset = useCallback(() => {
+  const toggleZOffset = () => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     setState(
@@ -78,9 +63,9 @@ export function useViewportActions({
       { viewportDirty: cm.getZScaleDirtyFlags() },
     );
     cm.draw();
-  }, []);
+  };
 
-  const setZScale = useCallback((value: number) => {
+  const setZScale = (value: number) => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     setState({ zScale: value }, { viewportDirty: cm.getZScaleDirtyFlags() });
@@ -88,46 +73,30 @@ export function useViewportActions({
     if (is3DMode || isTransitioning3D) {
       cm.draw();
     }
-  }, []);
+  };
 
-  const setSidebarWidth = useCallback((width: number) => {
+  const setSidebarWidth = (width: number) => {
     const cm = canvasManagerRef.current;
     currentSidebarWidthRef.current = width;
     if (!cm) return;
     cm.setSidebarWidth(width);
     cm.draw();
-  }, []);
+  };
 
-  const syncViewportLayout = useCallback(
-    (sidebarWidth: number) => {
-      currentSidebarWidthRef.current = sidebarWidth;
-      syncSidebarViewport();
-    },
-    [syncSidebarViewport],
-  );
+  const syncViewportLayout = (sidebarWidth: number) => {
+    currentSidebarWidthRef.current = sidebarWidth;
+    syncSidebarViewport();
+  };
 
-  return useMemo(
-    () => ({
-      resetView,
-      zoomToFit,
-      toggle3D,
-      toggleZOffset,
-      setZScale,
-      setSidebarWidth,
-      syncViewportLayout,
-      getCurrentSidebarWidth,
-      syncSidebarViewport,
-    }),
-    [
-      resetView,
-      zoomToFit,
-      toggle3D,
-      toggleZOffset,
-      setZScale,
-      setSidebarWidth,
-      syncViewportLayout,
-      getCurrentSidebarWidth,
-      syncSidebarViewport,
-    ],
-  );
+  return () => ({
+    resetView,
+    zoomToFit,
+    toggle3D,
+    toggleZOffset,
+    setZScale,
+    setSidebarWidth,
+    syncViewportLayout,
+    getCurrentSidebarWidth,
+    syncSidebarViewport,
+  });
 }

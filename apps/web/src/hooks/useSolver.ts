@@ -30,7 +30,7 @@ import {
   hasPolytopeLines,
   isObjectiveDirectionUnbounded,
 } from "@lpviz/polytope";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 const ROTATE_ROW_LIMIT = 20;
 const BASE_ROTATION_WAIT_MS = 30;
@@ -104,16 +104,13 @@ export function useSolver({
     options: RenderOptions;
   } | null>(null);
 
-  const updateSolverSetting = useCallback<SolverSettingUpdater>(
-    (key, value) => {
-      mutate((draft) => {
-        (draft.solverSettings as SolverSettings)[key] = value;
-      });
-    },
-    [],
-  );
+  const updateSolverSetting: SolverSettingUpdater = (key, value) => {
+    mutate((draft) => {
+      (draft.solverSettings as SolverSettings)[key] = value;
+    });
+  };
 
-  const hasUnboundedObjectiveDirection = useCallback((state: State) => {
+  const hasUnboundedObjectiveDirection = (state: State) => {
     const { polytope, objectiveVector } = state;
     if (
       !hasPolytopeLines(polytope) ||
@@ -126,24 +123,17 @@ export function useSolver({
       objectiveVector.x,
       objectiveVector.y,
     ]);
-  }, []);
+  };
 
-  const solverControls = useMemo(
-    () =>
-      createSolverControls({
-        updateSolverSetting,
-        hasUnboundedObjectiveDirection,
-      }),
-    [updateSolverSetting, hasUnboundedObjectiveDirection],
-  );
+  const solverControls = createSolverControls({
+    updateSolverSetting,
+    hasUnboundedObjectiveDirection,
+  });
 
-  const getSolverControl = useCallback(
-    (mode: SolverMode): SolverControl | undefined =>
-      solverControls.find((control) => control.mode === mode),
-    [solverControls],
-  );
+  const getSolverControl = (mode: SolverMode): SolverControl | undefined =>
+    solverControls.find((control) => control.mode === mode);
 
-  const setHighlight = useCallback((index: number | null) => {
+  const setHighlight = (index: number | null) => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     setState(
@@ -151,83 +141,80 @@ export function useSolver({
       { viewportDirty: cm.getIterateDirtyFlags() },
     );
     cm.draw();
-  }, []);
+  };
 
-  const applyRender = useCallback(
-    (payload: ResultRenderPayload, options: RenderOptions = {}) => {
-      const cm = canvasManagerRef.current;
-      const limitVirtualRows =
-        options.limitVirtualRows ?? getState().rotateObjectiveMode;
+  const applyRender = (
+    payload: ResultRenderPayload,
+    options: RenderOptions = {},
+  ) => {
+    const cm = canvasManagerRef.current;
+    const limitVirtualRows =
+      options.limitVirtualRows ?? getState().rotateObjectiveMode;
 
-      if (payload.type === "virtual") {
-        lastVirtualResultRef.current = payload;
-        const rowsForLayout = limitVirtualRows
-          ? payload.rows.slice(0, ROTATE_ROW_LIMIT)
-          : payload.rows;
-        setState({
-          resultDisplayMode: "virtual",
-          resultBlocks: null,
-          resultVirtualHeader: payload.header || "",
-          resultVirtualFooter: payload.footer ?? null,
-          resultVirtualShowEmpty: rowsForLayout.length === 0,
-          resultVirtualRows: rowsForLayout.map(createVirtualBlock),
-          resultMaxLineChars: getMaxLineChars([
-            payload.header || "",
-            ...(payload.footer ? [payload.footer] : []),
-            ...rowsForLayout.map((row) => formatVirtualResultRow(row)),
-          ]),
-          highlightIteratePathIndex: null,
-        });
-        setHighlight(null);
-      } else {
-        lastVirtualResultRef.current = null;
-        setState({
-          resultDisplayMode: "blocks",
-          resultBlocks: payload.blocks,
-          resultVirtualHeader: null,
-          resultVirtualFooter: null,
-          resultVirtualShowEmpty: false,
-          resultVirtualRows: [],
-          resultMaxLineChars: getMaxLineChars(
-            payload.blocks.map((block) => block.text),
-          ),
-          highlightIteratePathIndex: null,
-        });
-      }
+    if (payload.type === "virtual") {
+      lastVirtualResultRef.current = payload;
+      const rowsForLayout = limitVirtualRows
+        ? payload.rows.slice(0, ROTATE_ROW_LIMIT)
+        : payload.rows;
+      setState({
+        resultDisplayMode: "virtual",
+        resultBlocks: null,
+        resultVirtualHeader: payload.header || "",
+        resultVirtualFooter: payload.footer ?? null,
+        resultVirtualShowEmpty: rowsForLayout.length === 0,
+        resultVirtualRows: rowsForLayout.map(createVirtualBlock),
+        resultMaxLineChars: getMaxLineChars([
+          payload.header || "",
+          ...(payload.footer ? [payload.footer] : []),
+          ...rowsForLayout.map((row) => formatVirtualResultRow(row)),
+        ]),
+        highlightIteratePathIndex: null,
+      });
+      setHighlight(null);
+    } else {
+      lastVirtualResultRef.current = null;
+      setState({
+        resultDisplayMode: "blocks",
+        resultBlocks: payload.blocks,
+        resultVirtualHeader: null,
+        resultVirtualFooter: null,
+        resultVirtualShowEmpty: false,
+        resultVirtualRows: [],
+        resultMaxLineChars: getMaxLineChars(
+          payload.blocks.map((block) => block.text),
+        ),
+        highlightIteratePathIndex: null,
+      });
+    }
 
-      cm?.draw();
-    },
-    [setHighlight],
-  );
+    cm?.draw();
+  };
 
-  const render = useCallback(
-    (payload: ResultRenderPayload, options: RenderOptions = {}) => {
-      if (payload.type === "virtual") {
-        lastVirtualResultRef.current = payload;
-      } else {
-        lastVirtualResultRef.current = null;
-      }
+  const render = (payload: ResultRenderPayload, options: RenderOptions = {}) => {
+    if (payload.type === "virtual") {
+      lastVirtualResultRef.current = payload;
+    } else {
+      lastVirtualResultRef.current = null;
+    }
 
-      if (getState().isNavigatingViewport) {
-        pendingRenderRef.current = { payload, options };
-        canvasManagerRef.current?.draw();
-        return;
-      }
+    if (getState().isNavigatingViewport) {
+      pendingRenderRef.current = { payload, options };
+      canvasManagerRef.current?.draw();
+      return;
+    }
 
-      pendingRenderRef.current = null;
-      applyRender(payload, options);
-    },
-    [applyRender],
-  );
+    pendingRenderRef.current = null;
+    applyRender(payload, options);
+  };
 
-  const flushDeferredRender = useCallback(() => {
+  const flushDeferredRender = () => {
     if (!pendingRenderRef.current || getState().isNavigatingViewport) return;
     const pending = pendingRenderRef.current;
     pendingRenderRef.current = null;
     applyRender(pending.payload, pending.options);
-  }, [applyRender]);
+  };
 
-  const clearResultState = useCallback(() => {
+  const clearResultState = () => {
     lastVirtualResultRef.current = null;
     pendingRenderRef.current = null;
     setState({
@@ -241,24 +228,24 @@ export function useSolver({
       highlightIteratePathIndex: null,
     });
     setHighlight(null);
-  }, [setHighlight]);
+  };
 
-  const restoreFullVirtualResult = useCallback(() => {
+  const restoreFullVirtualResult = () => {
     if (lastVirtualResultRef.current) {
       render(lastVirtualResultRef.current, { limitVirtualRows: false });
     }
-  }, [render]);
+  };
 
-  const clearComputedState = useCallback(() => {
+  const clearComputedState = () => {
     clearIterateState();
     clearResultState();
-  }, [clearResultState]);
+  };
 
-  const invalidatePendingSolveResults = useCallback(() => {
+  const invalidatePendingSolveResults = () => {
     requestGenerationRef.current++;
-  }, []);
+  };
 
-  const cancelRotationLoop = useCallback(() => {
+  const cancelRotationLoop = () => {
     if (rotationRafIdRef.current !== null) {
       cancelAnimationFrame(rotationRafIdRef.current);
       rotationRafIdRef.current = null;
@@ -266,17 +253,17 @@ export function useSolver({
     rotationLastFrameTimeRef.current = null;
     rotationElapsedMsRef.current = 0;
     rotationComputeInFlightRef.current = false;
-  }, []);
+  };
 
-  const syncTraceCapacity = useCallback(() => {
+  const syncTraceCapacity = () => {
     const angleStep = Math.max(
       0.001,
       getState().solverSettings.objectiveAngleStep || 0.001,
     );
     setTraceCapacity(Math.max(1, Math.ceil((2 * Math.PI) / angleStep)));
-  }, []);
+  };
 
-  const computePath = useCallback(async () => {
+  const computePath = async () => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     const state = getState();
@@ -327,17 +314,12 @@ export function useSolver({
         ],
       });
     }
-  }, [
-    getSolverControl,
-    invalidatePendingSolveResults,
-    clearComputedState,
-    render,
-  ]);
+  };
 
   const computePathRef = useRef(computePath);
   computePathRef.current = computePath;
 
-  const ensureRotationLoop = useCallback(() => {
+  const ensureRotationLoop = () => {
     if (!getState().rotateObjectiveMode || rotationRafIdRef.current !== null) {
       return;
     }
@@ -373,12 +355,12 @@ export function useSolver({
     };
 
     rotationRafIdRef.current = requestAnimationFrame(tick);
-  }, []);
+  };
 
   const ensureRotationLoopRef = useRef(ensureRotationLoop);
   ensureRotationLoopRef.current = ensureRotationLoop;
 
-  const computeAndRotate = useCallback(async () => {
+  const computeAndRotate = async () => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     const state = getState();
@@ -419,43 +401,40 @@ export function useSolver({
       if (!getState().rotateObjectiveMode) return;
       ensureRotationLoopRef.current();
     }
-  }, [syncTraceCapacity]);
+  };
 
   const computeAndRotateRef = useRef(computeAndRotate);
   computeAndRotateRef.current = computeAndRotate;
 
-  const setRotationActive = useCallback(
-    (active: boolean) => {
-      const cm = canvasManagerRef.current;
-      prepareAnimationInterval();
-      if (!active) {
-        cancelRotationLoop();
-      } else {
-        rotationLastFrameTimeRef.current = null;
-        rotationElapsedMsRef.current = 0;
-      }
-      if (cm) {
-        setState(
-          {
-            rotateObjectiveMode: active,
-            highlightIteratePathIndex: null,
-          },
-          { viewportDirty: cm.getIterateDirtyFlags() },
-        );
-      } else {
-        setState({
+  const setRotationActive = (active: boolean) => {
+    const cm = canvasManagerRef.current;
+    prepareAnimationInterval();
+    if (!active) {
+      cancelRotationLoop();
+    } else {
+      rotationLastFrameTimeRef.current = null;
+      rotationElapsedMsRef.current = 0;
+    }
+    if (cm) {
+      setState(
+        {
           rotateObjectiveMode: active,
           highlightIteratePathIndex: null,
-        });
-      }
-      if (!active) {
-        restoreFullVirtualResult();
-      }
-    },
-    [cancelRotationLoop, restoreFullVirtualResult],
-  );
+        },
+        { viewportDirty: cm.getIterateDirtyFlags() },
+      );
+    } else {
+      setState({
+        rotateObjectiveMode: active,
+        highlightIteratePathIndex: null,
+      });
+    }
+    if (!active) {
+      restoreFullVirtualResult();
+    }
+  };
 
-  const stopActiveMotion = useCallback(() => {
+  const stopActiveMotion = () => {
     const state = getState();
     const wasRotating = state.rotateObjectiveMode;
     const hadAnimation = state.animationIntervalId !== null;
@@ -484,13 +463,9 @@ export function useSolver({
     if (wasRotating) {
       restoreFullVirtualResult();
     }
-  }, [
-    cancelRotationLoop,
-    invalidatePendingSolveResults,
-    restoreFullVirtualResult,
-  ]);
+  };
 
-  const handleProblemChange = useCallback(() => {
+  const handleProblemChange = () => {
     const state = getState();
     const readyForSolvers =
       computeDrawingPhase(state) === "ready_for_solvers" &&
@@ -514,32 +489,23 @@ export function useSolver({
         ensureRotationLoop();
       }
     });
-  }, [
-    invalidatePendingSolveResults,
-    stopActiveMotion,
-    clearComputedState,
-    computePath,
-    ensureRotationLoop,
-  ]);
+  };
 
-  const setTraceEnabled = useCallback(
-    (enabled: boolean) => {
-      const cm = canvasManagerRef.current;
-      setState(
-        { traceEnabled: enabled },
-        { viewportDirty: cm?.getTraceDirtyFlags() ?? {} },
-      );
-      if (!enabled) {
-        resetTraceState();
-        cm?.draw();
-        return;
-      }
-      syncTraceCapacity();
-    },
-    [syncTraceCapacity],
-  );
+  const setTraceEnabled = (enabled: boolean) => {
+    const cm = canvasManagerRef.current;
+    setState(
+      { traceEnabled: enabled },
+      { viewportDirty: cm?.getTraceDirtyFlags() ?? {} },
+    );
+    if (!enabled) {
+      resetTraceState();
+      cm?.draw();
+      return;
+    }
+    syncTraceCapacity();
+  };
 
-  const startRotation = useCallback(() => {
+  const startRotation = () => {
     const cm = canvasManagerRef.current;
     if (!getState().objectiveVector) {
       setState(
@@ -557,13 +523,13 @@ export function useSolver({
 
     setRotationActive(true);
     void computeAndRotate();
-  }, [syncTraceCapacity, setRotationActive, computeAndRotate]);
+  };
 
-  const stopRotation = useCallback(() => {
+  const stopRotation = () => {
     stopActiveMotion();
-  }, [stopActiveMotion]);
+  };
 
-  const startReplay = useCallback(() => {
+  const startReplay = () => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     const solverSnapshot = getState();
@@ -615,41 +581,35 @@ export function useSolver({
     }, intervalTime);
 
     setState({ animationIntervalId: intervalId }, { viewportDirty: {} });
-  }, []);
+  };
 
-  const recomputeIfModeActive = useCallback(
-    (mode: SolverMode) => {
-      const state = getState();
-      if (state.rotateObjectiveMode) return;
-      if (state.solverMode === mode) {
-        void computePath();
-      }
-    },
-    [computePath],
-  );
+  const recomputeIfModeActive = (mode: SolverMode) => {
+    const state = getState();
+    if (state.rotateObjectiveMode) return;
+    if (state.solverMode === mode) {
+      void computePath();
+    }
+  };
 
-  const resetTraceAndRedrawIfNeeded = useCallback(() => {
+  const resetTraceAndRedrawIfNeeded = () => {
     const cm = canvasManagerRef.current;
     if (!getState().traceEnabled) return;
     resetTraceState();
     cm?.draw();
-  }, []);
+  };
 
-  const setActiveSolverMode = useCallback(
-    (mode: SolverMode, solve = false) => {
-      invalidatePendingSolveResults();
-      if (getState().rotateObjectiveMode) {
-        resetTraceAndRedrawIfNeeded();
-      }
-      setState({ solverMode: mode });
-      if (solve && !getState().rotateObjectiveMode) {
-        void computePath();
-      }
-    },
-    [computePath, invalidatePendingSolveResults, resetTraceAndRedrawIfNeeded],
-  );
+  const setActiveSolverMode = (mode: SolverMode, solve = false) => {
+    invalidatePendingSolveResults();
+    if (getState().rotateObjectiveMode) {
+      resetTraceAndRedrawIfNeeded();
+    }
+    setState({ solverMode: mode });
+    if (solve && !getState().rotateObjectiveMode) {
+      void computePath();
+    }
+  };
 
-  const setConstraintHighlight = useCallback((index: number | null) => {
+  const setConstraintHighlight = (index: number | null) => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     if (getState().highlightIndex === index) return;
@@ -658,9 +618,9 @@ export function useSolver({
       { viewportDirty: cm.getConstraintDirtyFlags() },
     );
     cm.draw();
-  }, []);
+  };
 
-  const setIterateHighlight = useCallback((index: number | null) => {
+  const setIterateHighlight = (index: number | null) => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
     if (getState().highlightIteratePathIndex === index) return;
@@ -669,7 +629,7 @@ export function useSolver({
       { viewportDirty: cm.getIterateDirtyFlags() },
     );
     cm.draw();
-  }, []);
+  };
 
   useEffect(() => {
     let wasNavigatingViewport = getState().isNavigatingViewport;
@@ -687,46 +647,24 @@ export function useSolver({
     };
   }, [cancelRotationLoop]);
 
-  return useMemo(
-    () => ({
-      updateSolverSetting,
-      setActiveSolverMode,
-      setTraceEnabled,
-      startRotation,
-      stopRotation,
-      startReplay,
-      recomputeIfModeActive,
-      invalidatePendingSolveResults,
-      computePath,
-      handleProblemChange,
-      flushDeferredRender,
-      clearComputedState,
-      setConstraintHighlight,
-      setIterateHighlight,
-      restoreFullVirtualResult,
-      solverControls,
-      getSolverControl,
-      hasUnboundedObjectiveDirection,
-    }),
-    [
-      updateSolverSetting,
-      setActiveSolverMode,
-      setTraceEnabled,
-      startRotation,
-      stopRotation,
-      startReplay,
-      recomputeIfModeActive,
-      invalidatePendingSolveResults,
-      computePath,
-      handleProblemChange,
-      flushDeferredRender,
-      clearComputedState,
-      setConstraintHighlight,
-      setIterateHighlight,
-      restoreFullVirtualResult,
-      solverControls,
-      getSolverControl,
-      hasUnboundedObjectiveDirection,
-    ],
-  );
+  return {
+    updateSolverSetting,
+    setActiveSolverMode,
+    setTraceEnabled,
+    startRotation,
+    stopRotation,
+    startReplay,
+    recomputeIfModeActive,
+    invalidatePendingSolveResults,
+    computePath,
+    handleProblemChange,
+    flushDeferredRender,
+    clearComputedState,
+    setConstraintHighlight,
+    setIterateHighlight,
+    restoreFullVirtualResult,
+    solverControls,
+    getSolverControl,
+    hasUnboundedObjectiveDirection,
+  };
 }
