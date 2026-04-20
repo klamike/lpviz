@@ -76,7 +76,7 @@ export function SolverControlsPanel() {
       </div>
 
       {solverControlsUiState.activeMode === "ipm" && (
-        <div className="settings-section">
+        <div className="settings-section is-block">
           <label htmlFor="alphaMaxSlider">
             {"\u03B1"}max (maximum step size ratio):
             <span>{settings.alphaMax.toFixed(3)}</span>
@@ -135,29 +135,11 @@ export function SolverControlsPanel() {
             step="1"
             autoComplete="off"
           />
-          <div className="settings-checkbox-row">
-            <label htmlFor="ipmColorByPhase">
-              Color by phase{" "}
-              <input
-                type="checkbox"
-                id="ipmColorByPhase"
-                checked={settings.ipmColorByPhase}
-                onChange={(e) => {
-                  runtimeActions.updateSolverSetting(
-                    "ipmColorByPhase",
-                    e.target.checked,
-                  );
-                  runtimeActions.recomputeIfModeActive("ipm");
-                }}
-                autoComplete="off"
-              />
-            </label>
-          </div>
         </div>
       )}
 
       {solverControlsUiState.activeMode === "pdhg" && (
-        <div className="settings-section">
+        <div className="settings-section is-block">
           <label htmlFor="pdhgEtaSlider">
             {"\u03B7"} (primal step size factor):
             <span>{settings.pdhgEta.toFixed(3)}</span>
@@ -268,27 +250,8 @@ export function SolverControlsPanel() {
         </div>
       )}
 
-      {solverControlsUiState.activeMode === "simplex" && (
-        <div className="settings-section">
-          <label htmlFor="simplexDualMode">Dual simplex mode</label>
-          <input
-            type="checkbox"
-            id="simplexDualMode"
-            checked={settings.simplexDualMode}
-            onChange={(e) => {
-              runtimeActions.updateSolverSetting(
-                "simplexDualMode",
-                e.target.checked,
-              );
-              runtimeActions.recomputeIfModeActive("simplex");
-            }}
-            autoComplete="off"
-          />
-        </div>
-      )}
-
       {solverControlsUiState.activeMode === "central" && (
-        <div className="settings-section">
+        <div className="settings-section is-block">
           <label htmlFor="centralPathIterSlider">
             {" "}
             N (number of steps): <span>{settings.centralPathIter}</span>{" "}
