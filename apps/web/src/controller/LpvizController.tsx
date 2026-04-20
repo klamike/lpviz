@@ -7,29 +7,26 @@ import {
   type PropsWithChildren,
 } from "react";
 
+import { useTourUiController } from "@/providers/TourProvider";
 import { getState } from "@/state";
+import type { TourActionTarget } from "@/types/tour";
 import {
   createViewportRuntime,
   type R3FViewportBridge,
   type ViewportRuntime,
 } from "@/viewport";
-import { useTourUiController } from "@/providers/TourProvider";
-import type { TourActionTarget } from "@/types/tour";
 
+import { useCanvasInteractions } from "@/hooks/interactions/useCanvasInteractions";
 import { useHistory } from "@/hooks/useHistory";
 import { usePolytope } from "@/hooks/usePolytope";
+import { useShare } from "@/hooks/useShare";
+import { useSidebarViewportSync } from "@/hooks/useSidebarViewportSync";
 import { useSolver } from "@/hooks/useSolver";
 import { useTour } from "@/hooks/useTour";
-import { useShare } from "@/hooks/useShare";
-import { useViewportActions } from "@/hooks/useViewportActions";
-import { useSidebarViewportSync } from "@/hooks/useSidebarViewportSync";
 import { useUrlParamsSync } from "@/hooks/useUrlParamsSync";
-import { useCanvasInteractions } from "@/hooks/interactions/useCanvasInteractions";
+import { useViewportActions } from "@/hooks/useViewportActions";
 
-import {
-  LpvizActionsContext,
-  type LpvizActions,
-} from "./LpvizActionsContext";
+import { LpvizActionsContext, type LpvizActions } from "./LpvizActionsContext";
 import { ViewportBridgeSetterContext } from "./ViewportBridgeContext";
 
 export function LpvizController({
@@ -38,7 +35,9 @@ export function LpvizController({
 }: PropsWithChildren<{ sidebarWidth: number }>) {
   const [viewportBridge, setViewportBridge] =
     useState<R3FViewportBridge | null>(null);
-  const [canvasManager, setCanvasManager] = useState<ViewportRuntime | null>(null);
+  const [canvasManager, setCanvasManager] = useState<ViewportRuntime | null>(
+    null,
+  );
   const tourUi = useTourUiController();
 
   useEffect(() => {

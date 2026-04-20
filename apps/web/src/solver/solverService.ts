@@ -1,12 +1,12 @@
-import { sprintf } from "sprintf-js";
 import type { ResultTextBlock } from "@/contracts";
+import { formatMilliseconds } from "@/lib/time";
 import {
   addTraceToBuffer,
   getState,
   updateIteratePaths,
   updateIteratePathsWithTrace,
 } from "@/state";
-import { formatMilliseconds } from "@/lib/time";
+import { sprintf } from "sprintf-js";
 
 export type VirtualResultRow =
   | string

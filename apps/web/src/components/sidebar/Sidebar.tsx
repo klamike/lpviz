@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import { areSolverSettingsEqual, selectSolverSettings } from "@/state";
-import { useLpvizSelector } from "@/state/react";
 
 import { AnimationControlsPanel } from "@/components/sidebar/AnimationControlsPanel";
 import { SidebarHeader } from "@/components/sidebar/SidebarHeader";

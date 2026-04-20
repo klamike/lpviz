@@ -1,15 +1,12 @@
 import { useCallback } from "react";
 import { AutoSizer, List, type ListRowProps } from "react-virtualized";
 
-import {
-  areResultPanelUiStatesEqual,
-  selectResultPanelUiState,
-} from "@/state";
-import { useLpvizSelector } from "@/state/react";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
+import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "@/state";
 
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
-import { useResultTypography } from "@/hooks/useResultTypography";
 import { useLpvizActions } from "@/controller/LpvizActionsContext";
+import { useResultTypography } from "@/hooks/useResultTypography";
 
 export function UsagePanel() {
   const runtimeActions = useLpvizActions();

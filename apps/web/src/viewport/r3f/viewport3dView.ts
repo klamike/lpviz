@@ -1,7 +1,7 @@
 import { Euler, PerspectiveCamera, Vector3 } from "three";
 
-import type { PointXYZ } from "@lpviz/math";
 import { DEFAULT_VIEW_ANGLE } from "@/state";
+import type { PointXYZ } from "@lpviz/math";
 import type { ViewportRenderSnapshot } from "../viewportRenderTypes";
 import type { ViewportPerspectivePose } from "./viewport3DControlsStore";
 import {

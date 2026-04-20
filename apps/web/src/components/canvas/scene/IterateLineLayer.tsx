@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 
-import type { PointXY } from "@lpviz/math";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import type { State } from "@/state";
-import { useLpvizSelector } from "@/state/react";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { RENDER_ORDER } from "./renderOrder";
-import { ThickLine } from "./ThickLineSegments";
 import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import type { PointXY } from "@lpviz/math";
+import { RENDER_ORDER } from "./renderOrder";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { ThickLine } from "./ThickLineSegments";
 
 const ITERATE_LINE_COLOR = "#800080";
 const PHASE_COLORS = [

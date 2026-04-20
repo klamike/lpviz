@@ -1,11 +1,14 @@
-import type { PointXY } from "@lpviz/math";
-import { centroid, isConvexChain, signedArea, VRep } from "@lpviz/polytope";
-import {
-  deriveRegionFromPoints,
-  type PolytopeRepresentation,
-} from "@lpviz/polytope";
 import type { CompletionMode, State } from "@/state";
 import { computeDrawingPhase } from "@/state";
+import type { PointXY } from "@lpviz/math";
+import {
+  centroid,
+  deriveRegionFromPoints,
+  isConvexChain,
+  signedArea,
+  VRep,
+  type PolytopeRepresentation,
+} from "@lpviz/polytope";
 
 export type EditorRegionResult =
   | { status: "nonconvex" }

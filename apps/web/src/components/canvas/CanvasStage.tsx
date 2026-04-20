@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import {
   areCanvasControlsUiStatesEqual,
   selectCanvasControlsUiState,
 } from "@/state";
-import { useLpvizSelector } from "@/state/react";
 import type { R3FViewportBridge } from "@/viewport";
 
 import { LpvizCanvas } from "./LpvizCanvas";

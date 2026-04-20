@@ -1,24 +1,12 @@
 import { useRef, useSyncExternalStore } from "react";
 
-import {
-  getState,
-  mutate,
-  setState,
-  subscribe,
-  type State,
-} from "./lpvizStore";
+import { getState, subscribe, type State } from "../state/lpvizStore";
 
 export type LpvizSelector<T> = (state: State) => T;
 export type LpvizEqualityFn<T> = (current: T, next: T) => boolean;
 
 const subscribeToLpvizStore = (listener: () => void) =>
   subscribe(() => listener());
-
-export const lpvizStateCommands = {
-  getState,
-  setState,
-  mutate,
-};
 
 export function useLpvizSelector<T>(
   selector: LpvizSelector<T>,

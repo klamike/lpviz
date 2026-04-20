@@ -1,11 +1,8 @@
-import { useCallback, useMemo } from "react";
-import JSONCrush from "jsoncrush";
-import { getState, type SolverMode } from "@/state";
-import {
-  compactSharedAppState,
-  type ShareSettings,
-} from "@/lib/sharedState";
+import { compactSharedAppState, type ShareSettings } from "@/lib/sharedState";
 import type { SolverControl } from "@/lib/solverControls";
+import { getState, type SolverMode } from "@/state";
+import JSONCrush from "jsoncrush";
+import { useCallback, useMemo } from "react";
 
 export type ShareActions = {
   share: () => void;

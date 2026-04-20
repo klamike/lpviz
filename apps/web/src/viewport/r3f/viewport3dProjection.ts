@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 
-import type { PointXY } from "@lpviz/math";
 import { getDisplayedIterateZ, type State } from "@/state";
+import type { PointXY } from "@lpviz/math";
 import type { ViewportRenderSnapshot } from "../viewportRenderTypes";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;

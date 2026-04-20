@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { CanvasTexture, Color } from "three";
 
-import type { PointXY } from "@lpviz/math";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import type { State } from "@/state";
-import { useLpvizSelector } from "@/state/react";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import type { PointXY } from "@lpviz/math";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const ITERATE_POINT_COLOR = "#800080";
 const PHASE_COLORS = [

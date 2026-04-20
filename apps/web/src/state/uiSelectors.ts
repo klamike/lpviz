@@ -1,6 +1,8 @@
 import type { ResultTextBlock } from "@/contracts";
-import { isObjectiveDirectionUnbounded } from "@lpviz/polytope";
-import { hasPolytopeLines } from "@lpviz/polytope";
+import {
+  hasPolytopeLines,
+  isObjectiveDirectionUnbounded,
+} from "@lpviz/polytope";
 import {
   computeDrawingPhase,
   type SolverMode,

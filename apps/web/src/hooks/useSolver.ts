@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ResultTextBlock } from "@/contracts";
 import {
-  computeObjectiveRotationStep,
-  hasPolytopeLines,
-  isObjectiveDirectionUnbounded,
-} from "@lpviz/polytope";
+  createSolverControls,
+  type SolverControl,
+  type SolverSettingUpdater,
+} from "@/lib/solverControls";
+import {
+  formatVirtualResultRow,
+  type ResultRenderPayload,
+  type VirtualResultPayload,
+} from "@/solver/solverService";
+import { runSolverWorker } from "@/solver/workerClient";
 import {
   clearIterateState,
   computeDrawingPhase,
@@ -21,16 +26,11 @@ import {
 } from "@/state";
 import type { ViewportApi } from "@/viewport";
 import {
-  createSolverControls,
-  type SolverControl,
-  type SolverSettingUpdater,
-} from "@/lib/solverControls";
-import {
-  formatVirtualResultRow,
-  type ResultRenderPayload,
-  type VirtualResultPayload,
-} from "@/solver/solverService";
-import { runSolverWorker } from "@/solver/workerClient";
+  computeObjectiveRotationStep,
+  hasPolytopeLines,
+  isObjectiveDirectionUnbounded,
+} from "@lpviz/polytope";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 const ROTATE_ROW_LIMIT = 20;
 const BASE_ROTATION_WAIT_MS = 30;
@@ -327,7 +327,12 @@ export function useSolver({
         ],
       });
     }
-  }, [getSolverControl, invalidatePendingSolveResults, clearComputedState, render]);
+  }, [
+    getSolverControl,
+    invalidatePendingSolveResults,
+    clearComputedState,
+    render,
+  ]);
 
   const computePathRef = useRef(computePath);
   computePathRef.current = computePath;

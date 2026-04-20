@@ -1,14 +1,16 @@
 import { useMemo } from "react";
 
-import type { PointXY } from "@lpviz/math";
-import { isObjectiveDirectionUnbounded } from "@lpviz/polytope";
-import { hasPolytopeLines } from "@lpviz/polytope";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import type { State } from "@/state";
-import { useLpvizSelector } from "@/state/react";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { RENDER_ORDER } from "./renderOrder";
-import { ThickLineSegments } from "./ThickLineSegments";
 import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import type { PointXY } from "@lpviz/math";
+import {
+  hasPolytopeLines,
+  isObjectiveDirectionUnbounded,
+} from "@lpviz/polytope";
+import { RENDER_ORDER } from "./renderOrder";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { ThickLineSegments } from "./ThickLineSegments";
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";

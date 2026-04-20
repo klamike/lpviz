@@ -1,4 +1,4 @@
-import { hasPolytopeLines } from "@lpviz/polytope";
+import type { ResultTextBlock } from "@/contracts";
 import {
   applyCentralPathResult,
   applyIPMResult,
@@ -10,9 +10,14 @@ import type {
   SolverWorkerPayload,
   SolverWorkerSuccessResponse,
 } from "@/solver/solverWorker";
-import { getState, type SolverMode, type SolverSettings, type State } from "@/state";
+import {
+  getState,
+  type SolverMode,
+  type SolverSettings,
+  type State,
+} from "@/state";
+import { hasPolytopeLines } from "@lpviz/polytope";
 import type { ShareSettings } from "./sharedState";
-import type { ResultTextBlock } from "@/contracts";
 
 export type SolverSettingUpdater = <K extends keyof SolverSettings>(
   key: K,

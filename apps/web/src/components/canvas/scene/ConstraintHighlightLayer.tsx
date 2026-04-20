@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 
-import type { Line, PointXY } from "@lpviz/math";
-import { hasPolytopeLines } from "@lpviz/polytope";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import type { State } from "@/state";
-import { useLpvizSelector } from "@/state/react";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { RENDER_ORDER } from "./renderOrder";
-import { ThickLineSegments } from "./ThickLineSegments";
 import { projectCanvasPointToWorldPlane } from "@/viewport/r3f/viewport3dTransition";
 import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import type { Line, PointXY } from "@lpviz/math";
+import { hasPolytopeLines } from "@lpviz/polytope";
+import { RENDER_ORDER } from "./renderOrder";
+import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { ThickLineSegments } from "./ThickLineSegments";
 
 const CONSTRAINT_COLOR = "#ff0000";
 const CONSTRAINT_RENDER_ORDER = RENDER_ORDER.constraintLines;

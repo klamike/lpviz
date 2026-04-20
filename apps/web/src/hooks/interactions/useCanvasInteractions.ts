@@ -1,6 +1,5 @@
-import { useEffect, useRef } from "react";
-import type { PointXY } from "@lpviz/math";
-import { verticesFromLines } from "@lpviz/polytope";
+import type { HandleUndoRedo, SaveHistory } from "@/hooks/useHistory";
+import { getEditorContext, getEditorTransition } from "@/lib/editorSession";
 import {
   DEFAULT_Z_SCALE,
   computeDrawingPhase,
@@ -13,11 +12,9 @@ import {
   type State,
 } from "@/state";
 import type { ViewportApi } from "@/viewport";
-import { getEditorContext, getEditorTransition } from "@/lib/editorSession";
-import type {
-  HandleUndoRedo,
-  SaveHistory,
-} from "@/hooks/useHistory";
+import type { PointXY } from "@lpviz/math";
+import { verticesFromLines } from "@lpviz/polytope";
+import { useEffect, useRef } from "react";
 import {
   exceedsDragThreshold,
   findBoundaryRayNearPoint,
@@ -68,10 +65,7 @@ export function useCanvasInteractions({
     };
 
     const captureHistoryEntry = (
-      state: Pick<
-        State,
-        "vertices" | "objectiveVector" | "completionMode"
-      >,
+      state: Pick<State, "vertices" | "objectiveVector" | "completionMode">,
     ): HistoryEntry => ({
       vertices: state.vertices.map((v) => ({ x: v.x, y: v.y })),
       objectiveVector: state.objectiveVector
@@ -508,7 +502,11 @@ export function useCanvasInteractions({
       if (shouldIgnoreEditEvent()) return;
 
       const state = getState();
-      const local = getLocalFromClient(canvasManager, event.clientX, event.clientY);
+      const local = getLocalFromClient(
+        canvasManager,
+        event.clientX,
+        event.clientY,
+      );
       const {
         geometry: { vertices: displayVertices },
       } = getEditorContext(state);

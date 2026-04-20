@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from "react";
 import { getState, mutate, type HistoryEntry, type State } from "@/state";
+import { useCallback, useMemo, useRef } from "react";
 
 export type HistorySnapshotSource = Pick<
   State,
@@ -56,9 +56,7 @@ export function useHistory({
     (isRedo) => {
       const state = getState();
       if (
-        isRedo
-          ? state.redoStack.length === 0
-          : state.historyStack.length === 0
+        isRedo ? state.redoStack.length === 0 : state.historyStack.length === 0
       ) {
         return;
       }

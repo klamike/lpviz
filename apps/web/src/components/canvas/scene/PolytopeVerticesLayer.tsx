@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { CanvasTexture } from "three";
 
-import type { PointXY } from "@lpviz/math";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import type { State } from "@/state";
-import { useLpvizSelector } from "@/state/react";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import type { PointXY } from "@lpviz/math";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const VERTEX_COLOR = "#ff0000";
 const OPEN_ANCHOR_COLOR = "#ff0000";

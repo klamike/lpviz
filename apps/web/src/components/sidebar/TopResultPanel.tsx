@@ -1,12 +1,12 @@
 import type { RefObject } from "react";
 
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import {
   areInequalitiesUiStatesEqual,
   areTopResultUiStatesEqual,
   selectInequalitiesUiState,
   selectTopResultUiState,
 } from "@/state";
-import { useLpvizSelector } from "@/state/react";
 
 import { NullStateLogo } from "@/components/sidebar/NullStateLogo";
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";

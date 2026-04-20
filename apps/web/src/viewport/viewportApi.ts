@@ -1,4 +1,3 @@
-import type { PointXY } from "@lpviz/math";
 import {
   DEFAULT_VIEW_ANGLE,
   getState,
@@ -6,6 +5,7 @@ import {
   subscribe,
   type ViewportDirtyFlags,
 } from "@/state";
+import type { PointXY } from "@lpviz/math";
 import {
   getViewport2DControlsConfig,
   getViewport2DControlsSnapshot,
@@ -15,18 +15,6 @@ import {
   syncViewport2DControlsStateFromSnapshot,
 } from "./r3f/viewport2DControlsStore";
 import {
-  resetViewportRenderSnapshot,
-  setViewportRenderSnapshot,
-} from "./r3f/viewportRenderStore";
-import {
-  resetViewport3DControlsConfig,
-  setViewport3DControlsConfig,
-} from "./r3f/viewport3DControlsStore";
-import {
-  resetViewportTransitionConfig,
-  setViewportTransitionConfig,
-} from "./r3f/viewportTransitionStore";
-import {
   buildViewport2DSnapshot,
   fitViewport2DToBounds,
   isDefault2DView,
@@ -34,19 +22,14 @@ import {
   toLogicalCoords2D,
 } from "./r3f/viewport2dProjection";
 import {
+  resetViewport3DControlsConfig,
+  setViewport3DControlsConfig,
+} from "./r3f/viewport3DControlsStore";
+import {
   getObjectiveScreenPosition3D,
   toCanvasCoords3D,
   toLogicalCoords3D,
 } from "./r3f/viewport3dProjection";
-import {
-  buildResetViewport3DView,
-  buildViewport3DSnapshot,
-  fitViewport3DToBounds,
-  getDefaultPerspectiveDistance3D,
-  getMaxPerspectiveDistance3D,
-  getViewAngleFromSnapshot3D,
-  isDefault3DView,
-} from "./r3f/viewport3dView";
 import {
   buildPerspectivePoseFromViewAngle,
   buildTransitionCompleteState,
@@ -58,6 +41,23 @@ import {
   TRANSITION_VIEWPORT_DIRTY_FLAGS,
   type ViewportTransitionPlan,
 } from "./r3f/viewport3dTransition";
+import {
+  buildResetViewport3DView,
+  buildViewport3DSnapshot,
+  fitViewport3DToBounds,
+  getDefaultPerspectiveDistance3D,
+  getMaxPerspectiveDistance3D,
+  getViewAngleFromSnapshot3D,
+  isDefault3DView,
+} from "./r3f/viewport3dView";
+import {
+  resetViewportRenderSnapshot,
+  setViewportRenderSnapshot,
+} from "./r3f/viewportRenderStore";
+import {
+  resetViewportTransitionConfig,
+  setViewportTransitionConfig,
+} from "./r3f/viewportTransitionStore";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type R3FViewportBridge,

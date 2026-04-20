@@ -1,10 +1,10 @@
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import {
   areAnimationControlsUiStatesEqual,
   areSolverSettingsEqual,
   selectAnimationControlsUiState,
   selectSolverSettings,
 } from "@/state";
-import { useLpvizSelector } from "@/state/react";
 
 import { useLpvizActions } from "@/controller/LpvizActionsContext";
 import { useTourActionTarget } from "@/providers/TourProvider";

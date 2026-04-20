@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { OrthographicCamera, PerspectiveCamera } from "three";
 
 import {

@@ -12,8 +12,8 @@
  * showed the first segment for these outlines.
  */
 
-import { memo, useEffect, useMemo, useRef } from "react";
 import { useThree } from "@react-three/fiber";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Color } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";

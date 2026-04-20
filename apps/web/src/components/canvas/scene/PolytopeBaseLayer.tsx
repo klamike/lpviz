@@ -6,15 +6,14 @@ import {
   ShapeGeometry,
 } from "three";
 
-import type { Line, PointXY } from "@lpviz/math";
-import { VRep } from "@lpviz/polytope";
-import { hasPolytopeLines } from "@lpviz/polytope";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import type { State } from "@/state";
-import { useLpvizSelector } from "@/state/react";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import type { Line, PointXY } from "@lpviz/math";
+import { hasPolytopeLines, VRep } from "@lpviz/polytope";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLineSegments } from "./ThickLineSegments";
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
 const POLYTOPE_HIGHLIGHT_COLOR = "#ff0000";

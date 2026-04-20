@@ -1,15 +1,14 @@
-import { useEffect, useRef } from "react";
-import JSONCrush from "jsoncrush";
-import { getState, mutate, type SolverMode } from "@/state";
-import type { ViewportApi } from "@/viewport";
 import {
   buildSharedStatePatch,
   expandSharedAppState,
   type ShareSettings,
   type SharedAppState,
 } from "@/lib/sharedState";
-import type { SolverControl } from "@/lib/solverControls";
-import type { SolverSettingUpdater } from "@/lib/solverControls";
+import type { SolverControl, SolverSettingUpdater } from "@/lib/solverControls";
+import { getState, mutate, type SolverMode } from "@/state";
+import type { ViewportApi } from "@/viewport";
+import JSONCrush from "jsoncrush";
+import { useEffect, useRef } from "react";
 
 type UseUrlParamsSyncOptions = {
   canvasManager: ViewportApi | null;

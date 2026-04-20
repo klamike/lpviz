@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
 
 import { useViewportTransitionConfig } from "@/viewport/r3f/viewportTransitionStore";
 

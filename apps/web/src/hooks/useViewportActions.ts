@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useRef } from "react";
+import { collectZoomFitBounds } from "@/lib/viewBounds";
 import { getState, setState } from "@/state";
 import type { ViewportApi } from "@/viewport";
-import { collectZoomFitBounds } from "@/lib/viewBounds";
+import { useCallback, useMemo, useRef } from "react";
 
 export type ViewportActions = {
   resetView: () => void;
@@ -83,10 +83,7 @@ export function useViewportActions({
   const setZScale = useCallback((value: number) => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
-    setState(
-      { zScale: value },
-      { viewportDirty: cm.getZScaleDirtyFlags() },
-    );
+    setState({ zScale: value }, { viewportDirty: cm.getZScaleDirtyFlags() });
     const { is3DMode, isTransitioning3D } = getState();
     if (is3DMode || isTransitioning3D) {
       cm.draw();
@@ -101,10 +98,13 @@ export function useViewportActions({
     cm.draw();
   }, []);
 
-  const syncViewportLayout = useCallback((sidebarWidth: number) => {
-    currentSidebarWidthRef.current = sidebarWidth;
-    syncSidebarViewport();
-  }, [syncSidebarViewport]);
+  const syncViewportLayout = useCallback(
+    (sidebarWidth: number) => {
+      currentSidebarWidthRef.current = sidebarWidth;
+      syncSidebarViewport();
+    },
+    [syncSidebarViewport],
+  );
 
   return useMemo(
     () => ({

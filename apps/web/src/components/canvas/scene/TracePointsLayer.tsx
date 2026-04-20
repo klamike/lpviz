@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { CanvasTexture } from "three";
 
-import type { PointXY } from "@lpviz/math";
+import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import { MAX_TRACE_POINT_SPRITES, type State } from "@/state";
-import { useLpvizSelector } from "@/state/react";
+import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import type { PointXY } from "@lpviz/math";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;

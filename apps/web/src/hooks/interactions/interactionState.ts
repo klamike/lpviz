@@ -1,9 +1,9 @@
-import type { PointXY } from "@lpviz/math";
-import { VRep } from "@lpviz/polytope";
+import { getEditorContext } from "@/lib/editorSession";
 import type { DragTarget, State } from "@/state";
 import { getState } from "@/state";
 import type { ViewportApi } from "@/viewport";
-import { getEditorContext } from "@/lib/editorSession";
+import type { PointXY } from "@lpviz/math";
+import { VRep } from "@lpviz/polytope";
 
 export const VERTEX_HIT_RADIUS = 12;
 export const DRAG_THRESHOLD_PX = 5;
@@ -112,10 +112,7 @@ export function distanceToSegment(
   if (len2 === 0) return Math.hypot(point.x - start.x, point.y - start.y);
   const t = Math.max(
     0,
-    Math.min(
-      1,
-      ((point.x - start.x) * dx + (point.y - start.y) * dy) / len2,
-    ),
+    Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / len2),
   );
   const projection = { x: start.x + t * dx, y: start.y + t * dy };
   return Math.hypot(point.x - projection.x, point.y - projection.y);

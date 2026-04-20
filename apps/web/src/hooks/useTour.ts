@@ -1,6 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { PointXY } from "@lpviz/math";
-import { VRep } from "@lpviz/polytope";
 import {
   computeDrawingPhase,
   getState,
@@ -10,8 +7,11 @@ import {
   type DrawingPhase,
   type State,
 } from "@/state";
-import type { ViewportApi } from "@/viewport";
 import type { TourActionTarget, TourUiController } from "@/types/tour";
+import type { ViewportApi } from "@/viewport";
+import type { PointXY } from "@lpviz/math";
+import { VRep } from "@lpviz/polytope";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 const TOUR_CURSOR_TRANSITION_MS = 700;
 const TOUR_DEFAULT_DELAY_MS = 300;
@@ -304,7 +304,10 @@ export function useTour({
       dismissNonconvexHint();
       return;
     }
-    if (nonconvexHintShownRef.current || nonconvexHintTimerRef.current !== null) {
+    if (
+      nonconvexHintShownRef.current ||
+      nonconvexHintTimerRef.current !== null
+    ) {
       return;
     }
     nonconvexHintTimerRef.current = window.setTimeout(() => {

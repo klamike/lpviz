@@ -7,18 +7,18 @@ import {
   Vector3,
 } from "three";
 
-import type { PointXY, PointXYZ } from "@lpviz/math";
 import {
   DEFAULT_VIEW_ANGLE,
   type State,
   type ViewportDirtyFlags,
 } from "@/state";
+import type { PointXY, PointXYZ } from "@lpviz/math";
 import type { ViewportRenderSnapshot } from "../viewportRenderTypes";
-import type { ViewportPerspectivePose } from "./viewport3DControlsStore";
 import {
   clampScaleFactor2D,
   type Viewport2DState,
 } from "./viewport2dProjection";
+import type { ViewportPerspectivePose } from "./viewport3DControlsStore";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 

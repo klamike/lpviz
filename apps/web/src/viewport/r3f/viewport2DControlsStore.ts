@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
-import type { PointXY } from "@lpviz/math";
 import { getState } from "@/state";
+import type { PointXY } from "@lpviz/math";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type ViewportRenderSnapshot,

@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef } from "react";
-import { getState, mutate } from "@/state";
 import { computeEditorRegionForState } from "@/lib/editorSession";
+import { getState, mutate } from "@/state";
+import { useCallback, useMemo, useRef } from "react";
 
 export type PolytopeActions = {
   send: () => void;

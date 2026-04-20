@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
 import type { ViewportApi } from "@/viewport";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 export function useSidebarViewportSync({
   canvasManager,

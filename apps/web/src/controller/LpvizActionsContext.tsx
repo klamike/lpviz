@@ -1,5 +1,5 @@
-import { createContext, useContext } from "react";
 import type { SolverMode, SolverSettings } from "@/state";
+import { createContext, useContext } from "react";
 
 export type LpvizActions = {
   setConstraintHighlight: (index: number | null) => void;
