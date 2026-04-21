@@ -1,6 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 
-import type { R3FViewportBridge } from "@/viewport";
+import type { R3FViewportBridge } from "@/features/viewport";
 
 import { ViewportBridge } from "./ViewportBridge";
 import { SceneRoot } from "./scene/SceneRoot";

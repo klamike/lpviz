@@ -1,23 +1,23 @@
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
+import { useLpvizStore } from "@/features/core/store";
 import {
   areSolverControlsUiStatesEqual,
   areSolverSettingsEqual,
   selectSolverControlsUiState,
   selectSolverSettings,
-} from "@/state";
+} from "@/features/core/selectors";
 
-import { useLpvizActions } from "@/context/LpvizActionsContext";
-import { useTourActionTarget } from "@/context/TourContext";
+import { useAppActions } from "@/features/core/actions";
+import { useTourActionTarget } from "@/features/tour/TourContext";
 
 export function SolverControlsPanel() {
-  const runtimeActions = useLpvizActions();
+  const runtimeActions = useAppActions();
   const activateIpmTargetRef = useTourActionTarget("activate-ipm");
   const activateCentralTargetRef = useTourActionTarget("activate-central");
-  const solverControlsUiState = useLpvizSelector(
+  const solverControlsUiState = useLpvizStore(
     selectSolverControlsUiState,
     areSolverControlsUiStatesEqual,
   );
-  const settings = useLpvizSelector(
+  const settings = useLpvizStore(
     selectSolverSettings,
     areSolverSettingsEqual,
   );

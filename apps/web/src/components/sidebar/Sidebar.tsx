@@ -1,14 +1,14 @@
 import type { RefObject } from "react";
 
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
-import { areSolverSettingsEqual, selectSolverSettings } from "@/state";
+import { useLpvizStore } from "@/features/core/store";
+import { areSolverSettingsEqual, selectSolverSettings } from "@/features/core/selectors";
 
 import { AnimationControlsPanel } from "@/components/sidebar/AnimationControlsPanel";
 import { SidebarHeader } from "@/components/sidebar/SidebarHeader";
 import { SolverControlsPanel } from "@/components/sidebar/SolverControlsPanel";
 import { TopResultPanel } from "@/components/sidebar/TopResultPanel";
 import { UsagePanel } from "@/components/sidebar/UsagePanel";
-import { useLpvizActions } from "@/context/LpvizActionsContext";
+import { useAppActions } from "@/features/core/actions";
 
 export function Sidebar({
   sidebarWidth,
@@ -17,8 +17,8 @@ export function Sidebar({
   sidebarWidth: number;
   topResultRef: RefObject<HTMLDivElement | null>;
 }) {
-  const runtimeActions = useLpvizActions();
-  const settings = useLpvizSelector(
+  const runtimeActions = useAppActions();
+  const settings = useLpvizStore(
     selectSolverSettings,
     areSolverSettingsEqual,
   );

@@ -1,4 +1,4 @@
-import type { ViewportApi } from "@/viewport";
+import type { ViewportApi } from "@/features/viewport";
 import { useEffect, useLayoutEffect, useRef } from "react";
 
 export function useSidebarViewportSync({

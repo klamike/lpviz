@@ -7,29 +7,26 @@ import {
   type PropsWithChildren,
 } from "react";
 
-import {
-  LpvizActionsContext,
-  type LpvizActions,
-} from "@/context/LpvizActionsContext";
-import { useTourUiController } from "@/context/TourContext";
-import { ViewportBridgeSetterContext } from "@/context/ViewportBridgeContext";
-import { getState } from "@/state";
-import type { TourActionTarget } from "@/types/tour";
+import { registerAppActions, type AppActions } from "@/features/core/actions";
+import { useTourUiController } from "@/features/tour/TourContext";
+import { ViewportBridgeSetterContext } from "@/features/viewport/ViewportBridge";
+import { getState } from "@/features/core/store";
+import type { TourActionTarget } from "@/features/tour/types";
 import {
   createViewportRuntime,
   type R3FViewportBridge,
   type ViewportRuntime,
-} from "@/viewport";
+} from "@/features/viewport";
 
-import { useCanvasInteractions } from "@/hooks/interactions/useCanvasInteractions";
-import { useHistory } from "@/hooks/useHistory";
-import { usePolytope } from "@/hooks/usePolytope";
-import { useShare } from "@/hooks/useShare";
+import { useCanvasInteractions } from "@/features/polytope-editor/interactions/useCanvasInteractions";
+import { useHistory } from "@/features/history/useHistory";
+import { usePolytope } from "@/features/polytope-editor/usePolytope";
+import { useShare } from "@/features/share/useShare";
 import { useSidebarViewportSync } from "@/hooks/useSidebarViewportSync";
-import { useSolver } from "@/hooks/useSolver";
-import { useTour } from "@/hooks/useTour";
-import { useUrlParamsSync } from "@/hooks/useUrlParamsSync";
-import { useViewportActions } from "@/hooks/useViewportActions";
+import { useSolver } from "@/features/solver/useSolver";
+import { useTour } from "@/features/tour/useTour";
+import { useUrlParamsSync } from "@/features/share/useUrlParamsSync";
+import { useViewportActions } from "@/features/viewport/useViewportActions";
 
 export function LpvizProvider({
   sidebarWidth,
@@ -168,7 +165,7 @@ export function LpvizProvider({
     [solver],
   );
 
-  const actions = useMemo<LpvizActions>(
+  const actions = useMemo<AppActions>(
     () => ({
       setConstraintHighlight: solver.setConstraintHighlight,
       setIterateHighlight: solver.setIterateHighlight,
@@ -195,11 +192,13 @@ export function LpvizProvider({
     setViewportBridge(bridge);
   }, []);
 
+  useEffect(() => {
+    registerAppActions(actions);
+  }, [actions]);
+
   return (
     <ViewportBridgeSetterContext.Provider value={bridgeSetter}>
-      <LpvizActionsContext.Provider value={actions}>
-        {children}
-      </LpvizActionsContext.Provider>
+      {children}
     </ViewportBridgeSetterContext.Provider>
   );
 }

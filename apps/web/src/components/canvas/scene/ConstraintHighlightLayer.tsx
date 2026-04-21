@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
-import type { State } from "@/state";
-import { projectCanvasPointToWorldPlane } from "@/viewport/r3f/viewport3dTransition";
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import { useLpvizStore } from "@/features/core/store";
+import type { State } from "@/features/core/store";
+import { projectCanvasPointToWorldPlane } from "@/features/viewport/r3f/viewport3dTransition";
+import { useViewportRenderSnapshot } from "@/features/viewport/r3f/viewportRenderStore";
 import type { Line, PointXY } from "@lpviz/math";
 import { hasPolytopeLines } from "@lpviz/polytope";
 import { RENDER_ORDER } from "./renderOrder";
@@ -174,7 +174,7 @@ function buildConstraintPositions(
 
 export function ConstraintHighlightLayer() {
   const snapshot = useViewportRenderSnapshot();
-  const constraintState = useLpvizSelector(
+  const constraintState = useLpvizStore(
     selectConstraintHighlightLayerState,
     areConstraintHighlightLayerStatesEqual,
   );

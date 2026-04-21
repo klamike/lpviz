@@ -1,0 +1,41 @@
+import type { SolverMode, SolverSettings } from "./store";
+
+export type AppActions = {
+  setConstraintHighlight: (index: number | null) => void;
+  setIterateHighlight: (index: number | null) => void;
+  updateSolverSetting: <K extends keyof SolverSettings>(
+    key: K,
+    value: SolverSettings[K],
+  ) => void;
+  recomputeIfModeActive: (mode: SolverMode) => void;
+  setTraceEnabled: (enabled: boolean) => void;
+  startReplay: () => void;
+  startRotation: () => void;
+  stopRotation: () => void;
+  share: () => void;
+  zoomToFit: () => void;
+  resetView: () => void;
+  toggle3D: () => void;
+  toggleZOffset: () => void;
+  setZScale: (value: number) => void;
+  setActiveSolverMode: (mode: SolverMode) => void;
+  setSidebarWidth: (width: number) => void;
+  syncViewportLayout: (sidebarWidth: number) => void;
+};
+
+let appActions: AppActions | null = null;
+
+export function registerAppActions(actions: AppActions): void {
+  appActions = actions;
+}
+
+export function getAppActions(): AppActions {
+  if (!appActions) {
+    throw new Error("LpvizProvider is missing");
+  }
+  return appActions;
+}
+
+export function useAppActions(): AppActions {
+  return getAppActions();
+}

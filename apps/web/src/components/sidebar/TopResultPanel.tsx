@@ -1,28 +1,28 @@
 import type { RefObject } from "react";
 
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
+import { useLpvizStore } from "@/features/core/store";
 import {
   areInequalitiesUiStatesEqual,
   areTopResultUiStatesEqual,
   selectInequalitiesUiState,
   selectTopResultUiState,
-} from "@/state";
+} from "@/features/core/selectors";
 
 import { NullStateLogo } from "@/components/sidebar/NullStateLogo";
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
-import { useLpvizActions } from "@/context/LpvizActionsContext";
+import { useAppActions } from "@/features/core/actions";
 
 export function TopResultPanel({
   topResultRef,
 }: {
   topResultRef: RefObject<HTMLDivElement | null>;
 }) {
-  const runtimeActions = useLpvizActions();
-  const topResultUiState = useLpvizSelector(
+  const runtimeActions = useAppActions();
+  const topResultUiState = useLpvizStore(
     selectTopResultUiState,
     areTopResultUiStatesEqual,
   );
-  const inequalitiesUiState = useLpvizSelector(
+  const inequalitiesUiState = useLpvizStore(
     selectInequalitiesUiState,
     areInequalitiesUiStatesEqual,
   );

@@ -1,23 +1,23 @@
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
+import { useLpvizStore } from "@/features/core/store";
 import {
   areAnimationControlsUiStatesEqual,
   areSolverSettingsEqual,
   selectAnimationControlsUiState,
   selectSolverSettings,
-} from "@/state";
+} from "@/features/core/selectors";
 
-import { useLpvizActions } from "@/context/LpvizActionsContext";
-import { useTourActionTarget } from "@/context/TourContext";
+import { useAppActions } from "@/features/core/actions";
+import { useTourActionTarget } from "@/features/tour/TourContext";
 
 export function AnimationControlsPanel() {
-  const runtimeActions = useLpvizActions();
+  const runtimeActions = useAppActions();
   const startRotationTargetRef = useTourActionTarget("start-rotation");
   const toggleTraceTargetRef = useTourActionTarget("toggle-trace");
-  const animationControlsUiState = useLpvizSelector(
+  const animationControlsUiState = useLpvizStore(
     selectAnimationControlsUiState,
     areAnimationControlsUiStatesEqual,
   );
-  const settings = useLpvizSelector(
+  const settings = useLpvizStore(
     selectSolverSettings,
     areSolverSettingsEqual,
   );

@@ -1,17 +1,17 @@
 import { useCallback } from "react";
 
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
+import { useLpvizStore } from "@/features/core/store";
 import {
   areCanvasControlsUiStatesEqual,
   selectCanvasControlsUiState,
-} from "@/state";
-import type { R3FViewportBridge } from "@/viewport";
+} from "@/features/core/selectors";
+import type { R3FViewportBridge } from "@/features/viewport";
 
 import { LpvizCanvas } from "./LpvizCanvas";
 
-import { useLpvizActions } from "@/context/LpvizActionsContext";
-import { useTourActionTarget } from "@/context/TourContext";
-import { useViewportBridgeSetter } from "@/context/ViewportBridgeContext";
+import { useAppActions } from "@/features/core/actions";
+import { useTourActionTarget } from "@/features/tour/TourContext";
+import { useViewportBridgeSetter } from "@/features/viewport/ViewportBridge";
 
 export function CanvasStage({
   sidebarWidth,
@@ -20,10 +20,10 @@ export function CanvasStage({
   sidebarWidth: number;
   onResizeStart: () => void;
 }) {
-  const runtimeActions = useLpvizActions();
+  const runtimeActions = useAppActions();
   const setViewportBridge = useViewportBridgeSetter();
   const toggle3DTargetRef = useTourActionTarget("toggle-3d");
-  const canvasControlsUiState = useLpvizSelector(
+  const canvasControlsUiState = useLpvizStore(
     selectCanvasControlsUiState,
     areCanvasControlsUiStatesEqual,
   );

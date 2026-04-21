@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import { useViewportRenderSnapshot } from "@/features/viewport/r3f/viewportRenderStore";
 import { RENDER_ORDER } from "./renderOrder";
 
 const GRID_MARGIN_PX = 100;

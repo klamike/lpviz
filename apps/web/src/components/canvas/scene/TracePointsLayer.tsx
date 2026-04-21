@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { CanvasTexture } from "three";
 
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
-import { MAX_TRACE_POINT_SPRITES, type State } from "@/state";
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import { useLpvizStore } from "@/features/core/store";
+import { MAX_TRACE_POINT_SPRITES, type State } from "@/features/core/store";
+import { useViewportRenderSnapshot } from "@/features/viewport/r3f/viewportRenderStore";
 import type { PointXY } from "@lpviz/math";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
@@ -206,7 +206,7 @@ function buildTracePointPositions(
 
 export function TracePointsLayer() {
   const snapshot = useViewportRenderSnapshot();
-  const traceState = useLpvizSelector(
+  const traceState = useLpvizStore(
     selectTracePointsLayerState,
     areTracePointsLayerStatesEqual,
   );

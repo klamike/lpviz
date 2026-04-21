@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { CanvasTexture } from "three";
 
-import { useLpvizSelector } from "@/hooks/useLpvizSelector";
-import type { State } from "@/state";
-import { useViewportRenderSnapshot } from "@/viewport/r3f/viewportRenderStore";
+import { useLpvizStore } from "@/features/core/store";
+import type { State } from "@/features/core/store";
+import { useViewportRenderSnapshot } from "@/features/viewport/r3f/viewportRenderStore";
 import type { PointXY } from "@lpviz/math";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
@@ -195,7 +195,7 @@ function buildPointPositions(
 
 export function PolytopeVerticesLayer() {
   const snapshot = useViewportRenderSnapshot();
-  const polytopeState = useLpvizSelector(
+  const polytopeState = useLpvizStore(
     selectPolytopeVerticesLayerState,
     arePolytopeVerticesLayerStatesEqual,
   );
