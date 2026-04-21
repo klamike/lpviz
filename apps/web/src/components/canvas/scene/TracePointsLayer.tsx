@@ -5,6 +5,7 @@ import { MAX_TRACE_POINT_SPRITES, type State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
@@ -16,9 +17,6 @@ const TRACE_POINTS_RENDER_ORDER = RENDER_ORDER.tracePoints;
 type TracePointsLayerState = {
   traceEnabled: boolean;
   traceBuffer: State["traceBuffer"];
-  traceCount: number;
-  traceFirstEntry: State["traceBuffer"][number] | undefined;
-  traceLastEntry: State["traceBuffer"][number] | undefined;
   zScale: number;
   zAxisOffsetOnly: boolean;
   is3DMode: boolean;
@@ -28,27 +26,11 @@ type TracePointsLayerState = {
 const selectTracePointsLayerState = (state: State): TracePointsLayerState => ({
   traceEnabled: state.traceEnabled,
   traceBuffer: state.traceBuffer,
-  traceCount: state.traceBuffer.length,
-  traceFirstEntry: state.traceBuffer[0],
-  traceLastEntry: state.traceBuffer[state.traceBuffer.length - 1],
   zScale: state.zScale,
   zAxisOffsetOnly: state.zAxisOffsetOnly,
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const areTracePointsLayerStatesEqual = (
-  current: TracePointsLayerState,
-  next: TracePointsLayerState,
-) =>
-  current.traceEnabled === next.traceEnabled &&
-  current.traceCount === next.traceCount &&
-  current.traceFirstEntry === next.traceFirstEntry &&
-  current.traceLastEntry === next.traceLastEntry &&
-  current.zScale === next.zScale &&
-  current.zAxisOffsetOnly === next.zAxisOffsetOnly &&
-  current.is3DMode === next.is3DMode &&
-  current.isTransitioning3D === next.isTransitioning3D;
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -186,7 +168,7 @@ export function TracePointsLayer() {
   const snapshot = useViewportRenderSnapshot();
   const traceState = useLpvizStore(
     selectTracePointsLayerState,
-    areTracePointsLayerStatesEqual,
+    shallowEqual,
   );
   const positions = useMemo(
     () => buildTracePointPositions(traceState, snapshot.mode),

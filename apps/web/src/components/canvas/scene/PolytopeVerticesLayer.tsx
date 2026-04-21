@@ -5,6 +5,7 @@ import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { SHARED_CIRCLE_TEXTURE, SHARED_SQUARE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
@@ -13,10 +14,8 @@ const OPEN_ANCHOR_COLOR = "#ff0000";
 const VERTEX_Z = 0.004;
 const VERTEX_PIXEL_SIZE = 10;
 const VERTEX_RENDER_ORDER = RENDER_ORDER.polytopeVertices;
-const CIRCLE_SEGMENTS = 24;
 
 type PolytopeVerticesLayerState = {
-  cacheKey: string;
   vertices: PointXY[];
   completionMode: State["completionMode"];
   polytope: State["polytope"];
@@ -28,41 +27,15 @@ type PolytopeVerticesLayerState = {
 };
 
 type VertexEntry = {
-  key: string;
   x: number;
   y: number;
   z: number;
   shape: "circle" | "square";
-  color: string;
 };
-
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializePoints = (points: ReadonlyArray<PointXY>) =>
-  points.map((point) => `${point.x},${point.y}`).join(";");
-
-const serializeTuplePoints = (points: ReadonlyArray<ReadonlyArray<number>>) =>
-  points.map((point) => point.join(",")).join(";");
-
-const serializePolytope = (polytope: State["polytope"]) =>
-  polytope
-    ? [polytope.kind, serializeTuplePoints(polytope.vertices)].join("|")
-    : "";
 
 const selectPolytopeVerticesLayerState = (
   state: State,
 ): PolytopeVerticesLayerState => ({
-  cacheKey: [
-    serializePoints(state.vertices),
-    state.completionMode,
-    serializePolytope(state.polytope),
-    serializePoint(state.objectiveVector),
-    state.zScale,
-    state.zAxisOffsetOnly ? "1" : "0",
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   vertices: state.vertices,
   completionMode: state.completionMode,
   polytope: state.polytope,
@@ -72,11 +45,6 @@ const selectPolytopeVerticesLayerState = (
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const arePolytopeVerticesLayerStatesEqual = (
-  current: PolytopeVerticesLayerState,
-  next: PolytopeVerticesLayerState,
-) => current.cacheKey === next.cacheKey;
 
 function getDisplayedVertexZ(
   point: PointXY,
@@ -116,7 +84,6 @@ function buildVertexEntries(
       (index === 0 || index === displayVertices.length - 1);
 
     return {
-      key: `${index}:${vertex.x},${vertex.y}:${isOpenRayAnchor ? "square" : "circle"}`,
       x: vertex.x,
       y: vertex.y,
       z: is3D
@@ -130,7 +97,6 @@ function buildVertexEntries(
           VERTEX_Z
         : VERTEX_Z,
       shape: isOpenRayAnchor ? "square" : "circle",
-      color: isOpenRayAnchor ? OPEN_ANCHOR_COLOR : VERTEX_COLOR,
     };
   });
 }
@@ -154,7 +120,7 @@ export function PolytopeVerticesLayer() {
   const snapshot = useViewportRenderSnapshot();
   const polytopeState = useLpvizStore(
     selectPolytopeVerticesLayerState,
-    arePolytopeVerticesLayerStatesEqual,
+    shallowEqual,
   );
   const vertices = useMemo(
     () => buildVertexEntries(polytopeState, snapshot.mode),
@@ -171,35 +137,6 @@ export function PolytopeVerticesLayer() {
 
   if (vertices.length === 0) {
     return null;
-  }
-
-  if (snapshot.mode === "2d") {
-    const vertexSize = VERTEX_PIXEL_SIZE * snapshot.unitsPerPixel;
-
-    return (
-      <group>
-        {vertices.map((vertex) => (
-          <mesh
-            key={vertex.key}
-            position={[vertex.x, vertex.y, vertex.z]}
-            renderOrder={VERTEX_RENDER_ORDER}
-            frustumCulled={false}
-          >
-            {vertex.shape === "square" ? (
-              <planeGeometry args={[vertexSize, vertexSize]} />
-            ) : (
-              <circleGeometry args={[vertexSize / 2, CIRCLE_SEGMENTS]} />
-            )}
-            <meshBasicMaterial
-              color={vertex.color}
-              transparent
-              depthTest={false}
-              depthWrite={false}
-            />
-          </mesh>
-        ))}
-      </group>
-    );
   }
 
   return (

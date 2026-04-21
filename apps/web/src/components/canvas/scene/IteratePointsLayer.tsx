@@ -6,6 +6,7 @@ import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
@@ -27,7 +28,6 @@ const ITERATE_POINT_PIXEL_SIZE = 8;
 const ITERATE_POINTS_RENDER_ORDER = RENDER_ORDER.iteratePoints;
 
 type IteratePointsLayerState = {
-  cacheKey: string;
   iteratePath: State["iteratePath"];
   iteratePhases: State["iteratePhases"];
   iterateObjectiveVector: PointXY | null;
@@ -37,24 +37,9 @@ type IteratePointsLayerState = {
   isTransitioning3D: boolean;
 };
 
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializeNumberPath = (path: ReadonlyArray<ReadonlyArray<number>>) =>
-  path.map((entry) => entry.join(",")).join(";");
-
 const selectIteratePointsLayerState = (
   state: State,
 ): IteratePointsLayerState => ({
-  cacheKey: [
-    serializeNumberPath(state.iteratePath),
-    state.iteratePhases.join(","),
-    serializePoint(state.iterateObjectiveVector),
-    state.zScale,
-    state.zAxisOffsetOnly ? "1" : "0",
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   iteratePath: state.iteratePath,
   iteratePhases: state.iteratePhases,
   iterateObjectiveVector: state.iterateObjectiveVector,
@@ -63,11 +48,6 @@ const selectIteratePointsLayerState = (
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const areIteratePointsLayerStatesEqual = (
-  current: IteratePointsLayerState,
-  next: IteratePointsLayerState,
-) => current.cacheKey === next.cacheKey;
 
 function getDisplayedIterateZ(
   entry: ReadonlyArray<number>,
@@ -138,7 +118,7 @@ export function IteratePointsLayer() {
   const snapshot = useViewportRenderSnapshot();
   const iterateState = useLpvizStore(
     selectIteratePointsLayerState,
-    areIteratePointsLayerStatesEqual,
+    shallowEqual,
   );
   const geometry = useMemo(
     () => buildIteratePointGeometry(iterateState, snapshot.mode),

@@ -5,6 +5,7 @@ import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLine } from "./ThickLineSegments";
 
@@ -26,7 +27,6 @@ const ITERATE_LINE_RENDER_ORDER = RENDER_ORDER.iterateLine;
 const ITERATE_LINE_THICKNESS = 3;
 
 type IterateLineLayerState = {
-  cacheKey: string;
   iteratePath: State["iteratePath"];
   iteratePhases: State["iteratePhases"];
   iterateObjectiveVector: PointXY | null;
@@ -42,22 +42,7 @@ type IterateLineEntry = {
   positions: Float32Array;
 };
 
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializeNumberPath = (path: ReadonlyArray<ReadonlyArray<number>>) =>
-  path.map((entry) => entry.join(",")).join(";");
-
 const selectIterateLineLayerState = (state: State): IterateLineLayerState => ({
-  cacheKey: [
-    serializeNumberPath(state.iteratePath),
-    state.iteratePhases.join(","),
-    serializePoint(state.iterateObjectiveVector),
-    state.zScale,
-    state.zAxisOffsetOnly ? "1" : "0",
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   iteratePath: state.iteratePath,
   iteratePhases: state.iteratePhases,
   iterateObjectiveVector: state.iterateObjectiveVector,
@@ -66,11 +51,6 @@ const selectIterateLineLayerState = (state: State): IterateLineLayerState => ({
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const areIterateLineLayerStatesEqual = (
-  current: IterateLineLayerState,
-  next: IterateLineLayerState,
-) => current.cacheKey === next.cacheKey;
 
 function getDisplayedIterateZ(
   entry: ReadonlyArray<number>,
@@ -196,7 +176,7 @@ export function IterateLineLayer() {
   const snapshot = useViewportRenderSnapshot();
   const iterateState = useLpvizStore(
     selectIterateLineLayerState,
-    areIterateLineLayerStatesEqual,
+    shallowEqual,
   );
   const lines = useMemo(
     () => buildIterateLineEntries(iterateState, snapshot.mode),

@@ -103,7 +103,6 @@ export const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
 
 export type State = {
   vertices: PointXY[];
-  currentMouse: PointXY | null;
   completionMode: CompletionMode;
   interiorPoint: PointXY | null;
   polytope: PolytopeRepresentation | null;
@@ -162,7 +161,6 @@ export type State = {
 
 const initialState: State = {
   vertices: [],
-  currentMouse: null,
   completionMode: "draft",
   interiorPoint: null,
   polytope: null,

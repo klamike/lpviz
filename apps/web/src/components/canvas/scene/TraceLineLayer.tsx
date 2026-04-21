@@ -1,12 +1,15 @@
 import { useMemo } from "react";
+import { Color } from "three";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { ThickLine } from "./ThickLineSegments";
+import { ThickLineShared } from "./ThickLineSegments";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;
@@ -14,12 +17,26 @@ const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 const TRACE_LINE_THICKNESS = 2;
 
+const traceColor = new Color(TRACE_COLOR);
+
+function buildTraceLineMaterial(is3D: boolean): LineMaterial {
+  const material = new LineMaterial({
+    color: traceColor.getHex(),
+    linewidth: TRACE_LINE_THICKNESS,
+    depthTest: is3D,
+    depthWrite: is3D,
+    transparent: true,
+    opacity: TRACE_OPACITY,
+  });
+  return material;
+}
+
+const SHARED_TRACE_MATERIAL_2D = buildTraceLineMaterial(false);
+const SHARED_TRACE_MATERIAL_3D = buildTraceLineMaterial(true);
+
 type TraceLineLayerState = {
   traceEnabled: boolean;
   traceBuffer: State["traceBuffer"];
-  traceCount: number;
-  traceFirstEntry: State["traceBuffer"][number] | undefined;
-  traceLastEntry: State["traceBuffer"][number] | undefined;
   zScale: number;
   zAxisOffsetOnly: boolean;
   is3DMode: boolean;
@@ -29,27 +46,11 @@ type TraceLineLayerState = {
 const selectTraceLineLayerState = (state: State): TraceLineLayerState => ({
   traceEnabled: state.traceEnabled,
   traceBuffer: state.traceBuffer,
-  traceCount: state.traceBuffer.length,
-  traceFirstEntry: state.traceBuffer[0],
-  traceLastEntry: state.traceBuffer[state.traceBuffer.length - 1],
   zScale: state.zScale,
   zAxisOffsetOnly: state.zAxisOffsetOnly,
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const areTraceLineLayerStatesEqual = (
-  current: TraceLineLayerState,
-  next: TraceLineLayerState,
-) =>
-  current.traceEnabled === next.traceEnabled &&
-  current.traceCount === next.traceCount &&
-  current.traceFirstEntry === next.traceFirstEntry &&
-  current.traceLastEntry === next.traceLastEntry &&
-  current.zScale === next.zScale &&
-  current.zAxisOffsetOnly === next.zAxisOffsetOnly &&
-  current.is3DMode === next.is3DMode &&
-  current.isTransitioning3D === next.isTransitioning3D;
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -154,7 +155,7 @@ export function TraceLineLayer() {
   const snapshot = useViewportRenderSnapshot();
   const traceState = useLpvizStore(
     selectTraceLineLayerState,
-    areTraceLineLayerStatesEqual,
+    shallowEqual,
   );
   const lines = useMemo(
     () => buildTraceLines(traceState, snapshot.mode),
@@ -166,20 +167,16 @@ export function TraceLineLayer() {
   }
 
   const is3D = snapshot.mode === "3d";
+  const material = is3D ? SHARED_TRACE_MATERIAL_3D : SHARED_TRACE_MATERIAL_2D;
 
   return (
     <group>
       {lines.map((line) => (
-        <ThickLine
+        <ThickLineShared
           key={line.key}
           positions={line.positions}
-          color={TRACE_COLOR}
-          width={TRACE_LINE_THICKNESS}
+          material={material}
           renderOrder={TRACE_RENDER_ORDER}
-          depthTest={is3D}
-          depthWrite={is3D}
-          transparent
-          opacity={TRACE_OPACITY}
         />
       ))}
     </group>

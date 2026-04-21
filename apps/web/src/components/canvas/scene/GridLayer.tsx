@@ -8,35 +8,49 @@ const GRID_OVERDRAW_UNITS = 5;
 const GRID_COLOR = "#e0e0e0";
 const AXIS_COLOR = "#707070";
 
-function buildGridGeometry(
-  snapshot: ReturnType<typeof useViewportRenderSnapshot>,
-) {
-  let minX: number;
-  let maxX: number;
-  let minY: number;
-  let maxY: number;
+type GridBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+};
 
+function getQuantizedGridBounds(
+  snapshot: ReturnType<typeof useViewportRenderSnapshot>,
+): GridBounds {
   if (snapshot.mode === "2d") {
     const halfWidth =
       (snapshot.orthographic.right - snapshot.orthographic.left) / 2;
     const halfHeight =
       (snapshot.orthographic.top - snapshot.orthographic.bottom) / 2;
     const marginUnits = GRID_MARGIN_PX * snapshot.unitsPerPixel;
-    minX = snapshot.target.x - halfWidth - marginUnits - GRID_OVERDRAW_UNITS;
-    maxX = snapshot.target.x + halfWidth + marginUnits + GRID_OVERDRAW_UNITS;
-    minY = snapshot.target.y - halfHeight - marginUnits - GRID_OVERDRAW_UNITS;
-    maxY = snapshot.target.y + halfHeight + marginUnits + GRID_OVERDRAW_UNITS;
-  } else {
-    const extent = Math.max(200, 200 / snapshot.scaleFactor);
-    minX = minY = -extent;
-    maxX = maxY = extent;
+    return {
+      minX: Math.floor(
+        snapshot.target.x - halfWidth - marginUnits - GRID_OVERDRAW_UNITS,
+      ),
+      maxX: Math.ceil(
+        snapshot.target.x + halfWidth + marginUnits + GRID_OVERDRAW_UNITS,
+      ),
+      minY: Math.floor(
+        snapshot.target.y - halfHeight - marginUnits - GRID_OVERDRAW_UNITS,
+      ),
+      maxY: Math.ceil(
+        snapshot.target.y + halfHeight + marginUnits + GRID_OVERDRAW_UNITS,
+      ),
+    };
   }
 
+  const extent = Math.ceil(Math.max(200, 200 / snapshot.scaleFactor));
+  return { minX: -extent, maxX: extent, minY: -extent, maxY: extent };
+}
+
+function buildGridGeometry(bounds: GridBounds) {
+  const { minX, maxX, minY, maxY } = bounds;
   const grid: number[] = [];
-  for (let x = Math.floor(minX); x <= Math.ceil(maxX); x += 1) {
+  for (let x = minX; x <= maxX; x += 1) {
     grid.push(x, minY, 0, x, maxY, 0);
   }
-  for (let y = Math.floor(minY); y <= Math.ceil(maxY); y += 1) {
+  for (let y = minY; y <= maxY; y += 1) {
     grid.push(minX, y, 0, maxX, y, 0);
   }
 
@@ -48,7 +62,11 @@ function buildGridGeometry(
 
 export function GridLayer() {
   const snapshot = useViewportRenderSnapshot();
-  const geometry = useMemo(() => buildGridGeometry(snapshot), [snapshot]);
+  const bounds = getQuantizedGridBounds(snapshot);
+  const geometry = useMemo(
+    () => buildGridGeometry(bounds),
+    [bounds.minX, bounds.maxX, bounds.minY, bounds.maxY],
+  );
 
   return (
     <group>

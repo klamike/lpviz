@@ -7,6 +7,7 @@ import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { Line, PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLineSegments } from "./ThickLineSegments";
 
@@ -26,7 +27,6 @@ type Bounds = {
 };
 
 type ConstraintHighlightLayerState = {
-  cacheKey: string;
   completionMode: State["completionMode"];
   highlightIndex: number | null;
   polytope: State["polytope"];
@@ -34,35 +34,15 @@ type ConstraintHighlightLayerState = {
   isTransitioning3D: boolean;
 };
 
-const serializeConstraintPolytope = (polytope: State["polytope"]) =>
-  polytope && hasPolytopeLines(polytope)
-    ? [
-        polytope.kind,
-        polytope.lines.map((line) => line.join(",")).join(";"),
-      ].join("|")
-    : "";
-
 const selectConstraintHighlightLayerState = (
   state: State,
 ): ConstraintHighlightLayerState => ({
-  cacheKey: [
-    state.completionMode,
-    state.highlightIndex ?? "",
-    serializeConstraintPolytope(state.polytope),
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   completionMode: state.completionMode,
   highlightIndex: state.highlightIndex,
   polytope: state.polytope,
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const areConstraintHighlightLayerStatesEqual = (
-  current: ConstraintHighlightLayerState,
-  next: ConstraintHighlightLayerState,
-) => current.cacheKey === next.cacheKey;
 
 function getVisibleBounds(
   snapshot: ReturnType<typeof useViewportRenderSnapshot>,
@@ -176,7 +156,7 @@ export function ConstraintHighlightLayer() {
   const snapshot = useViewportRenderSnapshot();
   const constraintState = useLpvizStore(
     selectConstraintHighlightLayerState,
-    areConstraintHighlightLayerStatesEqual,
+    shallowEqual,
   );
   const positions = useMemo(
     () => buildConstraintPositions(constraintState, snapshot),

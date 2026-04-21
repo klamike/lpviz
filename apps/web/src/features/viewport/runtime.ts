@@ -757,12 +757,6 @@ export async function createViewportRuntime({
             return;
           }
           externalTransitionProgress = easedProgress;
-          setState(
-            buildTransitionProgressState(activeTransitionPlan, easedProgress),
-            {
-              viewportDirty: TRANSITION_VIEWPORT_DIRTY_FLAGS,
-            },
-          );
           const frame = buildViewportTransitionFrame(
             activeTransitionPlan,
             easedProgress,

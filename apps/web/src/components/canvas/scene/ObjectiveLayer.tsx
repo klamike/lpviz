@@ -7,6 +7,7 @@ import type { PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLineSegments } from "./ThickLineSegments";
 
@@ -20,7 +21,6 @@ const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
 
 type ObjectiveLayerState = {
-  cacheKey: string;
   objectiveHidden: boolean;
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -31,28 +31,7 @@ type ObjectiveLayerState = {
   isTransitioning3D: boolean;
 };
 
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializeObjectivePolytope = (polytope: State["polytope"]) =>
-  polytope
-    ? [
-        polytope.kind,
-        polytope.lines.map((line) => line.join(",")).join(";"),
-      ].join("|")
-    : "";
-
 const selectObjectiveLayerState = (state: State): ObjectiveLayerState => ({
-  cacheKey: [
-    state.objectiveHidden ? "1" : "0",
-    serializePoint(state.objectiveVector),
-    serializePoint(state.currentObjective),
-    state.completionMode,
-    serializeObjectivePolytope(state.polytope),
-    state.tourActive ? "1" : "0",
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   objectiveHidden: state.objectiveHidden,
   objectiveVector: state.objectiveVector,
   currentObjective: state.currentObjective,
@@ -62,11 +41,6 @@ const selectObjectiveLayerState = (state: State): ObjectiveLayerState => ({
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const areObjectiveLayerStatesEqual = (
-  current: ObjectiveLayerState,
-  next: ObjectiveLayerState,
-) => current.cacheKey === next.cacheKey;
 
 function buildArrowHeadSegments(
   tip: PointXY,
@@ -154,7 +128,7 @@ export function ObjectiveLayer() {
   const snapshot = useViewportRenderSnapshot();
   const objectiveState = useLpvizStore(
     selectObjectiveLayerState,
-    areObjectiveLayerStatesEqual,
+    shallowEqual,
   );
   const geometry = useMemo(
     () => buildObjectiveGeometry(objectiveState, snapshot),

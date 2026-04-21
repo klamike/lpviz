@@ -7,6 +7,7 @@ import {
   type DrawingPhase,
   type State,
 } from "@/features/core/store";
+import { setCurrentMouse } from "@/features/core/currentMouse";
 import type { TourActionTarget, TourUiController } from "@/features/tour/types";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import type { PointXY } from "@lpviz/math/blas";
@@ -172,10 +173,10 @@ export function useTour({
       vertices: [],
       completionMode: "draft",
       interiorPoint: null,
-      currentMouse: null,
       objectiveVector: null,
       currentObjective: null,
     });
+    setCurrentMouse(null);
     canvasManagerRef.current?.draw();
   };
 
@@ -247,7 +248,8 @@ export function useTour({
     runningRef.current = false;
     uiRef.current.hideCursor();
     setClickBlocker(false);
-    setState({ currentMouse: null, currentObjective: null, tourActive: false });
+    setState({ currentObjective: null, tourActive: false });
+    setCurrentMouse(null);
     canvasManagerRef.current?.draw();
   };
 

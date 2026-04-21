@@ -5,6 +5,7 @@ import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
@@ -14,7 +15,6 @@ const ITERATE_HIGHLIGHT_PIXEL_SIZE = 8 * 1.3;
 const ITERATE_HIGHLIGHT_RENDER_ORDER = RENDER_ORDER.iterateHighlight;
 
 type IterateHighlightLayerState = {
-  cacheKey: string;
   iteratePath: State["iteratePath"];
   highlightIteratePathIndex: State["highlightIteratePathIndex"];
   iterateObjectiveVector: PointXY | null;
@@ -24,24 +24,9 @@ type IterateHighlightLayerState = {
   isTransitioning3D: boolean;
 };
 
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializeNumberPath = (path: ReadonlyArray<ReadonlyArray<number>>) =>
-  path.map((entry) => entry.join(",")).join(";");
-
 const selectIterateHighlightLayerState = (
   state: State,
 ): IterateHighlightLayerState => ({
-  cacheKey: [
-    serializeNumberPath(state.iteratePath),
-    state.highlightIteratePathIndex ?? "",
-    serializePoint(state.iterateObjectiveVector),
-    state.zScale,
-    state.zAxisOffsetOnly ? "1" : "0",
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   iteratePath: state.iteratePath,
   highlightIteratePathIndex: state.highlightIteratePathIndex,
   iterateObjectiveVector: state.iterateObjectiveVector,
@@ -50,11 +35,6 @@ const selectIterateHighlightLayerState = (
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const areIterateHighlightLayerStatesEqual = (
-  current: IterateHighlightLayerState,
-  next: IterateHighlightLayerState,
-) => current.cacheKey === next.cacheKey;
 
 function getDisplayedIterateZ(
   entry: ReadonlyArray<number>,
@@ -106,7 +86,7 @@ export function IterateHighlightLayer() {
   const snapshot = useViewportRenderSnapshot();
   const iterateState = useLpvizStore(
     selectIterateHighlightLayerState,
-    areIterateHighlightLayerStatesEqual,
+    shallowEqual,
   );
   const positions = useMemo(
     () => buildHighlightPositions(iterateState, snapshot.mode),

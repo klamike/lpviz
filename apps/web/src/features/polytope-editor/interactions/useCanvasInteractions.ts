@@ -11,6 +11,7 @@ import {
   type HistoryEntry,
   type State,
 } from "@/features/core/store";
+import { setCurrentMouse } from "@/features/core/currentMouse";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import type { PointXY } from "@lpviz/math/blas";
 import { verticesFromLines } from "@lpviz/polytope/halfPlaneIntersection";
@@ -287,10 +288,7 @@ export function useCanvasInteractions({
       logicalCoords: PointXY,
     ) => {
       if (phase === "empty" || phase === "sketching_polytope") {
-        setState(
-          { currentMouse: logicalCoords },
-          { viewportDirty: canvasManager.getDraftPreviewDirtyFlags() },
-        );
+        setCurrentMouse(logicalCoords);
         canvasManager.draw();
         return;
       }
@@ -467,8 +465,8 @@ export function useCanvasInteractions({
 
       commitEdit(finishResult.result, {
         saveToHistory: finishResult.saveToHistory,
-        extraPatch: { currentMouse: null },
       });
+      setCurrentMouse(null);
       canvasManager.set2DPanEnabled(true);
     };
 

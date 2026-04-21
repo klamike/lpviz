@@ -127,6 +127,62 @@ export const ThickLine = memo(function ThickLine({
 
 ThickLine.displayName = "ThickLine";
 
+export type ThickLineSharedProps = {
+  positions: Float32Array;
+  material: LineMaterial;
+  renderOrder?: number;
+};
+
+export const ThickLineShared = memo(function ThickLineShared({
+  positions,
+  material,
+  renderOrder = 0,
+}: ThickLineSharedProps) {
+  const invalidate = useThree((state) => state.invalidate);
+  const size = useThree((state) => state.size);
+
+  const { line, geometry } = useMemo(() => {
+    const geo = new LineGeometry();
+    const ln = new Line2(geo, material);
+    ln.frustumCulled = false;
+    ln.renderOrder = renderOrder;
+    ln.computeLineDistances = () => ln;
+    return { line: ln, geometry: geo };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [material]);
+
+  useLayoutEffect(() => {
+    if (positions.length >= 6) {
+      geometry.setPositions(positions);
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+    }
+  }, [geometry, positions]);
+
+  useLayoutEffect(() => {
+    line.renderOrder = renderOrder;
+  }, [line, renderOrder]);
+
+  useLayoutEffect(() => {
+    material.resolution.set(size.width, size.height);
+    invalidate();
+  }, [material, size.width, size.height, invalidate]);
+
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
+  if (positions.length < 6) {
+    return null;
+  }
+
+  return <primitive object={line} />;
+});
+
+ThickLineShared.displayName = "ThickLineShared";
+
 export function ThickLineSegments(props: ThickLineSegmentsProps) {
   const segments = useMemo(() => {
     const result: Float32Array[] = [];

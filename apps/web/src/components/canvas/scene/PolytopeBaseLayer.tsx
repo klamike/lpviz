@@ -8,11 +8,13 @@ import {
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
+import { useCurrentMouse } from "@/features/core/currentMouse";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { Line, PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { VRep } from "@lpviz/polytope/polygon";
 import { RENDER_ORDER } from "./renderOrder";
+import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLineSegments } from "./ThickLineSegments";
 
@@ -35,11 +37,9 @@ type Bounds = {
 };
 
 type PolytopeLayerState = {
-  cacheKey: string;
   vertices: PointXY[];
   completionMode: "draft" | "closed" | "open";
   highlightIndex: number | null;
-  currentMouse: PointXY | null;
   polytope: State["polytope"];
   tourActive: boolean;
   objectiveVector: PointXY | null;
@@ -56,51 +56,10 @@ type PolytopeRenderData = {
   highlightSegments: Float32Array;
 };
 
-const serializePoint = (point: PointXY | null) =>
-  point ? `${point.x},${point.y}` : "";
-
-const serializePoints = (points: ReadonlyArray<PointXY>) =>
-  points.map((point) => `${point.x},${point.y}`).join(";");
-
-const serializeTuplePoints = (points: ReadonlyArray<ReadonlyArray<number>>) =>
-  points.map((point) => point.join(",")).join(";");
-
-const serializeBoundaryRays = (
-  rays: NonNullable<State["polytope"]>["boundaryRays"],
-) =>
-  rays
-    .map((ray) => `${ray.start.join(",")}|${ray.direction.join(",")}`)
-    .join(";");
-
-const serializePolytope = (polytope: State["polytope"]) =>
-  polytope
-    ? [
-        polytope.kind,
-        polytope.inequalities.join("§"),
-        serializeTuplePoints(polytope.lines),
-        serializeTuplePoints(polytope.vertices),
-        serializeBoundaryRays(polytope.boundaryRays),
-      ].join("|")
-    : "";
-
 const selectPolytopeLayerState = (state: State): PolytopeLayerState => ({
-  cacheKey: [
-    serializePoints(state.vertices),
-    state.completionMode,
-    state.highlightIndex ?? "",
-    serializePoint(state.currentMouse),
-    serializePolytope(state.polytope),
-    state.tourActive ? "1" : "0",
-    serializePoint(state.objectiveVector),
-    state.zScale,
-    state.zAxisOffsetOnly ? "1" : "0",
-    state.is3DMode ? "1" : "0",
-    state.isTransitioning3D ? "1" : "0",
-  ].join("|"),
   vertices: state.vertices,
   completionMode: state.completionMode,
   highlightIndex: state.highlightIndex,
-  currentMouse: state.currentMouse,
   polytope: state.polytope,
   tourActive: state.tourActive,
   objectiveVector: state.objectiveVector,
@@ -109,11 +68,6 @@ const selectPolytopeLayerState = (state: State): PolytopeLayerState => ({
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
-
-const arePolytopeLayerStatesEqual = (
-  current: PolytopeLayerState,
-  next: PolytopeLayerState,
-) => current.cacheKey === next.cacheKey;
 
 function buildShapeFromVertices(vertices: ReadonlyArray<PointXY>) {
   const shape = new Shape();
@@ -327,6 +281,7 @@ function buildFillGeometry(
 function buildPolytopeRenderData(
   state: PolytopeLayerState,
   snapshot: ReturnType<typeof useViewportRenderSnapshot>,
+  currentMouse: PointXY | null,
 ): PolytopeRenderData {
   if (
     state.vertices.length === 0 ||
@@ -344,7 +299,6 @@ function buildPolytopeRenderData(
     vertices,
     completionMode,
     highlightIndex,
-    currentMouse,
     polytope,
     tourActive,
   } = state;
@@ -450,11 +404,12 @@ export function PolytopeBaseLayer() {
   const snapshot = useViewportRenderSnapshot();
   const polytopeState = useLpvizStore(
     selectPolytopeLayerState,
-    arePolytopeLayerStatesEqual,
+    shallowEqual,
   );
+  const currentMouse = useCurrentMouse();
   const geometry = useMemo(
-    () => buildPolytopeRenderData(polytopeState, snapshot),
-    [polytopeState, snapshot],
+    () => buildPolytopeRenderData(polytopeState, snapshot, currentMouse),
+    [polytopeState, snapshot, currentMouse],
   );
 
   useEffect(() => {
