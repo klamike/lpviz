@@ -29,7 +29,7 @@ export const LpvizActionsContext = createContext<LpvizActions | null>(null);
 export function useLpvizActions(): LpvizActions {
   const value = useContext(LpvizActionsContext);
   if (!value) {
-    throw new Error("LpvizController is missing");
+    throw new Error("LpvizProvider is missing");
   }
   return value;
 }

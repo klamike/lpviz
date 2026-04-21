@@ -5,7 +5,7 @@ import { useLpvizSelector } from "@/hooks/useLpvizSelector";
 import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "@/state";
 
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
-import { useLpvizActions } from "@/controller/LpvizActionsContext";
+import { useLpvizActions } from "@/context/LpvizActionsContext";
 import { useResultTypography } from "@/hooks/useResultTypography";
 
 export function UsagePanel() {

@@ -7,7 +7,12 @@ import {
   type PropsWithChildren,
 } from "react";
 
-import { useTourUiController } from "@/providers/TourProvider";
+import {
+  LpvizActionsContext,
+  type LpvizActions,
+} from "@/context/LpvizActionsContext";
+import { useTourUiController } from "@/context/TourContext";
+import { ViewportBridgeSetterContext } from "@/context/ViewportBridgeContext";
 import { getState } from "@/state";
 import type { TourActionTarget } from "@/types/tour";
 import {
@@ -26,10 +31,7 @@ import { useTour } from "@/hooks/useTour";
 import { useUrlParamsSync } from "@/hooks/useUrlParamsSync";
 import { useViewportActions } from "@/hooks/useViewportActions";
 
-import { LpvizActionsContext, type LpvizActions } from "./LpvizActionsContext";
-import { ViewportBridgeSetterContext } from "./ViewportBridgeContext";
-
-export function LpvizController({
+export function LpvizProvider({
   sidebarWidth,
   children,
 }: PropsWithChildren<{ sidebarWidth: number }>) {

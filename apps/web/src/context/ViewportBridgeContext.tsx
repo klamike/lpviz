@@ -9,7 +9,7 @@ export const ViewportBridgeSetterContext =
 export function useViewportBridgeSetter(): ViewportBridgeSetter {
   const setter = useContext(ViewportBridgeSetterContext);
   if (!setter) {
-    throw new Error("LpvizController is missing");
+    throw new Error("LpvizProvider is missing");
   }
   return setter;
 }

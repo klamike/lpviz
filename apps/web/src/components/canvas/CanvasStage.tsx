@@ -9,9 +9,9 @@ import type { R3FViewportBridge } from "@/viewport";
 
 import { LpvizCanvas } from "./LpvizCanvas";
 
-import { useLpvizActions } from "@/controller/LpvizActionsContext";
-import { useViewportBridgeSetter } from "@/controller/ViewportBridgeContext";
-import { useTourActionTarget } from "@/providers/TourProvider";
+import { useLpvizActions } from "@/context/LpvizActionsContext";
+import { useTourActionTarget } from "@/context/TourContext";
+import { useViewportBridgeSetter } from "@/context/ViewportBridgeContext";
 
 export function CanvasStage({
   sidebarWidth,

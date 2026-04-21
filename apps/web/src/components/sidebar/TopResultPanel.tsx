@@ -10,7 +10,7 @@ import {
 
 import { NullStateLogo } from "@/components/sidebar/NullStateLogo";
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
-import { useLpvizActions } from "@/controller/LpvizActionsContext";
+import { useLpvizActions } from "@/context/LpvizActionsContext";
 
 export function TopResultPanel({
   topResultRef,

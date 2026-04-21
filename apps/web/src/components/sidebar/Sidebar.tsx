@@ -8,7 +8,7 @@ import { SidebarHeader } from "@/components/sidebar/SidebarHeader";
 import { SolverControlsPanel } from "@/components/sidebar/SolverControlsPanel";
 import { TopResultPanel } from "@/components/sidebar/TopResultPanel";
 import { UsagePanel } from "@/components/sidebar/UsagePanel";
-import { useLpvizActions } from "@/controller/LpvizActionsContext";
+import { useLpvizActions } from "@/context/LpvizActionsContext";
 
 export function Sidebar({
   sidebarWidth,

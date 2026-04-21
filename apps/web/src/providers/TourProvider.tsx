@@ -1,8 +1,6 @@
 import type { TourActionTarget, TourUiController } from "@/types/tour";
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -11,7 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-export type { TourActionTarget, TourUiController } from "@/types/tour";
+import { TourContext, type TourContextValue } from "@/context/TourContext";
 
 const POPUP_ANIMATION_MS = 300;
 
@@ -32,16 +30,6 @@ type TourCursorState = {
   y: number;
   clicking: boolean;
 };
-
-type TourContextValue = {
-  controller: TourUiController;
-  registerActionTarget: (
-    target: TourActionTarget,
-    element: HTMLElement | null,
-  ) => void;
-};
-
-const TourContext = createContext<TourContextValue | null>(null);
 
 function TourCursor({ cursor }: { cursor: TourCursorState }) {
   return (
@@ -288,29 +276,5 @@ export function TourProvider({ children }: PropsWithChildren) {
           )
         : null}
     </TourContext.Provider>
-  );
-}
-
-export function useTourUiController() {
-  const context = useContext(TourContext);
-  if (!context) {
-    throw new Error("TourProvider is missing");
-  }
-  return context.controller;
-}
-
-export function useTourActionTarget<T extends HTMLElement = HTMLElement>(
-  target: TourActionTarget,
-) {
-  const context = useContext(TourContext);
-  if (!context) {
-    throw new Error("TourProvider is missing");
-  }
-
-  return useCallback(
-    (element: T | null) => {
-      context.registerActionTarget(target, element);
-    },
-    [context, target],
   );
 }
