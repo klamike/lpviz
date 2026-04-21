@@ -45,5 +45,5 @@ export function useShare({
     );
   };
 
-  return () => ({ share, collectShareSettings });
+  return { share, collectShareSettings };
 }

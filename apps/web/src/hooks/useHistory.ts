@@ -25,7 +25,10 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
     completionMode: state.completionMode,
   });
 
-  const save = (snapshotSource = getState(), options = {}) => {
+  const save = (
+    snapshotSource: HistorySnapshotSource = getState(),
+    options: { clearRedo?: boolean } = {},
+  ) => {
     const snapshot = captureEntry(snapshotSource);
     mutate((draft) => {
       draft.historyStack.push(snapshot);
@@ -35,7 +38,7 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
     });
   };
 
-  const handleUndoRedo = (isRedo) => {
+  const handleUndoRedo = (isRedo: boolean) => {
     const state = getState();
     if (
       isRedo ? state.redoStack.length === 0 : state.historyStack.length === 0
@@ -78,5 +81,5 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
   const handleUndoRedoRef = useRef<HandleUndoRedo>(handleUndoRedo);
   handleUndoRedoRef.current = handleUndoRedo;
 
-  return () => ({ save, handleUndoRedo, saveRef, handleUndoRedoRef });
+  return { save, handleUndoRedo, saveRef, handleUndoRedoRef };
 }

@@ -65,15 +65,10 @@ export function useResultTypography({
     };
   }, [enabled, maxLineChars]);
 
-  const resultStyle = () => {
-    if (!enabled || fontSize === null) {
-      return undefined;
-    }
-
-    return {
-      ["--result-font-size" as string]: `${fontSize}px`,
-    };
-  };
+  const resultStyle =
+    !enabled || fontSize === null
+      ? undefined
+      : { ["--result-font-size" as string]: `${fontSize}px` };
 
   return {
     resultRef,

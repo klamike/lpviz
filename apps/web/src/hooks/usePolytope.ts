@@ -77,5 +77,5 @@ export function usePolytope({
   const sendRef = useRef(send);
   sendRef.current = send;
 
-  return () => ({ send, sendRef });
+  return { send, sendRef };
 }

@@ -88,7 +88,7 @@ export function useViewportActions({
     syncSidebarViewport();
   };
 
-  return () => ({
+  return {
     resetView,
     zoomToFit,
     toggle3D,
@@ -98,5 +98,5 @@ export function useViewportActions({
     syncViewportLayout,
     getCurrentSidebarWidth,
     syncSidebarViewport,
-  });
+  };
 }
