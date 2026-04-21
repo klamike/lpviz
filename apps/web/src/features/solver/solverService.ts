@@ -1,11 +1,10 @@
-import type { ResultTextBlock } from "@/features/solver/types";
-import { formatMilliseconds } from "@/utils/time";
 import {
   addTraceToBuffer,
   getState,
   updateIteratePaths,
   updateIteratePathsWithTrace,
 } from "@/features/core/store";
+import type { ResultTextBlock } from "@/features/solver/types";
 import { sprintf } from "sprintf-js";
 
 export type VirtualResultRow =
@@ -153,7 +152,7 @@ export function applyCentralPathResult(
       iterations: result.iterations,
       header: result.logs[0] ?? "",
       rows: result.logs.slice(1, -1),
-      footer: `Traced central path in ${formatMilliseconds(result.tsolve * 1000)}`,
+      footer: `Traced central path in ${Math.round(result.tsolve * 1000)}ms`,
       updateTrace: false,
     },
     updateResult,
