@@ -19,6 +19,9 @@ export type Viewport3DInteractionOptions = {
 const MAX_3D_DRAG_BOUND = 5000;
 const VIEW_DRAG_BOUND_MULTIPLIER = 6;
 const MAX_3D_PLANE_SLOPE = 2;
+// Ray-plane denominator threshold: if |ray · normal| < this, the ray is nearly
+// parallel to the plane and the intersection point is too far away to be useful.
+const PLANE_PARALLEL_THRESHOLD = 0.08;
 
 const projectionCamera = new PerspectiveCamera();
 const projectionTarget = new Vector3();
@@ -194,20 +197,24 @@ export function toLogicalCoords3D(
     projectionPlanePoint.set(0, 0, 0),
   );
 
-  let point = projectionRaycaster.ray.intersectPlane(
-    projectionPlane,
-    projectionPointerWorld,
-  )
-    ? {
-        x: projectionPointerWorld.x,
-        y: projectionPointerWorld.y,
-      }
-    : null;
+  // Only intersect when the ray isn't nearly parallel to the plane.
+  // A small denominator (ray · normal) means the intersection point is
+  // astronomically far away, which causes the drag target to "freak out".
+  const dotTilted = projectionRaycaster.ray.direction.dot(projectionPlane.normal);
+  let point: PointXY | null = null;
 
-  // intersectPlane can return non-null but write Infinity/NaN when the ray is
-  // nearly parallel to the tilted objective plane — treat that as a miss.
-  if (point && (!Number.isFinite(point.x) || !Number.isFinite(point.y))) {
-    point = null;
+  if (Math.abs(dotTilted) >= PLANE_PARALLEL_THRESHOLD) {
+    const hit = projectionRaycaster.ray.intersectPlane(
+      projectionPlane,
+      projectionPointerWorld,
+    );
+    if (
+      hit &&
+      Number.isFinite(projectionPointerWorld.x) &&
+      Number.isFinite(projectionPointerWorld.y)
+    ) {
+      point = { x: projectionPointerWorld.x, y: projectionPointerWorld.y };
+    }
   }
 
   if (!point) {
@@ -215,16 +222,23 @@ export function toLogicalCoords3D(
       projectionPlaneNormal.set(0, 0, 1),
       projectionPlanePoint.set(0, 0, 0),
     );
-    const xyHit = projectionRaycaster.ray.intersectPlane(
-      projectionPlane,
-      projectionPointerWorld,
-    );
-    point =
-      xyHit &&
-      Number.isFinite(projectionPointerWorld.x) &&
-      Number.isFinite(projectionPointerWorld.y)
-        ? { x: projectionPointerWorld.x, y: projectionPointerWorld.y }
-        : { x: snapshot.target.x, y: snapshot.target.y };
+    const dotXY = Math.abs(projectionRaycaster.ray.direction.z);
+    if (dotXY >= PLANE_PARALLEL_THRESHOLD) {
+      const xyHit = projectionRaycaster.ray.intersectPlane(
+        projectionPlane,
+        projectionPointerWorld,
+      );
+      if (
+        xyHit &&
+        Number.isFinite(projectionPointerWorld.x) &&
+        Number.isFinite(projectionPointerWorld.y)
+      ) {
+        point = { x: projectionPointerWorld.x, y: projectionPointerWorld.y };
+      }
+    }
+    if (!point) {
+      point = { x: snapshot.target.x, y: snapshot.target.y };
+    }
   }
 
   return snapPoint(

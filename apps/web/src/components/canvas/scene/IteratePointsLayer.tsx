@@ -102,9 +102,11 @@ function buildIteratePointGeometry(
       : ITERATE_Z;
 
     if (colors) {
-      reusableColor.set(
-        PHASE_COLORS[state.iteratePhases[index]! % PHASE_COLORS.length]!,
-      );
+      const isLastPoint = index === state.iteratePath.length - 1;
+      const phase = isLastPoint
+        ? state.iteratePhases[index]!
+        : state.iteratePhases[index + 1]!;
+      reusableColor.set(PHASE_COLORS[phase % PHASE_COLORS.length]!);
       colors[baseIndex] = reusableColor.r;
       colors[baseIndex + 1] = reusableColor.g;
       colors[baseIndex + 2] = reusableColor.b;

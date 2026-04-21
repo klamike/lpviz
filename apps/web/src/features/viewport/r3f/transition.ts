@@ -350,6 +350,13 @@ export function projectCanvasPointToWorldPlane(
     projectionPlanePoint.set(0, 0, z),
   );
 
+  // Guard: near-parallel ray produces an intersection point billions of units
+  // away. Check the denominator (ray · plane.normal) before intersecting.
+  const dotXY = Math.abs(projectionRaycaster.ray.direction.z);
+  if (dotXY < 0.08) {
+    return null;
+  }
+
   const hit = projectionRaycaster.ray.intersectPlane(
     projectionPlane,
     projectionPointerWorld,
