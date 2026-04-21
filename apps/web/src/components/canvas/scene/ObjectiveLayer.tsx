@@ -135,8 +135,10 @@ export function ObjectiveLayer() {
     [
       objectiveState.objectiveHidden,
       objectiveState.objectiveVector,
+      objectiveState.currentObjective,
       objectiveState.completionMode,
       objectiveState.polytope?.kind,
+      objectiveState.tourActive,
       snapshot.mode,
       snapshot.unitsPerPixel,
       snapshot.height,
