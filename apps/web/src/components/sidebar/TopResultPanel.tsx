@@ -33,15 +33,11 @@ export function TopResultPanel({
       delayClassName="scanlines--delay-8"
     >
       <div id="topResult" ref={topResultRef}>
-        <div
-          id="nullStateMessage"
-          className={
-            topResultUiState.nullStateVisible ? undefined : "is-hidden"
-          }
-          aria-label="lpviz logo"
-        >
-          <NullStateLogo />
-        </div>
+        {topResultUiState.nullStateVisible && (
+          <div id="nullStateMessage" aria-label="lpviz logo">
+            <NullStateLogo />
+          </div>
+        )}
         <div
           id="maximize"
           className={

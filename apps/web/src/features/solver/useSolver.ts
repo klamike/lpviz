@@ -262,8 +262,7 @@ export function useSolver({
       getState().solverSettings.objectiveAngleStep || 0.001,
     );
     const fullCircleSteps = Math.ceil((2 * Math.PI) / angleStep);
-    const capped = Math.min(30, fullCircleSteps);
-    setTraceCapacity(Math.max(1, capped));
+    setTraceCapacity(Math.max(1, fullCircleSteps));
   };
 
   const computePath = async () => {

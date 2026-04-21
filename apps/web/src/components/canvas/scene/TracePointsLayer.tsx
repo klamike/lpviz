@@ -14,10 +14,11 @@ const TRACE_Z_OFFSET = 0.02;
 const TRACE_POINT_PIXEL_SIZE = 6;
 const TRACE_POINTS_RENDER_ORDER = RENDER_ORDER.tracePoints;
 
+// zScale is intentionally excluded — it is applied as a group transform, not baked
+// into positions, so that slider changes are O(1) rather than O(N) rebuilds.
 type TracePointsLayerState = {
   traceEnabled: boolean;
   traceBuffer: State["traceBuffer"];
-  zScale: number;
   zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
@@ -26,11 +27,12 @@ type TracePointsLayerState = {
 const selectTracePointsLayerState = (state: State): TracePointsLayerState => ({
   traceEnabled: state.traceEnabled,
   traceBuffer: state.traceBuffer,
-  zScale: state.zScale,
   zAxisOffsetOnly: state.zAxisOffsetOnly,
   is3DMode: state.is3DMode,
   isTransitioning3D: state.isTransitioning3D,
 });
+
+const selectTraceZScale = (state: State) => state.zScale;
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -44,12 +46,12 @@ function getDisplayedTraceZ(
   return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
 }
 
+// Positions are stored with raw z (no zScale, no mode offset). zScale is applied
+// as group.scale.z and the 2D offset as group.position.z at render time.
 function buildTracePathPositions(
   path: number[][],
   objectiveVector: PointXY | null,
-  zScale: number,
   zAxisOffsetOnly: boolean,
-  is3D: boolean,
 ) {
   if (path.length === 0) {
     return new Float32Array();
@@ -61,10 +63,11 @@ function buildTracePathPositions(
     const baseIndex = index * 3;
     positions[baseIndex] = entry[0]!;
     positions[baseIndex + 1] = entry[1]!;
-    positions[baseIndex + 2] =
-      (getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) /
-        100 +
-      (is3D ? 0 : TRACE_Z_OFFSET);
+    positions[baseIndex + 2] = getDisplayedTraceZ(
+      entry,
+      objectiveVector,
+      zAxisOffsetOnly,
+    );
   }
 
   return positions;
@@ -109,10 +112,9 @@ const tracePointPositionCache = new WeakMap<
 
 function getCachedTracePointPositions(
   entry: State["traceBuffer"][number],
-  state: Pick<TracePointsLayerState, "zScale" | "zAxisOffsetOnly">,
-  mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
+  zAxisOffsetOnly: boolean,
 ) {
-  const cacheKey = `${mode}:${state.zScale}:${state.zAxisOffsetOnly ? 1 : 0}`;
+  const cacheKey = zAxisOffsetOnly ? "1" : "0";
   let cache = tracePointPositionCache.get(entry);
   if (!cache) {
     cache = new Map();
@@ -125,9 +127,7 @@ function getCachedTracePointPositions(
   const pathPositions = buildTracePathPositions(
     entry.path,
     entry.objectiveVector,
-    state.zScale,
-    state.zAxisOffsetOnly,
-    mode === "3d",
+    zAxisOffsetOnly,
   );
   const sampled =
     pathPositions.length === 0
@@ -149,14 +149,8 @@ function buildTracePointPositions(
     return new Float32Array();
   }
 
-  const MAX_VISIBLE_TRACES = 20;
-  const entriesToRender =
-    state.traceBuffer.length > MAX_VISIBLE_TRACES
-      ? state.traceBuffer.slice(-MAX_VISIBLE_TRACES)
-      : state.traceBuffer;
-
-  const chunks = entriesToRender
-    .map((entry) => getCachedTracePointPositions(entry, state, mode))
+  const chunks = state.traceBuffer
+    .map((entry) => getCachedTracePointPositions(entry, state.zAxisOffsetOnly))
     .filter((chunk) => chunk.length > 0);
 
   if (chunks.length === 0) {
@@ -177,10 +171,8 @@ function buildTracePointPositions(
 
 export function TracePointsLayer() {
   const snapshot = useViewportRenderSnapshot();
-  const traceState = useLpvizStore(
-    selectTracePointsLayerState,
-    shallowEqual,
-  );
+  const traceState = useLpvizStore(selectTracePointsLayerState, shallowEqual);
+  const zScale = useLpvizStore(selectTraceZScale);
   const positions = useMemo(
     () => buildTracePointPositions(traceState, snapshot.mode),
     [traceState, snapshot.mode],
@@ -190,21 +182,25 @@ export function TracePointsLayer() {
     return null;
   }
 
+  const is3D = snapshot.mode === "3d";
+
   return (
-    <points renderOrder={TRACE_POINTS_RENDER_ORDER} frustumCulled={false}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        color={TRACE_COLOR}
-        size={TRACE_POINT_PIXEL_SIZE}
-        sizeAttenuation={false}
-        transparent
-        depthTest={false}
-        depthWrite={false}
-        alphaMap={SHARED_CIRCLE_TEXTURE}
-        alphaTest={0.2}
-      />
-    </points>
+    <group scale-z={zScale / 100} position-z={is3D ? 0 : TRACE_Z_OFFSET}>
+      <points renderOrder={TRACE_POINTS_RENDER_ORDER} frustumCulled={false}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          color={TRACE_COLOR}
+          size={TRACE_POINT_PIXEL_SIZE}
+          sizeAttenuation={false}
+          transparent
+          depthTest={false}
+          depthWrite={false}
+          alphaMap={SHARED_CIRCLE_TEXTURE}
+          alphaTest={0.2}
+        />
+      </points>
+    </group>
   );
 }
