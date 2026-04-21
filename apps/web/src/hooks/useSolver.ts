@@ -190,7 +190,10 @@ export function useSolver({
     cm?.draw();
   };
 
-  const render = (payload: ResultRenderPayload, options: RenderOptions = {}) => {
+  const render = (
+    payload: ResultRenderPayload,
+    options: RenderOptions = {},
+  ) => {
     if (payload.type === "virtual") {
       lastVirtualResultRef.current = payload;
     } else {
