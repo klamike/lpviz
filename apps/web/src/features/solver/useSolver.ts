@@ -21,7 +21,6 @@ import {
   setTraceCapacity,
   subscribe,
   type SolverMode,
-  type SolverSettings,
   type State,
 } from "@/features/core/store";
 import type { ViewportApi } from "@/features/viewport/runtime";

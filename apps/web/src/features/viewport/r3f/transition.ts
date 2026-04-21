@@ -350,15 +350,18 @@ export function projectCanvasPointToWorldPlane(
     projectionPlanePoint.set(0, 0, z),
   );
 
-  return projectionRaycaster.ray.intersectPlane(
+  const hit = projectionRaycaster.ray.intersectPlane(
     projectionPlane,
     projectionPointerWorld,
-  )
-    ? {
-        x: projectionPointerWorld.x,
-        y: projectionPointerWorld.y,
-      }
-    : null;
+  );
+  if (
+    !hit ||
+    !Number.isFinite(projectionPointerWorld.x) ||
+    !Number.isFinite(projectionPointerWorld.y)
+  ) {
+    return null;
+  }
+  return { x: projectionPointerWorld.x, y: projectionPointerWorld.y };
 }
 
 export function buildViewport2DStateFromVisibleCenter(

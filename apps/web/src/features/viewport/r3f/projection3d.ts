@@ -204,23 +204,27 @@ export function toLogicalCoords3D(
       }
     : null;
 
+  // intersectPlane can return non-null but write Infinity/NaN when the ray is
+  // nearly parallel to the tilted objective plane — treat that as a miss.
+  if (point && (!Number.isFinite(point.x) || !Number.isFinite(point.y))) {
+    point = null;
+  }
+
   if (!point) {
     projectionPlane.setFromNormalAndCoplanarPoint(
       projectionPlaneNormal.set(0, 0, 1),
       projectionPlanePoint.set(0, 0, 0),
     );
-    point = projectionRaycaster.ray.intersectPlane(
+    const xyHit = projectionRaycaster.ray.intersectPlane(
       projectionPlane,
       projectionPointerWorld,
-    )
-      ? {
-          x: projectionPointerWorld.x,
-          y: projectionPointerWorld.y,
-        }
-      : {
-          x: snapshot.target.x,
-          y: snapshot.target.y,
-        };
+    );
+    point =
+      xyHit &&
+      Number.isFinite(projectionPointerWorld.x) &&
+      Number.isFinite(projectionPointerWorld.y)
+        ? { x: projectionPointerWorld.x, y: projectionPointerWorld.y }
+        : { x: snapshot.target.x, y: snapshot.target.y };
   }
 
   return snapPoint(
