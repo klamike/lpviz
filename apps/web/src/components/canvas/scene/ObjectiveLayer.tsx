@@ -132,7 +132,19 @@ export function ObjectiveLayer() {
   );
   const geometry = useMemo(
     () => buildObjectiveGeometry(objectiveState, snapshot),
-    [objectiveState, snapshot],
+    [
+      objectiveState.objectiveHidden,
+      objectiveState.objectiveVector,
+      objectiveState.completionMode,
+      objectiveState.polytope?.kind,
+      snapshot.mode,
+      snapshot.unitsPerPixel,
+      snapshot.height,
+      snapshot.perspective.position.x,
+      snapshot.perspective.position.y,
+      snapshot.perspective.position.z,
+      snapshot.perspective.fov,
+    ],
   );
 
   if (geometry.positions.length === 0) {

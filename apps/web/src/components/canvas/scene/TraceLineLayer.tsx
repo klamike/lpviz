@@ -141,8 +141,14 @@ function buildTraceLines(
     return [] as Array<{ key: number; positions: Float32Array }>;
   }
 
+  const MAX_VISIBLE_TRACES = 20;
+  const entriesToRender =
+    state.traceBuffer.length > MAX_VISIBLE_TRACES
+      ? state.traceBuffer.slice(-MAX_VISIBLE_TRACES)
+      : state.traceBuffer;
+
   const lines: Array<{ key: number; positions: Float32Array }> = [];
-  state.traceBuffer.forEach((entry) => {
+  entriesToRender.forEach((entry) => {
     const positions = getCachedTraceLinePositions(entry, state, mode);
     if (positions.length > 0) {
       lines.push({ key: getTraceEntryId(entry), positions });

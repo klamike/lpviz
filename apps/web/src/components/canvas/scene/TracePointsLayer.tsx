@@ -149,17 +149,28 @@ function buildTracePointPositions(
     return new Float32Array();
   }
 
-  const chunks = state.traceBuffer
+  const MAX_VISIBLE_TRACES = 20;
+  const entriesToRender =
+    state.traceBuffer.length > MAX_VISIBLE_TRACES
+      ? state.traceBuffer.slice(-MAX_VISIBLE_TRACES)
+      : state.traceBuffer;
+
+  const chunks = entriesToRender
     .map((entry) => getCachedTracePointPositions(entry, state, mode))
     .filter((chunk) => chunk.length > 0);
+
+  if (chunks.length === 0) {
+    return new Float32Array();
+  }
 
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const positions = new Float32Array(totalLength);
   let offset = 0;
-  chunks.forEach((chunk) => {
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]!;
     positions.set(chunk, offset);
     offset += chunk.length;
-  });
+  }
 
   return positions;
 }
