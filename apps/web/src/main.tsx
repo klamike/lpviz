@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "@/App";
 import { TourProvider } from "@/providers/TourProvider";
 import "@/style.css";
+import { StrictMode } from "react";
 
 const container = document.getElementById("root");
 
@@ -11,7 +12,9 @@ if (!container) {
 }
 
 createRoot(container).render(
-  <TourProvider>
-    <App />
-  </TourProvider>,
+  <StrictMode>
+    <TourProvider>
+      <App />
+    </TourProvider>
+  </StrictMode>,
 );
