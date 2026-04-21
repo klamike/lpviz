@@ -1,12 +1,6 @@
 import { sprintf } from "sprintf-js";
-import type { Lines, Vec2N, Vec2Ns, VecN } from "@lpviz/math";
-import {
-  type DenseMatrix,
-  dot,
-  linesToDenseAb,
-  solveDenseSystem,
-  transposedMatVec,
-} from "@lpviz/math";
+import type { Lines, Vec2N, Vec2Ns, VecN } from "@lpviz/math/blas";
+import { type DenseMatrix, dot, linesToDenseAb, solveDenseSystem, transposedMatVec } from "@lpviz/math/dense";
 
 const MAX_ITERATIONS = 2 ** 16;
 

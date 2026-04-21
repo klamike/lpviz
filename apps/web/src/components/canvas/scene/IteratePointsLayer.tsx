@@ -3,8 +3,8 @@ import { CanvasTexture, Color } from "three";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/viewportRenderStore";
-import type { PointXY } from "@lpviz/math";
+import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 

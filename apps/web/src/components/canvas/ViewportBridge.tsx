@@ -1,7 +1,7 @@
 import { useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 
-import type { R3FViewportBridge } from "@/features/viewport";
+import type { R3FViewportBridge } from "@/features/viewport/types";
 
 export function ViewportBridge({
   onReady,

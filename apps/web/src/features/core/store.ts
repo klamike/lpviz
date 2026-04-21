@@ -1,8 +1,8 @@
-import { create } from "zustand";
 import { produce } from "immer";
 import type { ResultTextBlock } from "@/features/solver/types";
-import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math";
-import type { PolytopeRepresentation } from "@lpviz/polytope";
+import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math/blas";
+import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 
 export const MAX_TRACE_POINT_SPRITES = 1200;
 export const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
@@ -219,24 +219,132 @@ const initialState: State = {
   isNavigatingViewport: false,
 };
 
-export const useLpvizStore = create<State>(() => initialState);
+type StoreApi<T> = {
+  getState: () => T;
+  getInitialState: () => T;
+  setState: (
+    partial: Partial<T> | ((state: T) => T | Partial<T>),
+    replace?: boolean,
+  ) => void;
+  subscribe: (listener: (state: T) => void) => () => void;
+};
+
+function createStore<T>(
+  initializer: (
+    set: StoreApi<T>["setState"],
+    get: StoreApi<T>["getState"],
+    api: StoreApi<T>,
+  ) => T,
+): StoreApi<T> {
+  const listeners = new Set<(state: T) => void>();
+  let state: T;
+
+  const setState: StoreApi<T>["setState"] = (partial, replace = false) => {
+    const nextState =
+      typeof partial === "function"
+        ? (partial as (state: T) => T | Partial<T>)(state)
+        : partial;
+
+    const resolvedState =
+      replace || typeof nextState !== "object" || nextState === null
+        ? (nextState as T)
+        : { ...state, ...nextState };
+
+    if (!Object.is(resolvedState, state)) {
+      state = resolvedState;
+      listeners.forEach((listener) => listener(state));
+    }
+  };
+
+  const getState = () => state;
+  const getInitialState = () => initialState;
+  const subscribe = (listener: (state: T) => void) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+
+  const api: StoreApi<T> = { setState, getState, getInitialState, subscribe };
+  const initialState = (state = initializer(setState, getState, api));
+
+  return api;
+}
+
+const lpvizStore = createStore<State>(() => initialState);
+
+function useStoreWithEquality<U>(
+  selector: (state: State) => U,
+  equalityFn: (a: U, b: U) => boolean,
+): U {
+  const selectedRef = useRef<U>(undefined as unknown as U);
+
+  const getSnapshot = useCallback(() => {
+    const next = selector(lpvizStore.getState());
+    const prev = selectedRef.current;
+    if (equalityFn(prev, next)) {
+      return prev;
+    }
+    selectedRef.current = next;
+    return next;
+  }, [selector, equalityFn]);
+
+  const getServerSnapshot = useCallback(() => {
+    const next = selector(lpvizStore.getInitialState());
+    selectedRef.current = next;
+    return next;
+  }, [selector]);
+
+  return useSyncExternalStore(
+    lpvizStore.subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
+}
+
+export function useLpvizStore(): State;
+export function useLpvizStore<U>(selector: (state: State) => U): U;
+export function useLpvizStore<U>(
+  selector: (state: State) => U,
+  equalityFn: (a: U, b: U) => boolean,
+): U;
+export function useLpvizStore<U>(
+  selector?: (state: State) => U,
+  equalityFn?: (a: U, b: U) => boolean,
+): U | State {
+  if (selector && equalityFn) {
+    return useStoreWithEquality(selector, equalityFn);
+  }
+  return useSyncExternalStore(
+    lpvizStore.subscribe,
+    () => (selector ? selector(lpvizStore.getState()) : lpvizStore.getState()),
+    () =>
+      selector
+        ? selector(lpvizStore.getInitialState())
+        : lpvizStore.getInitialState(),
+  );
+}
 
 export function getState(): State {
-  return useLpvizStore.getState();
+  return lpvizStore.getState();
 }
 
-export function setState(patch: Partial<State>): void {
-  useLpvizStore.setState(patch);
+export function setState(
+  patch: Partial<State>,
+  _meta?: StateChangeMeta,
+): void {
+  lpvizStore.setState(patch);
 }
 
-export function mutate(mutator: (draft: State) => void): void {
-  useLpvizStore.setState(produce(mutator));
+export function mutate(
+  mutator: (draft: State) => void,
+  _meta?: StateChangeMeta,
+): void {
+  lpvizStore.setState(produce(mutator));
 }
 
 export function subscribe(
   listener: (snapshot: State) => void,
 ): () => void {
-  return useLpvizStore.subscribe(listener);
+  return lpvizStore.subscribe(listener);
 }
 
 export function computeDrawingPhase(state: State): DrawingPhase {

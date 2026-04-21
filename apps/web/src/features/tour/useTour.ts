@@ -8,9 +8,9 @@ import {
   type State,
 } from "@/features/core/store";
 import type { TourActionTarget, TourUiController } from "@/features/tour/types";
-import type { ViewportApi } from "@/features/viewport";
-import type { PointXY } from "@lpviz/math";
-import { VRep } from "@lpviz/polytope";
+import type { ViewportApi } from "@/features/viewport/runtime";
+import type { PointXY } from "@lpviz/math/blas";
+import { VRep } from "@lpviz/polytope/polygon";
 import { useEffect, useRef } from "react";
 
 const TOUR_CURSOR_TRANSITION_MS = 700;

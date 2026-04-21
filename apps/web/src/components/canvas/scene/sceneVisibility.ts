@@ -1,4 +1,4 @@
-import type { ViewportRenderSnapshot } from "@/features/viewport/viewportRenderTypes";
+import type { ViewportRenderSnapshot } from "@/features/viewport/types";
 
 export function shouldRenderSnapshotMode(
   mode: ViewportRenderSnapshot["mode"],

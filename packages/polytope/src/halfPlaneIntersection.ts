@@ -1,4 +1,4 @@
-import type { Lines, Vertices } from "@lpviz/math";
+import type { Lines, Vertices } from "@lpviz/math/blas";
 import { centroid } from "./polygon";
 
 export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {

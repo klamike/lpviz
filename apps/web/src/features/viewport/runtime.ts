@@ -5,7 +5,7 @@ import {
   subscribe,
   type ViewportDirtyFlags,
 } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math";
+import type { PointXY } from "@lpviz/math/blas";
 import {
   getViewport2DControlsConfig,
   getViewport2DControlsSnapshot,
@@ -13,23 +13,23 @@ import {
   setViewport2DControlsConfig,
   setViewport2DControlsState,
   syncViewport2DControlsStateFromSnapshot,
-} from "./r3f/viewport2DControlsStore";
+} from "./r3f/controls2d";
 import {
   buildViewport2DSnapshot,
   fitViewport2DToBounds,
   isDefault2DView,
   toCanvasCoords2D,
   toLogicalCoords2D,
-} from "./r3f/viewport2dProjection";
+} from "./r3f/projection2d";
 import {
   resetViewport3DControlsConfig,
   setViewport3DControlsConfig,
-} from "./r3f/viewport3DControlsStore";
+} from "./r3f/controls3d";
 import {
   getObjectiveScreenPosition3D,
   toCanvasCoords3D,
   toLogicalCoords3D,
-} from "./r3f/viewport3dProjection";
+} from "./r3f/projection3d";
 import {
   buildPerspectivePoseFromViewAngle,
   buildTransitionCompleteState,
@@ -40,7 +40,7 @@ import {
   buildViewportTransitionPlan,
   TRANSITION_VIEWPORT_DIRTY_FLAGS,
   type ViewportTransitionPlan,
-} from "./r3f/viewport3dTransition";
+} from "./r3f/transition";
 import {
   buildResetViewport3DView,
   buildViewport3DSnapshot,
@@ -49,20 +49,20 @@ import {
   getMaxPerspectiveDistance3D,
   getViewAngleFromSnapshot3D,
   isDefault3DView,
-} from "./r3f/viewport3dView";
+} from "./r3f/view3d";
 import {
   resetViewportRenderSnapshot,
   setViewportRenderSnapshot,
-} from "./r3f/viewportRenderStore";
+} from "./r3f/snapshot";
 import {
   resetViewportTransitionConfig,
   setViewportTransitionConfig,
-} from "./r3f/viewportTransitionStore";
+} from "./r3f/transitionConfig";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type R3FViewportBridge,
   type ViewportRenderSnapshot,
-} from "./viewportRenderTypes";
+} from "./types";
 import {
   getConstraintViewportDirtyFlags,
   getDraftPreviewViewportDirtyFlags,
@@ -73,7 +73,7 @@ import {
   getViewportUnboundedClipBounds,
   getZScaleViewportDirtyFlags,
   isViewport3DState,
-} from "./viewportRuntimeUtils";
+} from "./dirtyFlags";
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 

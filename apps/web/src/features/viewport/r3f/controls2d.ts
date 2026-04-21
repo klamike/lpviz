@@ -1,18 +1,18 @@
 import { useSyncExternalStore } from "react";
 
 import { getState } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math";
+import type { PointXY } from "@lpviz/math/blas";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type ViewportRenderSnapshot,
-} from "../viewportRenderTypes";
+} from "../types";
 import {
   buildViewport2DSnapshot,
   buildViewport2DStateFromTarget,
   deriveViewport2DState,
   type Viewport2DState,
   zoomViewport2DStateAtCanvasPoint,
-} from "./viewport2dProjection";
+} from "./projection2d";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 

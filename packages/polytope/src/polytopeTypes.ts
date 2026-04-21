@@ -1,4 +1,4 @@
-import type { Lines, Vertices } from "@lpviz/math";
+import type { Lines, Vertices } from "@lpviz/math/blas";
 import type { RegionKind } from "./feasibleRegion";
 import type { BoundaryRay } from "./openRegionBoundary";
 

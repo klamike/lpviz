@@ -8,9 +8,10 @@ import {
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/viewportRenderStore";
-import type { Line, PointXY } from "@lpviz/math";
-import { hasPolytopeLines, VRep } from "@lpviz/polytope";
+import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import type { Line, PointXY } from "@lpviz/math/blas";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
+import { VRep } from "@lpviz/polytope/polygon";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLineSegments } from "./ThickLineSegments";

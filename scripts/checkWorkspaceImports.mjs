@@ -19,16 +19,6 @@ const rules = [
     pattern: /from\s+["'][^"']*features\/solver\/resultPayload["']/,
   },
   {
-    name: "Use @lpviz/math instead of legacy math source imports",
-    appliesTo: isAppFile,
-    pattern: /from\s+["'][^"']*math\/(?:blas|dense)["']/,
-  },
-  {
-    name: "Use @lpviz/polytope instead of legacy polytope source imports",
-    appliesTo: isAppFile,
-    pattern: /from\s+["'][^"']*polytope\/[^"']+["']/,
-  },
-  {
     name: "Use @lpviz/solver-engine instead of legacy solver source imports",
     appliesTo: isAppFile,
     pattern:

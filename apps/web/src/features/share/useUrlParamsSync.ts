@@ -4,9 +4,9 @@ import {
   type ShareSettings,
   type SharedAppState,
 } from "@/features/share/sharedState";
-import type { SolverControl, SolverSettingUpdater } from "@/lib/solverControls";
+import type { SolverControl, SolverSettingUpdater } from "@/features/solver/solverControls";
 import { getState, mutate, type SolverMode } from "@/features/core/store";
-import type { ViewportApi } from "@/features/viewport";
+import type { ViewportApi } from "@/features/viewport/runtime";
 import JSONCrush from "jsoncrush";
 import { useEffect, useRef } from "react";
 

@@ -1,5 +1,8 @@
-import type { Lines, VecN, Vertices } from "@lpviz/math";
-import { centralPath, ipm, pdhg, simplex } from "@lpviz/solver-engine";
+import type { Lines, VecN, Vertices } from "@lpviz/math/blas";
+import { centralPath } from "@lpviz/solver-engine/centralPath";
+import { ipm } from "@lpviz/solver-engine/ipm";
+import { pdhg } from "@lpviz/solver-engine/pdhg";
+import { simplex } from "@lpviz/solver-engine/simplex";
 
 import type {
   CentralPathResult,

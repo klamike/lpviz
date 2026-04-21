@@ -40,16 +40,16 @@ export default defineConfig({
         replacement: resolve(__dirname, "apps/web/src"),
       },
       {
-        find: "@lpviz/math",
-        replacement: resolve(__dirname, "packages/math/src/index.ts"),
+        find: /^@lpviz\/math\/(.+)$/,
+        replacement: resolve(__dirname, "packages/math/src/$1"),
       },
       {
-        find: "@lpviz/polytope",
-        replacement: resolve(__dirname, "packages/polytope/src/index.ts"),
+        find: /^@lpviz\/polytope\/(.+)$/,
+        replacement: resolve(__dirname, "packages/polytope/src/$1"),
       },
       {
-        find: "@lpviz/solver-engine",
-        replacement: resolve(__dirname, "packages/solver-engine/src/index.ts"),
+        find: /^@lpviz\/solver-engine\/(.+)$/,
+        replacement: resolve(__dirname, "packages/solver-engine/src/$1"),
       },
     ],
   },

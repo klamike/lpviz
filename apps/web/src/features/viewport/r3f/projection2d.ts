@@ -1,6 +1,6 @@
 import { getState } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math";
-import type { ViewportRenderSnapshot } from "../viewportRenderTypes";
+import type { PointXY } from "@lpviz/math/blas";
+import type { ViewportRenderSnapshot } from "../types";
 
 const EPS = 1e-6;
 const ORTHO_MIN_SCALE_FACTOR = 0.05;

@@ -1,4 +1,4 @@
-import type { Lines, PointXY } from "@lpviz/math";
+import type { Lines, PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines, type PolytopeRepresentation } from "./polytopeTypes";
 
 export interface ObjectiveRotationStep {

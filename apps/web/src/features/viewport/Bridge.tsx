@@ -1,4 +1,4 @@
-import type { R3FViewportBridge } from "@/features/viewport";
+import type { R3FViewportBridge } from "@/features/viewport/types";
 import { createContext, useContext } from "react";
 
 export type ViewportBridgeSetter = (bridge: R3FViewportBridge | null) => void;

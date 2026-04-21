@@ -1,6 +1,6 @@
-import { collectZoomFitBounds } from "@/features/viewport/viewBounds";
+import { collectZoomFitBounds } from "@/features/viewport/bounds";
 import { getState, setState } from "@/features/core/store";
-import type { ViewportApi } from "@/features/viewport";
+import type { ViewportApi } from "@/features/viewport/runtime";
 import { useRef } from "react";
 
 export function useViewportActions({

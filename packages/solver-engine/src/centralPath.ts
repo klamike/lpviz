@@ -1,14 +1,8 @@
 import { sprintf } from "sprintf-js";
-import type { Lines, VecN, VecNs, Vertices } from "@lpviz/math";
-import {
-  dot,
-  infinityNorm,
-  linesToDenseAb,
-  matVec,
-  solveDenseSystem,
-} from "@lpviz/math";
-import { findStrictFeasiblePoint } from "@lpviz/polytope";
-import { centroid } from "@lpviz/polytope";
+import type { Lines, VecN, VecNs, Vertices } from "@lpviz/math/blas";
+import { dot, infinityNorm, linesToDenseAb, matVec, solveDenseSystem } from "@lpviz/math/dense";
+import { findStrictFeasiblePoint } from "@lpviz/polytope/feasibleRegion";
+import { centroid } from "@lpviz/polytope/polygon";
 
 const MIN_STEP_SIZE = 1e-10;
 const LINE_SEARCH_SHRINK_FACTOR = 0.5;

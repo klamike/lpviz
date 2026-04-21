@@ -24,12 +24,10 @@ import {
   type SolverSettings,
   type State,
 } from "@/features/core/store";
-import type { ViewportApi } from "@/features/viewport";
-import {
-  computeObjectiveRotationStep,
-  hasPolytopeLines,
-  isObjectiveDirectionUnbounded,
-} from "@lpviz/polytope";
+import type { ViewportApi } from "@/features/viewport/runtime";
+import { computeObjectiveRotationStep } from "@lpviz/polytope/objectiveDirection";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
+import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { useEffect, useRef } from "react";
 
 const ROTATE_ROW_LIMIT = 20;

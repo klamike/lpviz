@@ -12,13 +12,13 @@ import {
   type State,
   type ViewportDirtyFlags,
 } from "@/features/core/store";
-import type { PointXY, PointXYZ } from "@lpviz/math";
-import type { ViewportRenderSnapshot } from "../viewportRenderTypes";
+import type { PointXY, PointXYZ } from "@lpviz/math/blas";
+import type { ViewportRenderSnapshot } from "../types";
 import {
   clampScaleFactor2D,
   type Viewport2DState,
-} from "./viewport2dProjection";
-import type { ViewportPerspectivePose } from "./viewport3DControlsStore";
+} from "./projection2d";
+import type { ViewportPerspectivePose } from "./controls3d";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 

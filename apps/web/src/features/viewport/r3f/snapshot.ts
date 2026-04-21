@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type ViewportRenderSnapshot,
-} from "../viewportRenderTypes";
+} from "../types";
 
 let snapshot = DEFAULT_VIEWPORT_RENDER_SNAPSHOT;
 const listeners = new Set<() => void>();

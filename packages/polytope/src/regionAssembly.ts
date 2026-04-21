@@ -1,4 +1,4 @@
-import type { Vertices } from "@lpviz/math";
+import type { Vertices } from "@lpviz/math/blas";
 import { buildConstraintDerivation } from "./constraintDerivation";
 import { classifyRegion, findFeasiblePoint } from "./feasibleRegion";
 import { verticesFromLines } from "./halfPlaneIntersection";

@@ -2,10 +2,10 @@ import { useMemo } from "react";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
-import { projectCanvasPointToWorldPlane } from "@/features/viewport/r3f/viewport3dTransition";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/viewportRenderStore";
-import type { Line, PointXY } from "@lpviz/math";
-import { hasPolytopeLines } from "@lpviz/polytope";
+import { projectCanvasPointToWorldPlane } from "@/features/viewport/r3f/transition";
+import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import type { Line, PointXY } from "@lpviz/math/blas";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { RENDER_ORDER } from "./renderOrder";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 import { ThickLineSegments } from "./ThickLineSegments";

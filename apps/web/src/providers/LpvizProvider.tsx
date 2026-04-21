@@ -9,14 +9,11 @@ import {
 
 import { registerAppActions, type AppActions } from "@/features/core/actions";
 import { useTourUiController } from "@/features/tour/TourContext";
-import { ViewportBridgeSetterContext } from "@/features/viewport/ViewportBridge";
+import { ViewportBridgeSetterContext } from "@/features/viewport/Bridge";
 import { getState } from "@/features/core/store";
 import type { TourActionTarget } from "@/features/tour/types";
-import {
-  createViewportRuntime,
-  type R3FViewportBridge,
-  type ViewportRuntime,
-} from "@/features/viewport";
+import { createViewportRuntime, type ViewportRuntime } from "@/features/viewport/runtime";
+import { type R3FViewportBridge } from "@/features/viewport/types";
 
 import { useCanvasInteractions } from "@/features/polytope-editor/interactions/useCanvasInteractions";
 import { useHistory } from "@/features/history/useHistory";
@@ -26,7 +23,7 @@ import { useSidebarViewportSync } from "@/hooks/useSidebarViewportSync";
 import { useSolver } from "@/features/solver/useSolver";
 import { useTour } from "@/features/tour/useTour";
 import { useUrlParamsSync } from "@/features/share/useUrlParamsSync";
-import { useViewportActions } from "@/features/viewport/useViewportActions";
+import { useViewportActions } from "@/features/viewport/useActions";
 
 export function LpvizProvider({
   sidebarWidth,

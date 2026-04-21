@@ -5,13 +5,13 @@ import {
   areCanvasControlsUiStatesEqual,
   selectCanvasControlsUiState,
 } from "@/features/core/selectors";
-import type { R3FViewportBridge } from "@/features/viewport";
+import type { R3FViewportBridge } from "@/features/viewport/types";
 
 import { LpvizCanvas } from "./LpvizCanvas";
 
 import { useAppActions } from "@/features/core/actions";
 import { useTourActionTarget } from "@/features/tour/TourContext";
-import { useViewportBridgeSetter } from "@/features/viewport/ViewportBridge";
+import { useViewportBridgeSetter } from "@/features/viewport/Bridge";
 
 export function CanvasStage({
   sidebarWidth,

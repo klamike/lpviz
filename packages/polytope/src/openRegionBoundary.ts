@@ -1,4 +1,4 @@
-import type { Lines, Vertices } from "@lpviz/math";
+import type { Lines, Vertices } from "@lpviz/math/blas";
 import { satisfiesLines } from "./feasibleRegion";
 
 export interface BoundaryRay {

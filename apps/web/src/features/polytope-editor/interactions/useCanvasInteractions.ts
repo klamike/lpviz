@@ -11,9 +11,9 @@ import {
   type HistoryEntry,
   type State,
 } from "@/features/core/store";
-import type { ViewportApi } from "@/features/viewport";
-import type { PointXY } from "@lpviz/math";
-import { verticesFromLines } from "@lpviz/polytope";
+import type { ViewportApi } from "@/features/viewport/runtime";
+import type { PointXY } from "@lpviz/math/blas";
+import { verticesFromLines } from "@lpviz/polytope/halfPlaneIntersection";
 import { useEffect, useRef } from "react";
 import {
   exceedsDragThreshold,

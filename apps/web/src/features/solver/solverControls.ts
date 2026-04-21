@@ -16,8 +16,8 @@ import {
   type SolverSettings,
   type State,
 } from "@/features/core/store";
-import { hasPolytopeLines } from "@lpviz/polytope";
-import type { ShareSettings } from "./sharedState";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
+import type { ShareSettings } from "@/features/share/sharedState";
 
 export type SolverSettingUpdater = <K extends keyof SolverSettings>(
   key: K,

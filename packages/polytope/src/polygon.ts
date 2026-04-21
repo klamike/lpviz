@@ -1,4 +1,4 @@
-import type { PointXY, Vertices } from "@lpviz/math";
+import type { PointXY, Vertices } from "@lpviz/math/blas";
 
 interface BoundingBox {
   minX: number;

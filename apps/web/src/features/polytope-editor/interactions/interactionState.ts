@@ -1,9 +1,9 @@
 import { getEditorContext } from "@/features/polytope-editor/editorSession";
 import type { DragTarget, State } from "@/features/core/store";
 import { getState } from "@/features/core/store";
-import type { ViewportApi } from "@/features/viewport";
-import type { PointXY } from "@lpviz/math";
-import { VRep } from "@lpviz/polytope";
+import type { ViewportApi } from "@/features/viewport/runtime";
+import type { PointXY } from "@lpviz/math/blas";
+import { VRep } from "@lpviz/polytope/polygon";
 
 export const VERTEX_HIT_RADIUS = 12;
 export const DRAG_THRESHOLD_PX = 5;

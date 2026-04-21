@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type ViewportRenderSnapshot,
-} from "../viewportRenderTypes";
+} from "../types";
 
 export type ViewportPerspectivePose = {
   position: {

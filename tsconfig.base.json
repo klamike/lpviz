@@ -8,7 +8,7 @@
     "noImplicitAny": true,
     "strictNullChecks": true,
     "esModuleInterop": true,
-    "skipLibCheck": false,
+    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -21,9 +21,9 @@
     "forceConsistentCasingInFileNames": true,
     "paths": {
       "@/*": ["./apps/web/src/*"],
-      "@lpviz/math": ["./packages/math/src/index.ts"],
-      "@lpviz/polytope": ["./packages/polytope/src/index.ts"],
-      "@lpviz/solver-engine": ["./packages/solver-engine/src/index.ts"]
+      "@lpviz/math/*": ["./packages/math/src/*"],
+      "@lpviz/polytope/*": ["./packages/polytope/src/*"],
+      "@lpviz/solver-engine/*": ["./packages/solver-engine/src/*"]
     }
   }
 }

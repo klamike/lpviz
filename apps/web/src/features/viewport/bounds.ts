@@ -1,6 +1,6 @@
 import { getDisplayedIterateZ } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math";
-import { VRep } from "@lpviz/polytope";
+import type { PointXY } from "@lpviz/math/blas";
+import { VRep } from "@lpviz/polytope/polygon";
 
 type TraceEntry = {
   path: number[][];

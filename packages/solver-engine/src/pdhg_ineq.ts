@@ -1,11 +1,5 @@
-import type { Lines, Vec2Ns, VecN } from "@lpviz/math";
-import {
-  dot,
-  infinityNorm,
-  linesToDenseAb,
-  matVec,
-  transposedMatVec,
-} from "@lpviz/math";
+import type { Lines, Vec2Ns, VecN } from "@lpviz/math/blas";
+import { dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/dense";
 import { formatMilliseconds } from "./time";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
