@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
-import { CanvasTexture } from "three";
+import { useMemo } from "react";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { SHARED_CIRCLE_TEXTURE, SHARED_SQUARE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
 const VERTEX_COLOR = "#ff0000";
@@ -77,49 +77,6 @@ const arePolytopeVerticesLayerStatesEqual = (
   current: PolytopeVerticesLayerState,
   next: PolytopeVerticesLayerState,
 ) => current.cacheKey === next.cacheKey;
-
-function createCircleTexture() {
-  const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const size = 32 * deviceRatio * 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Failed to create vertex circle texture context");
-  }
-
-  context.clearRect(0, 0, size, size);
-  context.fillStyle = "#ffffff";
-  context.beginPath();
-  context.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
-  context.fill();
-
-  const texture = new CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function createSquareTexture() {
-  const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const size = 32 * deviceRatio * 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Failed to create vertex square texture context");
-  }
-
-  context.clearRect(0, 0, size, size);
-  context.fillStyle = "#ffffff";
-  const inset = size * 0.06;
-  context.fillRect(inset, inset, size - inset * 2, size - inset * 2);
-
-  const texture = new CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
 
 function getDisplayedVertexZ(
   point: PointXY,
@@ -199,8 +156,6 @@ export function PolytopeVerticesLayer() {
     selectPolytopeVerticesLayerState,
     arePolytopeVerticesLayerStatesEqual,
   );
-  const circleTexture = useMemo(() => createCircleTexture(), []);
-  const squareTexture = useMemo(() => createSquareTexture(), []);
   const vertices = useMemo(
     () => buildVertexEntries(polytopeState, snapshot.mode),
     [polytopeState, snapshot.mode],
@@ -213,13 +168,6 @@ export function PolytopeVerticesLayer() {
     () => buildPointPositions(vertices, "square"),
     [vertices],
   );
-
-  useEffect(() => {
-    return () => {
-      circleTexture.dispose();
-      squareTexture.dispose();
-    };
-  }, [circleTexture, squareTexture]);
 
   if (vertices.length === 0) {
     return null;
@@ -271,7 +219,7 @@ export function PolytopeVerticesLayer() {
             transparent
             depthTest={false}
             depthWrite={false}
-            alphaMap={circleTexture}
+            alphaMap={SHARED_CIRCLE_TEXTURE}
             alphaTest={0.2}
           />
         </points>
@@ -291,7 +239,7 @@ export function PolytopeVerticesLayer() {
             transparent
             depthTest={false}
             depthWrite={false}
-            alphaMap={squareTexture}
+            alphaMap={SHARED_SQUARE_TEXTURE}
             alphaTest={0.2}
           />
         </points>

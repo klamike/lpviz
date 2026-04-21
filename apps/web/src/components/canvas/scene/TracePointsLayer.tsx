@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
-import { CanvasTexture } from "three";
+import { useMemo } from "react";
 
 import { useLpvizStore } from "@/features/core/store";
 import { MAX_TRACE_POINT_SPRITES, type State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
 const TRACE_COLOR = "#ffa500";
@@ -49,28 +49,6 @@ const areTracePointsLayerStatesEqual = (
   current.zAxisOffsetOnly === next.zAxisOffsetOnly &&
   current.is3DMode === next.is3DMode &&
   current.isTransitioning3D === next.isTransitioning3D;
-
-function createCircleTexture() {
-  const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const size = 32 * deviceRatio * 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Failed to create trace point texture context");
-  }
-
-  context.clearRect(0, 0, size, size);
-  context.fillStyle = "#ffffff";
-  context.beginPath();
-  context.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
-  context.fill();
-
-  const texture = new CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -210,17 +188,10 @@ export function TracePointsLayer() {
     selectTracePointsLayerState,
     areTracePointsLayerStatesEqual,
   );
-  const circleTexture = useMemo(() => createCircleTexture(), []);
   const positions = useMemo(
     () => buildTracePointPositions(traceState, snapshot.mode),
     [traceState, snapshot.mode],
   );
-
-  useEffect(() => {
-    return () => {
-      circleTexture.dispose();
-    };
-  }, [circleTexture]);
 
   if (positions.length === 0) {
     return null;
@@ -238,7 +209,7 @@ export function TracePointsLayer() {
         transparent
         depthTest={false}
         depthWrite={false}
-        alphaMap={circleTexture}
+        alphaMap={SHARED_CIRCLE_TEXTURE}
         alphaTest={0.2}
       />
     </points>

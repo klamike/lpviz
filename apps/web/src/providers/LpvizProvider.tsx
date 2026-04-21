@@ -189,9 +189,7 @@ export function LpvizProvider({
     setViewportBridge(bridge);
   }, []);
 
-  useEffect(() => {
-    registerAppActions(actions);
-  }, [actions]);
+  registerAppActions(actions);
 
   return (
     <ViewportBridgeSetterContext.Provider value={bridgeSetter}>

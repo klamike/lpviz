@@ -1,11 +1,12 @@
-import { useEffect, useMemo } from "react";
-import { CanvasTexture, Color } from "three";
+import { useMemo } from "react";
+import { Color } from "three";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
 const ITERATE_POINT_COLOR = "#800080";
@@ -68,28 +69,6 @@ const areIteratePointsLayerStatesEqual = (
   next: IteratePointsLayerState,
 ) => current.cacheKey === next.cacheKey;
 
-function createCircleTexture() {
-  const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const size = 32 * deviceRatio * 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Failed to create iterate point texture context");
-  }
-
-  context.clearRect(0, 0, size, size);
-  context.fillStyle = "#ffffff";
-  context.beginPath();
-  context.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
-  context.fill();
-
-  const texture = new CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
-
 function getDisplayedIterateZ(
   entry: ReadonlyArray<number>,
   objectiveVector: PointXY | null,
@@ -125,6 +104,7 @@ function buildIteratePointGeometry(
     ? new Float32Array(state.iteratePath.length * 3)
     : null;
 
+  const reusableColor = new Color();
   for (let index = 0; index < state.iteratePath.length; index += 1) {
     const entry = state.iteratePath[index]!;
     const baseIndex = index * 3;
@@ -142,12 +122,12 @@ function buildIteratePointGeometry(
       : ITERATE_Z;
 
     if (colors) {
-      const color = new Color(
+      reusableColor.set(
         PHASE_COLORS[state.iteratePhases[index]! % PHASE_COLORS.length]!,
       );
-      colors[baseIndex] = color.r;
-      colors[baseIndex + 1] = color.g;
-      colors[baseIndex + 2] = color.b;
+      colors[baseIndex] = reusableColor.r;
+      colors[baseIndex + 1] = reusableColor.g;
+      colors[baseIndex + 2] = reusableColor.b;
     }
   }
 
@@ -160,17 +140,10 @@ export function IteratePointsLayer() {
     selectIteratePointsLayerState,
     areIteratePointsLayerStatesEqual,
   );
-  const circleTexture = useMemo(() => createCircleTexture(), []);
   const geometry = useMemo(
     () => buildIteratePointGeometry(iterateState, snapshot.mode),
     [iterateState, snapshot.mode],
   );
-
-  useEffect(() => {
-    return () => {
-      circleTexture.dispose();
-    };
-  }, [circleTexture]);
 
   if (geometry.positions.length === 0) {
     return null;
@@ -197,7 +170,7 @@ export function IteratePointsLayer() {
         transparent
         depthTest={false}
         depthWrite={false}
-        alphaMap={circleTexture}
+        alphaMap={SHARED_CIRCLE_TEXTURE}
         alphaTest={0.2}
         vertexColors={Boolean(geometry.colors)}
       />

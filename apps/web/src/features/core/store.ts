@@ -276,13 +276,17 @@ function useStoreWithEquality<U>(
   equalityFn: (a: U, b: U) => boolean,
 ): U {
   const selectedRef = useRef<U>(undefined as unknown as U);
+  const initializedRef = useRef(false);
 
   const getSnapshot = useCallback(() => {
     const next = selector(lpvizStore.getState());
-    const prev = selectedRef.current;
-    if (equalityFn(prev, next)) {
-      return prev;
+    if (initializedRef.current) {
+      const prev = selectedRef.current;
+      if (equalityFn(prev, next)) {
+        return prev;
+      }
     }
+    initializedRef.current = true;
     selectedRef.current = next;
     return next;
   }, [selector, equalityFn]);

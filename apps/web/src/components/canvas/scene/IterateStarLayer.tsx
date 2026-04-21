@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
-import { CanvasTexture } from "three";
+import { useMemo } from "react";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { SHARED_STAR_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
 const ITERATE_STAR_COLOR = "#008000";
@@ -51,43 +51,6 @@ const areIterateStarLayerStatesEqual = (
   next: IterateStarLayerState,
 ) => current.cacheKey === next.cacheKey;
 
-function createStarTexture() {
-  const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const size = 48 * deviceRatio * 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Failed to create iterate star texture context");
-  }
-
-  const outerRadius = size * 0.38;
-  const innerRadius = outerRadius * 0.47;
-  const center = size / 2;
-
-  context.clearRect(0, 0, size, size);
-  context.fillStyle = "#ffffff";
-  context.beginPath();
-  for (let index = 0; index < 10; index += 1) {
-    const angle = -Math.PI / 2 + (index * Math.PI) / 5;
-    const radius = index % 2 === 0 ? outerRadius : innerRadius;
-    const x = center + Math.cos(angle) * radius;
-    const y = center + Math.sin(angle) * radius;
-    if (index === 0) {
-      context.moveTo(x, y);
-    } else {
-      context.lineTo(x, y);
-    }
-  }
-  context.closePath();
-  context.fill();
-
-  const texture = new CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
-
 function getDisplayedIterateZ(
   entry: ReadonlyArray<number>,
   objectiveVector: PointXY | null,
@@ -130,17 +93,10 @@ export function IterateStarLayer() {
     selectIterateStarLayerState,
     areIterateStarLayerStatesEqual,
   );
-  const starTexture = useMemo(() => createStarTexture(), []);
   const positions = useMemo(
     () => buildStarPositions(iterateState, snapshot.mode),
     [iterateState, snapshot.mode],
   );
-
-  useEffect(() => {
-    return () => {
-      starTexture.dispose();
-    };
-  }, [starTexture]);
 
   if (positions.length === 0) {
     return null;
@@ -158,7 +114,7 @@ export function IterateStarLayer() {
         transparent
         depthTest={false}
         depthWrite={false}
-        alphaMap={starTexture}
+        alphaMap={SHARED_STAR_TEXTURE}
         alphaTest={0.2}
       />
     </points>

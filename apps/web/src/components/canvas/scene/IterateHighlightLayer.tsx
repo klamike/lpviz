@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
-import { CanvasTexture } from "three";
+import { useMemo } from "react";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
+import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
 
 const ITERATE_HIGHLIGHT_COLOR = "#008000";
@@ -55,28 +55,6 @@ const areIterateHighlightLayerStatesEqual = (
   current: IterateHighlightLayerState,
   next: IterateHighlightLayerState,
 ) => current.cacheKey === next.cacheKey;
-
-function createCircleTexture() {
-  const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const size = 32 * deviceRatio * 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Failed to create iterate highlight texture context");
-  }
-
-  context.clearRect(0, 0, size, size);
-  context.fillStyle = "#ffffff";
-  context.beginPath();
-  context.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
-  context.fill();
-
-  const texture = new CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
 
 function getDisplayedIterateZ(
   entry: ReadonlyArray<number>,
@@ -130,17 +108,10 @@ export function IterateHighlightLayer() {
     selectIterateHighlightLayerState,
     areIterateHighlightLayerStatesEqual,
   );
-  const circleTexture = useMemo(() => createCircleTexture(), []);
   const positions = useMemo(
     () => buildHighlightPositions(iterateState, snapshot.mode),
     [iterateState, snapshot.mode],
   );
-
-  useEffect(() => {
-    return () => {
-      circleTexture.dispose();
-    };
-  }, [circleTexture]);
 
   if (positions.length === 0) {
     return null;
@@ -158,7 +129,7 @@ export function IterateHighlightLayer() {
         transparent
         depthTest={false}
         depthWrite={false}
-        alphaMap={circleTexture}
+        alphaMap={SHARED_CIRCLE_TEXTURE}
         alphaTest={0.2}
       />
     </points>
