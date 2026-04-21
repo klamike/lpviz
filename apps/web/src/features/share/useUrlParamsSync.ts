@@ -5,7 +5,7 @@ import {
   type SharedAppState,
 } from "@/features/share/sharedState";
 import type { SolverControl, SolverSettingUpdater } from "@/features/solver/solverControls";
-import { getState, mutate, type SolverMode } from "@/features/core/store";
+import { getState, setState, type SolverMode } from "@/features/core/store";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import JSONCrush from "jsoncrush";
 import { useEffect, useRef } from "react";
@@ -73,11 +73,7 @@ export function useUrlParamsSync({
 
     const applySharedState = (sharedState: SharedAppState) => {
       invalidatePendingRef.current();
-      mutate((draft) => {
-        Object.assign(draft, buildSharedStatePatch(sharedState));
-        draft.inequalitiesMessage = null;
-        draft.highlightIndex = null;
-      });
+      setState({ ...buildSharedStatePatch(sharedState), inequalitiesMessage: null, highlightIndex: null });
       applySharedSettings(sharedState.settings);
 
       const state = getState();

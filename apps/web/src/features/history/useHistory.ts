@@ -1,4 +1,4 @@
-import { getState, mutate, type HistoryEntry, type State } from "@/features/core/store";
+import { getState, setState, type HistoryEntry, type State } from "@/features/core/store";
 import { useRef } from "react";
 
 export type HistorySnapshotSource = Pick<
@@ -30,11 +30,10 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
     options: { clearRedo?: boolean } = {},
   ) => {
     const snapshot = captureEntry(snapshotSource);
-    mutate((draft) => {
-      draft.historyStack.push(snapshot);
-      if (options.clearRedo ?? true) {
-        draft.redoStack = [];
-      }
+    const { historyStack } = getState();
+    setState({
+      historyStack: [...historyStack, snapshot],
+      ...(options.clearRedo ?? true ? { redoStack: [] } : {}),
     });
   };
 
@@ -51,27 +50,22 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
     }
 
     const currentEntry = captureEntry(getState());
-    let stateToRestore: HistoryEntry | null = null;
-    mutate((draft) => {
-      const sourceStack = isRedo ? draft.redoStack : draft.historyStack;
-      const targetStack = isRedo ? draft.historyStack : draft.redoStack;
-      if (sourceStack.length === 0) return;
+    const { historyStack, redoStack } = getState();
+    const sourceStack = isRedo ? redoStack : historyStack;
+    if (sourceStack.length === 0) return;
 
-      const popped = sourceStack.pop();
-      if (!popped) return;
-      stateToRestore = popped;
+    const stateToRestore = sourceStack[sourceStack.length - 1]!;
+    const trimmed = sourceStack.slice(0, -1);
+    setState(
+      isRedo
+        ? { redoStack: trimmed }
+        : { historyStack: trimmed, redoStack: [...redoStack, currentEntry] },
+    );
 
-      if (!isRedo) {
-        targetStack.push(currentEntry);
-      }
-    });
-
-    if (!stateToRestore) return;
-
-    mutate((draft) => {
-      draft.vertices = stateToRestore!.vertices;
-      draft.objectiveVector = stateToRestore!.objectiveVector;
-      draft.completionMode = stateToRestore!.completionMode;
+    setState({
+      vertices: stateToRestore.vertices,
+      objectiveVector: stateToRestore.objectiveVector,
+      completionMode: stateToRestore.completionMode,
     });
     onRestoreRef.current();
   };

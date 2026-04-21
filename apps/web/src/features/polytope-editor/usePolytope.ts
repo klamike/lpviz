@@ -1,5 +1,5 @@
 import { computeEditorRegionForState } from "@/features/polytope-editor/editorSession";
-import { getState, mutate } from "@/features/core/store";
+import { getState, setState } from "@/features/core/store";
 import { useRef } from "react";
 
 export function usePolytope({
@@ -20,11 +20,7 @@ export function usePolytope({
       const regionResult = computeEditorRegionForState(state);
 
       if (regionResult.status === "nonconvex") {
-        mutate((draft) => {
-          draft.polytope = null;
-          draft.inequalitiesMessage = "Nonconvex";
-          draft.highlightIndex = null;
-        });
+        setState({ polytope: null, inequalitiesMessage: "Nonconvex", highlightIndex: null });
         handleProblemChangeRef.current();
         scheduleNonconvexHintRef.current();
         return;
@@ -32,43 +28,29 @@ export function usePolytope({
 
       const promotion = regionResult.promotion;
       if (promotion) {
-        mutate((draft) => {
-          draft.vertices = promotion.vertices;
-          draft.completionMode = promotion.completionMode;
-          draft.interiorPoint = promotion.interiorPoint;
-        });
+        setState({ vertices: promotion.vertices, completionMode: promotion.completionMode, interiorPoint: promotion.interiorPoint });
       }
 
       const result = regionResult.polytope;
       if (!result.inequalities) {
-        mutate((draft) => {
-          draft.polytope = null;
-          draft.inequalitiesMessage = "No inequalities returned.";
-          draft.highlightIndex = null;
-        });
+        setState({ polytope: null, inequalitiesMessage: "No inequalities returned.", highlightIndex: null });
         handleProblemChangeRef.current();
         return;
       }
 
-      mutate((draft) => {
-        draft.polytope = result;
-        draft.inequalitiesMessage = null;
-        if (
-          draft.highlightIndex !== null &&
-          draft.highlightIndex >= result.inequalities.length
-        ) {
-          draft.highlightIndex = null;
-        }
+      const { highlightIndex } = getState();
+      setState({
+        polytope: result,
+        inequalitiesMessage: null,
+        ...(highlightIndex !== null && highlightIndex >= result.inequalities.length
+          ? { highlightIndex: null }
+          : {}),
       });
       scheduleNonconvexHintRef.current();
       handleProblemChangeRef.current();
     } catch (error) {
       console.error("Error:", error);
-      mutate((draft) => {
-        draft.polytope = null;
-        draft.inequalitiesMessage = "Error computing inequalities.";
-        draft.highlightIndex = null;
-      });
+      setState({ polytope: null, inequalitiesMessage: "Error computing inequalities.", highlightIndex: null });
       handleProblemChangeRef.current();
       scheduleNonconvexHintRef.current();
     }

@@ -4,7 +4,6 @@ import {
   DEFAULT_Z_SCALE,
   computeDrawingPhase,
   getState,
-  mutate,
   setState,
   type DrawingPhase,
   type EditorInteractionState,
@@ -189,10 +188,8 @@ export function useCanvasInteractions({
         const updatedVertices = verticesFromLines(updatedLines);
         if (updatedVertices.length < 2) return;
 
-        mutate(
-          (draft) => {
-            draft.vertices = updatedVertices.map(([x, y]) => ({ x, y }));
-          },
+        setState(
+          { vertices: updatedVertices.map(([x, y]) => ({ x, y })) },
           { viewportDirty: canvasManager.getPolytopeDirtyFlags() },
         );
 
@@ -216,18 +213,14 @@ export function useCanvasInteractions({
         );
       } else {
         const operation = target.operation;
-        mutate(
-          (draft) => {
-            const shiftX = target.normal.x * delta;
-            const shiftY = target.normal.y * delta;
-            for (const index of operation.vertexIndices) {
-              if (draft.vertices[index]) {
-                draft.vertices[index] = {
-                  x: draft.vertices[index].x + shiftX,
-                  y: draft.vertices[index].y + shiftY,
-                };
-              }
-            }
+        const shiftX = target.normal.x * delta;
+        const shiftY = target.normal.y * delta;
+        const indices = new Set(operation.vertexIndices);
+        setState(
+          {
+            vertices: getState().vertices.map((v, i) =>
+              indices.has(i) ? { x: v.x + shiftX, y: v.y + shiftY } : v,
+            ),
           },
           { viewportDirty: canvasManager.getPolytopeDirtyFlags() },
         );
@@ -259,10 +252,8 @@ export function useCanvasInteractions({
       const dragTarget = interaction.target;
       if (dragTarget.kind === "point") {
         const pointIndex = dragTarget.index;
-        mutate(
-          (draft) => {
-            draft.vertices[pointIndex] = logicalCoords;
-          },
+        setState(
+          { vertices: getState().vertices.map((v, i) => i === pointIndex ? logicalCoords : v) },
           { viewportDirty: canvasManager.getPolytopeDirtyFlags() },
         );
         sendPolytopeRef.current();

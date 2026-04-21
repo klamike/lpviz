@@ -14,7 +14,7 @@ import {
   clearIterateState,
   computeDrawingPhase,
   getState,
-  mutate,
+
   prepareAnimationInterval,
   resetTraceState,
   setState,
@@ -103,9 +103,7 @@ export function useSolver({
   } | null>(null);
 
   const updateSolverSetting: SolverSettingUpdater = (key, value) => {
-    mutate((draft) => {
-      (draft.solverSettings as SolverSettings)[key] = value;
-    });
+    setState({ solverSettings: { ...getState().solverSettings, [key]: value } });
   };
 
   const hasUnboundedObjectiveDirection = (state: State) => {
@@ -568,13 +566,14 @@ export function useSolver({
         return;
       }
 
-      mutate(
-        (draft) => {
-          draft.iteratePath.push(iteratesToAnimate[currentIndex]);
-          if (phasesToAnimate.length > 0) {
-            draft.iteratePhases.push(phasesToAnimate[currentIndex]);
-          }
-          draft.highlightIteratePathIndex = currentIndex;
+      const s = getState();
+      setState(
+        {
+          iteratePath: [...s.iteratePath, iteratesToAnimate[currentIndex]!],
+          ...(phasesToAnimate.length > 0
+            ? { iteratePhases: [...s.iteratePhases, phasesToAnimate[currentIndex]!] }
+            : {}),
+          highlightIteratePathIndex: currentIndex,
         },
         { viewportDirty: cm.getIterateDirtyFlags() },
       );

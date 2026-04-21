@@ -1,7 +1,6 @@
 import {
   computeDrawingPhase,
   getState,
-  mutate,
   setState,
   subscribe,
   type DrawingPhase,
@@ -214,10 +213,7 @@ export function useTour({
     if (step.type === "draw-vertex") {
       await clickPoint(step.point, () => {
         saveHistoryRef.current();
-        mutate((draft) => {
-          draft.vertices.push(step.point);
-          draft.completionMode = "draft";
-        });
+        setState({ vertices: [...getState().vertices, step.point], completionMode: "draft" });
         cm?.draw();
         sendPolytopeRef.current();
       });
@@ -226,19 +222,14 @@ export function useTour({
     if (step.type === "set-objective") {
       await clickPoint(step.point, () => {
         saveHistoryRef.current();
-        mutate((draft) => {
-          draft.objectiveVector = step.point;
-        });
+        setState({ objectiveVector: step.point });
         cm?.draw();
       });
       return;
     }
     await clickPoint(step.point, () => {
       saveHistoryRef.current();
-      mutate((draft) => {
-        draft.completionMode = "closed";
-        draft.interiorPoint = step.point;
-      });
+      setState({ completionMode: "closed", interiorPoint: step.point });
       cm?.draw();
       sendPolytopeRef.current();
     });

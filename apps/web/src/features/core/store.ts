@@ -1,4 +1,3 @@
-import { produce } from "immer";
 import type { ResultTextBlock } from "@/features/solver/types";
 import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math/blas";
 import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
@@ -336,13 +335,6 @@ export function setState(
   lpvizStore.setState(patch);
 }
 
-export function mutate(
-  mutator: (draft: State) => void,
-  _meta?: StateChangeMeta,
-): void {
-  lpvizStore.setState(produce(mutator));
-}
-
 export function subscribe(
   listener: (snapshot: State) => void,
 ): () => void {
@@ -381,36 +373,25 @@ export function updateIteratePaths(
   phasesArray?: number[],
   restartIndicesArray?: number[],
 ): void {
-  mutate((draft) => {
-    const objectiveSnapshot = snapshotObjectiveVector(draft.objectiveVector);
-    assignIterateState(
-      draft,
+  const { objectiveVector } = getState();
+  setState(
+    buildIterateStatePatch(
       iteratesArray,
       phasesArray,
       restartIndicesArray,
-      objectiveSnapshot,
-    );
-  });
+      snapshotObjectiveVector(objectiveVector),
+    ),
+  );
 }
 
 export function clearIterateState(): void {
-  mutate((draft) => {
-    assignIterateState(draft, [], undefined, undefined, null);
-    draft.highlightIteratePathIndex = null;
-  });
+  setState({ ...buildIterateStatePatch([], undefined, undefined, null), highlightIteratePathIndex: null });
 }
 
 export function addTraceToBuffer(iteratesArray: number[][]): void {
-  const { traceEnabled, objectiveVector } = getState();
-  if (!traceEnabled || iteratesArray.length === 0) return;
-
-  mutate((draft) => {
-    appendTraceEntry(
-      draft,
-      iteratesArray,
-      snapshotObjectiveVector(objectiveVector),
-    );
-  });
+  const state = getState();
+  if (!state.traceEnabled || iteratesArray.length === 0) return;
+  setState({ traceBuffer: appendedTraceBuffer(state, iteratesArray, snapshotObjectiveVector(state.objectiveVector)) });
 }
 
 export function getDisplayedIterateZ(
@@ -432,20 +413,18 @@ export function updateIteratePathsWithTrace(
   phasesArray?: number[],
   restartIndicesArray?: number[],
 ): void {
-  mutate((draft) => {
-    const objectiveSnapshot = snapshotObjectiveVector(draft.objectiveVector);
-    assignIterateState(
-      draft,
-      iteratesArray,
-      phasesArray,
-      restartIndicesArray,
-      objectiveSnapshot,
-    );
-
-    if (draft.traceEnabled && iteratesArray.length > 0) {
-      appendTraceEntry(draft, iteratesArray, objectiveSnapshot);
-    }
-  });
+  const state = getState();
+  const objectiveSnapshot = snapshotObjectiveVector(state.objectiveVector);
+  const patch: Partial<State> = buildIterateStatePatch(
+    iteratesArray,
+    phasesArray,
+    restartIndicesArray,
+    objectiveSnapshot,
+  );
+  if (state.traceEnabled && iteratesArray.length > 0) {
+    patch.traceBuffer = appendedTraceBuffer(state, iteratesArray, objectiveSnapshot);
+  }
+  setState(patch);
 }
 
 function snapshotObjectiveVector(objectiveVector: PointXY | null) {
@@ -464,40 +443,37 @@ function copyRestartIndices(restartIndicesArray?: number[]) {
   return restartIndicesArray ? [...restartIndicesArray] : [];
 }
 
-function trimTraceBuffer(draft: State) {
-  while (draft.traceBuffer.length > draft.maxTraceCount) {
-    draft.traceBuffer.shift();
-  }
-}
-
-function appendTraceEntry(
-  draft: State,
+function appendedTraceBuffer(
+  state: State,
   iteratesArray: number[][],
   objectiveSnapshot: PointXY | null,
-) {
-  draft.traceBuffer.push({
+): TraceEntry[] {
+  const entry: TraceEntry = {
     path: copyIteratePath(iteratesArray),
     objectiveVector: snapshotObjectiveVector(objectiveSnapshot),
-  });
-  trimTraceBuffer(draft);
+  };
+  const raw = [...state.traceBuffer, entry];
+  return raw.length > state.maxTraceCount
+    ? raw.slice(raw.length - state.maxTraceCount)
+    : raw;
 }
 
-function assignIterateState(
-  draft: State,
+function buildIterateStatePatch(
   iteratesArray: number[][],
   phasesArray: number[] | undefined,
   restartIndicesArray: number[] | undefined,
   objectiveSnapshot: PointXY | null,
-) {
-  draft.originalIteratePath = copyIteratePath(iteratesArray);
-  draft.iteratePath = iteratesArray;
-  draft.iteratePhases = phasesArray || [];
-  draft.originalIteratePhases = copyIteratePhases(phasesArray);
-  draft.iterateRestartIndices = restartIndicesArray || [];
-  draft.originalIterateRestartIndices = copyRestartIndices(restartIndicesArray);
-  draft.iterateObjectiveVector = objectiveSnapshot;
-  draft.originalIterateObjectiveVector =
-    snapshotObjectiveVector(objectiveSnapshot);
+): Partial<State> {
+  return {
+    originalIteratePath: copyIteratePath(iteratesArray),
+    iteratePath: iteratesArray,
+    iteratePhases: phasesArray ?? [],
+    originalIteratePhases: copyIteratePhases(phasesArray),
+    iterateRestartIndices: restartIndicesArray ?? [],
+    originalIterateRestartIndices: copyRestartIndices(restartIndicesArray),
+    iterateObjectiveVector: objectiveSnapshot,
+    originalIterateObjectiveVector: snapshotObjectiveVector(objectiveSnapshot),
+  };
 }
 
 export function resetTraceState(): void {
@@ -506,11 +482,12 @@ export function resetTraceState(): void {
 }
 
 export function setTraceCapacity(maxTraceCount: number): void {
-  mutate((draft) => {
-    draft.maxTraceCount = maxTraceCount;
-
-    while (draft.traceBuffer.length > draft.maxTraceCount) {
-      draft.traceBuffer.shift();
-    }
+  const { traceBuffer } = getState();
+  setState({
+    maxTraceCount,
+    traceBuffer:
+      traceBuffer.length > maxTraceCount
+        ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
+        : traceBuffer,
   });
 }
