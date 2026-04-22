@@ -86,6 +86,7 @@ type PrevState = {
 export function TraceLineLayer() {
   const group = useMemo(() => new Group(), []);
   const poolRef = useRef<Line2[]>([]);
+  const lastPositionsRef = useRef<(Float32Array | null)[]>([]);
   const prevRef = useRef<PrevState | null>(null);
 
   useFrame(() => {
@@ -139,16 +140,25 @@ export function TraceLineLayer() {
 
     const mat = is3D ? traceMat3D : traceMat2D;
     const pool = poolRef.current;
+    const lastPositions = lastPositionsRef.current;
 
     while (pool.length < linePositions.length) {
       pool.push(makeLine2(mat, group));
+      lastPositions.push(null);
     }
 
     for (let i = 0; i < linePositions.length; i++) {
       const ln = pool[i]!;
-      const geo = ln.geometry as LineGeometry;
-      geo.setPositions(linePositions[i]!);
-      delete (geo as any)._maxInstanceCount;
+      const newPos = linePositions[i]!;
+      // getCachedTraceLinePositions returns the same Float32Array reference for
+      // unchanged entries — skip setPositions (O(N) interleaved buffer rebuild)
+      // when the positions array hasn't changed.
+      if (lastPositions[i] !== newPos) {
+        const geo = ln.geometry as LineGeometry;
+        geo.setPositions(newPos);
+        delete (geo as any)._maxInstanceCount;
+        lastPositions[i] = newPos;
+      }
       ln.material = mat;
       ln.visible = true;
     }
