@@ -85,8 +85,15 @@ export const ThickLine = memo(function ThickLine({
   useLayoutEffect(() => {
     if (positions.length >= 6) {
       geometry.setPositions(positions);
+      // WebGLBindingStates only sets _maxInstanceCount when it is undefined. If
+      // setPositions replaces the buffer with a different size the stale cached
+      // count caps how many instances the renderer draws. Clearing it here forces
+      // WebGLBindingStates to recalculate on the next frame.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (geometry as any)._maxInstanceCount;
+      invalidate();
     }
-  }, [geometry, positions]);
+  }, [geometry, positions, invalidate]);
 
   // Keep material properties in sync.
   useLayoutEffect(() => {
@@ -155,8 +162,11 @@ export const ThickLineShared = memo(function ThickLineShared({
   useLayoutEffect(() => {
     if (positions.length >= 6) {
       geometry.setPositions(positions);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (geometry as any)._maxInstanceCount;
+      invalidate();
     }
-  }, [geometry, positions]);
+  }, [geometry, positions, invalidate]);
 
   useLayoutEffect(() => {
     line.renderOrder = renderOrder;
