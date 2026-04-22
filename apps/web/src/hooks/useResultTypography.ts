@@ -73,5 +73,6 @@ export function useResultTypography({
   return {
     resultRef,
     resultStyle,
+    fontSize,
   };
 }

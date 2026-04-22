@@ -384,6 +384,7 @@ body {
   white-space: pre-wrap;
   padding-left: 4px;
   font-size: var(--result-font-size, 18px);
+  line-height: 1.2;
 }
 
 .iterate-header {

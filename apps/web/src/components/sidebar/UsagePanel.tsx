@@ -14,7 +14,7 @@ export function UsagePanel() {
     selectResultPanelUiState,
     areResultPanelUiStatesEqual,
   );
-  const { resultRef, resultStyle } = useResultTypography({
+  const { resultRef, resultStyle, fontSize } = useResultTypography({
     enabled: resultPanelUiState.mode !== "usage",
     maxLineChars: resultPanelUiState.maxLineChars,
   });
@@ -160,7 +160,7 @@ export function UsagePanel() {
                       width={width}
                       height={height}
                       rowCount={resultPanelUiState.virtualRows.length}
-                      rowHeight={22}
+                      rowHeight={fontSize != null ? Math.ceil(fontSize * 1.2) : 22}
                       overscanRowCount={25}
                       rowRenderer={renderVirtualRow}
                     />
