@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { Color, type PointsMaterial } from "three";
+import { BufferGeometry, Color, type PointsMaterial } from "three";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
@@ -140,6 +140,13 @@ export function IterateRestartPointsLayer() {
     [iterateState, snapshot.mode],
   );
 
+  const geoRef = useRef<BufferGeometry>(null);
+  useLayoutEffect(() => {
+    if (!geoRef.current) return;
+    geoRef.current.computeBoundingBox = () => {};
+    geoRef.current.computeBoundingSphere = () => {};
+  }, []);
+
   const materialRef = useRef<PointsMaterial>(null);
   const hasColors = Boolean(geometry.colors);
   useLayoutEffect(() => {
@@ -155,7 +162,7 @@ export function IterateRestartPointsLayer() {
       renderOrder={ITERATE_RESTART_POINTS_RENDER_ORDER}
       frustumCulled={false}
     >
-      <bufferGeometry>
+      <bufferGeometry ref={geoRef}>
         <bufferAttribute
           attach="attributes-position"
           args={[geometry.positions, 3]}
