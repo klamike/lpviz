@@ -20,7 +20,7 @@ import {
   isDefault2DView,
   toCanvasCoords2D,
   toLogicalCoords2D,
-} from "./r3f/projection2d";
+} from "@lpviz/viewport/projection2d";
 import {
   resetViewport3DControlsConfig,
   setViewport3DControlsConfig,
@@ -29,7 +29,7 @@ import {
   getObjectiveScreenPosition3D,
   toCanvasCoords3D,
   toLogicalCoords3D,
-} from "./r3f/projection3d";
+} from "@lpviz/viewport/projection3d";
 import {
   buildPerspectivePoseFromViewAngle,
   buildTransitionCompleteState,
@@ -40,7 +40,7 @@ import {
   buildViewportTransitionPlan,
   TRANSITION_VIEWPORT_DIRTY_FLAGS,
   type ViewportTransitionPlan,
-} from "./r3f/transition";
+} from "@lpviz/viewport/transition";
 import {
   buildResetViewport3DView,
   buildViewport3DSnapshot,
@@ -49,7 +49,7 @@ import {
   getMaxPerspectiveDistance3D,
   getViewAngleFromSnapshot3D,
   isDefault3DView,
-} from "./r3f/view3d";
+} from "@lpviz/viewport/view3d";
 import {
   resetViewportRenderSnapshot,
   setViewportRenderSnapshot,

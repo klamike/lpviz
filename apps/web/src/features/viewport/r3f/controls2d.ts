@@ -12,7 +12,7 @@ import {
   deriveViewport2DState,
   type Viewport2DState,
   zoomViewport2DStateAtCanvasPoint,
-} from "./projection2d";
+} from "@lpviz/viewport/projection2d";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 

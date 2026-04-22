@@ -6,7 +6,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 
 import { getState } from "@/features/core/store";
 import type { State } from "@/features/core/store";
-import { projectCanvasPointToWorldPlane } from "@/features/viewport/r3f/transition";
+import { projectCanvasPointToWorldPlane } from "@lpviz/viewport/transition";
 import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { Line, PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";

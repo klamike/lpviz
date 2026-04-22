@@ -4,24 +4,9 @@ import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type ViewportRenderSnapshot,
 } from "../types";
+import type { ViewportPerspectivePose } from "@lpviz/viewport/types";
 
-export type ViewportPerspectivePose = {
-  position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  up: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  target: {
-    x: number;
-    y: number;
-    z: number;
-  };
-};
+export type { ViewportPerspectivePose };
 
 export type Viewport3DControlsConfig = {
   enabled: boolean;

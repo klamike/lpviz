@@ -2,13 +2,13 @@ import { Euler, PerspectiveCamera, Vector3 } from "three";
 
 import { DEFAULT_VIEW_ANGLE } from "@/features/core/store";
 import type { PointXYZ } from "@lpviz/math/blas";
-import type { ViewportRenderSnapshot } from "../types";
-import type { ViewportPerspectivePose } from "./controls3d";
+import type { ViewportRenderSnapshot } from "./types";
 import {
   buildPerspectivePoseFromViewAngle,
   getPerspectiveDistanceForUnitsPerPixel,
   getScaleFactorFromPerspectiveDistance,
 } from "./transition";
+import type { ViewportPerspectivePose } from "./types";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 

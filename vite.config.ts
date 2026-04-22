@@ -66,6 +66,10 @@ export default defineConfig(({ mode }) => ({
         find: /^@lpviz\/solver-engine\/(.+)$/,
         replacement: resolve(__dirname, "packages/solver-engine/src/$1"),
       },
+      {
+        find: /^@lpviz\/viewport\/(.+)$/,
+        replacement: resolve(__dirname, "packages/viewport/src/$1"),
+      },
     ],
   },
   build: {

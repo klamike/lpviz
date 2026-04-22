@@ -2,7 +2,7 @@ import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import { getDisplayedIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/blas";
-import type { ViewportRenderSnapshot } from "../types";
+import type { ViewportRenderSnapshot } from "./types";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 

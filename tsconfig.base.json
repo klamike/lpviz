@@ -23,7 +23,8 @@
       "@/*": ["./apps/web/src/*"],
       "@lpviz/math/*": ["./packages/math/src/*"],
       "@lpviz/polytope/*": ["./packages/polytope/src/*"],
-      "@lpviz/solver-engine/*": ["./packages/solver-engine/src/*"]
+      "@lpviz/solver-engine/*": ["./packages/solver-engine/src/*"],
+      "@lpviz/viewport/*": ["./packages/viewport/src/*"]
     }
   }
 }

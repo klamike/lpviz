@@ -31,6 +31,7 @@
     "@lpviz/math": "workspace:*",
     "@lpviz/polytope": "workspace:*",
     "@lpviz/solver-engine": "workspace:*",
+    "@lpviz/viewport": "workspace:*",
     "@react-three/fiber": "^9.5.0",
     "@types/react-virtualized": "^9.22.3",
     "jsoncrush": "^1.1.8",
