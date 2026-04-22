@@ -24,7 +24,7 @@ function findHtmlFiles(dir: string): string[] {
 const docsDir = resolve(__dirname, "docs");
 const docHtmlInputs = findHtmlFiles(docsDir);
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react({
       babel: {
@@ -35,6 +35,18 @@ export default defineConfig({
   ],
   resolve: {
     alias: [
+      // Use the readable dev build of r3f in development so profiler shows real names.
+      ...(mode !== "production"
+        ? [
+            {
+              find: "@react-three/fiber",
+              replacement: resolve(
+                __dirname,
+                "node_modules/@react-three/fiber/dist/react-three-fiber.cjs.dev.js",
+              ),
+            },
+          ]
+        : []),
       {
         find: "@",
         replacement: resolve(__dirname, "apps/web/src"),
@@ -61,4 +73,4 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     emptyOutDir: false,
   },
-});
+}));

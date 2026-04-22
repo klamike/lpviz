@@ -6,12 +6,12 @@ import {
   resetViewportCameraRefs,
   setViewportCameraRefs,
 } from "@/features/viewport/r3f/cameraRefs";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import { useFullViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 
 export function CameraRig() {
   const orthoRef = useRef<OrthographicCamera>(null);
   const perspectiveRef = useRef<PerspectiveCamera>(null);
-  const snapshot = useViewportRenderSnapshot();
+  const snapshot = useFullViewportRenderSnapshot();
   const set = useThree((state) => state.set);
 
   useEffect(() => {

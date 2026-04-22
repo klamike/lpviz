@@ -6,34 +6,84 @@ import {
 } from "../types";
 
 let snapshot = DEFAULT_VIEWPORT_RENDER_SNAPSHOT;
-const listeners = new Set<() => void>();
 
-const emit = () => {
-  listeners.forEach((listener) => listener());
-};
+// Full listeners — fire on every snapshot update (camera position included).
+const fullListeners = new Set<() => void>();
+// Stable listeners — fire only when fields that scene layers actually use change.
+// During 3D orbit, perspective.position and perspective.up change every frame but
+// nothing else does, so stable listeners are silent during orbit.
+const stableListeners = new Set<() => void>();
+
+function hasStableChange(
+  prev: ViewportRenderSnapshot,
+  next: ViewportRenderSnapshot,
+): boolean {
+  return (
+    prev.mode !== next.mode ||
+    prev.width !== next.width ||
+    prev.height !== next.height ||
+    prev.scaleFactor !== next.scaleFactor ||
+    prev.unitsPerPixel !== next.unitsPerPixel ||
+    prev.gridSpacing !== next.gridSpacing ||
+    prev.target.x !== next.target.x ||
+    prev.target.y !== next.target.y ||
+    prev.target.z !== next.target.z ||
+    prev.orthographic.left !== next.orthographic.left ||
+    prev.orthographic.right !== next.orthographic.right ||
+    prev.orthographic.top !== next.orthographic.top ||
+    prev.orthographic.bottom !== next.orthographic.bottom ||
+    prev.perspective.fov !== next.perspective.fov ||
+    prev.perspective.aspect !== next.perspective.aspect ||
+    prev.perspective.near !== next.perspective.near ||
+    prev.perspective.far !== next.perspective.far
+  );
+}
 
 export function setViewportRenderSnapshot(next: ViewportRenderSnapshot) {
+  const prev = snapshot;
   snapshot = next;
-  emit();
+  fullListeners.forEach((l) => l());
+  if (hasStableChange(prev, next)) {
+    stableListeners.forEach((l) => l());
+  }
 }
 
 export function resetViewportRenderSnapshot() {
   snapshot = DEFAULT_VIEWPORT_RENDER_SNAPSHOT;
-  emit();
+  fullListeners.forEach((l) => l());
+  stableListeners.forEach((l) => l());
 }
 
 export function subscribeViewportRenderSnapshot(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  stableListeners.add(listener);
+  return () => stableListeners.delete(listener);
+}
+
+export function subscribeFullViewportRenderSnapshot(listener: () => void) {
+  fullListeners.add(listener);
+  return () => fullListeners.delete(listener);
 }
 
 export function getViewportRenderSnapshot() {
   return snapshot;
 }
 
+// Used by most scene layers. Only re-renders when layout-relevant fields change
+// (mode, zoom, target, bounds). Silent during pure 3D orbit, preventing ~13
+// components from reconciling at 60 fps for no visual reason.
 export function useViewportRenderSnapshot() {
   return useSyncExternalStore(
     subscribeViewportRenderSnapshot,
+    getViewportRenderSnapshot,
+    getViewportRenderSnapshot,
+  );
+}
+
+// Used only by CameraRig, which must update the Three.js camera on every orbit
+// frame to keep perspective.position/up in sync.
+export function useFullViewportRenderSnapshot() {
+  return useSyncExternalStore(
+    subscribeFullViewportRenderSnapshot,
     getViewportRenderSnapshot,
     getViewportRenderSnapshot,
   );
