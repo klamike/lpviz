@@ -47,6 +47,8 @@ export const ThickLine = memo(function ThickLine({
   // or concurrent renders).
   const { line, geometry, material } = useMemo(() => {
     const geo = new LineGeometry();
+    geo.computeBoundingBox = () => {};
+    geo.computeBoundingSphere = () => {};
     const mat = new LineMaterial({
       color,
       linewidth: width,
@@ -72,8 +74,6 @@ export const ThickLine = memo(function ThickLine({
   useLayoutEffect(() => {
     if (positions.length >= 6) {
       geometry.setPositions(positions);
-      geometry.computeBoundingBox();
-      geometry.computeBoundingSphere();
     }
   }, [geometry, positions]);
 
@@ -132,6 +132,8 @@ export const ThickLineShared = memo(function ThickLineShared({
 
   const { line, geometry } = useMemo(() => {
     const geo = new LineGeometry();
+    geo.computeBoundingBox = () => {};
+    geo.computeBoundingSphere = () => {};
     const ln = new Line2(geo, material);
     ln.frustumCulled = false;
     ln.renderOrder = renderOrder;
@@ -143,8 +145,6 @@ export const ThickLineShared = memo(function ThickLineShared({
   useLayoutEffect(() => {
     if (positions.length >= 6) {
       geometry.setPositions(positions);
-      geometry.computeBoundingBox();
-      geometry.computeBoundingSphere();
     }
   }, [geometry, positions]);
 
