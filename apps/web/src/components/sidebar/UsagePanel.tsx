@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AutoSizer, List, type ListRowProps } from "react-virtualized";
 
 import { useLpvizStore } from "@/features/core/store";
@@ -18,39 +18,100 @@ export function UsagePanel() {
     enabled: resultPanelUiState.mode !== "usage",
     maxLineChars: resultPanelUiState.maxLineChars,
   });
+
+  // Row height must stay in sync with the List's rowHeight prop.
+  const rowHeight = fontSize != null ? Math.ceil(fontSize * 1.2) : 22;
+
+  // Refs kept current every render so RAF/scroll callbacks always see latest values.
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<List | null>(null);
+  const mouseClientPosRef = useRef<{ x: number; y: number } | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const scrollTopRef = useRef(0);
+  const rowHeightRef = useRef(rowHeight);
+  rowHeightRef.current = rowHeight;
+  const runtimeActionsRef = useRef(runtimeActions);
+  runtimeActionsRef.current = runtimeActions;
+  const virtualRowsRef = useRef(resultPanelUiState.virtualRows);
+  virtualRowsRef.current = resultPanelUiState.virtualRows;
+
+  const startHighlightTracking = useCallback(() => {
+    if (rafIdRef.current !== null) return;
+    const tick = () => {
+      const pos = mouseClientPosRef.current;
+      if (pos === null) { rafIdRef.current = null; return; }
+      const container = scrollContainerRef.current;
+      if (container) {
+        const r = container.getBoundingClientRect();
+        if (pos.x < r.left || pos.x > r.right || pos.y < r.top || pos.y > r.bottom) {
+          mouseClientPosRef.current = null;
+          runtimeActionsRef.current.setIterateHighlight(null);
+          rafIdRef.current = null;
+          return;
+        }
+        // Compute row under cursor from geometry instead of elementFromPoint —
+        // elementFromPoint lags behind compositor-thread scroll and returns wrong
+        // results during active scrolling.
+        const relY = pos.y - r.top + scrollTopRef.current;
+        const idx = Math.floor(relY / rowHeightRef.current);
+        const rows = virtualRowsRef.current;
+        if (idx >= 0 && idx < rows.length) {
+          const row = rows[idx];
+          runtimeActionsRef.current.setIterateHighlight(row?.index ?? null);
+        } else {
+          runtimeActionsRef.current.setIterateHighlight(null);
+        }
+      }
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+    rafIdRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  // Sync scrollTop so the RAF loop always has the current scroll position.
+  const handleListScroll = useCallback(({ scrollTop }: { scrollTop: number }) => {
+    scrollTopRef.current = scrollTop;
+  }, []);
+
+  useEffect(() => {
+    listRef.current?.recomputeRowHeights(0);
+  }, [rowHeight]);
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleScrollAreaMouseEnter = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    mouseClientPosRef.current = { x: e.clientX, y: e.clientY };
+    startHighlightTracking();
+  }, [startHighlightTracking]);
+
+  const handleScrollAreaMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    mouseClientPosRef.current = { x: e.clientX, y: e.clientY };
+    startHighlightTracking();
+  }, [startHighlightTracking]);
+
+  // wheel events fire even when the browser suppresses mousemove during scroll
+  const handleScrollAreaWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    mouseClientPosRef.current = { x: e.clientX, y: e.clientY };
+    startHighlightTracking();
+  }, [startHighlightTracking]);
+
   const renderVirtualRow = useCallback(
     ({ index, key, style }: ListRowProps) => {
       const row = resultPanelUiState.virtualRows[index];
-      if (!row) {
-        return null;
-      }
-
+      if (!row) return null;
       return (
-        <div
-          key={key}
-          style={style}
-          className={row.className}
-          data-index={row.index}
-          onMouseEnter={
-            row.index === undefined
-              ? undefined
-              : () => {
-                  runtimeActions.setIterateHighlight(row.index ?? null);
-                }
-          }
-          onMouseLeave={
-            row.index === undefined
-              ? undefined
-              : () => {
-                  runtimeActions.setIterateHighlight(null);
-                }
-          }
-        >
+        <div key={key} style={style} className={row.className} data-index={row.index}>
           {row.text}
         </div>
       );
     },
-    [resultPanelUiState.virtualRows, runtimeActions],
+    [resultPanelUiState.virtualRows],
   );
 
   return (
@@ -147,7 +208,13 @@ export function UsagePanel() {
           <div className="iterate-header">
             {resultPanelUiState.virtualHeader ?? ""}
           </div>
-          <div className="iterate-scroll">
+          <div
+            ref={scrollContainerRef}
+            className="iterate-scroll"
+            onMouseEnter={handleScrollAreaMouseEnter}
+            onMouseMove={handleScrollAreaMouseMove}
+            onWheel={handleScrollAreaWheel}
+          >
             {resultPanelUiState.virtualShowEmpty ? (
               <div className="iterate-item-nohover">
                 No iterations available.
@@ -157,12 +224,14 @@ export function UsagePanel() {
                 {({ width, height }) =>
                   width > 0 && height > 0 ? (
                     <List
+                      ref={listRef}
                       width={width}
                       height={height}
                       rowCount={resultPanelUiState.virtualRows.length}
-                      rowHeight={fontSize != null ? Math.ceil(fontSize * 1.2) : 22}
+                      rowHeight={rowHeight}
                       overscanRowCount={25}
                       rowRenderer={renderVirtualRow}
+                      onScroll={handleListScroll}
                     />
                   ) : null
                 }
