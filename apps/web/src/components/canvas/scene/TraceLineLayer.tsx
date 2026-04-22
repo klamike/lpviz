@@ -1,14 +1,16 @@
-import { useMemo } from "react";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { Group } from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 
-import { useLpvizStore } from "@/features/core/store";
+import { getState } from "@/features/core/store";
 import type { State } from "@/features/core/store";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
-import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { ThickLineShared } from "./ThickLineSegments";
+import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;
@@ -16,40 +18,9 @@ const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 const TRACE_LINE_THICKNESS = 2;
 
-function buildTraceLineMaterial(is3D: boolean): LineMaterial {
-  const material = new LineMaterial({
-    color: TRACE_COLOR,
-    linewidth: TRACE_LINE_THICKNESS,
-    depthTest: is3D,
-    depthWrite: is3D,
-    transparent: true,
-    opacity: TRACE_OPACITY,
-  });
-  return material;
-}
-
-const SHARED_TRACE_MATERIAL_2D = buildTraceLineMaterial(false);
-const SHARED_TRACE_MATERIAL_3D = buildTraceLineMaterial(true);
-
-// zScale is intentionally excluded — it is applied as a group transform, not baked
-// into positions, so that slider changes are O(1) rather than O(N) rebuilds.
-type TraceLineLayerState = {
-  traceEnabled: boolean;
-  traceBuffer: State["traceBuffer"];
-  zAxisOffsetOnly: boolean;
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-};
-
-const selectTraceLineLayerState = (state: State): TraceLineLayerState => ({
-  traceEnabled: state.traceEnabled,
-  traceBuffer: state.traceBuffer,
-  zAxisOffsetOnly: state.zAxisOffsetOnly,
-  is3DMode: state.is3DMode,
-  isTransitioning3D: state.isTransitioning3D,
-});
-
-const selectTraceZScale = (state: State) => state.zScale;
+// zScale is applied as group.scale.z — positions store raw z values.
+const traceMat2D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: TRACE_OPACITY });
+const traceMat3D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: TRACE_OPACITY });
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -63,117 +34,136 @@ function getDisplayedTraceZ(
   return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
 }
 
-// Positions are stored with raw z (no zScale, no mode offset). zScale is applied
-// as group.scale.z and the 2D offset as group.position.z at render time.
 function buildTraceLinePositions(
   path: number[][],
   objectiveVector: PointXY | null,
   zAxisOffsetOnly: boolean,
 ) {
-  if (path.length < 2) {
-    return new Float32Array();
-  }
-
+  if (path.length < 2) return new Float32Array();
   const positions = new Float32Array(path.length * 3);
-  for (let index = 0; index < path.length; index += 1) {
-    const entry = path[index]!;
-    const baseIndex = index * 3;
-    positions[baseIndex] = entry[0]!;
-    positions[baseIndex + 1] = entry[1]!;
-    positions[baseIndex + 2] = getDisplayedTraceZ(
-      entry,
-      objectiveVector,
-      zAxisOffsetOnly,
-    );
+  for (let i = 0; i < path.length; i++) {
+    const entry = path[i]!;
+    positions[i * 3]     = entry[0]!;
+    positions[i * 3 + 1] = entry[1]!;
+    positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly);
   }
-
   return positions;
 }
 
-const traceEntryIds = new WeakMap<object, number>();
-let nextTraceEntryId = 1;
 const traceLinePositionCache = new WeakMap<object, Map<string, Float32Array>>();
 
-function getTraceEntryId(entry: State["traceBuffer"][number]) {
-  let id = traceEntryIds.get(entry);
-  if (id === undefined) {
-    id = nextTraceEntryId++;
-    traceEntryIds.set(entry, id);
-  }
-  return id;
-}
-
-function getCachedTraceLinePositions(
-  entry: State["traceBuffer"][number],
-  zAxisOffsetOnly: boolean,
-) {
-  const cacheKey = zAxisOffsetOnly ? "1" : "0";
+function getCachedTraceLinePositions(entry: State["traceBuffer"][number], zAxisOffsetOnly: boolean) {
+  const key = zAxisOffsetOnly ? "1" : "0";
   let cache = traceLinePositionCache.get(entry);
-  if (!cache) {
-    cache = new Map();
-    traceLinePositionCache.set(entry, cache);
-  }
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const positions = buildTraceLinePositions(
-    entry.path,
-    entry.objectiveVector,
-    zAxisOffsetOnly,
-  );
-  cache.set(cacheKey, positions);
+  if (!cache) { cache = new Map(); traceLinePositionCache.set(entry, cache); }
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const positions = buildTraceLinePositions(entry.path, entry.objectiveVector, zAxisOffsetOnly);
+  cache.set(key, positions);
   return positions;
 }
 
-function buildTraceLines(
-  state: TraceLineLayerState,
-  mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
-) {
-  if (
-    !state.traceEnabled ||
-    state.traceBuffer.length === 0 ||
-    !shouldRenderSnapshotMode(mode, state)
-  ) {
-    return [] as Array<{ key: number; positions: Float32Array }>;
-  }
-
-  const lines: Array<{ key: number; positions: Float32Array }> = [];
-  state.traceBuffer.forEach((entry) => {
-    const positions = getCachedTraceLinePositions(entry, state.zAxisOffsetOnly);
-    if (positions.length > 0) {
-      lines.push({ key: getTraceEntryId(entry), positions });
-    }
-  });
-  return lines;
+function makeLine2(mat: ReturnType<typeof getSharedLineMaterial>, group: Group): Line2 {
+  const geo = new LineGeometry();
+  applyHugeBounds(geo);
+  const ln = new Line2(geo, mat);
+  ln.renderOrder = TRACE_RENDER_ORDER;
+  ln.frustumCulled = false;
+  ln.computeLineDistances = () => ln;
+  group.add(ln);
+  return ln;
 }
 
+type PrevState = {
+  traceEnabled: boolean;
+  traceBuffer: State["traceBuffer"];
+  zAxisOffsetOnly: boolean;
+  is3DMode: boolean;
+  isTransitioning3D: boolean;
+  mode: string;
+};
+
 export function TraceLineLayer() {
-  const snapshot = useViewportRenderSnapshot();
-  const traceState = useLpvizStore(selectTraceLineLayerState, shallowEqual);
-  const zScale = useLpvizStore(selectTraceZScale);
-  const lines = useMemo(
-    () => buildTraceLines(traceState, snapshot.mode),
-    [traceState, snapshot.mode],
-  );
+  const group = useMemo(() => new Group(), []);
+  const poolRef = useRef<Line2[]>([]);
+  const prevRef = useRef<PrevState | null>(null);
 
-  if (lines.length === 0) {
-    return null;
-  }
+  useFrame(() => {
+    const raw = getState();
+    const snap = getViewportRenderSnapshot();
+    const is3D = snap.mode === "3d";
 
-  const is3D = snapshot.mode === "3d";
-  const material = is3D ? SHARED_TRACE_MATERIAL_3D : SHARED_TRACE_MATERIAL_2D;
+    group.scale.z = raw.zScale / 100;
+    group.position.z = is3D ? 0 : TRACE_Z_OFFSET;
 
-  return (
-    <group scale-z={zScale / 100} position-z={is3D ? 0 : TRACE_Z_OFFSET}>
-      {lines.map((line) => (
-        <ThickLineShared
-          key={line.key}
-          positions={line.positions}
-          material={material}
-          renderOrder={TRACE_RENDER_ORDER}
-        />
-      ))}
-    </group>
-  );
+    const p = prevRef.current;
+    if (
+      p &&
+      p.traceEnabled      === raw.traceEnabled &&
+      p.traceBuffer       === raw.traceBuffer &&
+      p.zAxisOffsetOnly   === raw.zAxisOffsetOnly &&
+      p.is3DMode          === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode              === snap.mode
+    ) {
+      return;
+    }
+    prevRef.current = {
+      traceEnabled: raw.traceEnabled,
+      traceBuffer: raw.traceBuffer,
+      zAxisOffsetOnly: raw.zAxisOffsetOnly,
+      is3DMode: raw.is3DMode,
+      isTransitioning3D: raw.isTransitioning3D,
+      mode: snap.mode,
+    };
+
+    const shouldShow = raw.traceEnabled && raw.traceBuffer.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
+    if (!shouldShow) {
+      group.visible = false;
+      for (const ln of poolRef.current) ln.visible = false;
+      return;
+    }
+
+    // Collect active line positions from cache
+    const linePositions: Float32Array[] = [];
+    for (const entry of raw.traceBuffer) {
+      const pos = getCachedTraceLinePositions(entry, raw.zAxisOffsetOnly);
+      if (pos.length >= 6) linePositions.push(pos);
+    }
+
+    if (linePositions.length === 0) {
+      group.visible = false;
+      for (const ln of poolRef.current) ln.visible = false;
+      return;
+    }
+
+    const mat = is3D ? traceMat3D : traceMat2D;
+    const pool = poolRef.current;
+
+    while (pool.length < linePositions.length) {
+      pool.push(makeLine2(mat, group));
+    }
+
+    for (let i = 0; i < linePositions.length; i++) {
+      const ln = pool[i]!;
+      const geo = ln.geometry as LineGeometry;
+      geo.setPositions(linePositions[i]!);
+      delete (geo as any)._maxInstanceCount;
+      ln.material = mat;
+      ln.visible = true;
+    }
+    for (let i = linePositions.length; i < pool.length; i++) {
+      pool[i]!.visible = false;
+    }
+
+    group.visible = true;
+  });
+
+  useEffect(() => {
+    return () => {
+      for (const ln of poolRef.current) ln.geometry.dispose();
+    };
+  }, []);
+
+  return <primitive object={group} />;
 }

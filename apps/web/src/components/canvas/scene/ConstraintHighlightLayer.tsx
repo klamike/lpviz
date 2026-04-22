@@ -1,15 +1,18 @@
-import { useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { Group } from "three";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
-import { useLpvizStore } from "@/features/core/store";
+import { getState } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import { projectCanvasPointToWorldPlane } from "@/features/viewport/r3f/transition";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { Line, PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { RENDER_ORDER } from "./renderOrder";
-import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { ThickLineSegments } from "./ThickLineSegments";
+import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
 
 const CONSTRAINT_COLOR = "#ff0000";
 const CONSTRAINT_RENDER_ORDER = RENDER_ORDER.constraintLines;
@@ -19,164 +22,153 @@ const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_3D_EXTENT = 5000;
 const EPS = 1e-10;
 
-type Bounds = {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-};
+const constraintMat2D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const constraintMat3D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: 1 });
 
-type ConstraintHighlightLayerState = {
+type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
+
+function getVisibleBounds(snap: ReturnType<typeof getViewportRenderSnapshot>): Bounds {
+  if (snap.mode === "2d") {
+    const halfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
+    const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
+    const marginUnits = CLIP_MARGIN_PX * snap.unitsPerPixel + CLIP_MARGIN_UNITS;
+    return {
+      minX: snap.target.x - halfWidth - marginUnits,
+      maxX: snap.target.x + halfWidth + marginUnits,
+      minY: snap.target.y - halfHeight - marginUnits,
+      maxY: snap.target.y + halfHeight + marginUnits,
+    };
+  }
+  const rect = { width: Math.max(1, snap.width), height: Math.max(1, snap.height) };
+  const screenPoints = [
+    { x: 0, y: 0 }, { x: rect.width / 2, y: 0 }, { x: rect.width, y: 0 },
+    { x: 0, y: rect.height / 2 }, { x: rect.width, y: rect.height / 2 },
+    { x: 0, y: rect.height }, { x: rect.width / 2, y: rect.height }, { x: rect.width, y: rect.height },
+  ];
+  const pts = screenPoints
+    .map((p) => projectCanvasPointToWorldPlane(snap, rect, p, 0))
+    .filter((p): p is PointXY => p !== null);
+  if (pts.length === 0) {
+    return { minX: -DEFAULT_3D_EXTENT, maxX: DEFAULT_3D_EXTENT, minY: -DEFAULT_3D_EXTENT, maxY: DEFAULT_3D_EXTENT };
+  }
+  return {
+    minX: Math.min(...pts.map((p) => p.x)) - CLIP_MARGIN_UNITS,
+    maxX: Math.max(...pts.map((p) => p.x)) + CLIP_MARGIN_UNITS,
+    minY: Math.min(...pts.map((p) => p.y)) - CLIP_MARGIN_UNITS,
+    maxY: Math.max(...pts.map((p) => p.y)) + CLIP_MARGIN_UNITS,
+  };
+}
+
+function clipLineToBounds(line: Line, b: Bounds): [PointXY, PointXY] | null {
+  const [A, B, C] = line;
+  if (Math.abs(A) < EPS && Math.abs(B) < EPS) return null;
+  if (Math.abs(B) > Math.abs(A)) {
+    return [{ x: b.minX, y: (C - A * b.minX) / B }, { x: b.maxX, y: (C - A * b.maxX) / B }];
+  }
+  return [{ y: b.minY, x: (C - B * b.minY) / A }, { y: b.maxY, x: (C - B * b.maxY) / A }];
+}
+
+type PrevState = {
   completionMode: State["completionMode"];
   highlightIndex: number | null;
   polytope: State["polytope"];
   is3DMode: boolean;
   isTransitioning3D: boolean;
+  mode: string;
+  orthoLeft: number; orthoRight: number; orthoTop: number; orthoBottom: number;
+  targetX: number; targetY: number; unitsPerPixel: number;
+  width: number; height: number; scaleFactor: number;
 };
 
-const selectConstraintHighlightLayerState = (
-  state: State,
-): ConstraintHighlightLayerState => ({
-  completionMode: state.completionMode,
-  highlightIndex: state.highlightIndex,
-  polytope: state.polytope,
-  is3DMode: state.is3DMode,
-  isTransitioning3D: state.isTransitioning3D,
-});
-
-function getVisibleBounds(
-  snapshot: ReturnType<typeof useViewportRenderSnapshot>,
-): Bounds {
-  if (snapshot.mode === "2d") {
-    const halfWidth =
-      (snapshot.orthographic.right - snapshot.orthographic.left) / 2;
-    const halfHeight =
-      (snapshot.orthographic.top - snapshot.orthographic.bottom) / 2;
-    const marginUnits =
-      CLIP_MARGIN_PX * snapshot.unitsPerPixel + CLIP_MARGIN_UNITS;
-
-    return {
-      minX: snapshot.target.x - halfWidth - marginUnits,
-      maxX: snapshot.target.x + halfWidth + marginUnits,
-      minY: snapshot.target.y - halfHeight - marginUnits,
-      maxY: snapshot.target.y + halfHeight + marginUnits,
-    };
-  }
-
-  const rect = {
-    width: Math.max(1, snapshot.width),
-    height: Math.max(1, snapshot.height),
-  };
-  const screenPoints = [
-    { x: 0, y: 0 },
-    { x: rect.width / 2, y: 0 },
-    { x: rect.width, y: 0 },
-    { x: 0, y: rect.height / 2 },
-    { x: rect.width, y: rect.height / 2 },
-    { x: 0, y: rect.height },
-    { x: rect.width / 2, y: rect.height },
-    { x: rect.width, y: rect.height },
-  ];
-  const projectedPoints = screenPoints
-    .map((point) => projectCanvasPointToWorldPlane(snapshot, rect, point, 0))
-    .filter((point): point is PointXY => point !== null);
-
-  if (projectedPoints.length === 0) {
-    return {
-      minX: -DEFAULT_3D_EXTENT,
-      maxX: DEFAULT_3D_EXTENT,
-      minY: -DEFAULT_3D_EXTENT,
-      maxY: DEFAULT_3D_EXTENT,
-    };
-  }
-
-  return {
-    minX:
-      Math.min(...projectedPoints.map((point) => point.x)) - CLIP_MARGIN_UNITS,
-    maxX:
-      Math.max(...projectedPoints.map((point) => point.x)) + CLIP_MARGIN_UNITS,
-    minY:
-      Math.min(...projectedPoints.map((point) => point.y)) - CLIP_MARGIN_UNITS,
-    maxY:
-      Math.max(...projectedPoints.map((point) => point.y)) + CLIP_MARGIN_UNITS,
-  };
-}
-
-function clipLineToBounds(
-  line: Line,
-  bounds: Bounds,
-): [PointXY, PointXY] | null {
-  const [A, B, C] = line;
-  if (Math.abs(A) < EPS && Math.abs(B) < EPS) {
-    return null;
-  }
-
-  if (Math.abs(B) > Math.abs(A)) {
-    return [
-      { x: bounds.minX, y: (C - A * bounds.minX) / B },
-      { x: bounds.maxX, y: (C - A * bounds.maxX) / B },
-    ];
-  }
-
-  return [
-    { y: bounds.minY, x: (C - B * bounds.minY) / A },
-    { y: bounds.maxY, x: (C - B * bounds.maxY) / A },
-  ];
-}
-
-function buildConstraintPositions(
-  state: ConstraintHighlightLayerState,
-  snapshot: ReturnType<typeof useViewportRenderSnapshot>,
-) {
-  if (
-    state.completionMode === "draft" ||
-    state.highlightIndex === null ||
-    !state.polytope ||
-    !hasPolytopeLines(state.polytope) ||
-    !shouldRenderSnapshotMode(snapshot.mode, state)
-  ) {
-    return new Float32Array();
-  }
-
-  const line = state.polytope.lines[state.highlightIndex];
-  if (!line) {
-    return new Float32Array();
-  }
-
-  const clipped = clipLineToBounds(line, getVisibleBounds(snapshot));
-  if (!clipped) {
-    return new Float32Array();
-  }
-
-  const [start, end] = clipped;
-  return new Float32Array([start.x, start.y, 0, end.x, end.y, 0]);
-}
-
 export function ConstraintHighlightLayer() {
-  const snapshot = useViewportRenderSnapshot();
-  const constraintState = useLpvizStore(
-    selectConstraintHighlightLayerState,
-    shallowEqual,
-  );
-  const positions = useMemo(
-    () => buildConstraintPositions(constraintState, snapshot),
-    [constraintState, snapshot],
-  );
+  const { group, cGeo, cSegs } = useMemo(() => {
+    const cGeo = new LineSegmentsGeometry();
+    applyHugeBounds(cGeo);
+    const cSegs = new LineSegments2(cGeo, constraintMat2D);
+    cSegs.renderOrder = CONSTRAINT_RENDER_ORDER;
+    cSegs.frustumCulled = false;
+    cSegs.visible = false;
+    const group = new Group();
+    group.add(cSegs);
+    return { group, cGeo, cSegs };
+  }, []);
 
-  if (positions.length === 0) {
-    return null;
-  }
+  const prevRef = useRef<PrevState | null>(null);
 
-  const is3D = snapshot.mode === "3d";
+  useFrame(() => {
+    const raw = getState();
+    const snap = getViewportRenderSnapshot();
 
-  return (
-    <ThickLineSegments
-      positions={positions}
-      color={CONSTRAINT_COLOR}
-      width={CONSTRAINT_LINE_THICKNESS}
-      renderOrder={CONSTRAINT_RENDER_ORDER}
-      depthTest={is3D}
-      depthWrite={is3D}
-    />
-  );
+    const p = prevRef.current;
+    if (
+      p &&
+      p.completionMode    === raw.completionMode &&
+      p.highlightIndex    === raw.highlightIndex &&
+      p.polytope          === raw.polytope &&
+      p.is3DMode          === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode              === snap.mode &&
+      p.orthoLeft         === snap.orthographic.left &&
+      p.orthoRight        === snap.orthographic.right &&
+      p.orthoTop          === snap.orthographic.top &&
+      p.orthoBottom       === snap.orthographic.bottom &&
+      p.targetX           === snap.target.x &&
+      p.targetY           === snap.target.y &&
+      p.unitsPerPixel     === snap.unitsPerPixel &&
+      p.width             === snap.width &&
+      p.height            === snap.height &&
+      p.scaleFactor       === snap.scaleFactor
+    ) {
+      return;
+    }
+    prevRef.current = {
+      completionMode: raw.completionMode,
+      highlightIndex: raw.highlightIndex,
+      polytope: raw.polytope,
+      is3DMode: raw.is3DMode,
+      isTransitioning3D: raw.isTransitioning3D,
+      mode: snap.mode,
+      orthoLeft: snap.orthographic.left,
+      orthoRight: snap.orthographic.right,
+      orthoTop: snap.orthographic.top,
+      orthoBottom: snap.orthographic.bottom,
+      targetX: snap.target.x,
+      targetY: snap.target.y,
+      unitsPerPixel: snap.unitsPerPixel,
+      width: snap.width,
+      height: snap.height,
+      scaleFactor: snap.scaleFactor,
+    };
+
+    if (
+      raw.completionMode === "draft" ||
+      raw.highlightIndex === null ||
+      !raw.polytope ||
+      !hasPolytopeLines(raw.polytope) ||
+      !shouldRenderSnapshotMode(snap.mode, raw)
+    ) {
+      cSegs.visible = false;
+      return;
+    }
+
+    const line = raw.polytope.lines[raw.highlightIndex];
+    if (!line) { cSegs.visible = false; return; }
+
+    const clipped = clipLineToBounds(line, getVisibleBounds(snap));
+    if (!clipped) { cSegs.visible = false; return; }
+
+    const [start, end] = clipped;
+    cGeo.setPositions([start.x, start.y, 0, end.x, end.y, 0]);
+    delete (cGeo as any)._maxInstanceCount;
+
+    const is3D = snap.mode === "3d";
+    cSegs.material = is3D ? constraintMat3D : constraintMat2D;
+    cSegs.visible = true;
+  });
+
+  useEffect(() => {
+    return () => { cGeo.dispose(); };
+  }, [cGeo]);
+
+  return <primitive object={group} />;
 }

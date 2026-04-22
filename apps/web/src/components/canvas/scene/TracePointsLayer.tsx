@@ -1,38 +1,41 @@
-import { useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import {
+  Box3,
+  BufferAttribute,
+  BufferGeometry,
+  Group,
+  Points,
+  PointsMaterial,
+  Sphere,
+  Vector3,
+} from "three";
 
-import { useLpvizStore } from "@/features/core/store";
-import { MAX_TRACE_POINT_SPRITES, type State } from "@/features/core/store";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import { getState, MAX_TRACE_POINT_SPRITES } from "@/features/core/store";
+import type { State } from "@/features/core/store";
+import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { RENDER_ORDER } from "./renderOrder";
-import { shallowEqual } from "./shallowEqual";
-import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
+import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;
 const TRACE_POINT_PIXEL_SIZE = 6;
 const TRACE_POINTS_RENDER_ORDER = RENDER_ORDER.tracePoints;
 
-// zScale is intentionally excluded — it is applied as a group transform, not baked
-// into positions, so that slider changes are O(1) rather than O(N) rebuilds.
-type TracePointsLayerState = {
-  traceEnabled: boolean;
-  traceBuffer: State["traceBuffer"];
-  zAxisOffsetOnly: boolean;
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-};
+const HUGE = 1e10;
+const HUGE_BOX = new Box3(new Vector3(-HUGE, -HUGE, -HUGE), new Vector3(HUGE, HUGE, HUGE));
+const HUGE_SPHERE = new Sphere(new Vector3(0, 0, 0), HUGE);
 
-const selectTracePointsLayerState = (state: State): TracePointsLayerState => ({
-  traceEnabled: state.traceEnabled,
-  traceBuffer: state.traceBuffer,
-  zAxisOffsetOnly: state.zAxisOffsetOnly,
-  is3DMode: state.is3DMode,
-  isTransitioning3D: state.isTransitioning3D,
-});
-
-const selectTraceZScale = (state: State) => state.zScale;
+function makePointsGeo(): BufferGeometry {
+  const geo = new BufferGeometry();
+  geo.boundingBox = HUGE_BOX.clone();
+  geo.boundingSphere = HUGE_SPHERE.clone();
+  geo.computeBoundingBox = () => {};
+  geo.computeBoundingSphere = () => {};
+  return geo;
+}
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -46,161 +49,147 @@ function getDisplayedTraceZ(
   return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
 }
 
-// Positions are stored with raw z (no zScale, no mode offset). zScale is applied
-// as group.scale.z and the 2D offset as group.position.z at render time.
 function buildTracePathPositions(
   path: number[][],
   objectiveVector: PointXY | null,
   zAxisOffsetOnly: boolean,
 ) {
-  if (path.length === 0) {
-    return new Float32Array();
-  }
-
+  if (path.length === 0) return new Float32Array();
   const positions = new Float32Array(path.length * 3);
-  for (let index = 0; index < path.length; index += 1) {
-    const entry = path[index]!;
-    const baseIndex = index * 3;
-    positions[baseIndex] = entry[0]!;
-    positions[baseIndex + 1] = entry[1]!;
-    positions[baseIndex + 2] = getDisplayedTraceZ(
-      entry,
-      objectiveVector,
-      zAxisOffsetOnly,
-    );
+  for (let i = 0; i < path.length; i++) {
+    const entry = path[i]!;
+    positions[i * 3]     = entry[0]!;
+    positions[i * 3 + 1] = entry[1]!;
+    positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly);
   }
-
   return positions;
 }
 
 function buildTraceSamplePositions(pathPositions: Float32Array) {
   const pointCount = Math.floor(pathPositions.length / 3);
-  if (pointCount === 0) {
-    return [] as number[];
-  }
-
+  if (pointCount === 0) return [] as number[];
   const step = Math.max(1, Math.ceil(pointCount / MAX_TRACE_POINT_SPRITES));
   const samples: number[] = [];
-  for (let index = 0; index < pointCount; index += step) {
-    const baseIndex = index * 3;
-    samples.push(
-      pathPositions[baseIndex]!,
-      pathPositions[baseIndex + 1]!,
-      pathPositions[baseIndex + 2]!,
-    );
+  for (let i = 0; i < pointCount; i += step) {
+    samples.push(pathPositions[i * 3]!, pathPositions[i * 3 + 1]!, pathPositions[i * 3 + 2]!);
   }
-  const lastBaseIndex = (pointCount - 1) * 3;
+  const lastBase = (pointCount - 1) * 3;
   if (
     samples.length === 0 ||
-    samples[samples.length - 3] !== pathPositions[lastBaseIndex] ||
-    samples[samples.length - 2] !== pathPositions[lastBaseIndex + 1] ||
-    samples[samples.length - 1] !== pathPositions[lastBaseIndex + 2]
+    samples[samples.length - 3] !== pathPositions[lastBase] ||
+    samples[samples.length - 2] !== pathPositions[lastBase + 1] ||
+    samples[samples.length - 1] !== pathPositions[lastBase + 2]
   ) {
-    samples.push(
-      pathPositions[lastBaseIndex]!,
-      pathPositions[lastBaseIndex + 1]!,
-      pathPositions[lastBaseIndex + 2]!,
-    );
+    samples.push(pathPositions[lastBase]!, pathPositions[lastBase + 1]!, pathPositions[lastBase + 2]!);
   }
   return samples;
 }
 
-const tracePointPositionCache = new WeakMap<
-  object,
-  Map<string, Float32Array>
->();
+const tracePointPositionCache = new WeakMap<object, Map<string, Float32Array>>();
 
 function getCachedTracePointPositions(
   entry: State["traceBuffer"][number],
   zAxisOffsetOnly: boolean,
 ) {
-  const cacheKey = zAxisOffsetOnly ? "1" : "0";
+  const key = zAxisOffsetOnly ? "1" : "0";
   let cache = tracePointPositionCache.get(entry);
-  if (!cache) {
-    cache = new Map();
-    tracePointPositionCache.set(entry, cache);
-  }
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const pathPositions = buildTracePathPositions(
-    entry.path,
-    entry.objectiveVector,
-    zAxisOffsetOnly,
-  );
-  const sampled =
-    pathPositions.length === 0
-      ? new Float32Array()
-      : new Float32Array(buildTraceSamplePositions(pathPositions));
-  cache.set(cacheKey, sampled);
+  if (!cache) { cache = new Map(); tracePointPositionCache.set(entry, cache); }
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const pathPos = buildTracePathPositions(entry.path, entry.objectiveVector, zAxisOffsetOnly);
+  const sampled = pathPos.length === 0 ? new Float32Array() : new Float32Array(buildTraceSamplePositions(pathPos));
+  cache.set(key, sampled);
   return sampled;
 }
 
-function buildTracePointPositions(
-  state: TracePointsLayerState,
-  mode: ReturnType<typeof useViewportRenderSnapshot>["mode"],
-) {
-  if (
-    !state.traceEnabled ||
-    state.traceBuffer.length === 0 ||
-    !shouldRenderSnapshotMode(mode, state)
-  ) {
+function buildAllTracePointPositions(raw: ReturnType<typeof getState>, mode: "2d" | "3d") {
+  if (!raw.traceEnabled || raw.traceBuffer.length === 0 || !shouldRenderSnapshotMode(mode, raw)) {
     return new Float32Array();
   }
-
-  const chunks = state.traceBuffer
-    .map((entry) => getCachedTracePointPositions(entry, state.zAxisOffsetOnly))
-    .filter((chunk) => chunk.length > 0);
-
-  if (chunks.length === 0) {
-    return new Float32Array();
-  }
-
-  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const positions = new Float32Array(totalLength);
+  const chunks = raw.traceBuffer
+    .map((entry) => getCachedTracePointPositions(entry, raw.zAxisOffsetOnly))
+    .filter((c) => c.length > 0);
+  if (chunks.length === 0) return new Float32Array();
+  const total = chunks.reduce((s, c) => s + c.length, 0);
+  const out = new Float32Array(total);
   let offset = 0;
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i]!;
-    positions.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return positions;
+  for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length; }
+  return out;
 }
 
+type PrevState = {
+  traceEnabled: boolean;
+  traceBuffer: State["traceBuffer"];
+  zAxisOffsetOnly: boolean;
+  is3DMode: boolean;
+  isTransitioning3D: boolean;
+  mode: string;
+};
+
 export function TracePointsLayer() {
-  const snapshot = useViewportRenderSnapshot();
-  const traceState = useLpvizStore(selectTracePointsLayerState, shallowEqual);
-  const zScale = useLpvizStore(selectTraceZScale);
-  const positions = useMemo(
-    () => buildTracePointPositions(traceState, snapshot.mode),
-    [traceState, snapshot.mode],
-  );
+  const { group, pts } = useMemo(() => {
+    const mat = new PointsMaterial({
+      color: TRACE_COLOR,
+      size: TRACE_POINT_PIXEL_SIZE,
+      sizeAttenuation: false,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      alphaMap: SHARED_CIRCLE_TEXTURE,
+      alphaTest: 0.2,
+    });
+    const pts = new Points(makePointsGeo(), mat);
+    pts.renderOrder = TRACE_POINTS_RENDER_ORDER;
+    pts.frustumCulled = false;
+    const group = new Group();
+    group.add(pts);
+    return { group, pts };
+  }, []);
 
-  if (positions.length === 0) {
-    return null;
-  }
+  const prevRef = useRef<PrevState | null>(null);
 
-  const is3D = snapshot.mode === "3d";
+  useFrame(() => {
+    const raw = getState();
+    const snap = getViewportRenderSnapshot();
+    const is3D = snap.mode === "3d";
 
-  return (
-    <group scale-z={zScale / 100} position-z={is3D ? 0 : TRACE_Z_OFFSET}>
-      <points renderOrder={TRACE_POINTS_RENDER_ORDER} frustumCulled={false}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-        </bufferGeometry>
-        <pointsMaterial
-          color={TRACE_COLOR}
-          size={TRACE_POINT_PIXEL_SIZE}
-          sizeAttenuation={false}
-          transparent
-          depthTest={false}
-          depthWrite={false}
-          alphaMap={SHARED_CIRCLE_TEXTURE}
-          alphaTest={0.2}
-        />
-      </points>
-    </group>
-  );
+    group.scale.z = raw.zScale / 100;
+    group.position.z = is3D ? 0 : TRACE_Z_OFFSET;
+
+    const p = prevRef.current;
+    if (
+      p &&
+      p.traceEnabled      === raw.traceEnabled &&
+      p.traceBuffer       === raw.traceBuffer &&
+      p.zAxisOffsetOnly   === raw.zAxisOffsetOnly &&
+      p.is3DMode          === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode              === snap.mode
+    ) {
+      return;
+    }
+    prevRef.current = {
+      traceEnabled: raw.traceEnabled,
+      traceBuffer: raw.traceBuffer,
+      zAxisOffsetOnly: raw.zAxisOffsetOnly,
+      is3DMode: raw.is3DMode,
+      isTransitioning3D: raw.isTransitioning3D,
+      mode: snap.mode,
+    };
+
+    const positions = buildAllTracePointPositions(raw, snap.mode);
+    group.visible = positions.length > 0;
+    if (positions.length > 0) {
+      pts.geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    }
+  });
+
+  useEffect(() => {
+    return () => {
+      (pts.material as PointsMaterial).dispose();
+      pts.geometry.dispose();
+    };
+  }, [pts]);
+
+  return <primitive object={group} />;
 }

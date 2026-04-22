@@ -1,15 +1,18 @@
-import { useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { Group } from "three";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
-import { useLpvizStore } from "@/features/core/store";
+import { getState } from "@/features/core/store";
 import type { State } from "@/features/core/store";
-import { useViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
+import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { RENDER_ORDER } from "./renderOrder";
-import { shallowEqual } from "./shallowEqual";
 import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { ThickLineSegments } from "./ThickLineSegments";
+import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";
@@ -20,7 +23,19 @@ const OBJECTIVE_HEAD_LENGTH_PX = 16;
 const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
 
-type ObjectiveLayerState = {
+const objMat2DGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const objMat2DRed   = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const objMat3DGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: 1 });
+const objMat3DRed   = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: 1 });
+
+function buildArrowHeadSegments(tip: PointXY, angle: number, length: number): [number, number, number, number][] {
+  return [ARROW_HALF_ANGLE, -ARROW_HALF_ANGLE].map((offset) => {
+    const a = angle + offset;
+    return [tip.x, tip.y, tip.x - length * Math.cos(a), tip.y - length * Math.sin(a)] as [number, number, number, number];
+  });
+}
+
+type PrevState = {
   objectiveHidden: boolean;
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -29,126 +44,101 @@ type ObjectiveLayerState = {
   tourActive: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
+  mode: string;
+  unitsPerPixel: number;
 };
 
-const selectObjectiveLayerState = (state: State): ObjectiveLayerState => ({
-  objectiveHidden: state.objectiveHidden,
-  objectiveVector: state.objectiveVector,
-  currentObjective: state.currentObjective,
-  completionMode: state.completionMode,
-  polytope: state.polytope,
-  tourActive: state.tourActive,
-  is3DMode: state.is3DMode,
-  isTransitioning3D: state.isTransitioning3D,
-});
-
-function buildArrowHeadSegments(
-  tip: PointXY,
-  angle: number,
-  length: number,
-): Array<[number, number, number, number]> {
-  return [ARROW_HALF_ANGLE, -ARROW_HALF_ANGLE].map((offset) => {
-    const targetAngle = angle + offset;
-    const x2 = tip.x - length * Math.cos(targetAngle);
-    const y2 = tip.y - length * Math.sin(targetAngle);
-    return [tip.x, tip.y, x2, y2];
-  });
-}
-
-function getWorldSizeFromPixels(
-  snapshot: ReturnType<typeof useViewportRenderSnapshot>,
-  pixels: number,
-) {
-  return pixels * snapshot.unitsPerPixel;
-}
-
-function buildObjectiveGeometry(
-  state: ObjectiveLayerState,
-  snapshot: ReturnType<typeof useViewportRenderSnapshot>,
-) {
-  if (
-    state.objectiveHidden ||
-    !shouldRenderSnapshotMode(snapshot.mode, state)
-  ) {
-    return {
-      positions: new Float32Array(),
-      color: OBJECTIVE_COLOR,
-    };
-  }
-
-  const target =
-    state.objectiveVector ||
-    (state.completionMode !== "draft" &&
-    state.currentObjective &&
-    !state.tourActive
-      ? state.currentObjective
-      : null);
-  if (!target || Math.hypot(target.x, target.y) < OBJECTIVE_EPSILON) {
-    return {
-      positions: new Float32Array(),
-      color: OBJECTIVE_COLOR,
-    };
-  }
-
-  const objectiveZ = snapshot.mode === "2d" ? OBJECTIVE_Z : 0;
-  const positions = [0, 0, objectiveZ, target.x, target.y, objectiveZ];
-  const angle = Math.atan2(target.y, target.x);
-  const headLength = getWorldSizeFromPixels(snapshot, OBJECTIVE_HEAD_LENGTH_PX);
-  buildArrowHeadSegments(target, angle, headLength).forEach(
-    ([x1, y1, x2, y2]) => {
-      positions.push(x1, y1, objectiveZ, x2, y2, objectiveZ);
-    },
-  );
-
-  const color =
-    state.polytope?.kind === "unbounded" &&
-    hasPolytopeLines(state.polytope) &&
-    isObjectiveDirectionUnbounded(state.polytope.lines, [target.x, target.y])
-      ? OBJECTIVE_UNBOUNDED_COLOR
-      : OBJECTIVE_COLOR;
-
-  return {
-    positions: new Float32Array(positions),
-    color,
-  };
-}
-
 export function ObjectiveLayer() {
-  const snapshot = useViewportRenderSnapshot();
-  const objectiveState = useLpvizStore(
-    selectObjectiveLayerState,
-    shallowEqual,
-  );
-  const geometry = useMemo(
-    () => buildObjectiveGeometry(objectiveState, snapshot),
-    [
-      objectiveState.objectiveHidden,
-      objectiveState.objectiveVector,
-      objectiveState.currentObjective,
-      objectiveState.completionMode,
-      objectiveState.polytope?.kind,
-      objectiveState.tourActive,
-      snapshot.mode,
-      snapshot.unitsPerPixel,
-      snapshot.height,
-    ],
-  );
+  const { group, objGeo, objSegs } = useMemo(() => {
+    const objGeo = new LineSegmentsGeometry();
+    applyHugeBounds(objGeo);
+    const objSegs = new LineSegments2(objGeo, objMat2DGreen);
+    objSegs.renderOrder = OBJECTIVE_RENDER_ORDER;
+    objSegs.frustumCulled = false;
+    objSegs.visible = false;
+    const group = new Group();
+    group.add(objSegs);
+    return { group, objGeo, objSegs };
+  }, []);
 
-  if (geometry.positions.length === 0) {
-    return null;
-  }
+  const prevRef = useRef<PrevState | null>(null);
 
-  const is3D = snapshot.mode === "3d";
+  useFrame(() => {
+    const raw = getState();
+    const snap = getViewportRenderSnapshot();
 
-  return (
-    <ThickLineSegments
-      positions={geometry.positions}
-      color={geometry.color}
-      width={OBJECTIVE_LINE_THICKNESS}
-      renderOrder={OBJECTIVE_RENDER_ORDER}
-      depthTest={is3D}
-      depthWrite={is3D}
-      transparent
-    />
-  );
+    const p = prevRef.current;
+    if (
+      p &&
+      p.objectiveHidden    === raw.objectiveHidden &&
+      p.objectiveVector    === raw.objectiveVector &&
+      p.currentObjective   === raw.currentObjective &&
+      p.completionMode     === raw.completionMode &&
+      p.polytope           === raw.polytope &&
+      p.tourActive         === raw.tourActive &&
+      p.is3DMode           === raw.is3DMode &&
+      p.isTransitioning3D  === raw.isTransitioning3D &&
+      p.mode               === snap.mode &&
+      p.unitsPerPixel      === snap.unitsPerPixel
+    ) {
+      return;
+    }
+    prevRef.current = {
+      objectiveHidden: raw.objectiveHidden,
+      objectiveVector: raw.objectiveVector,
+      currentObjective: raw.currentObjective,
+      completionMode: raw.completionMode,
+      polytope: raw.polytope,
+      tourActive: raw.tourActive,
+      is3DMode: raw.is3DMode,
+      isTransitioning3D: raw.isTransitioning3D,
+      mode: snap.mode,
+      unitsPerPixel: snap.unitsPerPixel,
+    };
+
+    if (raw.objectiveHidden || !shouldRenderSnapshotMode(snap.mode, raw)) {
+      objSegs.visible = false;
+      return;
+    }
+
+    const target =
+      raw.objectiveVector ||
+      (raw.completionMode !== "draft" && raw.currentObjective && !raw.tourActive
+        ? raw.currentObjective
+        : null);
+
+    if (!target || Math.hypot(target.x, target.y) < OBJECTIVE_EPSILON) {
+      objSegs.visible = false;
+      return;
+    }
+
+    const is3D = snap.mode === "3d";
+    const objectiveZ = is3D ? 0 : OBJECTIVE_Z;
+    const headLength = OBJECTIVE_HEAD_LENGTH_PX * snap.unitsPerPixel;
+    const angle = Math.atan2(target.y, target.x);
+
+    const positions: number[] = [0, 0, objectiveZ, target.x, target.y, objectiveZ];
+    for (const [x1, y1, x2, y2] of buildArrowHeadSegments(target, angle, headLength)) {
+      positions.push(x1, y1, objectiveZ, x2, y2, objectiveZ);
+    }
+
+    objGeo.setPositions(positions);
+    delete (objGeo as any)._maxInstanceCount;
+
+    const isUnbounded =
+      raw.polytope?.kind === "unbounded" &&
+      hasPolytopeLines(raw.polytope) &&
+      isObjectiveDirectionUnbounded(raw.polytope.lines, [target.x, target.y]);
+
+    objSegs.material = is3D
+      ? (isUnbounded ? objMat3DRed : objMat3DGreen)
+      : (isUnbounded ? objMat2DRed : objMat2DGreen);
+    objSegs.visible = true;
+  });
+
+  useEffect(() => {
+    return () => { objGeo.dispose(); };
+  }, [objGeo]);
+
+  return <primitive object={group} />;
 }

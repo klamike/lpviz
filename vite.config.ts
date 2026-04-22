@@ -33,28 +33,23 @@ export default defineConfig(({ mode }) => ({
     }),
     svgr(),
   ],
-  // Exclude r3f from pre-bundling in dev so Vite serves the ESM files directly.
-  // The pre-bundler (esbuild) would merge r3f + React reconciler + zustand etc.
-  // into one huge chunk whose source-map offsets don't match the original files,
-  // making the profiler useless. Serving the files un-bundled gives accurate
-  // per-file source positions.
-  optimizeDeps:
-    mode !== "production"
-      ? {
-          exclude: ["@react-three/fiber"],
-          // r3f is served directly (excluded above), so Vite won't scan its
-          // imports at startup. Its CJS transitive deps must be listed here so
-          // esbuild pre-bundles them into browser-compatible ESM; otherwise the
-          // browser chokes on bare `require()` / missing `default` exports.
-          include: [
-            "suspend-react",
-            "scheduler",
-            "use-sync-external-store/shim/with-selector",
-          ],
-        }
-      : undefined,
   resolve: {
     alias: [
+      // In dev, alias r3f to its CJS dev build so the profiler shows the full
+      // un-minified source with readable names. The CJS build is pre-bundled
+      // by esbuild (unlike the ESM build), so all its transitive CJS deps get
+      // rewritten to ESM correctly — no missing `default` export errors.
+      ...(mode !== "production"
+        ? [
+            {
+              find: "@react-three/fiber",
+              replacement: resolve(
+                __dirname,
+                "node_modules/@react-three/fiber/dist/react-three-fiber.cjs.dev.js",
+              ),
+            },
+          ]
+        : []),
       {
         find: "@",
         replacement: resolve(__dirname, "apps/web/src"),
