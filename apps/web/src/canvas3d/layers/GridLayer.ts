@@ -1,5 +1,3 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import {
   BufferAttribute,
   BufferGeometry,
@@ -7,9 +5,9 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from "three";
-
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
-import { RENDER_ORDER } from "./renderOrder";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
+import { RENDER_ORDER } from "../helpers/renderOrder";
 
 const GRID_MARGIN_PX = 100;
 const GRID_OVERDRAW_UNITS = 5;
@@ -23,7 +21,9 @@ type GridBounds = {
   maxY: number;
 };
 
-function getQuantizedGridBounds(snap: ReturnType<typeof getViewportRenderSnapshot>): GridBounds {
+function getQuantizedGridBounds(
+  snap: ReturnType<SceneContext["getSnapshot"]>,
+): GridBounds {
   if (snap.mode === "2d") {
     const halfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
     const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
@@ -44,8 +44,13 @@ function setLineSegmentsPositions(geo: BufferGeometry, positions: Float32Array) 
   geo.setAttribute("position", new BufferAttribute(positions, 3));
 }
 
-export function GridLayer() {
-  const { group, gridGeo, axisGeo } = useMemo(() => {
+export class GridLayer implements Layer {
+  readonly object3D: Group;
+  private gridGeo: BufferGeometry;
+  private axisGeo: BufferGeometry;
+  private prevBounds: GridBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+  constructor() {
     const gGeo = new BufferGeometry();
     const aGeo = new BufferGeometry();
     const gridLines = new LineSegments(gGeo, new LineBasicMaterial({ color: GRID_COLOR }));
@@ -56,20 +61,20 @@ export function GridLayer() {
     axisLines.frustumCulled = false;
     const g = new Group();
     g.add(gridLines, axisLines);
-    return { group: g, gridGeo: gGeo, axisGeo: aGeo };
-  }, []);
+    this.object3D = g;
+    this.gridGeo = gGeo;
+    this.axisGeo = aGeo;
+  }
 
-  const prevBounds = useRef<GridBounds>({ minX: 0, maxX: 0, minY: 0, maxY: 0 });
-
-  useFrame(() => {
-    const snap = getViewportRenderSnapshot();
+  update(ctx: SceneContext): void {
+    const snap = ctx.getSnapshot();
     const b = getQuantizedGridBounds(snap);
-    const p = prevBounds.current;
+    const p = this.prevBounds;
 
     if (b.minX === p.minX && b.maxX === p.maxX && b.minY === p.minY && b.maxY === p.maxY) {
       return;
     }
-    prevBounds.current = b;
+    this.prevBounds = b;
 
     const { minX, maxX, minY, maxY } = b;
     const gridPositions: number[] = [];
@@ -80,19 +85,15 @@ export function GridLayer() {
       gridPositions.push(minX, y, 0, maxX, y, 0);
     }
 
-    setLineSegmentsPositions(gridGeo, new Float32Array(gridPositions));
+    setLineSegmentsPositions(this.gridGeo, new Float32Array(gridPositions));
     setLineSegmentsPositions(
-      axisGeo,
+      this.axisGeo,
       new Float32Array([0, minY, 0, 0, maxY, 0, minX, 0, 0, maxX, 0, 0]),
     );
-  });
+  }
 
-  useEffect(() => {
-    return () => {
-      gridGeo.dispose();
-      axisGeo.dispose();
-    };
-  }, [gridGeo, axisGeo]);
-
-  return <primitive object={group} />;
+  dispose(): void {
+    this.gridGeo.dispose();
+    this.axisGeo.dispose();
+  }
 }

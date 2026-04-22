@@ -1,5 +1,3 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import {
   Box3,
   BufferAttribute,
@@ -10,14 +8,14 @@ import {
   Sphere,
   Vector3,
 } from "three";
-
-import { getState, MAX_TRACE_POINT_SPRITES } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
+import { MAX_TRACE_POINT_SPRITES } from "@/features/core/store";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;
@@ -58,7 +56,7 @@ function buildTracePathPositions(
   const positions = new Float32Array(path.length * 3);
   for (let i = 0; i < path.length; i++) {
     const entry = path[i]!;
-    positions[i * 3]     = entry[0]!;
+    positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
     positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly);
   }
@@ -102,7 +100,7 @@ function getCachedTracePointPositions(
   return sampled;
 }
 
-function buildAllTracePointPositions(raw: ReturnType<typeof getState>, mode: "2d" | "3d") {
+function buildAllTracePointPositions(raw: State, mode: "2d" | "3d") {
   if (!raw.traceEnabled || raw.traceBuffer.length === 0 || !shouldRenderSnapshotMode(mode, raw)) {
     return new Float32Array();
   }
@@ -126,8 +124,12 @@ type PrevState = {
   mode: string;
 };
 
-export function TracePointsLayer() {
-  const { group, pts } = useMemo(() => {
+export class TracePointsLayer implements Layer {
+  readonly object3D: Group;
+  private pts: Points;
+  private prev: PrevState | null = null;
+
+  constructor() {
     const mat = new PointsMaterial({
       color: TRACE_COLOR,
       size: TRACE_POINT_PIXEL_SIZE,
@@ -143,32 +145,31 @@ export function TracePointsLayer() {
     pts.frustumCulled = false;
     const group = new Group();
     group.add(pts);
-    return { group, pts };
-  }, []);
+    this.object3D = group;
+    this.pts = pts;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
-
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
     const is3D = snap.mode === "3d";
 
-    group.scale.z = raw.zScale / 100;
-    group.position.z = is3D ? 0 : TRACE_Z_OFFSET;
+    this.object3D.scale.z = raw.zScale / 100;
+    this.object3D.position.z = is3D ? 0 : TRACE_Z_OFFSET;
 
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
-      p.traceEnabled      === raw.traceEnabled &&
-      p.traceBuffer       === raw.traceBuffer &&
-      p.zAxisOffsetOnly   === raw.zAxisOffsetOnly &&
-      p.is3DMode          === raw.is3DMode &&
+      p.traceEnabled === raw.traceEnabled &&
+      p.traceBuffer === raw.traceBuffer &&
+      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
+      p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode              === snap.mode
+      p.mode === snap.mode
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       traceEnabled: raw.traceEnabled,
       traceBuffer: raw.traceBuffer,
       zAxisOffsetOnly: raw.zAxisOffsetOnly,
@@ -178,18 +179,14 @@ export function TracePointsLayer() {
     };
 
     const positions = buildAllTracePointPositions(raw, snap.mode);
-    group.visible = positions.length > 0;
+    this.object3D.visible = positions.length > 0;
     if (positions.length > 0) {
-      pts.geometry.setAttribute("position", new BufferAttribute(positions, 3));
+      this.pts.geometry.setAttribute("position", new BufferAttribute(positions, 3));
     }
-  });
+  }
 
-  useEffect(() => {
-    return () => {
-      (pts.material as PointsMaterial).dispose();
-      pts.geometry.dispose();
-    };
-  }, [pts]);
-
-  return <primitive object={group} />;
+  dispose(): void {
+    (this.pts.material as PointsMaterial).dispose();
+    this.pts.geometry.dispose();
+  }
 }

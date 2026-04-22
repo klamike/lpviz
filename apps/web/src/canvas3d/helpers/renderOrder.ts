@@ -1,10 +1,10 @@
 /**
- * Global render-order buckets for the R3F single-scene renderer.
+ * Global render-order buckets for the single-scene renderer.
  *
  * The old viewport used multiple scenes rendered in this order:
  *   background -> transparent(fill) -> foreground -> vertices -> traceLines -> trace -> overlay
  *
- * In the R3F migration everything lives in one scene, so we need renderOrder
+ * Everything lives in one scene, so we need renderOrder
  * values that encode those former scene passes globally.
  */
 

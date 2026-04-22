@@ -1,5 +1,3 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import {
   Box3,
   BufferAttribute,
@@ -10,14 +8,13 @@ import {
   Sphere,
   Vector3,
 } from "three";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { SHARED_CIRCLE_TEXTURE, SHARED_SQUARE_TEXTURE } from "./sharedTextures";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { SHARED_CIRCLE_TEXTURE, SHARED_SQUARE_TEXTURE } from "../helpers/sharedTextures";
 
 const VERTEX_COLOR = "#ff0000";
 const OPEN_ANCHOR_COLOR = "#ff0000";
@@ -91,8 +88,13 @@ type PrevState = {
   mode: string;
 };
 
-export function PolytopeVerticesLayer() {
-  const { group, circlePoints, squarePoints } = useMemo(() => {
+export class PolytopeVerticesLayer implements Layer {
+  readonly object3D: Group;
+  private circlePoints: Points;
+  private squarePoints: Points;
+  private prev: PrevState | null = null;
+
+  constructor() {
     const circleMat = new PointsMaterial({
       color: VERTEX_COLOR,
       size: VERTEX_PIXEL_SIZE,
@@ -121,20 +123,20 @@ export function PolytopeVerticesLayer() {
     sPts.frustumCulled = false;
     const g = new Group();
     g.add(cPts, sPts);
-    return { group: g, circlePoints: cPts, squarePoints: sPts };
-  }, []);
+    this.object3D = g;
+    this.circlePoints = cPts;
+    this.squarePoints = sPts;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
-
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
     const visible = raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
-    group.visible = visible;
+    this.object3D.visible = visible;
     if (!visible) return;
 
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
       p.vertices === raw.vertices &&
@@ -149,7 +151,7 @@ export function PolytopeVerticesLayer() {
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       vertices: raw.vertices,
       completionMode: raw.completionMode,
       polytope: raw.polytope,
@@ -172,25 +174,21 @@ export function PolytopeVerticesLayer() {
     const is3D = snap.mode === "3d";
 
     applyPositions(
-      circlePoints,
+      this.circlePoints,
       buildVertexPositions(displayVertices, "circle", raw.completionMode, hasDerived,
         raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D),
     );
     applyPositions(
-      squarePoints,
+      this.squarePoints,
       buildVertexPositions(displayVertices, "square", raw.completionMode, hasDerived,
         raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D),
     );
-  });
+  }
 
-  useEffect(() => {
-    return () => {
-      (circlePoints.material as PointsMaterial).dispose();
-      (squarePoints.material as PointsMaterial).dispose();
-      circlePoints.geometry.dispose();
-      squarePoints.geometry.dispose();
-    };
-  }, [circlePoints, squarePoints]);
-
-  return <primitive object={group} />;
+  dispose(): void {
+    (this.circlePoints.material as PointsMaterial).dispose();
+    (this.squarePoints.material as PointsMaterial).dispose();
+    this.circlePoints.geometry.dispose();
+    this.squarePoints.geometry.dispose();
+  }
 }

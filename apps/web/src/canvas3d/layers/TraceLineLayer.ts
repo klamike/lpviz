@@ -1,16 +1,13 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import { Group } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_Z_OFFSET = 0.02;
@@ -18,9 +15,8 @@ const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 const TRACE_LINE_THICKNESS = 2;
 
-// zScale is applied as group.scale.z — positions store raw z values.
 const traceMat2D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: TRACE_OPACITY });
-const traceMat3D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: TRACE_OPACITY });
+const traceMat3D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: TRACE_OPACITY });
 
 function getDisplayedTraceZ(
   entry: number[],
@@ -43,7 +39,7 @@ function buildTraceLinePositions(
   const positions = new Float32Array(path.length * 3);
   for (let i = 0; i < path.length; i++) {
     const entry = path[i]!;
-    positions[i * 3]     = entry[0]!;
+    positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
     positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly);
   }
@@ -83,33 +79,37 @@ type PrevState = {
   mode: string;
 };
 
-export function TraceLineLayer() {
-  const group = useMemo(() => new Group(), []);
-  const poolRef = useRef<Line2[]>([]);
-  const lastPositionsRef = useRef<(Float32Array | null)[]>([]);
-  const prevRef = useRef<PrevState | null>(null);
+export class TraceLineLayer implements Layer {
+  readonly object3D: Group;
+  private pool: Line2[] = [];
+  private lastPositions: (Float32Array | null)[] = [];
+  private prev: PrevState | null = null;
 
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
+  constructor() {
+    this.object3D = new Group();
+  }
+
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
     const is3D = snap.mode === "3d";
 
-    group.scale.z = raw.zScale / 100;
-    group.position.z = is3D ? 0 : TRACE_Z_OFFSET;
+    this.object3D.scale.z = raw.zScale / 100;
+    this.object3D.position.z = is3D ? 0 : TRACE_Z_OFFSET;
 
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
-      p.traceEnabled      === raw.traceEnabled &&
-      p.traceBuffer       === raw.traceBuffer &&
-      p.zAxisOffsetOnly   === raw.zAxisOffsetOnly &&
-      p.is3DMode          === raw.is3DMode &&
+      p.traceEnabled === raw.traceEnabled &&
+      p.traceBuffer === raw.traceBuffer &&
+      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
+      p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode              === snap.mode
+      p.mode === snap.mode
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       traceEnabled: raw.traceEnabled,
       traceBuffer: raw.traceBuffer,
       zAxisOffsetOnly: raw.zAxisOffsetOnly,
@@ -120,12 +120,11 @@ export function TraceLineLayer() {
 
     const shouldShow = raw.traceEnabled && raw.traceBuffer.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
     if (!shouldShow) {
-      group.visible = false;
-      for (const ln of poolRef.current) ln.visible = false;
+      this.object3D.visible = false;
+      for (const ln of this.pool) ln.visible = false;
       return;
     }
 
-    // Collect active line positions from cache
     const linePositions: Float32Array[] = [];
     for (const entry of raw.traceBuffer) {
       const pos = getCachedTraceLinePositions(entry, raw.zAxisOffsetOnly);
@@ -133,47 +132,40 @@ export function TraceLineLayer() {
     }
 
     if (linePositions.length === 0) {
-      group.visible = false;
-      for (const ln of poolRef.current) ln.visible = false;
+      this.object3D.visible = false;
+      for (const ln of this.pool) ln.visible = false;
       return;
     }
 
     const mat = is3D ? traceMat3D : traceMat2D;
-    const pool = poolRef.current;
-    const lastPositions = lastPositionsRef.current;
 
-    while (pool.length < linePositions.length) {
-      pool.push(makeLine2(mat, group));
-      lastPositions.push(null);
+    while (this.pool.length < linePositions.length) {
+      this.pool.push(makeLine2(mat, this.object3D));
+      this.lastPositions.push(null);
     }
 
     for (let i = 0; i < linePositions.length; i++) {
-      const ln = pool[i]!;
+      const ln = this.pool[i]!;
       const newPos = linePositions[i]!;
-      // getCachedTraceLinePositions returns the same Float32Array reference for
-      // unchanged entries — skip setPositions (O(N) interleaved buffer rebuild)
-      // when the positions array hasn't changed.
-      if (lastPositions[i] !== newPos) {
+      if (this.lastPositions[i] !== newPos) {
         const geo = ln.geometry as LineGeometry;
         geo.setPositions(newPos);
         delete (geo as any)._maxInstanceCount;
-        lastPositions[i] = newPos;
+        this.lastPositions[i] = newPos;
       }
       ln.material = mat;
       ln.visible = true;
     }
-    for (let i = linePositions.length; i < pool.length; i++) {
-      pool[i]!.visible = false;
+    for (let i = linePositions.length; i < this.pool.length; i++) {
+      this.pool[i]!.visible = false;
     }
 
-    group.visible = true;
-  });
+    this.object3D.visible = true;
+  }
 
-  useEffect(() => {
-    return () => {
-      for (const ln of poolRef.current) ln.geometry.dispose();
-    };
-  }, []);
-
-  return <primitive object={group} />;
+  dispose(): void {
+    for (const ln of this.pool) ln.geometry.dispose();
+    this.pool = [];
+    this.lastPositions = [];
+  }
 }

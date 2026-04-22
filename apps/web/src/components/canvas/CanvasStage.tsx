@@ -5,9 +5,9 @@ import {
   areCanvasControlsUiStatesEqual,
   selectCanvasControlsUiState,
 } from "@/features/core/selectors";
-import type { R3FViewportBridge } from "@/features/viewport/types";
+import type { ViewportBridge } from "@/features/viewport/types";
 
-import { LpvizCanvas } from "./LpvizCanvas";
+import { LpvizCanvasGL } from "./LpvizCanvasGL";
 
 import { useAppActions } from "@/features/core/actions";
 import { useTourActionTarget } from "@/features/tour/TourContext";
@@ -29,7 +29,7 @@ export function CanvasStage({
   );
 
   const handleBridgeReady = useCallback(
-    (bridge: R3FViewportBridge) => {
+    (bridge: ViewportBridge) => {
       setViewportBridge(bridge);
     },
     [setViewportBridge],
@@ -42,7 +42,7 @@ export function CanvasStage({
   return (
     <main className="canvas-stage">
       <div className="canvas-stage__viewport">
-        <LpvizCanvas
+        <LpvizCanvasGL
           onBridgeReady={handleBridgeReady}
           onBridgeDispose={handleBridgeDispose}
         />

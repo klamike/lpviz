@@ -1,5 +1,3 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import {
   Box3,
   BufferAttribute,
@@ -10,14 +8,13 @@ import {
   Sphere,
   Vector3,
 } from "three";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { SHARED_CIRCLE_TEXTURE } from "./sharedTextures";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_POINT_COLOR = "#800080";
 const PHASE_COLORS = [
@@ -66,8 +63,13 @@ type PrevState = {
   mode: string;
 };
 
-export function IteratePointsLayer() {
-  const { pts, matPlain, matColored } = useMemo(() => {
+export class IteratePointsLayer implements Layer {
+  readonly object3D: Points;
+  private matPlain: PointsMaterial;
+  private matColored: PointsMaterial;
+  private prev: PrevState | null = null;
+
+  constructor() {
     const shared = {
       size: ITERATE_POINT_PIXEL_SIZE,
       sizeAttenuation: false,
@@ -77,36 +79,34 @@ export function IteratePointsLayer() {
       alphaMap: SHARED_CIRCLE_TEXTURE,
       alphaTest: 0.2,
     };
-    const matPlain   = new PointsMaterial({ ...shared, color: ITERATE_POINT_COLOR, vertexColors: false });
-    const matColored = new PointsMaterial({ ...shared, color: "#ffffff",           vertexColors: true  });
-    const pts = new Points(makePointsGeo(), matPlain);
+    this.matPlain = new PointsMaterial({ ...shared, color: ITERATE_POINT_COLOR, vertexColors: false });
+    this.matColored = new PointsMaterial({ ...shared, color: "#ffffff", vertexColors: true });
+    const pts = new Points(makePointsGeo(), this.matPlain);
     pts.renderOrder = ITERATE_POINTS_RENDER_ORDER;
     pts.frustumCulled = false;
     pts.visible = false;
-    return { pts, matPlain, matColored };
-  }, []);
+    this.object3D = pts;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
-
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
-      p.iteratePath           === raw.iteratePath &&
-      p.iteratePhases         === raw.iteratePhases &&
+      p.iteratePath === raw.iteratePath &&
+      p.iteratePhases === raw.iteratePhases &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
-      p.zScale                === raw.zScale &&
-      p.zAxisOffsetOnly       === raw.zAxisOffsetOnly &&
-      p.is3DMode              === raw.is3DMode &&
-      p.isTransitioning3D     === raw.isTransitioning3D &&
-      p.mode                  === snap.mode
+      p.zScale === raw.zScale &&
+      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
+      p.is3DMode === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode === snap.mode
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       iteratePath: raw.iteratePath,
       iteratePhases: raw.iteratePhases,
       iterateObjectiveVector: raw.iterateObjectiveVector,
@@ -118,7 +118,7 @@ export function IteratePointsLayer() {
     };
 
     if (raw.iteratePath.length === 0 || !shouldRenderSnapshotMode(snap.mode, raw)) {
-      pts.visible = false;
+      this.object3D.visible = false;
       return;
     }
 
@@ -131,7 +131,7 @@ export function IteratePointsLayer() {
 
     for (let i = 0; i < raw.iteratePath.length; i++) {
       const entry = raw.iteratePath[i]!;
-      positions[i * 3]     = entry[0]!;
+      positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
       positions[i * 3 + 2] = is3D
         ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 + ITERATE_Z
@@ -141,29 +141,25 @@ export function IteratePointsLayer() {
         const isLastPoint = i === raw.iteratePath.length - 1;
         const phase = isLastPoint ? raw.iteratePhases[i]! : raw.iteratePhases[i + 1]!;
         const rgb = PHASE_COLORS_LINEAR[phase % PHASE_COLORS_LINEAR.length]!;
-        colors[i * 3]     = rgb[0];
+        colors[i * 3] = rgb[0];
         colors[i * 3 + 1] = rgb[1];
         colors[i * 3 + 2] = rgb[2];
       }
     }
 
-    pts.geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    this.object3D.geometry.setAttribute("position", new BufferAttribute(positions, 3));
     if (colors) {
-      pts.geometry.setAttribute("color", new BufferAttribute(colors, 3));
-      pts.material = matColored;
+      this.object3D.geometry.setAttribute("color", new BufferAttribute(colors, 3));
+      this.object3D.material = this.matColored;
     } else {
-      pts.material = matPlain;
+      this.object3D.material = this.matPlain;
     }
-    pts.visible = true;
-  });
+    this.object3D.visible = true;
+  }
 
-  useEffect(() => {
-    return () => {
-      matPlain.dispose();
-      matColored.dispose();
-      pts.geometry.dispose();
-    };
-  }, [pts, matPlain, matColored]);
-
-  return <primitive object={pts} />;
+  dispose(): void {
+    this.matPlain.dispose();
+    this.matColored.dispose();
+    this.object3D.geometry.dispose();
+  }
 }

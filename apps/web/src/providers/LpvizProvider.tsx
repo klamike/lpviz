@@ -13,7 +13,7 @@ import { ViewportBridgeSetterContext } from "@/features/viewport/Bridge";
 import { getState } from "@/features/core/store";
 import type { TourActionTarget } from "@/features/tour/types";
 import { createViewportRuntime, type ViewportRuntime } from "@/features/viewport/runtime";
-import { type R3FViewportBridge } from "@/features/viewport/types";
+import { type ViewportBridge } from "@/features/viewport/types";
 
 import { useCanvasInteractions } from "@/features/polytope-editor/interactions/useCanvasInteractions";
 import { useHistory } from "@/features/history/useHistory";
@@ -30,7 +30,7 @@ export function LpvizProvider({
   children,
 }: PropsWithChildren<{ sidebarWidth: number }>) {
   const [viewportBridge, setViewportBridge] =
-    useState<R3FViewportBridge | null>(null);
+    useState<ViewportBridge | null>(null);
   const [canvasManager, setCanvasManager] = useState<ViewportRuntime | null>(
     null,
   );
@@ -185,7 +185,7 @@ export function LpvizProvider({
     [solver, share, viewport, setActiveSolverModeWithSolve],
   );
 
-  const bridgeSetter = useCallback((bridge: R3FViewportBridge | null) => {
+  const bridgeSetter = useCallback((bridge: ViewportBridge | null) => {
     setViewportBridge(bridge);
   }, []);
 

@@ -1,16 +1,13 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import { Group } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 
 const ITERATE_LINE_COLOR = "#800080";
 const PHASE_COLORS = [
@@ -55,7 +52,7 @@ function buildLinePositions(
   const positions = new Float32Array(path.length * 3);
   for (let i = 0; i < path.length; i++) {
     const entry = path[i]!;
-    positions[i * 3]     = entry[0]!;
+    positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
     positions[i * 3 + 2] = getIterateRenderZ(entry, objectiveVector, zScale, zAxisOffsetOnly, is3D);
   }
@@ -64,7 +61,7 @@ function buildLinePositions(
 
 type SegmentEntry = { color: string; positions: Float32Array };
 
-function buildIterateSegments(raw: ReturnType<typeof getState>, is3D: boolean): SegmentEntry[] {
+function buildIterateSegments(raw: State, is3D: boolean): SegmentEntry[] {
   if (raw.iteratePath.length < 2) return [];
 
   const hasPhases =
@@ -105,7 +102,6 @@ function buildIterateSegments(raw: ReturnType<typeof getState>, is3D: boolean): 
 function makeLine2(group: Group): Line2 {
   const geo = new LineGeometry();
   applyHugeBounds(geo);
-  // Borrow any shared material as placeholder; will be replaced in the update loop.
   const ln = new Line2(geo, getSharedLineMaterial({ color: ITERATE_LINE_COLOR, linewidth: ITERATE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 }));
   ln.renderOrder = ITERATE_LINE_RENDER_ORDER;
   ln.frustumCulled = false;
@@ -125,30 +121,34 @@ type PrevState = {
   mode: string;
 };
 
-export function IterateLineLayer() {
-  const group = useMemo(() => new Group(), []);
-  const poolRef = useRef<Line2[]>([]);
-  const prevRef = useRef<PrevState | null>(null);
+export class IterateLineLayer implements Layer {
+  readonly object3D: Group;
+  private pool: Line2[] = [];
+  private prev: PrevState | null = null;
 
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
+  constructor() {
+    this.object3D = new Group();
+  }
 
-    const p = prevRef.current;
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
+
+    const p = this.prev;
     if (
       p &&
-      p.iteratePath           === raw.iteratePath &&
-      p.iteratePhases         === raw.iteratePhases &&
+      p.iteratePath === raw.iteratePath &&
+      p.iteratePhases === raw.iteratePhases &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
-      p.zScale                === raw.zScale &&
-      p.zAxisOffsetOnly       === raw.zAxisOffsetOnly &&
-      p.is3DMode              === raw.is3DMode &&
-      p.isTransitioning3D     === raw.isTransitioning3D &&
-      p.mode                  === snap.mode
+      p.zScale === raw.zScale &&
+      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
+      p.is3DMode === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode === snap.mode
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       iteratePath: raw.iteratePath,
       iteratePhases: raw.iteratePhases,
       iterateObjectiveVector: raw.iterateObjectiveVector,
@@ -160,8 +160,8 @@ export function IterateLineLayer() {
     };
 
     if (raw.iteratePath.length < 2 || !shouldRenderSnapshotMode(snap.mode, raw)) {
-      group.visible = false;
-      for (const ln of poolRef.current) ln.visible = false;
+      this.object3D.visible = false;
+      for (const ln of this.pool) ln.visible = false;
       return;
     }
 
@@ -169,19 +169,18 @@ export function IterateLineLayer() {
     const segments = buildIterateSegments(raw, is3D);
 
     if (segments.length === 0) {
-      group.visible = false;
-      for (const ln of poolRef.current) ln.visible = false;
+      this.object3D.visible = false;
+      for (const ln of this.pool) ln.visible = false;
       return;
     }
 
-    const pool = poolRef.current;
-    while (pool.length < segments.length) {
-      pool.push(makeLine2(group));
+    while (this.pool.length < segments.length) {
+      this.pool.push(makeLine2(this.object3D));
     }
 
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i]!;
-      const ln = pool[i]!;
+      const ln = this.pool[i]!;
       const geo = ln.geometry as LineGeometry;
       geo.setPositions(seg.positions);
       delete (geo as any)._maxInstanceCount;
@@ -194,18 +193,15 @@ export function IterateLineLayer() {
       });
       ln.visible = true;
     }
-    for (let i = segments.length; i < pool.length; i++) {
-      pool[i]!.visible = false;
+    for (let i = segments.length; i < this.pool.length; i++) {
+      this.pool[i]!.visible = false;
     }
 
-    group.visible = true;
-  });
+    this.object3D.visible = true;
+  }
 
-  useEffect(() => {
-    return () => {
-      for (const ln of poolRef.current) ln.geometry.dispose();
-    };
-  }, []);
-
-  return <primitive object={group} />;
+  dispose(): void {
+    for (const ln of this.pool) ln.geometry.dispose();
+    this.pool = [];
+  }
 }

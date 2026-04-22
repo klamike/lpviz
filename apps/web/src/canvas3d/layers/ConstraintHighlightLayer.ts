@@ -1,18 +1,15 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import { Group } from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
 import { projectCanvasPointToWorldPlane } from "@lpviz/viewport/transition";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { Line, PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 
 const CONSTRAINT_COLOR = "#ff0000";
 const CONSTRAINT_RENDER_ORDER = RENDER_ORDER.constraintLines;
@@ -23,11 +20,11 @@ const DEFAULT_3D_EXTENT = 5000;
 const EPS = 1e-10;
 
 const constraintMat2D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const constraintMat3D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: 1 });
+const constraintMat3D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
 
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
 
-function getVisibleBounds(snap: ReturnType<typeof getViewportRenderSnapshot>): Bounds {
+function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): Bounds {
   if (snap.mode === "2d") {
     const halfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
     const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
@@ -80,8 +77,13 @@ type PrevState = {
   width: number; height: number; scaleFactor: number;
 };
 
-export function ConstraintHighlightLayer() {
-  const { group, cGeo, cSegs } = useMemo(() => {
+export class ConstraintHighlightLayer implements Layer {
+  readonly object3D: Group;
+  private cGeo: LineSegmentsGeometry;
+  private cSegs: LineSegments2;
+  private prev: PrevState | null = null;
+
+  constructor() {
     const cGeo = new LineSegmentsGeometry();
     applyHugeBounds(cGeo);
     const cSegs = new LineSegments2(cGeo, constraintMat2D);
@@ -90,38 +92,38 @@ export function ConstraintHighlightLayer() {
     cSegs.visible = false;
     const group = new Group();
     group.add(cSegs);
-    return { group, cGeo, cSegs };
-  }, []);
+    this.object3D = group;
+    this.cGeo = cGeo;
+    this.cSegs = cSegs;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
-
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
-      p.completionMode    === raw.completionMode &&
-      p.highlightIndex    === raw.highlightIndex &&
-      p.polytope          === raw.polytope &&
-      p.is3DMode          === raw.is3DMode &&
+      p.completionMode === raw.completionMode &&
+      p.highlightIndex === raw.highlightIndex &&
+      p.polytope === raw.polytope &&
+      p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode              === snap.mode &&
-      p.orthoLeft         === snap.orthographic.left &&
-      p.orthoRight        === snap.orthographic.right &&
-      p.orthoTop          === snap.orthographic.top &&
-      p.orthoBottom       === snap.orthographic.bottom &&
-      p.targetX           === snap.target.x &&
-      p.targetY           === snap.target.y &&
-      p.unitsPerPixel     === snap.unitsPerPixel &&
-      p.width             === snap.width &&
-      p.height            === snap.height &&
-      p.scaleFactor       === snap.scaleFactor
+      p.mode === snap.mode &&
+      p.orthoLeft === snap.orthographic.left &&
+      p.orthoRight === snap.orthographic.right &&
+      p.orthoTop === snap.orthographic.top &&
+      p.orthoBottom === snap.orthographic.bottom &&
+      p.targetX === snap.target.x &&
+      p.targetY === snap.target.y &&
+      p.unitsPerPixel === snap.unitsPerPixel &&
+      p.width === snap.width &&
+      p.height === snap.height &&
+      p.scaleFactor === snap.scaleFactor
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       completionMode: raw.completionMode,
       highlightIndex: raw.highlightIndex,
       polytope: raw.polytope,
@@ -147,28 +149,32 @@ export function ConstraintHighlightLayer() {
       !hasPolytopeLines(raw.polytope) ||
       !shouldRenderSnapshotMode(snap.mode, raw)
     ) {
-      cSegs.visible = false;
+      this.cSegs.visible = false;
       return;
     }
 
     const line = raw.polytope.lines[raw.highlightIndex];
-    if (!line) { cSegs.visible = false; return; }
+    if (!line) {
+      this.cSegs.visible = false;
+      return;
+    }
 
     const clipped = clipLineToBounds(line, getVisibleBounds(snap));
-    if (!clipped) { cSegs.visible = false; return; }
+    if (!clipped) {
+      this.cSegs.visible = false;
+      return;
+    }
 
     const [start, end] = clipped;
-    cGeo.setPositions([start.x, start.y, 0, end.x, end.y, 0]);
-    delete (cGeo as any)._maxInstanceCount;
+    this.cGeo.setPositions([start.x, start.y, 0, end.x, end.y, 0]);
+    delete (this.cGeo as any)._maxInstanceCount;
 
     const is3D = snap.mode === "3d";
-    cSegs.material = is3D ? constraintMat3D : constraintMat2D;
-    cSegs.visible = true;
-  });
+    this.cSegs.material = is3D ? constraintMat3D : constraintMat2D;
+    this.cSegs.visible = true;
+  }
 
-  useEffect(() => {
-    return () => { cGeo.dispose(); };
-  }, [cGeo]);
-
-  return <primitive object={group} />;
+  dispose(): void {
+    this.cGeo.dispose();
+  }
 }

@@ -1,5 +1,3 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import {
   Box3,
   BufferAttribute,
@@ -9,14 +7,13 @@ import {
   Sphere,
   Vector3,
 } from "three";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { SHARED_STAR_TEXTURE } from "./sharedTextures";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { SHARED_STAR_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_STAR_COLOR = "#008000";
 const ITERATE_STAR_Z = 0.03;
@@ -58,8 +55,11 @@ type PrevState = {
   mode: string;
 };
 
-export function IterateStarLayer() {
-  const pts = useMemo(() => {
+export class IterateStarLayer implements Layer {
+  readonly object3D: Points;
+  private prev: PrevState | null = null;
+
+  constructor() {
     const mat = new PointsMaterial({
       color: ITERATE_STAR_COLOR,
       size: ITERATE_STAR_PIXEL_SIZE,
@@ -74,29 +74,27 @@ export function IterateStarLayer() {
     p.renderOrder = ITERATE_STAR_RENDER_ORDER;
     p.frustumCulled = false;
     p.visible = false;
-    return p;
-  }, []);
+    this.object3D = p;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
-
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
-      p.iteratePath           === raw.iteratePath &&
+      p.iteratePath === raw.iteratePath &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
-      p.zScale                === raw.zScale &&
-      p.zAxisOffsetOnly       === raw.zAxisOffsetOnly &&
-      p.is3DMode              === raw.is3DMode &&
-      p.isTransitioning3D     === raw.isTransitioning3D &&
-      p.mode                  === snap.mode
+      p.zScale === raw.zScale &&
+      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
+      p.is3DMode === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode === snap.mode
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       iteratePath: raw.iteratePath,
       iterateObjectiveVector: raw.iterateObjectiveVector,
       zScale: raw.zScale,
@@ -108,7 +106,7 @@ export function IterateStarLayer() {
 
     const entry = raw.iteratePath[raw.iteratePath.length - 1];
     if (!entry || !shouldRenderSnapshotMode(snap.mode, raw)) {
-      pts.visible = false;
+      this.object3D.visible = false;
       return;
     }
 
@@ -117,16 +115,12 @@ export function IterateStarLayer() {
       ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 + ITERATE_STAR_Z
       : ITERATE_STAR_Z;
 
-    pts.geometry.setAttribute("position", new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3));
-    pts.visible = true;
-  });
+    this.object3D.geometry.setAttribute("position", new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3));
+    this.object3D.visible = true;
+  }
 
-  useEffect(() => {
-    return () => {
-      (pts.material as PointsMaterial).dispose();
-      pts.geometry.dispose();
-    };
-  }, [pts]);
-
-  return <primitive object={pts} />;
+  dispose(): void {
+    (this.object3D.material as PointsMaterial).dispose();
+    this.object3D.geometry.dispose();
+  }
 }

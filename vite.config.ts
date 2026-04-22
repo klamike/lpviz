@@ -35,21 +35,6 @@ export default defineConfig(({ mode }) => ({
   ],
   resolve: {
     alias: [
-      // In dev, alias r3f to its CJS dev build so the profiler shows the full
-      // un-minified source with readable names. The CJS build is pre-bundled
-      // by esbuild (unlike the ESM build), so all its transitive CJS deps get
-      // rewritten to ESM correctly — no missing `default` export errors.
-      ...(mode !== "production"
-        ? [
-            {
-              find: "@react-three/fiber",
-              replacement: resolve(
-                __dirname,
-                "node_modules/@react-three/fiber/dist/react-three-fiber.cjs.dev.js",
-              ),
-            },
-          ]
-        : []),
       {
         find: "@",
         replacement: resolve(__dirname, "apps/web/src"),

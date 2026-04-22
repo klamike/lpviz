@@ -1,18 +1,15 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import { Group } from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";
@@ -24,9 +21,9 @@ const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
 
 const objMat2DGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const objMat2DRed   = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const objMat3DGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: 1 });
-const objMat3DRed   = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true,  depthWrite: true,  opacity: 1 });
+const objMat2DRed = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const objMat3DGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
+const objMat3DRed = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
 
 function buildArrowHeadSegments(tip: PointXY, angle: number, length: number): [number, number, number, number][] {
   return [ARROW_HALF_ANGLE, -ARROW_HALF_ANGLE].map((offset) => {
@@ -48,8 +45,13 @@ type PrevState = {
   unitsPerPixel: number;
 };
 
-export function ObjectiveLayer() {
-  const { group, objGeo, objSegs } = useMemo(() => {
+export class ObjectiveLayer implements Layer {
+  readonly object3D: Group;
+  private objGeo: LineSegmentsGeometry;
+  private objSegs: LineSegments2;
+  private prev: PrevState | null = null;
+
+  constructor() {
     const objGeo = new LineSegmentsGeometry();
     applyHugeBounds(objGeo);
     const objSegs = new LineSegments2(objGeo, objMat2DGreen);
@@ -58,32 +60,32 @@ export function ObjectiveLayer() {
     objSegs.visible = false;
     const group = new Group();
     group.add(objSegs);
-    return { group, objGeo, objSegs };
-  }, []);
+    this.object3D = group;
+    this.objGeo = objGeo;
+    this.objSegs = objSegs;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
-
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
-      p.objectiveHidden    === raw.objectiveHidden &&
-      p.objectiveVector    === raw.objectiveVector &&
-      p.currentObjective   === raw.currentObjective &&
-      p.completionMode     === raw.completionMode &&
-      p.polytope           === raw.polytope &&
-      p.tourActive         === raw.tourActive &&
-      p.is3DMode           === raw.is3DMode &&
-      p.isTransitioning3D  === raw.isTransitioning3D &&
-      p.mode               === snap.mode &&
-      p.unitsPerPixel      === snap.unitsPerPixel
+      p.objectiveHidden === raw.objectiveHidden &&
+      p.objectiveVector === raw.objectiveVector &&
+      p.currentObjective === raw.currentObjective &&
+      p.completionMode === raw.completionMode &&
+      p.polytope === raw.polytope &&
+      p.tourActive === raw.tourActive &&
+      p.is3DMode === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode === snap.mode &&
+      p.unitsPerPixel === snap.unitsPerPixel
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       objectiveHidden: raw.objectiveHidden,
       objectiveVector: raw.objectiveVector,
       currentObjective: raw.currentObjective,
@@ -97,7 +99,7 @@ export function ObjectiveLayer() {
     };
 
     if (raw.objectiveHidden || !shouldRenderSnapshotMode(snap.mode, raw)) {
-      objSegs.visible = false;
+      this.objSegs.visible = false;
       return;
     }
 
@@ -108,7 +110,7 @@ export function ObjectiveLayer() {
         : null);
 
     if (!target || Math.hypot(target.x, target.y) < OBJECTIVE_EPSILON) {
-      objSegs.visible = false;
+      this.objSegs.visible = false;
       return;
     }
 
@@ -122,23 +124,21 @@ export function ObjectiveLayer() {
       positions.push(x1, y1, objectiveZ, x2, y2, objectiveZ);
     }
 
-    objGeo.setPositions(positions);
-    delete (objGeo as any)._maxInstanceCount;
+    this.objGeo.setPositions(positions);
+    delete (this.objGeo as any)._maxInstanceCount;
 
     const isUnbounded =
       raw.polytope?.kind === "unbounded" &&
       hasPolytopeLines(raw.polytope) &&
       isObjectiveDirectionUnbounded(raw.polytope.lines, [target.x, target.y]);
 
-    objSegs.material = is3D
+    this.objSegs.material = is3D
       ? (isUnbounded ? objMat3DRed : objMat3DGreen)
       : (isUnbounded ? objMat2DRed : objMat2DGreen);
-    objSegs.visible = true;
-  });
+    this.objSegs.visible = true;
+  }
 
-  useEffect(() => {
-    return () => { objGeo.dispose(); };
-  }, [objGeo]);
-
-  return <primitive object={group} />;
+  dispose(): void {
+    this.objGeo.dispose();
+  }
 }

@@ -1,5 +1,3 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
 import {
   Box3,
   BufferAttribute,
@@ -10,14 +8,13 @@ import {
   Sphere,
   Vector3,
 } from "three";
-
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { PointXY } from "@lpviz/math/blas";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { SHARED_SQUARE_TEXTURE } from "./sharedTextures";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { SHARED_SQUARE_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_RESTART_POINT_COLOR = "#800080";
 const PHASE_COLORS = [
@@ -67,8 +64,13 @@ type PrevState = {
   mode: string;
 };
 
-export function IterateRestartPointsLayer() {
-  const { pts, matPlain, matColored } = useMemo(() => {
+export class IterateRestartPointsLayer implements Layer {
+  readonly object3D: Points;
+  private matPlain: PointsMaterial;
+  private matColored: PointsMaterial;
+  private prev: PrevState | null = null;
+
+  constructor() {
     const shared = {
       size: ITERATE_RESTART_POINT_SIZE,
       sizeAttenuation: false,
@@ -78,37 +80,35 @@ export function IterateRestartPointsLayer() {
       alphaMap: SHARED_SQUARE_TEXTURE,
       alphaTest: 0.2,
     };
-    const matPlain   = new PointsMaterial({ ...shared, color: ITERATE_RESTART_POINT_COLOR, vertexColors: false });
-    const matColored = new PointsMaterial({ ...shared, color: "#ffffff",                   vertexColors: true  });
-    const pts = new Points(makePointsGeo(), matPlain);
+    this.matPlain = new PointsMaterial({ ...shared, color: ITERATE_RESTART_POINT_COLOR, vertexColors: false });
+    this.matColored = new PointsMaterial({ ...shared, color: "#ffffff", vertexColors: true });
+    const pts = new Points(makePointsGeo(), this.matPlain);
     pts.renderOrder = ITERATE_RESTART_POINTS_RENDER_ORDER;
     pts.frustumCulled = false;
     pts.visible = false;
-    return { pts, matPlain, matColored };
-  }, []);
+    this.object3D = pts;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
-
-    const p = prevRef.current;
+    const p = this.prev;
     if (
       p &&
-      p.iteratePath            === raw.iteratePath &&
-      p.iteratePhases          === raw.iteratePhases &&
-      p.iterateRestartIndices  === raw.iterateRestartIndices &&
-      p.iterateObjectiveVector  === raw.iterateObjectiveVector &&
-      p.zScale                 === raw.zScale &&
-      p.zAxisOffsetOnly        === raw.zAxisOffsetOnly &&
-      p.is3DMode               === raw.is3DMode &&
-      p.isTransitioning3D      === raw.isTransitioning3D &&
-      p.mode                   === snap.mode
+      p.iteratePath === raw.iteratePath &&
+      p.iteratePhases === raw.iteratePhases &&
+      p.iterateRestartIndices === raw.iterateRestartIndices &&
+      p.iterateObjectiveVector === raw.iterateObjectiveVector &&
+      p.zScale === raw.zScale &&
+      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
+      p.is3DMode === raw.is3DMode &&
+      p.isTransitioning3D === raw.isTransitioning3D &&
+      p.mode === snap.mode
     ) {
       return;
     }
-    prevRef.current = {
+    this.prev = {
       iteratePath: raw.iteratePath,
       iteratePhases: raw.iteratePhases,
       iterateRestartIndices: raw.iterateRestartIndices,
@@ -121,7 +121,7 @@ export function IterateRestartPointsLayer() {
     };
 
     if (!shouldRenderSnapshotMode(snap.mode, raw)) {
-      pts.visible = false;
+      this.object3D.visible = false;
       return;
     }
 
@@ -129,7 +129,7 @@ export function IterateRestartPointsLayer() {
       (idx) => idx >= 0 && idx < raw.iteratePath.length,
     );
     if (visibleRestartIndices.length === 0) {
-      pts.visible = false;
+      this.object3D.visible = false;
       return;
     }
 
@@ -143,7 +143,7 @@ export function IterateRestartPointsLayer() {
     for (let i = 0; i < visibleRestartIndices.length; i++) {
       const restartIndex = visibleRestartIndices[i]!;
       const entry = raw.iteratePath[restartIndex]!;
-      positions[i * 3]     = entry[0]!;
+      positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
       positions[i * 3 + 2] = is3D
         ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 + ITERATE_Z
@@ -151,29 +151,25 @@ export function IterateRestartPointsLayer() {
 
       if (colors) {
         const rgb = PHASE_COLORS_LINEAR[raw.iteratePhases[restartIndex]! % PHASE_COLORS_LINEAR.length]!;
-        colors[i * 3]     = rgb[0];
+        colors[i * 3] = rgb[0];
         colors[i * 3 + 1] = rgb[1];
         colors[i * 3 + 2] = rgb[2];
       }
     }
 
-    pts.geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    this.object3D.geometry.setAttribute("position", new BufferAttribute(positions, 3));
     if (colors) {
-      pts.geometry.setAttribute("color", new BufferAttribute(colors, 3));
-      pts.material = matColored;
+      this.object3D.geometry.setAttribute("color", new BufferAttribute(colors, 3));
+      this.object3D.material = this.matColored;
     } else {
-      pts.material = matPlain;
+      this.object3D.material = this.matPlain;
     }
-    pts.visible = true;
-  });
+    this.object3D.visible = true;
+  }
 
-  useEffect(() => {
-    return () => {
-      matPlain.dispose();
-      matColored.dispose();
-      pts.geometry.dispose();
-    };
-  }, [pts, matPlain, matColored]);
-
-  return <primitive object={pts} />;
+  dispose(): void {
+    this.matPlain.dispose();
+    this.matColored.dispose();
+    this.object3D.geometry.dispose();
+  }
 }

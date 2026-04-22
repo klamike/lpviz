@@ -37,7 +37,7 @@ export function getSharedLineMaterial(opts: LineMaterialKey): LineMaterial {
   return mat;
 }
 
-// Called once per frame by SharedMaterialsRig when canvas size changes.
+// Called once per frame by SharedMaterialsController when canvas size changes.
 let _lastW = 0;
 let _lastH = 0;
 

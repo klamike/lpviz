@@ -13,7 +13,7 @@ import {
   setViewport2DControlsConfig,
   setViewport2DControlsState,
   syncViewport2DControlsStateFromSnapshot,
-} from "./r3f/controls2d";
+} from "./runtime/controls2d";
 import {
   buildViewport2DSnapshot,
   fitViewport2DToBounds,
@@ -24,7 +24,7 @@ import {
 import {
   resetViewport3DControlsConfig,
   setViewport3DControlsConfig,
-} from "./r3f/controls3d";
+} from "./runtime/controls3d";
 import {
   getObjectiveScreenPosition3D,
   toCanvasCoords3D,
@@ -53,14 +53,14 @@ import {
 import {
   resetViewportRenderSnapshot,
   setViewportRenderSnapshot,
-} from "./r3f/snapshot";
+} from "./runtime/snapshot";
 import {
   resetViewportTransitionConfig,
   setViewportTransitionConfig,
-} from "./r3f/transitionConfig";
+} from "./runtime/transitionConfig";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
-  type R3FViewportBridge,
+  type ViewportBridge,
   type ViewportRenderSnapshot,
 } from "./types";
 import {
@@ -127,7 +127,7 @@ export type ViewportRuntime = ViewportApi & {
 export async function createViewportRuntime({
   viewportBridge,
 }: {
-  viewportBridge: R3FViewportBridge;
+  viewportBridge: ViewportBridge;
 }): Promise<ViewportRuntime> {
   let currentSidebarWidth = 0;
   let navigationFrameCallback: (() => void) | null = null;
@@ -455,7 +455,7 @@ export async function createViewportRuntime({
     publishSnapshot(managerSnapshot);
   });
 
-  // Fully external viewport runtime backed by R3F-side state/snapshots.
+  // Fully external viewport runtime backed by canvas-side state/snapshots.
   return {
     draw: () => {
       viewportBridge.invalidate();

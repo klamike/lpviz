@@ -1,5 +1,3 @@
-import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   DoubleSide,
   Float32BufferAttribute,
@@ -9,21 +7,17 @@ import {
   Shape,
   ShapeGeometry,
 } from "three";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-
-import { getCurrentMouse } from "@/features/core/currentMouse";
-import { getState } from "@/features/core/store";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import { getViewportRenderSnapshot } from "@/features/viewport/r3f/snapshot";
 import type { Line, PointXY } from "@lpviz/math/blas";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { VRep } from "@lpviz/polytope/polygon";
-import { RENDER_ORDER } from "./renderOrder";
-import { shouldRenderSnapshotMode } from "./sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "./sharedLineMaterials";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
 const POLYTOPE_HIGHLIGHT_COLOR = "#ff0000";
@@ -36,13 +30,10 @@ const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_UNBOUNDED_EXTENT = 5000;
 const EPS = 1e-10;
 
-// ─── Shared line materials ────────────────────────────────────────────────────
 const normalMat2D = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 const normalMat3D = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
 const highlightMat2D = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 const highlightMat3D = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
-
-// ─── Geometry helpers ─────────────────────────────────────────────────────────
 
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
 
@@ -114,7 +105,7 @@ function clipRayToBounds(
   return [start, candidates[0].point];
 }
 
-function getVisibleBounds(snap: ReturnType<typeof getViewportRenderSnapshot>): Bounds {
+function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): Bounds {
   if (snap.mode !== "2d") {
     return { minX: -DEFAULT_UNBOUNDED_EXTENT, maxX: DEFAULT_UNBOUNDED_EXTENT, minY: -DEFAULT_UNBOUNDED_EXTENT, maxY: DEFAULT_UNBOUNDED_EXTENT };
   }
@@ -146,12 +137,12 @@ type PolytopeRenderResult = {
   isNonconvex: boolean;
   normalSegments: number[];
   highlightSegments: number[];
-  mode: ReturnType<typeof getViewportRenderSnapshot>["mode"];
+  mode: ReturnType<SceneContext["getSnapshot"]>["mode"];
 };
 
 function buildPolytopeGeometry(
   state: State,
-  snap: ReturnType<typeof getViewportRenderSnapshot>,
+  snap: ReturnType<SceneContext["getSnapshot"]>,
 ): PolytopeRenderResult | null {
   if (state.vertices.length === 0 || !shouldRenderSnapshotMode(snap.mode, state)) return null;
 
@@ -219,12 +210,9 @@ function buildPolytopeGeometry(
 function applySegmentsGeometry(geo: LineSegmentsGeometry, segments: number[]) {
   if (segments.length < 6) return false;
   geo.setPositions(segments);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   delete (geo as any)._maxInstanceCount;
   return true;
 }
-
-// ─── PolytopeBaseLayer ────────────────────────────────────────────────────────
 
 type PrevState = {
   vertices: State["vertices"];
@@ -242,8 +230,19 @@ type PrevState = {
   mode: string;
 };
 
-export function PolytopeBaseLayer() {
-  const { group, fillMesh, fillMatNormal, fillMatHighlight, normalEdgesGeo, normalEdges, highlightEdgesGeo, highlightEdges } = useMemo(() => {
+export class PolytopeBaseLayer implements Layer {
+  readonly object3D: Group;
+  private fillMesh: Mesh;
+  private fillMatNormal: MeshBasicMaterial;
+  private fillMatHighlight: MeshBasicMaterial;
+  private normalEdgesGeo: LineSegmentsGeometry;
+  private normalEdges: LineSegments2;
+  private highlightEdgesGeo: LineSegmentsGeometry;
+  private highlightEdges: LineSegments2;
+  private prev: PrevState | null = null;
+  private prevFillGeo: ShapeGeometry | null = null;
+
+  constructor() {
     const fMatN = new MeshBasicMaterial({ color: POLYTOPE_FILL_COLOR, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
     const fMatH = new MeshBasicMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
     const mesh = new Mesh(undefined, fMatN);
@@ -269,21 +268,25 @@ export function PolytopeBaseLayer() {
 
     const g = new Group();
     g.add(mesh, nEdges, hEdges);
-    return { group: g, fillMesh: mesh, fillMatNormal: fMatN, fillMatHighlight: fMatH, normalEdgesGeo: nGeo, normalEdges: nEdges, highlightEdgesGeo: hGeo, highlightEdges: hEdges };
-  }, []);
+    this.object3D = g;
+    this.fillMesh = mesh;
+    this.fillMatNormal = fMatN;
+    this.fillMatHighlight = fMatH;
+    this.normalEdgesGeo = nGeo;
+    this.normalEdges = nEdges;
+    this.highlightEdgesGeo = hGeo;
+    this.highlightEdges = hEdges;
+  }
 
-  const prevRef = useRef<PrevState | null>(null);
-  const prevFillGeoRef = useRef<ShapeGeometry | null>(null);
-
-  useFrame(() => {
-    const raw = getState();
-    const snap = getViewportRenderSnapshot();
+  update(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
     const visible = raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
-    group.visible = visible;
+    this.object3D.visible = visible;
     if (!visible) return;
 
-    const p = prevRef.current;
+    const p = this.prev;
     const is3D = snap.mode === "3d";
     const changed = !p ||
       p.vertices !== raw.vertices ||
@@ -304,14 +307,13 @@ export function PolytopeBaseLayer() {
       p.targetX !== snap.target.x ||
       p.targetY !== snap.target.y;
 
-    // Always keep material in sync with current mode even on no-change frames
-    normalEdges.material = is3D ? normalMat3D : normalMat2D;
-    highlightEdges.material = is3D ? highlightMat3D : highlightMat2D;
-    fillMesh.position.set(0, 0, is3D ? 0 : FILL_Z);
+    this.normalEdges.material = is3D ? normalMat3D : normalMat2D;
+    this.highlightEdges.material = is3D ? highlightMat3D : highlightMat2D;
+    this.fillMesh.position.set(0, 0, is3D ? 0 : FILL_Z);
 
     if (!changed) return;
 
-    prevRef.current = {
+    this.prev = {
       vertices: raw.vertices, completionMode: raw.completionMode,
       highlightIndex: raw.highlightIndex, polytope: raw.polytope,
       objectiveVector: raw.objectiveVector, zScale: raw.zScale,
@@ -325,11 +327,10 @@ export function PolytopeBaseLayer() {
     const result = buildPolytopeGeometry(raw, snap);
 
     if (!result) {
-      group.visible = false;
+      this.object3D.visible = false;
       return;
     }
 
-    // Fill mesh
     if (result.fillVertices.length >= 3) {
       const newFillGeo = new ShapeGeometry(buildShapeFromVertices(result.fillVertices));
       if (is3D) {
@@ -341,125 +342,35 @@ export function PolytopeBaseLayer() {
         newFillGeo.computeBoundingBox();
         newFillGeo.computeBoundingSphere();
       }
-      if (prevFillGeoRef.current) prevFillGeoRef.current.dispose();
-      prevFillGeoRef.current = newFillGeo;
-      fillMesh.geometry = newFillGeo;
-      fillMesh.material = result.isNonconvex ? fillMatHighlight : fillMatNormal;
-      fillMesh.visible = true;
+      if (this.prevFillGeo) this.prevFillGeo.dispose();
+      this.prevFillGeo = newFillGeo;
+      this.fillMesh.geometry = newFillGeo;
+      this.fillMesh.material = result.isNonconvex ? this.fillMatHighlight : this.fillMatNormal;
+      this.fillMesh.visible = true;
     } else {
-      fillMesh.visible = false;
+      this.fillMesh.visible = false;
     }
 
-    // Normal edges
     if (result.normalSegments.length >= 6) {
-      applySegmentsGeometry(normalEdgesGeo, result.normalSegments);
-      normalEdges.visible = true;
+      applySegmentsGeometry(this.normalEdgesGeo, result.normalSegments);
+      this.normalEdges.visible = true;
     } else {
-      normalEdges.visible = false;
+      this.normalEdges.visible = false;
     }
 
-    // Highlight edges
     if (result.highlightSegments.length >= 6) {
-      applySegmentsGeometry(highlightEdgesGeo, result.highlightSegments);
-      highlightEdges.visible = true;
+      applySegmentsGeometry(this.highlightEdgesGeo, result.highlightSegments);
+      this.highlightEdges.visible = true;
     } else {
-      highlightEdges.visible = false;
+      this.highlightEdges.visible = false;
     }
-  });
+  }
 
-  useEffect(() => {
-    return () => {
-      normalEdgesGeo.dispose();
-      highlightEdgesGeo.dispose();
-      fillMatNormal.dispose();
-      fillMatHighlight.dispose();
-      prevFillGeoRef.current?.dispose();
-    };
-  }, [normalEdgesGeo, highlightEdgesGeo, fillMatNormal, fillMatHighlight]);
-
-  return <primitive object={group} />;
-}
-
-// ─── Rubber-band preview line ─────────────────────────────────────────────────
-// Updates imperatively via useFrame — zero React reconciliation per mouse move.
-
-type RubberBandState = {
-  lastVertex: PointXY | null;
-  objectiveVector: PointXY | null;
-  zScale: number;
-  zAxisOffsetOnly: boolean;
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-};
-
-function selectRubberBandState(state: State): RubberBandState {
-  const isDraft = state.completionMode === "draft";
-  const verts = state.vertices;
-  const active = isDraft && !state.tourActive && verts.length >= 1;
-  return {
-    lastVertex: active ? verts[verts.length - 1]! : null,
-    objectiveVector: state.objectiveVector,
-    zScale: state.zScale,
-    zAxisOffsetOnly: state.zAxisOffsetOnly,
-    is3DMode: state.is3DMode,
-    isTransitioning3D: state.isTransitioning3D,
-  };
-}
-
-const RUBBER_BAND_BUF = new Float32Array(6);
-const rbMat = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-
-export function PolytopeRubberBandLayer() {
-  const { line, geometry } = useMemo(() => {
-    const geo = new LineGeometry();
-    geo.setPositions([0, 0, 0, 0, 0, 0]);
-    applyHugeBounds(geo);
-    const ln = new Line2(geo, rbMat);
-    ln.frustumCulled = false;
-    ln.renderOrder = RENDER_ORDER.polyEdges;
-    ln.computeLineDistances = () => ln;
-    ln.visible = false;
-    return { line: ln, geometry: geo };
-  }, []);
-
-  const invalidate = useThree((s) => s.invalidate);
-  const size = useThree((s) => s.size);
-
-  useLayoutEffect(() => {
-    rbMat.resolution.set(size.width, size.height);
-    invalidate();
-  }, [size.width, size.height, invalidate]);
-
-  useFrame(() => {
-    const state = getState();
-    const snap = getViewportRenderSnapshot();
-    const rbState = selectRubberBandState(state);
-
-    if (!rbState.lastVertex || !shouldRenderSnapshotMode(snap.mode, rbState)) {
-      line.visible = false;
-      return;
-    }
-    const mouse = getCurrentMouse();
-    if (!mouse) {
-      line.visible = false;
-      return;
-    }
-
-    const is3D = snap.mode === "3d";
-    const last = rbState.lastVertex;
-    RUBBER_BAND_BUF[0] = last.x;
-    RUBBER_BAND_BUF[1] = last.y;
-    RUBBER_BAND_BUF[2] = getRenderZ(last.x, last.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z);
-    RUBBER_BAND_BUF[3] = mouse.x;
-    RUBBER_BAND_BUF[4] = mouse.y;
-    RUBBER_BAND_BUF[5] = getRenderZ(mouse.x, mouse.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z);
-    geometry.setPositions(RUBBER_BAND_BUF);
-    line.visible = true;
-  });
-
-  useEffect(() => {
-    return () => { geometry.dispose(); };
-  }, [geometry]);
-
-  return <primitive object={line} />;
+  dispose(): void {
+    this.normalEdgesGeo.dispose();
+    this.highlightEdgesGeo.dispose();
+    this.fillMatNormal.dispose();
+    this.fillMatHighlight.dispose();
+    this.prevFillGeo?.dispose();
+  }
 }

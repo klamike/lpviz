@@ -1,4 +1,4 @@
-export type R3FViewportBridge = {
+export type ViewportBridge = {
   getCanvasElement: () => HTMLCanvasElement;
   getCanvasRect: () => DOMRect;
   invalidate: () => void;
