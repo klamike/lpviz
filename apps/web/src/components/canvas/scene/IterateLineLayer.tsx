@@ -79,23 +79,24 @@ function buildIterateSegments(raw: ReturnType<typeof getState>, is3D: boolean): 
 
   const segments: SegmentEntry[] = [];
   let segStart = 0;
-  let segCount = 0;
+  let segPhase = raw.iteratePhases[0]!;
 
   for (let i = 1; i < raw.iteratePath.length; i++) {
-    if (raw.iteratePhases[i]! !== raw.iteratePhases[i - 1]!) {
+    const currentPhase = raw.iteratePhases[i]!;
+    if (currentPhase !== raw.iteratePhases[i - 1]!) {
       const slice = raw.iteratePath.slice(segStart, i + 1);
       const positions = buildLinePositions(slice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D);
       if (positions.length > 0) {
-        segments.push({ color: PHASE_COLORS[raw.iteratePhases[segStart]! % PHASE_COLORS.length]!, positions });
-        segCount++;
+        segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions });
       }
       segStart = i - 1;
+      segPhase = currentPhase;
     }
   }
   const lastSlice = raw.iteratePath.slice(segStart);
   const lastPositions = buildLinePositions(lastSlice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D);
   if (lastPositions.length > 0) {
-    segments.push({ color: PHASE_COLORS[raw.iteratePhases[segStart]! % PHASE_COLORS.length]!, positions: lastPositions });
+    segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions: lastPositions });
   }
 
   return segments;
