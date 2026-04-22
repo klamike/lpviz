@@ -128,16 +128,6 @@ export function useSolver({
   const getSolverControl = (mode: SolverMode): SolverControl | undefined =>
     solverControls.find((control) => control.mode === mode);
 
-  const setHighlight = (index: number | null) => {
-    const cm = canvasManagerRef.current;
-    if (!cm) return;
-    setState(
-      { highlightIteratePathIndex: index },
-      { viewportDirty: cm.getIterateDirtyFlags() },
-    );
-    cm.draw();
-  };
-
   const applyRender = (
     payload: ResultRenderPayload,
     options: RenderOptions = {},
@@ -165,7 +155,6 @@ export function useSolver({
         ]),
         highlightIteratePathIndex: null,
       });
-      setHighlight(null);
     } else {
       lastVirtualResultRef.current = null;
       setState({
@@ -225,7 +214,7 @@ export function useSolver({
       resultMaxLineChars: 0,
       highlightIteratePathIndex: null,
     });
-    setHighlight(null);
+    canvasManagerRef.current?.draw();
   };
 
   const restoreFullVirtualResult = () => {
