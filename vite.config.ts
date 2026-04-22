@@ -40,7 +40,18 @@ export default defineConfig(({ mode }) => ({
   // per-file source positions.
   optimizeDeps:
     mode !== "production"
-      ? { exclude: ["@react-three/fiber"] }
+      ? {
+          exclude: ["@react-three/fiber"],
+          // r3f is served directly (excluded above), so Vite won't scan its
+          // imports at startup. Its CJS transitive deps must be listed here so
+          // esbuild pre-bundles them into browser-compatible ESM; otherwise the
+          // browser chokes on bare `require()` / missing `default` exports.
+          include: [
+            "suspend-react",
+            "scheduler",
+            "use-sync-external-store/shim/with-selector",
+          ],
+        }
       : undefined,
   resolve: {
     alias: [
