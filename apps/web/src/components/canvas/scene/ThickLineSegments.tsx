@@ -14,9 +14,21 @@
 
 import { useThree } from "@react-three/fiber";
 import { memo, useEffect, useLayoutEffect, useMemo } from "react";
+import { Box3, Sphere, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+
+const HUGE = 1e10;
+const HUGE_BOX = new Box3(new Vector3(-HUGE, -HUGE, -HUGE), new Vector3(HUGE, HUGE, HUGE));
+const HUGE_SPHERE = new Sphere(new Vector3(0, 0, 0), HUGE);
+
+function makeHugeBounds(geo: LineGeometry) {
+  geo.boundingBox = HUGE_BOX.clone();
+  geo.boundingSphere = HUGE_SPHERE.clone();
+  geo.computeBoundingBox = () => {};
+  geo.computeBoundingSphere = () => {};
+}
 
 export type ThickLineSegmentsProps = {
   positions: Float32Array;
@@ -47,8 +59,7 @@ export const ThickLine = memo(function ThickLine({
   // or concurrent renders).
   const { line, geometry, material } = useMemo(() => {
     const geo = new LineGeometry();
-    geo.computeBoundingBox = () => {};
-    geo.computeBoundingSphere = () => {};
+    makeHugeBounds(geo);
     const mat = new LineMaterial({
       color,
       linewidth: width,
@@ -132,8 +143,7 @@ export const ThickLineShared = memo(function ThickLineShared({
 
   const { line, geometry } = useMemo(() => {
     const geo = new LineGeometry();
-    geo.computeBoundingBox = () => {};
-    geo.computeBoundingSphere = () => {};
+    makeHugeBounds(geo);
     const ln = new Line2(geo, material);
     ln.frustumCulled = false;
     ln.renderOrder = renderOrder;
