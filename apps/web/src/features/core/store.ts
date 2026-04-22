@@ -28,15 +28,17 @@ export type HistoryEntry = {
   objectiveVector: PointXY | null;
   completionMode: CompletionMode;
 };
+export type DragViewAnchor3D = { x: number; y: number; z: number };
+
 export type DragTarget =
-  | { kind: "point"; index: number }
+  | { kind: "point"; index: number; viewAnchor3D?: DragViewAnchor3D }
   | {
       kind: "constraint";
       operation: ConstraintDragOperation;
       start: PointXY;
       normal: PointXY;
     }
-  | { kind: "objective" };
+  | { kind: "objective"; viewAnchor3D?: DragViewAnchor3D };
 export type EditorInteractionState =
   | { kind: "idle" }
   | {

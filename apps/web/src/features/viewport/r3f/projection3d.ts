@@ -14,6 +14,7 @@ export type Viewport3DInteractionOptions = {
   editorInteractionKind: State["editorInteraction"]["kind"];
   is3DMode: boolean;
   isTransitioning3D: boolean;
+  viewAnchor3D?: { x: number; y: number; z: number };
 };
 
 const MAX_3D_DRAG_BOUND = 5000;
@@ -32,6 +33,7 @@ const projectionPlaneNormal = new Vector3(0, 0, 1);
 const projectionPlanePoint = new Vector3(0, 0, 0);
 const projectionPlane = new Plane(projectionPlaneNormal, 0);
 const projectedPosition = new Vector3();
+const projectionViewDir = new Vector3();
 
 const getViewportSize = (
   snapshot: ViewportRenderSnapshot,
@@ -218,22 +220,60 @@ export function toLogicalCoords3D(
   }
 
   if (!point) {
-    projectionPlane.setFromNormalAndCoplanarPoint(
-      projectionPlaneNormal.set(0, 0, 1),
-      projectionPlanePoint.set(0, 0, 0),
-    );
-    const dotXY = Math.abs(projectionRaycaster.ray.direction.z);
-    if (dotXY >= PLANE_PARALLEL_THRESHOLD) {
-      const xyHit = projectionRaycaster.ray.intersectPlane(
-        projectionPlane,
-        projectionPointerWorld,
+    // First fallback: view-aligned plane through the drag anchor.
+    // This plane is always well-conditioned because its normal points toward
+    // the camera — the ray can never be parallel to it for reasonable FOVs.
+    if (options.viewAnchor3D) {
+      projectionViewDir
+        .set(
+          snapshot.target.x - snapshot.perspective.position.x,
+          snapshot.target.y - snapshot.perspective.position.y,
+          snapshot.target.z - snapshot.perspective.position.z,
+        )
+        .normalize();
+      projectionPlane.setFromNormalAndCoplanarPoint(
+        projectionPlaneNormal.copy(projectionViewDir),
+        projectionPlanePoint.set(
+          options.viewAnchor3D.x,
+          options.viewAnchor3D.y,
+          options.viewAnchor3D.z,
+        ),
       );
-      if (
-        xyHit &&
-        Number.isFinite(projectionPointerWorld.x) &&
-        Number.isFinite(projectionPointerWorld.y)
-      ) {
-        point = { x: projectionPointerWorld.x, y: projectionPointerWorld.y };
+      const dotView = projectionRaycaster.ray.direction.dot(projectionPlane.normal);
+      if (Math.abs(dotView) >= PLANE_PARALLEL_THRESHOLD) {
+        const viewHit = projectionRaycaster.ray.intersectPlane(
+          projectionPlane,
+          projectionPointerWorld,
+        );
+        if (
+          viewHit &&
+          Number.isFinite(projectionPointerWorld.x) &&
+          Number.isFinite(projectionPointerWorld.y)
+        ) {
+          point = { x: projectionPointerWorld.x, y: projectionPointerWorld.y };
+        }
+      }
+    }
+
+    // Second fallback: flat z=0 plane.
+    if (!point) {
+      projectionPlane.setFromNormalAndCoplanarPoint(
+        projectionPlaneNormal.set(0, 0, 1),
+        projectionPlanePoint.set(0, 0, 0),
+      );
+      const dotXY = Math.abs(projectionRaycaster.ray.direction.z);
+      if (dotXY >= PLANE_PARALLEL_THRESHOLD) {
+        const xyHit = projectionRaycaster.ray.intersectPlane(
+          projectionPlane,
+          projectionPointerWorld,
+        );
+        if (
+          xyHit &&
+          Number.isFinite(projectionPointerWorld.x) &&
+          Number.isFinite(projectionPointerWorld.y)
+        ) {
+          point = { x: projectionPointerWorld.x, y: projectionPointerWorld.y };
+        }
       }
     }
     if (!point) {

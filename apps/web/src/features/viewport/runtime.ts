@@ -654,6 +654,13 @@ export async function createViewportRuntime({
       }
 
       const state = getState();
+      const { editorInteraction } = state;
+      const viewAnchor3D =
+        editorInteraction.kind === "dragging" &&
+        (editorInteraction.target.kind === "point" ||
+          editorInteraction.target.kind === "objective")
+          ? editorInteraction.target.viewAnchor3D
+          : undefined;
       return toLogicalCoords3D(managerSnapshot, getViewportRect(), x, y, {
         objectiveVector: state.objectiveVector,
         zScale: state.zScale,
@@ -662,6 +669,7 @@ export async function createViewportRuntime({
         editorInteractionKind: state.editorInteraction.kind,
         is3DMode: state.is3DMode,
         isTransitioning3D: state.isTransitioning3D,
+        viewAnchor3D,
       });
     },
     toCanvasCoords: (x, y, z) => {
