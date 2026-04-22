@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Color } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { useLpvizStore } from "@/features/core/store";
@@ -17,11 +16,9 @@ const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 const TRACE_LINE_THICKNESS = 2;
 
-const traceColor = new Color(TRACE_COLOR);
-
 function buildTraceLineMaterial(is3D: boolean): LineMaterial {
   const material = new LineMaterial({
-    color: traceColor.getHex(),
+    color: TRACE_COLOR,
     linewidth: TRACE_LINE_THICKNESS,
     depthTest: is3D,
     depthWrite: is3D,

@@ -59,18 +59,7 @@ function getWorldSizeFromPixels(
   snapshot: ReturnType<typeof useViewportRenderSnapshot>,
   pixels: number,
 ) {
-  if (snapshot.mode === "2d") {
-    return pixels * snapshot.unitsPerPixel;
-  }
-
-  const distance = Math.hypot(
-    snapshot.perspective.position.x,
-    snapshot.perspective.position.y,
-    snapshot.perspective.position.z,
-  );
-  const fovRadians = (snapshot.perspective.fov * Math.PI) / 180;
-  const viewportHeight = 2 * Math.tan(fovRadians / 2) * distance;
-  return (pixels / Math.max(1, snapshot.height)) * viewportHeight;
+  return pixels * snapshot.unitsPerPixel;
 }
 
 function buildObjectiveGeometry(
@@ -142,10 +131,6 @@ export function ObjectiveLayer() {
       snapshot.mode,
       snapshot.unitsPerPixel,
       snapshot.height,
-      snapshot.perspective.position.x,
-      snapshot.perspective.position.y,
-      snapshot.perspective.position.z,
-      snapshot.perspective.fov,
     ],
   );
 

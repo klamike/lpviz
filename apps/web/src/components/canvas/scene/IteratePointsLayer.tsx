@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Color } from "three";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { Color, type PointsMaterial } from "three";
 
 import { useLpvizStore } from "@/features/core/store";
 import type { State } from "@/features/core/store";
@@ -23,6 +23,12 @@ const PHASE_COLORS = [
   "#999999",
   "#17becf",
 ];
+// Pre-compute linear RGB tuples to avoid per-iteration setStyle → setHex → SRGBToLinear calls.
+const PHASE_COLORS_LINEAR: ReadonlyArray<readonly [number, number, number]> =
+  PHASE_COLORS.map((hex) => {
+    const c = new Color(hex);
+    return [c.r, c.g, c.b] as const;
+  });
 const ITERATE_Z = 0.03;
 const ITERATE_POINT_PIXEL_SIZE = 8;
 const ITERATE_POINTS_RENDER_ORDER = RENDER_ORDER.iteratePoints;
@@ -84,7 +90,6 @@ function buildIteratePointGeometry(
     ? new Float32Array(state.iteratePath.length * 3)
     : null;
 
-  const reusableColor = new Color();
   for (let index = 0; index < state.iteratePath.length; index += 1) {
     const entry = state.iteratePath[index]!;
     const baseIndex = index * 3;
@@ -106,10 +111,10 @@ function buildIteratePointGeometry(
       const phase = isLastPoint
         ? state.iteratePhases[index]!
         : state.iteratePhases[index + 1]!;
-      reusableColor.set(PHASE_COLORS[phase % PHASE_COLORS.length]!);
-      colors[baseIndex] = reusableColor.r;
-      colors[baseIndex + 1] = reusableColor.g;
-      colors[baseIndex + 2] = reusableColor.b;
+      const rgb = PHASE_COLORS_LINEAR[phase % PHASE_COLORS_LINEAR.length]!;
+      colors[baseIndex] = rgb[0];
+      colors[baseIndex + 1] = rgb[1];
+      colors[baseIndex + 2] = rgb[2];
     }
   }
 
@@ -126,6 +131,14 @@ export function IteratePointsLayer() {
     () => buildIteratePointGeometry(iterateState, snapshot.mode),
     [iterateState, snapshot.mode],
   );
+
+  const materialRef = useRef<PointsMaterial>(null);
+  const hasColors = Boolean(geometry.colors);
+  // r3f doesn't set material.needsUpdate when vertexColors changes, so the shader
+  // won't recompile automatically. Set it explicitly so Three.js recompiles USE_COLOR.
+  useLayoutEffect(() => {
+    if (materialRef.current) materialRef.current.needsUpdate = true;
+  }, [hasColors]);
 
   if (geometry.positions.length === 0) {
     return null;
@@ -146,6 +159,7 @@ export function IteratePointsLayer() {
         ) : null}
       </bufferGeometry>
       <pointsMaterial
+        ref={materialRef}
         color={geometry.colors ? "#ffffff" : ITERATE_POINT_COLOR}
         size={ITERATE_POINT_PIXEL_SIZE}
         sizeAttenuation={false}
@@ -154,7 +168,7 @@ export function IteratePointsLayer() {
         depthWrite={false}
         alphaMap={SHARED_CIRCLE_TEXTURE}
         alphaTest={0.2}
-        vertexColors={Boolean(geometry.colors)}
+        vertexColors={hasColors}
       />
     </points>
   );

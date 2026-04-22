@@ -409,7 +409,18 @@ export function PolytopeBaseLayer() {
   const currentMouse = useCurrentMouse();
   const geometry = useMemo(
     () => buildPolytopeRenderData(polytopeState, snapshot, currentMouse),
-    [polytopeState, snapshot, currentMouse],
+    [
+      polytopeState,
+      snapshot.mode,
+      snapshot.orthographic.left,
+      snapshot.orthographic.right,
+      snapshot.orthographic.top,
+      snapshot.orthographic.bottom,
+      snapshot.unitsPerPixel,
+      snapshot.target.x,
+      snapshot.target.y,
+      currentMouse,
+    ],
   );
 
   useEffect(() => {

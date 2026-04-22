@@ -14,7 +14,6 @@
 
 import { useThree } from "@react-three/fiber";
 import { memo, useEffect, useLayoutEffect, useMemo } from "react";
-import { Color } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -29,16 +28,6 @@ export type ThickLineSegmentsProps = {
   transparent?: boolean;
   opacity?: number;
 };
-
-const _color = new Color();
-
-function resolveColor(color: string | number): number {
-  if (typeof color === "string") {
-    _color.set(color);
-    return _color.getHex();
-  }
-  return color;
-}
 
 export const ThickLine = memo(function ThickLine({
   positions,
@@ -59,7 +48,7 @@ export const ThickLine = memo(function ThickLine({
   const { line, geometry, material } = useMemo(() => {
     const geo = new LineGeometry();
     const mat = new LineMaterial({
-      color: resolveColor(color),
+      color,
       linewidth: width,
       depthTest,
       depthWrite,
@@ -90,7 +79,7 @@ export const ThickLine = memo(function ThickLine({
 
   // Keep material properties in sync.
   useLayoutEffect(() => {
-    material.color.set(resolveColor(color));
+    material.color.set(color);
     material.linewidth = width;
     material.depthTest = depthTest;
     material.depthWrite = depthWrite;
