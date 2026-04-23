@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useDeferredValue, type RefObject } from "react";
 
 import { useLpvizStore } from "@/features/core/store";
 import {
@@ -26,6 +26,13 @@ export function TopResultPanel({
     selectInequalitiesUiState,
     areInequalitiesUiStatesEqual,
   );
+  // The inequality list can rerender on every mousemove while dragging a
+  // vertex / constraint / objective (polytope.send() writes to the store each
+  // frame). Defer it so React can yield to pointer events and canvas draws
+  // between transition-priority renders of this potentially long list. The
+  // urgent parts of the panel (header, objective display) still use the
+  // non-deferred topResultUiState above.
+  const deferredInequalitiesUiState = useDeferredValue(inequalitiesUiState);
 
   return (
     <TerminalFrame
@@ -65,9 +72,9 @@ export function TopResultPanel({
           subject to
         </div>
         <div id="inequalities">
-          {inequalitiesUiState.message !== null
-            ? inequalitiesUiState.message
-            : inequalitiesUiState.items.map((inequality, index) => (
+          {deferredInequalitiesUiState.message !== null
+            ? deferredInequalitiesUiState.message
+            : deferredInequalitiesUiState.items.map((inequality, index) => (
                 <div
                   key={`${index}-${inequality}`}
                   className="inequality-item"

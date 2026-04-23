@@ -1,6 +1,6 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { forwardRef, useCallback, useDeferredValue, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 
-import { useLpvizStore } from "@/features/core/store";
+import { getState, subscribe, useLpvizStore } from "@/features/core/store";
 import { areResultPanelUiStatesEqual, selectResultPanelUiState } from "@/features/core/selectors";
 import type { ResultTextBlock } from "@/features/solver/types";
 
@@ -40,7 +40,8 @@ const VirtualList = forwardRef<
     const viewHeight = outer.clientHeight;
     const rowCount = rows.length;
 
-    spacer.style.height = `${rowCount * rh}px`;
+    const totalHeight = `${rowCount * rh}px`;
+    if (spacer.style.height !== totalHeight) spacer.style.height = totalHeight;
 
     const OVERSCAN = 3;
     const first = Math.max(0, Math.floor(scrollTop / rh) - OVERSCAN);
@@ -55,13 +56,19 @@ const VirtualList = forwardRef<
       pool.push(div);
     }
 
+    const height = `${rh}px`;
     for (let i = 0; i < count; i++) {
       const rowIdx = first + i;
       const row = rows[rowIdx];
       const div = pool[i]!;
-      if (div.style.display) div.style.display = "";
-      div.style.top = `${rowIdx * rh}px`;
-      div.style.height = `${rh}px`;
+      // Only touch styles when they actually change. During objective
+      // rotation only text changes frame-to-frame, so skipping these writes
+      // avoids gratuitous style invalidations and is the biggest per-frame
+      // savings vs. the previous implementation.
+      if (div.style.display !== "") div.style.display = "";
+      const top = `${rowIdx * rh}px`;
+      if (div.style.top !== top) div.style.top = top;
+      if (div.style.height !== height) div.style.height = height;
       if (row) {
         if (div.className !== row.className) div.className = row.className;
         const idxStr = row.index != null ? String(row.index) : "";
@@ -99,9 +106,16 @@ export function UsagePanel() {
     selectResultPanelUiState,
     areResultPanelUiStatesEqual,
   );
+  // maxLineChars drives useResultTypography, which performs a forced reflow
+  // (getComputedStyle + clientWidth) inside a layout effect on every change.
+  // During objective rotation the solver produces new results at animation
+  // speed, so defer this to transition priority — the font size can lag a
+  // frame behind without any perceptual issue, but forced reflows on the hot
+  // path can noticeably hurt responsiveness of pointer events and the canvas.
+  const deferredMaxLineChars = useDeferredValue(resultPanelUiState.maxLineChars);
   const { resultRef, resultStyle, fontSize } = useResultTypography({
     enabled: resultPanelUiState.mode !== "usage",
-    maxLineChars: resultPanelUiState.maxLineChars,
+    maxLineChars: deferredMaxLineChars,
   });
 
   const rowHeight = fontSize != null ? Math.ceil(fontSize * 1.2) : 22;
@@ -115,13 +129,31 @@ export function UsagePanel() {
   rowHeightRef.current = rowHeight;
   const runtimeActionsRef = useRef(runtimeActions);
   runtimeActionsRef.current = runtimeActions;
-  const virtualRowsRef = useRef(resultPanelUiState.virtualRows);
-  virtualRowsRef.current = resultPanelUiState.virtualRows;
+  const virtualRowsRef = useRef(getState().resultVirtualRows);
 
-  // Drive VirtualList updates imperatively — no React reconciliation for rows.
+  // Drive VirtualList updates imperatively, bypassing React's render cycle
+  // entirely for row data. During objective rotation the solver writes fresh
+  // rows to the store at animation speed; routing that through
+  // useSyncExternalStore + selector + reconciliation + layout effect adds
+  // latency and makes the list feel sluggish vs. the vanilla JS version.
+  // Subscribe directly to the store and paint the visible pool synchronously
+  // from the listener — same as hand-written DOM code would do.
+  useLayoutEffect(() => {
+    virtualRowsRef.current = getState().resultVirtualRows;
+    listRef.current?.paint();
+    return subscribe((state) => {
+      if (state.resultVirtualRows !== virtualRowsRef.current) {
+        virtualRowsRef.current = state.resultVirtualRows;
+        listRef.current?.paint();
+      }
+    });
+  }, []);
+
+  // rowHeight is React-owned (driven by useResultTypography) — repaint when
+  // it changes so row positions pick up the new height.
   useLayoutEffect(() => {
     listRef.current?.paint();
-  }, [resultPanelUiState.virtualRows, rowHeight]);
+  }, [rowHeight]);
 
   const handleListScrollTop = useCallback((scrollTop: number) => {
     scrollTopRef.current = scrollTop;
@@ -244,7 +276,7 @@ export function UsagePanel() {
           <div>
             {resultPanelUiState.blocks.map((block, index) => (
               <div
-                key={`${index}-${block.className}-${block.text}`}
+                key={index}
                 className={block.className}
                 data-index={block.index}
                 onMouseEnter={

@@ -226,14 +226,18 @@ export function areResultPanelUiStatesEqual(
   a: ResultPanelUiState,
   b: ResultPanelUiState,
 ): boolean {
+  // Note: virtualRows is intentionally excluded from this comparison.
+  // UsagePanel subscribes to state.resultVirtualRows directly and paints the
+  // VirtualList imperatively, so row-data changes shouldn't trigger React
+  // re-renders of UsagePanel or the O(n) deep compare that used to run here
+  // on every store update during objective rotation.
   if (
     a.mode !== b.mode ||
     a.blocks?.length !== b.blocks?.length ||
     a.virtualHeader !== b.virtualHeader ||
     a.virtualFooter !== b.virtualFooter ||
     a.virtualShowEmpty !== b.virtualShowEmpty ||
-    a.maxLineChars !== b.maxLineChars ||
-    a.virtualRows.length !== b.virtualRows.length
+    a.maxLineChars !== b.maxLineChars
   ) {
     return false;
   }
@@ -242,24 +246,14 @@ export function areResultPanelUiStatesEqual(
     return a.blocks === b.blocks;
   }
 
-  return (
-    a.blocks.every((block, index) => {
-      const nextBlock = b.blocks![index];
-      return (
-        block.className === nextBlock.className &&
-        block.text === nextBlock.text &&
-        block.index === nextBlock.index
-      );
-    }) &&
-    a.virtualRows.every((row, index) => {
-      const nextRow = b.virtualRows[index];
-      return (
-        row.className === nextRow.className &&
-        row.text === nextRow.text &&
-        row.index === nextRow.index
-      );
-    })
-  );
+  return a.blocks.every((block, index) => {
+    const nextBlock = b.blocks![index];
+    return (
+      block.className === nextBlock.className &&
+      block.text === nextBlock.text &&
+      block.index === nextBlock.index
+    );
+  });
 }
 
 function getSolverButtonUiState(
