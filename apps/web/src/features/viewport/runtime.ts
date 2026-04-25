@@ -33,7 +33,6 @@ import {
 import {
   buildPerspectivePoseFromViewAngle,
   buildTransitionCompleteState,
-  buildTransitionProgressState,
   buildTransitionStartState,
   buildViewport2DStateFromTransitionFrame,
   buildViewportTransitionFrame,
@@ -778,9 +777,6 @@ export async function createViewportRuntime({
           const completedPlan = activeTransitionPlan;
           if (completedPlan) {
             externalTransitionProgress = 1;
-            setState(buildTransitionProgressState(completedPlan, 1), {
-              viewportDirty: TRANSITION_VIEWPORT_DIRTY_FLAGS,
-            });
             const frame = buildViewportTransitionFrame(
               completedPlan,
               1,
@@ -788,23 +784,23 @@ export async function createViewportRuntime({
             );
             syncTransitionPlanarState(completedPlan, frame);
             managerSnapshot = frame.snapshot;
-            publishSnapshot(frame.snapshot);
           }
-          requestAnimationFrame(() => {
-            externalTransitionSnapshotActive = false;
-            activeTransitionPlan = null;
-            if (completedPlan) {
-              setState(buildTransitionCompleteState(completedPlan), {
-                viewportDirty: TRANSITION_VIEWPORT_DIRTY_FLAGS,
-              });
-            }
-            resetViewportTransitionConfig();
-            publishSnapshot(
-              shouldUseExternal2DViewport()
-                ? getExternal2DSnapshot()
-                : managerSnapshot,
-            );
-          });
+          // Synchronous mode switch: clear transition state before setState so
+          // the store subscription sees externalTransitionSnapshotActive=false
+          // and correctly activates 2D/3D controls without an extra RAF delay.
+          externalTransitionSnapshotActive = false;
+          activeTransitionPlan = null;
+          if (completedPlan) {
+            setState(buildTransitionCompleteState(completedPlan), {
+              viewportDirty: TRANSITION_VIEWPORT_DIRTY_FLAGS,
+            });
+          }
+          resetViewportTransitionConfig();
+          publishSnapshot(
+            shouldUseExternal2DViewport()
+              ? getExternal2DSnapshot()
+              : managerSnapshot,
+          );
         },
       });
     },

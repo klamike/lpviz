@@ -38,12 +38,9 @@ export function useCanvasInteractions({
   sendPolytope: () => void;
   handleUndoRedo: HandleUndoRedo;
 }) {
-  const saveHistoryRef = useRef<SaveHistory>(saveHistory);
-  saveHistoryRef.current = saveHistory;
-  const sendPolytopeRef = useRef(sendPolytope);
-  sendPolytopeRef.current = sendPolytope;
-  const handleUndoRedoRef = useRef<HandleUndoRedo>(handleUndoRedo);
-  handleUndoRedoRef.current = handleUndoRedo;
+  const saveHistoryRef = useLatest<SaveHistory>(saveHistory);
+  const sendPolytopeRef = useLatest(sendPolytope);
+  const handleUndoRedoRef = useLatest<HandleUndoRedo>(handleUndoRedo);
 
   const pendingDragHistoryRef = useRef<HistoryEntry | null>(null);
 
