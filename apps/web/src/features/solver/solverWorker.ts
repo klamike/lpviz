@@ -1,4 +1,4 @@
-import type { Lines, VecN, Vertices } from "@lpviz/math/blas";
+import type { Lines, VecN, Vertices } from "@lpviz/math/types";
 import { centralPath } from "@lpviz/solver-engine/centralPath";
 import { ipm } from "@lpviz/solver-engine/ipm";
 import { pdhg } from "@lpviz/solver-engine/pdhg";

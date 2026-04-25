@@ -12,8 +12,9 @@ import {
 } from "@/features/core/store";
 import { setCurrentMouse } from "@/features/core/currentMouse";
 import type { ViewportApi } from "@/features/viewport/runtime";
-import type { PointXY } from "@lpviz/math/blas";
-import { verticesFromLines } from "@lpviz/polytope/halfPlaneIntersection";
+import type { PointXY } from "@lpviz/math/types";
+import { verticesFromLines } from "@lpviz/math/geometry";
+import { useLatest } from "@/hooks/useLatest";
 import { useEffect, useRef } from "react";
 import {
   exceedsDragThreshold,

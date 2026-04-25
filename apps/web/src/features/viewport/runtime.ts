@@ -5,7 +5,7 @@ import {
   subscribe,
   type ViewportDirtyFlags,
 } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
 import {
   getViewport2DControlsConfig,
   getViewport2DControlsSnapshot,

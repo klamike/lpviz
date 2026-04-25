@@ -109,7 +109,7 @@ export function createSolverControls({
           solver: "central",
           vertices: state.polytope.vertices,
           lines: state.polytope.lines,
-          objective: [state.objectiveVector.x, state.objectiveVector.y],
+          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
           niter: Math.max(1, state.solverSettings.centralPathIter || 1),
         };
       },
@@ -164,7 +164,7 @@ export function createSolverControls({
         return {
           solver: "ipm",
           lines: state.polytope.lines,
-          objective: [state.objectiveVector.x, state.objectiveVector.y],
+          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
           alphaMax: s.alphaMax,
           correctorThreshold: s.correctorThreshold,
           maxit: Math.max(1, s.maxitIPM || 1),
@@ -206,7 +206,7 @@ export function createSolverControls({
         return {
           solver: "simplex",
           lines: state.polytope.lines,
-          objective: [state.objectiveVector.x, state.objectiveVector.y],
+          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
           dual: state.solverSettings.simplexDualMode,
         };
       },
@@ -258,7 +258,7 @@ export function createSolverControls({
         return {
           solver: "pdhg",
           lines: state.polytope.lines,
-          objective: [state.objectiveVector.x, state.objectiveVector.y],
+          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
           ineq: s.pdhgIneqMode,
           halpern: s.pdhgHalpernMode,
           maxit: Math.max(1, s.maxitPDHG || 1),

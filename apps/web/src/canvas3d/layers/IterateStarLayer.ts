@@ -10,7 +10,7 @@ import {
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { SHARED_STAR_TEXTURE } from "../helpers/sharedTextures";
@@ -34,7 +34,7 @@ function makePointsGeo(): BufferGeometry {
 }
 
 function getDisplayedIterateZ(
-  entry: ReadonlyArray<number>,
+  entry: Float64Array,
   objectiveVector: PointXY | null,
   zAxisOffsetOnly: boolean,
 ) {

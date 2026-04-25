@@ -1,7 +1,7 @@
 import type { CompletionMode, State } from "@/features/core/store";
 import { computeDrawingPhase } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
-import { centroid, isConvexChain, signedArea, VRep } from "@lpviz/polytope/polygon";
+import type { PointXY } from "@lpviz/math/types";
+import { centroid, isConvexChain, signedArea, VRep } from "@lpviz/math/geometry";
 import { deriveRegionFromPoints } from "@lpviz/polytope/regionAssembly";
 import { type PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
 

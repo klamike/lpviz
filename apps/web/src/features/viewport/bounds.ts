@@ -1,16 +1,16 @@
 import { getDisplayedIterateZ } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
-import { VRep } from "@lpviz/polytope/polygon";
+import type { PointXY } from "@lpviz/math/types";
+import { VRep } from "@lpviz/math/geometry";
 
 type TraceEntry = {
-  path: number[][];
+  path: Float64Array[];
   objectiveVector: PointXY | null;
 };
 
 type ZoomFitInputs = {
   vertices: PointXY[];
-  iteratePath: number[][];
-  originalIteratePath: number[][];
+  iteratePath: Float64Array[];
+  originalIteratePath: Float64Array[];
   traceBuffer: TraceEntry[];
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -29,7 +29,7 @@ export function collectZoomFitBounds({
   const points: PointXY[] = [];
   const zValues: number[] = [];
 
-  const appendPath = (path: number[][], objectiveOverride?: PointXY | null) => {
+  const appendPath = (path: Float64Array[], objectiveOverride?: PointXY | null) => {
     path.forEach((entry) => {
       points.push({ x: entry[0], y: entry[1] });
       zValues.push(getDisplayedIterateZ(entry, objectiveOverride));

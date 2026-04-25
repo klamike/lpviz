@@ -1,5 +1,5 @@
-import type { Lines, Vec2Ns, VecN } from "@lpviz/math/blas";
-import { createDenseMatrix, dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/dense";
+import type { Lines, Vec2Ns, VecN } from "@lpviz/math/types";
+import { createDenseMatrix, dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/blas";
 import { formatMilliseconds } from "./time";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
@@ -20,7 +20,7 @@ const HALPERN_NECESSARY_REDUCTION = 0.5;
 const HALPERN_ARTIFICIAL_RESTART_THRESHOLD = 0.36;
 
 function computeSlackBasisPhase(
-  xk: ArrayLike<number>,
+  xk: Float64Array,
   m: number,
   slackOffset: number,
 ) {
@@ -176,7 +176,7 @@ function pdhgStandardForm(
   if (verbose) console.log(header);
 
   while (k <= maxit) {
-    iterates.push(Array.from(xk));
+    iterates.push(xk.slice());
     if (colorByBasis) {
       phases.push(computeSlackBasisPhase(xk, m, slackOffset));
     }
@@ -353,7 +353,7 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
 
   // x = x^+ - x^-
   const xIterates = chiIterates.map((chi) => {
-    const point = new Array(nOrig);
+    const point = new Float64Array(nOrig);
     for (let i = 0; i < nOrig; i++) {
       point[i] = chi[i]! - chi[nOrig + i]!;
     }

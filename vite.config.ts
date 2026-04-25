@@ -65,4 +65,5 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     emptyOutDir: false,
   },
+  server: { hmr: false }
 }));

@@ -12,7 +12,7 @@ import {
   type State,
   type ViewportDirtyFlags,
 } from "@/features/core/store";
-import type { PointXY, PointXYZ } from "@lpviz/math/blas";
+import type { PointXY, PointXYZ } from "@lpviz/math/types";
 import type { ViewportRenderSnapshot } from "./types";
 import {
   clampScaleFactor2D,

@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import { getDisplayedIterateZ, type State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
 import type { ViewportRenderSnapshot } from "./types";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
@@ -139,7 +139,7 @@ export function toCanvasCoords3D(
   zScale: number,
 ): PointXY {
   const zValue = getDisplayedIterateZ(
-    z === undefined ? [point.x, point.y] : [point.x, point.y, z],
+    z === undefined ? Float64Array.of(point.x, point.y) : Float64Array.of(point.x, point.y, z),
   );
   return projectWorldPosition3D(snapshot, rect, {
     x: point.x,

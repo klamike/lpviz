@@ -4,7 +4,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
@@ -19,7 +19,7 @@ const ITERATE_LINE_RENDER_ORDER = RENDER_ORDER.iterateLine;
 const ITERATE_LINE_THICKNESS = 3;
 
 function getDisplayedIterateZ(
-  entry: ReadonlyArray<number>,
+  entry: Float64Array,
   objectiveVector: PointXY | null,
   zAxisOffsetOnly: boolean,
 ) {
@@ -31,7 +31,7 @@ function getDisplayedIterateZ(
 }
 
 function getIterateRenderZ(
-  entry: ReadonlyArray<number>,
+  entry: Float64Array,
   objectiveVector: PointXY | null,
   zScale: number,
   zAxisOffsetOnly: boolean,
@@ -42,7 +42,7 @@ function getIterateRenderZ(
 }
 
 function buildLinePositions(
-  path: ReadonlyArray<ReadonlyArray<number>>,
+  path: Float64Array[],
   objectiveVector: PointXY | null,
   zScale: number,
   zAxisOffsetOnly: boolean,

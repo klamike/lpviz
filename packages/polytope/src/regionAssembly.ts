@@ -1,11 +1,12 @@
-import type { Vertices } from "@lpviz/math/blas";
-import { buildConstraintDerivation } from "./constraintDerivation";
-import { classifyRegion, findFeasiblePoint } from "./feasibleRegion";
-import { verticesFromLines } from "./halfPlaneIntersection";
+import type { Vertices } from "@lpviz/math/types";
 import {
   buildOpenBoundaryRays,
+  classifyRegion,
+  findFeasiblePoint,
   hasOpenBoundaryClosure,
-} from "./openRegionBoundary";
+  verticesFromLines,
+} from "@lpviz/math/geometry";
+import { buildConstraintDerivation } from "./constraintDerivation";
 import type { PolytopeRepresentation } from "./polytopeTypes";
 
 export function deriveRegionFromPoints(

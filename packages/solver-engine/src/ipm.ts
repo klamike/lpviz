@@ -1,5 +1,6 @@
-import type { Lines, VecM, VecN } from "@lpviz/math/blas";
-import { dot, infinityNorm, linesToDenseAb, matVec, solveDenseSystem, transposedMatVec } from "@lpviz/math/dense";
+import type { Lines, VecM, VecN } from "@lpviz/math/types";
+import { dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/blas";
+import { solveDenseSystem } from "@lpviz/math/lapack";
 import { formatMilliseconds } from "./time";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
@@ -282,7 +283,7 @@ function buildKktSystem(
   }
 }
 
-function alphaStep(values: ArrayLike<number>, delta: ArrayLike<number>) {
+function alphaStep(values: Float64Array, delta: Float64Array) {
   let alpha = 1;
   for (let i = 0; i < values.length; i++) {
     const direction = delta[i]!;
@@ -300,9 +301,9 @@ function pushIter(
   y: Float64Array,
   mu: number,
 ) {
-  d.x.push(Array.from(x));
-  d.s.push(Array.from(s));
-  d.y.push(Array.from(y));
+  d.x.push(x.slice());
+  d.s.push(s.slice());
+  d.y.push(y.slice());
   d.mu.push(mu);
 }
 

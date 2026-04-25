@@ -1,5 +1,5 @@
-import type { Lines, Vec2Ns, VecN } from "@lpviz/math/blas";
-import { dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/dense";
+import type { Lines, Vec2Ns, VecN } from "@lpviz/math/types";
+import { dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/blas";
 import { formatMilliseconds } from "./time";
 
 const MAX_ITERATIONS_LIMIT = 2 ** 16;
@@ -19,7 +19,7 @@ const HALPERN_SUFFICIENT_REDUCTION = 0.2;
 const HALPERN_NECESSARY_REDUCTION = 0.5;
 const HALPERN_ARTIFICIAL_RESTART_THRESHOLD = 0.36;
 
-function computeIneqBasisPhase(yk: ArrayLike<number>) {
+function computeIneqBasisPhase(yk: Float64Array) {
   let phase = 0;
   for (let i = 0; i < yk.length; i++) {
     phase = (phase * 33 + (yk[i]! > BASIS_THRESHOLD ? 1 : 0)) >>> 0;
@@ -179,7 +179,7 @@ export function pdhgIneq(
   if (verbose) console.log(header);
 
   while (k <= maxit && epsilonK > tol) {
-    iterates.push(Array.from(xk));
+    iterates.push(xk.slice());
     if (colorByBasis) {
       phases.push(computeIneqBasisPhase(yk));
     }

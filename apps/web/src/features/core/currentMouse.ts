@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
 
 let value: PointXY | null = null;
 const listeners = new Set<() => void>();

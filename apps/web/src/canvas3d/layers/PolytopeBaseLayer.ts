@@ -12,9 +12,9 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import type { Line, PointXY } from "@lpviz/math/blas";
+import type { Line, PointXY } from "@lpviz/math/types";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-import { VRep } from "@lpviz/polytope/polygon";
+import { VRep } from "@lpviz/math/geometry";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";

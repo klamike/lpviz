@@ -1,6 +1,7 @@
 import { sprintf } from "sprintf-js";
-import type { Lines, Vec2N, Vec2Ns, VecN } from "@lpviz/math/blas";
-import { type DenseMatrix, dot, linesToDenseAb, solveDenseSystem, transposedMatVec } from "@lpviz/math/dense";
+import type { Lines, Vec2N, Vec2Ns, VecN } from "@lpviz/math/types";
+import { type DenseMatrix, dot, linesToDenseAb, transposedMatVec } from "@lpviz/math/blas";
+import { solveDenseSystem } from "@lpviz/math/lapack";
 
 const MAX_ITERATIONS = 2 ** 16;
 
@@ -47,7 +48,7 @@ function scaleMatrix(matrix: DenseMatrix, scale: number): DenseMatrix {
 
 function scaleRows(
   matrix: DenseMatrix,
-  rowScales: ArrayLike<number>,
+  rowScales: Float64Array,
 ): DenseMatrix {
   const out = createDenseMatrix(matrix.rows, matrix.cols);
   for (let row = 0; row < matrix.rows; row++) {
@@ -84,7 +85,7 @@ function hstackMatrices(...matrices: DenseMatrix[]): DenseMatrix {
   return out;
 }
 
-function concatenateVectors(...vectors: ArrayLike<number>[]): Float64Array {
+function concatenateVectors(...vectors: Float64Array[]): Float64Array {
   const totalLength = vectors.reduce((sum, vector) => sum + vector.length, 0);
   const out = new Float64Array(totalLength);
   let offset = 0;
@@ -263,7 +264,7 @@ function simplexCoreStandard(
       throw new Error(`Simplex stalled after ${MAX_ITERATIONS} iterations`);
 
     const state = buildBasisState(cVec, A, bVec, basis);
-    iterations.push(Array.from(state.xTableau));
+    iterations.push(state.xTableau.slice());
     basisHistory.push(state.basisIndices.slice());
     objective = state.objective;
 
@@ -389,7 +390,7 @@ function simplexCore(
     basisIndices = state.basisIndices;
     xTableau = state.xTableau;
     objective = state.objective;
-    iterations.push(Array.from(xTableau));
+    iterations.push(xTableau.slice());
 
     const line = formatIterationLog(
       iteration,
@@ -589,7 +590,7 @@ function solveDualMode(
     const phase2Logs = ["Phase 2 did not start.\n", unavailableMessage];
     if (verbose) console.log(unavailableMessage);
     return {
-      iterations: [],
+      iterations: [] as Float64Array[],
       logs: [phase1.logs, phase2Logs],
       status: "unavailable" as const,
     };
@@ -613,7 +614,7 @@ function solveDualMode(
 
   return {
     iterations: phase2.basisHistory.map((basisIndices) =>
-      dualPointFromBasis(basisIndices),
+      Float64Array.from(dualPointFromBasis(basisIndices)),
     ),
     logs: [phase1.logs, phase2.logs],
     status: phase2.status,
@@ -697,7 +698,7 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
     for (let i = 0; i < n; i++) {
       point[i] = (tableauX[i] ?? 0) - (tableauX[n + i] ?? 0);
     }
-    return Array.from(point);
+    return point;
   });
 
   return {

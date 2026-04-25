@@ -13,14 +13,14 @@ const POLY_LINE_THICKNESS = 2;
 
 const rbMat = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 
-function getDisplayedObjectiveZ(x: number, y: number, ov: import("@lpviz/math/blas").PointXY | null, zAxisOffsetOnly: boolean) {
+function getDisplayedObjectiveZ(x: number, y: number, ov: import("@lpviz/math/types").PointXY | null, zAxisOffsetOnly: boolean) {
   const val = ov ? ov.x * x + ov.y * y : 0;
   return zAxisOffsetOnly ? 0 : val;
 }
 
 function getRenderZ(
   x: number, y: number,
-  ov: import("@lpviz/math/blas").PointXY | null, zScale: number, zAxisOffsetOnly: boolean,
+  ov: import("@lpviz/math/types").PointXY | null, zScale: number, zAxisOffsetOnly: boolean,
   is3D: boolean, offset: number,
 ) {
   if (!is3D) return offset;
@@ -28,8 +28,8 @@ function getRenderZ(
 }
 
 type RubberBandState = {
-  lastVertex: import("@lpviz/math/blas").PointXY | null;
-  objectiveVector: import("@lpviz/math/blas").PointXY | null;
+  lastVertex: import("@lpviz/math/types").PointXY | null;
+  objectiveVector: import("@lpviz/math/types").PointXY | null;
   zScale: number;
   zAxisOffsetOnly: boolean;
   is3DMode: boolean;

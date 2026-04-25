@@ -1,5 +1,5 @@
 import { getState } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
 import type { ViewportRenderSnapshot } from "./types";
 
 const EPS = 1e-6;

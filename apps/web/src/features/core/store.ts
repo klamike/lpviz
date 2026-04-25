@@ -1,5 +1,5 @@
 import type { ResultTextBlock } from "@/features/solver/types";
-import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math/blas";
+import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math/types";
 import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
 import { useCallback, useRef, useSyncExternalStore } from "react";
 
@@ -49,7 +49,7 @@ export type EditorInteractionState =
   | { kind: "dragging"; target: DragTarget };
 
 interface TraceEntry {
-  path: number[][];
+  path: Float64Array[];
   objectiveVector: PointXY | null;
 }
 
@@ -371,7 +371,7 @@ export function prepareAnimationInterval(): void {
 }
 
 export function updateIteratePaths(
-  iteratesArray: number[][],
+  iteratesArray: Float64Array[],
   phasesArray?: number[],
   restartIndicesArray?: number[],
 ): void {
@@ -390,14 +390,14 @@ export function clearIterateState(): void {
   setState({ ...buildIterateStatePatch([], undefined, undefined, null), highlightIteratePathIndex: null });
 }
 
-export function addTraceToBuffer(iteratesArray: number[][]): void {
+export function addTraceToBuffer(iteratesArray: Float64Array[]): void {
   const state = getState();
   if (!state.traceEnabled || iteratesArray.length === 0) return;
   setState({ traceBuffer: appendedTraceBuffer(state, iteratesArray, snapshotObjectiveVector(state.objectiveVector)) });
 }
 
 export function getDisplayedIterateZ(
-  entry: number[],
+  entry: Float64Array,
   objectiveOverride?: PointXY | null,
 ): number {
   const { objectiveVector: currentObjective, zAxisOffsetOnly } = getState();
@@ -411,7 +411,7 @@ export function getDisplayedIterateZ(
 }
 
 export function updateIteratePathsWithTrace(
-  iteratesArray: number[][],
+  iteratesArray: Float64Array[],
   phasesArray?: number[],
   restartIndicesArray?: number[],
 ): void {
@@ -433,8 +433,8 @@ function snapshotObjectiveVector(objectiveVector: PointXY | null) {
   return objectiveVector ? { ...objectiveVector } : null;
 }
 
-function copyIteratePath(iteratesArray: number[][]) {
-  return iteratesArray.map((entry) => [...entry]);
+function copyIteratePath(iteratesArray: Float64Array[]) {
+  return iteratesArray.map((entry) => entry.slice());
 }
 
 function copyIteratePhases(phasesArray?: number[]) {
@@ -447,7 +447,7 @@ function copyRestartIndices(restartIndicesArray?: number[]) {
 
 function appendedTraceBuffer(
   state: State,
-  iteratesArray: number[][],
+  iteratesArray: Float64Array[],
   objectiveSnapshot: PointXY | null,
 ): TraceEntry[] {
   const entry: TraceEntry = {
@@ -461,7 +461,7 @@ function appendedTraceBuffer(
 }
 
 function buildIterateStatePatch(
-  iteratesArray: number[][],
+  iteratesArray: Float64Array[],
   phasesArray: number[] | undefined,
   restartIndicesArray: number[] | undefined,
   objectiveSnapshot: PointXY | null,

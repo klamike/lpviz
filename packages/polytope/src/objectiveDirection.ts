@@ -1,44 +1,12 @@
-import type { Lines, PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
+import { isObjectiveDirectionUnbounded } from "@lpviz/math/geometry";
 import { hasPolytopeLines, type PolytopeRepresentation } from "./polytopeTypes";
+
+export { isObjectiveDirectionUnbounded } from "@lpviz/math/geometry";
 
 export interface ObjectiveRotationStep {
   nextObjective: PointXY;
   nextDirection: 1 | -1;
-}
-
-export function isObjectiveDirectionUnbounded(
-  lines: Lines,
-  objective: [number, number],
-  tol = 1e-6,
-): boolean {
-  if (lines.length === 0) {
-    return false;
-  }
-
-  const [cx, cy] = objective;
-  const objectiveNorm = Math.hypot(cx, cy);
-  if (objectiveNorm <= tol) {
-    return false;
-  }
-
-  const candidateDirections: [number, number][] = [];
-  for (const [A, B] of lines) {
-    const dx = -B;
-    const dy = A;
-    const norm = Math.hypot(dx, dy);
-    if (norm <= tol) {
-      continue;
-    }
-    candidateDirections.push([dx / norm, dy / norm], [-dx / norm, -dy / norm]);
-  }
-  candidateDirections.push([cx / objectiveNorm, cy / objectiveNorm]);
-
-  return candidateDirections.some(([dx, dy]) => {
-    if (cx * dx + cy * dy <= tol) {
-      return false;
-    }
-    return lines.every(([A, B]) => A * dx + B * dy <= tol);
-  });
 }
 
 export function computeObjectiveRotationStep({

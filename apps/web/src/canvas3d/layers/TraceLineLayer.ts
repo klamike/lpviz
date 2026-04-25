@@ -4,7 +4,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/blas";
+import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
@@ -19,7 +19,7 @@ const traceMat2D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_
 const traceMat3D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: TRACE_OPACITY });
 
 function getDisplayedTraceZ(
-  entry: number[],
+  entry: Float64Array,
   objectiveVector: PointXY | null,
   zAxisOffsetOnly: boolean,
 ) {
@@ -31,7 +31,7 @@ function getDisplayedTraceZ(
 }
 
 function buildTraceLinePositions(
-  path: number[][],
+  path: Float64Array[],
   objectiveVector: PointXY | null,
   zAxisOffsetOnly: boolean,
 ) {

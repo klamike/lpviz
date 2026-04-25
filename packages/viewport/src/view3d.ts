@@ -1,7 +1,7 @@
 import { Euler, PerspectiveCamera, Vector3 } from "three";
 
 import { DEFAULT_VIEW_ANGLE } from "@/features/core/store";
-import type { PointXYZ } from "@lpviz/math/blas";
+import type { PointXYZ } from "@lpviz/math/types";
 import type { ViewportRenderSnapshot } from "./types";
 import {
   buildPerspectivePoseFromViewAngle,

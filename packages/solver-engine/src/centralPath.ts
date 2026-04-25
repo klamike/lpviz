@@ -1,8 +1,8 @@
 import { sprintf } from "sprintf-js";
-import type { Lines, VecN, VecNs, Vertices } from "@lpviz/math/blas";
-import { dot, infinityNorm, linesToDenseAb, matVec, solveDenseSystem } from "@lpviz/math/dense";
-import { findStrictFeasiblePoint } from "@lpviz/polytope/feasibleRegion";
-import { centroid } from "@lpviz/polytope/polygon";
+import type { Lines, VecN, VecNs, Vertices } from "@lpviz/math/types";
+import { dot, infinityNorm, linesToDenseAb, matVec } from "@lpviz/math/blas";
+import { solveDenseSystem } from "@lpviz/math/lapack";
+import { centroid, findStrictFeasiblePoint } from "@lpviz/math/geometry";
 
 const MIN_STEP_SIZE = 1e-10;
 const LINE_SEARCH_SHRINK_FACTOR = 0.5;
@@ -297,7 +297,7 @@ export function centralPath(
       slackScratch,
     );
     const linearObjective = dot(c, optimalPoint);
-    points.push([optimalPoint[0] ?? 0, optimalPoint[1] ?? 0, totalObjective]);
+    points.push(Float64Array.of(optimalPoint[0] ?? 0, optimalPoint[1] ?? 0, totalObjective));
 
     const progressLog = sprintf(
       "  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n",

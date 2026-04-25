@@ -5,7 +5,7 @@ import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
 import { projectCanvasPointToWorldPlane } from "@lpviz/viewport/transition";
-import type { Line, PointXY } from "@lpviz/math/blas";
+import type { Line, PointXY } from "@lpviz/math/types";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";

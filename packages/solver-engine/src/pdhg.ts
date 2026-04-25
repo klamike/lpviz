@@ -1,4 +1,4 @@
-import type { Lines, VecN } from "@lpviz/math/blas";
+import type { Lines, VecN } from "@lpviz/math/types";
 import { pdhgEq } from "./pdhg_eq";
 import { pdhgIneq } from "./pdhg_ineq";
 

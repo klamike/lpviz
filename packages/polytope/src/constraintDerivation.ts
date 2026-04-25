@@ -1,5 +1,5 @@
-import type { Lines, Vertices } from "@lpviz/math/blas";
-import { centroid } from "./polygon";
+import type { Lines, Vertices } from "@lpviz/math/types";
+import { centroid } from "@lpviz/math/geometry";
 
 export interface ConstraintDerivation {
   inequalities: string[];

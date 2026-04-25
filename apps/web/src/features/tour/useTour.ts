@@ -9,9 +9,10 @@ import {
 import { setCurrentMouse } from "@/features/core/currentMouse";
 import type { TourActionTarget, TourUiController } from "@/features/tour/types";
 import type { ViewportApi } from "@/features/viewport/runtime";
-import type { PointXY } from "@lpviz/math/blas";
-import { VRep } from "@lpviz/polytope/polygon";
-import { useEffect, useRef } from "react";
+import type { PointXY } from "@lpviz/math/types";
+import { VRep } from "@lpviz/math/geometry";
+import { useEffect, useMemo, useRef } from "react";
+import { useLatest } from "@/hooks/useLatest";
 
 const TOUR_CURSOR_TRANSITION_MS = 700;
 const TOUR_DEFAULT_DELAY_MS = 300;

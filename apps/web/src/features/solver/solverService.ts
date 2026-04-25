@@ -45,7 +45,7 @@ export type ResultRenderPayload = VirtualResultPayload | BlocksResultPayload;
 export interface IPMResult {
   iterates: {
     solution: {
-      x: number[][];
+      x: Float64Array[];
       header: string;
       rows: Extract<VirtualResultRow, { kind: "ipm" }>[];
       footer?: string;
@@ -56,14 +56,14 @@ export interface IPMResult {
 }
 
 export interface SimplexResult {
-  iterations: number[][];
+  iterations: Float64Array[];
   logs: string[][];
   mode: "primal" | "dual";
   status?: "optimal" | "unbounded" | "unavailable";
 }
 
 export interface PDHGResult {
-  iterations: number[][];
+  iterations: Float64Array[];
   header: string;
   rows: Extract<VirtualResultRow, { kind: "pdhg" }>[];
   footer: string;
@@ -73,7 +73,7 @@ export interface PDHGResult {
 }
 
 export interface CentralPathResult {
-  iterations: number[][];
+  iterations: Float64Array[];
   logs: string[];
   tsolve: number;
 }
@@ -165,11 +165,11 @@ export function applyCentralPathResult(
 }
 
 type CanonicalIterateResult = {
-  iterations: number[][];
+  iterations: Float64Array[];
   header: string;
   rows: VirtualResultRow[];
   footer?: string;
-  zFrom?: (xy: number[], index: number) => number;
+  zFrom?: (xy: Float64Array, index: number) => number;
   updateTrace?: boolean;
   phases?: number[];
   restartIndices?: number[];
@@ -214,7 +214,7 @@ function applyCanonicalIterateResult(
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
   const iteratesWithZ = zFrom
-    ? iterations.map((xy, index) => [xy[0], xy[1], zFrom(xy, index)])
+    ? iterations.map((xy, index) => Float64Array.of(xy[0]!, xy[1]!, zFrom(xy, index)))
     : iterations;
 
   if (updateTrace) {
