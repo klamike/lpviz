@@ -6,6 +6,7 @@ import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
 import { projectCanvasPointToWorldPlane } from "@lpviz/viewport/transition";
 import type { Line, PointXY } from "@lpviz/math/types";
+import { type BoundingBox } from "@lpviz/math/geometry";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
@@ -22,9 +23,7 @@ const EPS = 1e-10;
 const constraintMat2D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 const constraintMat3D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
 
-type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
-
-function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): Bounds {
+function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): BoundingBox {
   if (snap.mode === "2d") {
     const halfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
     const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
@@ -56,7 +55,7 @@ function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): Bounds
   };
 }
 
-function clipLineToBounds(line: Line, b: Bounds): [PointXY, PointXY] | null {
+function clipLineToBounds(line: Line, b: BoundingBox): [PointXY, PointXY] | null {
   const [A, B, C] = line;
   if (Math.abs(A) < EPS && Math.abs(B) < EPS) return null;
   if (Math.abs(B) > Math.abs(A)) {

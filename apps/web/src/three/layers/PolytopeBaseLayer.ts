@@ -14,7 +14,7 @@ import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
 import type { Line, PointXY } from "@lpviz/math/types";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-import { VRep } from "@lpviz/math/geometry";
+import { type BoundingBox, VRep } from "@lpviz/math/geometry";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
@@ -34,8 +34,6 @@ const normalMat2D = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linew
 const normalMat3D = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
 const highlightMat2D = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 const highlightMat3D = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
-
-type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
 
 function buildShapeFromVertices(vertices: ReadonlyArray<PointXY>) {
   const shape = new Shape();
@@ -68,7 +66,7 @@ function clipPolygonToHalfPlane(polygon: PointXY[], line: Line): PointXY[] {
   return result;
 }
 
-function clipRegionToBounds(lines: Line[], bounds: Bounds): PointXY[] {
+function clipRegionToBoundingBox(lines: Line[], bounds: BoundingBox): PointXY[] {
   let polygon: PointXY[] = [
     { x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.minY },
     { x: bounds.maxX, y: bounds.maxY }, { x: bounds.minX, y: bounds.maxY },
@@ -80,8 +78,8 @@ function clipRegionToBounds(lines: Line[], bounds: Bounds): PointXY[] {
   return polygon;
 }
 
-function clipRayToBounds(
-  start: PointXY, direction: PointXY, bounds: Bounds,
+function clipRayToBoundingBox(
+  start: PointXY, direction: PointXY, bounds: BoundingBox,
 ): [PointXY, PointXY] | null {
   const candidates: Array<{ t: number; point: PointXY }> = [];
   if (Math.abs(direction.x) > EPS) {
@@ -105,7 +103,7 @@ function clipRayToBounds(
   return [start, candidates[0].point];
 }
 
-function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): Bounds {
+function getVisibleBoundingBox(snap: ReturnType<SceneContext["getSnapshot"]>): BoundingBox {
   if (snap.mode !== "2d") {
     return { minX: -DEFAULT_UNBOUNDED_EXTENT, maxX: DEFAULT_UNBOUNDED_EXTENT, minY: -DEFAULT_UNBOUNDED_EXTENT, maxY: DEFAULT_UNBOUNDED_EXTENT };
   }
@@ -158,16 +156,16 @@ function buildPolytopeGeometry(
   const { objectiveVector: ov, zScale, zAxisOffsetOnly } = state;
   const tzm = snap.transitionZMultiplier;
 
-  const bounds: Bounds =
+  const bounds: BoundingBox =
     completionMode === "open" && !hasDerived && polytope?.kind === "unbounded"
       ? { minX: -DEFAULT_UNBOUNDED_EXTENT, maxX: DEFAULT_UNBOUNDED_EXTENT, minY: -DEFAULT_UNBOUNDED_EXTENT, maxY: DEFAULT_UNBOUNDED_EXTENT }
-      : getVisibleBounds(snap);
+      : getVisibleBoundingBox(snap);
 
   const fillVertices: PointXY[] =
     isClosedRegion && displayVertices.length >= 3
       ? displayVertices
       : completionMode === "open" && polytope?.kind === "unbounded" && hasPolytopeLines(polytope)
-        ? clipRegionToBounds(polytope.lines, bounds)
+        ? clipRegionToBoundingBox(polytope.lines, bounds)
         : [];
 
   const normalSegments: number[] = [];
@@ -191,7 +189,7 @@ function buildPolytopeGeometry(
 
   if (completionMode === "open" && !hasDerived && polytope?.boundaryRays) {
     for (const ray of polytope.boundaryRays) {
-      const clipped = clipRayToBounds(
+      const clipped = clipRayToBoundingBox(
         { x: ray.start[0], y: ray.start[1] },
         { x: ray.direction[0], y: ray.direction[1] },
         bounds,

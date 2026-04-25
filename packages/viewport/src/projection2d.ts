@@ -1,5 +1,6 @@
 import { getState } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
+import type { BoundingBox } from "@lpviz/math/geometry";
 import type { ViewportRenderSnapshot } from "./types";
 
 const EPS = 1e-6;
@@ -183,7 +184,7 @@ export function fitViewport2DToBounds(
   sidebarWidth: number,
   rect: ViewportRect,
   fallbackSnapshot: ViewportRenderSnapshot,
-  bounds: { minX: number; maxX: number; minY: number; maxY: number },
+  bounds: BoundingBox,
   padding = 50,
 ): Viewport2DState {
   const width = bounds.maxX - bounds.minX;

@@ -1,6 +1,6 @@
 import type { Lines, PointXY, Vertices } from "./types";
 
-interface BoundingBox {
+export interface BoundingBox {
   minX: number;
   maxX: number;
   minY: number;

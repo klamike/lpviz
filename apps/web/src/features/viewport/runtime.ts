@@ -6,6 +6,7 @@ import {
   type ViewportDirtyFlags,
 } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
+import type { BoundingBox } from "@lpviz/math/geometry";
 import {
   getViewport2DControlsConfig,
   getViewport2DControlsSnapshot,
@@ -76,13 +77,6 @@ import {
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 
-export type ViewportBounds = {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-};
-
 export type ViewportZBounds = {
   minZ: number;
   maxZ: number;
@@ -96,7 +90,7 @@ export type ViewportApi = {
   isDefaultView: () => boolean;
   setViewState: (scale: number, offsetX: number, offsetY: number) => void;
   zoomToFit: (
-    bounds: ViewportBounds,
+    bounds: BoundingBox,
     padding?: number,
     zBounds?: ViewportZBounds,
   ) => void;
@@ -106,7 +100,7 @@ export type ViewportApi = {
   toLogicalCoords: (x: number, y: number) => PointXY;
   toCanvasCoords: (x: number, y: number, z?: number) => PointXY;
   getObjectiveScreenPosition: (point: PointXY) => PointXY;
-  getUnboundedClipBounds: () => ViewportBounds;
+  getUnboundedClipBounds: () => BoundingBox;
   start3DTransition: (targetMode: boolean) => void;
   getCanvasElement: () => HTMLCanvasElement;
   getCanvasRect: () => DOMRect;

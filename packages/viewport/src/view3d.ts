@@ -2,6 +2,7 @@ import { Euler, PerspectiveCamera, Vector3 } from "three";
 
 import { DEFAULT_VIEW_ANGLE } from "@/features/core/store";
 import type { PointXYZ } from "@lpviz/math/types";
+import type { BoundingBox } from "@lpviz/math/geometry";
 import type { ViewportRenderSnapshot } from "./types";
 import {
   buildPerspectivePoseFromViewAngle,
@@ -11,13 +12,6 @@ import {
 import type { ViewportPerspectivePose } from "./types";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
-
-type ViewportBounds = {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-};
 
 type ViewportZBounds = {
   minZ: number;
@@ -92,7 +86,7 @@ const getPerspectiveDistanceToFitBounds3D = (
   snapshot: ViewportRenderSnapshot,
   rect: ViewportRect,
   sidebarWidth: number,
-  bounds: ViewportBounds,
+  bounds: BoundingBox,
   padding = 50,
 ) => {
   const width = bounds.maxX - bounds.minX;
@@ -117,7 +111,7 @@ const getPerspectiveDistanceToFitBox3D = (
   snapshot: ViewportRenderSnapshot,
   rect: ViewportRect,
   sidebarWidth: number,
-  bounds: ViewportBounds & ViewportZBounds,
+  bounds: BoundingBox & ViewportZBounds,
   target: PointXYZ,
   viewAngle: PointXYZ,
   padding = 50,
@@ -235,7 +229,7 @@ export function fitViewport3DToBounds(
   snapshot: ViewportRenderSnapshot,
   rect: ViewportRect,
   sidebarWidth: number,
-  bounds: ViewportBounds,
+  bounds: BoundingBox,
   padding = 50,
   zBounds?: ViewportZBounds,
 ): Viewport3DViewState | null {

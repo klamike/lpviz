@@ -3,18 +3,13 @@ import type { DragTarget, DragViewAnchor3D, State } from "@/features/core/store"
 import { getState } from "@/features/core/store";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import type { PointXY } from "@lpviz/math/types";
-import { VRep } from "@lpviz/math/geometry";
+import { type BoundingBox, VRep } from "@lpviz/math/geometry";
 
 export const VERTEX_HIT_RADIUS = 12;
 export const DRAG_THRESHOLD_PX = 5;
 const EPS = 1e-10;
 
-export type Bounds = {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-};
+export type Bounds = BoundingBox;
 
 export type ConstraintDragTarget = Extract<DragTarget, { kind: "constraint" }>;
 

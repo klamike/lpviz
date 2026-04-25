@@ -7,6 +7,7 @@ import {
 } from "three";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { type BoundingBox } from "@lpviz/math/geometry";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 
 const GRID_MARGIN_PX = 100;
@@ -14,16 +15,9 @@ const GRID_OVERDRAW_UNITS = 5;
 const GRID_COLOR = "#e0e0e0";
 const AXIS_COLOR = "#707070";
 
-type GridBounds = {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-};
-
 function getQuantizedGridBounds(
   snap: ReturnType<SceneContext["getSnapshot"]>,
-): GridBounds {
+): BoundingBox {
   if (snap.mode === "2d") {
     const canvasHalfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
     const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
@@ -51,7 +45,7 @@ export class GridLayer implements Layer {
   readonly object3D: Group;
   private gridGeo: BufferGeometry;
   private axisGeo: BufferGeometry;
-  private prevBounds: GridBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  private prevBounds: BoundingBox = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
 
   constructor() {
     const gGeo = new BufferGeometry();
