@@ -323,7 +323,7 @@ function simplexCoreStandard(
   }
 
   const finalBasis = basis.slice();
-  const tail = `${completionLabel} finished – basis ${basisString(finalBasis)}\n`;
+  const tail = `${completionLabel} finished in ${iteration} iterations – basis ${basisString(finalBasis)}\n`;
   if (verbose) console.log(tail);
   logs.push(tail);
 
@@ -484,7 +484,7 @@ function simplexCore(
     }
   }
 
-  const tail = `Phase ${phase1 ? 1 : 2} finished – basis ${basisString(finalBasis)}\n`;
+  const tail = `Phase ${phase1 ? 1 : 2} finished in ${iteration} iterations – basis ${basisString(finalBasis)}\n`;
   if (verbose) console.log(tail);
   logs.push(tail);
 

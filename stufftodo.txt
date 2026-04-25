@@ -112,8 +112,15 @@ bypass react for the panel updates
 -
 make exclude obj = true the only option, delete all dead code this creates.
 
--
+4831ece
 fix z scale transition for iteratehighlightlayer (and check all other layers as well)
 
 -
 replace maxit text fields with log-space sliders (style the slider range to somehow communicate that it is log-spaced)
+
+
+-
+fix zoom button in 3d (currently can cut off the polytope)
+
+-
+fix home button in 3d (seems it's using the center of the window instead of the center of the viewport)
