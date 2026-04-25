@@ -8,6 +8,7 @@ export type ViewportRenderSnapshot = {
   mode: "2d" | "3d";
   width: number;
   height: number;
+  sidebarWidth: number;
   gridSpacing: number;
   scaleFactor: number;
   unitsPerPixel: number;
@@ -67,6 +68,7 @@ export const DEFAULT_VIEWPORT_RENDER_SNAPSHOT: ViewportRenderSnapshot = {
   mode: "2d",
   width: window.innerWidth,
   height: window.innerHeight,
+  sidebarWidth: 0,
   gridSpacing: 20,
   scaleFactor: 1,
   unitsPerPixel: 1 / 20,

@@ -25,12 +25,15 @@ function getQuantizedGridBounds(
   snap: ReturnType<SceneContext["getSnapshot"]>,
 ): GridBounds {
   if (snap.mode === "2d") {
-    const halfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
+    const canvasHalfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
     const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
+    const sidebarUnits = snap.sidebarWidth * snap.unitsPerPixel;
+    const viewportCenterX = snap.target.x + sidebarUnits / 2;
+    const halfWidth = canvasHalfWidth + sidebarUnits / 2;
     const marginUnits = GRID_MARGIN_PX * snap.unitsPerPixel;
     return {
-      minX: Math.floor(snap.target.x - halfWidth - marginUnits - GRID_OVERDRAW_UNITS),
-      maxX: Math.ceil(snap.target.x + halfWidth + marginUnits + GRID_OVERDRAW_UNITS),
+      minX: Math.floor(viewportCenterX - halfWidth - marginUnits - GRID_OVERDRAW_UNITS),
+      maxX: Math.ceil(viewportCenterX + halfWidth + marginUnits + GRID_OVERDRAW_UNITS),
       minY: Math.floor(snap.target.y - halfHeight - marginUnits - GRID_OVERDRAW_UNITS),
       maxY: Math.ceil(snap.target.y + halfHeight + marginUnits + GRID_OVERDRAW_UNITS),
     };

@@ -1,25 +1,25 @@
 import { useEffect, useRef } from "react";
 
 import type { ViewportBridge } from "@/features/viewport/types";
-import { SceneManager } from "@/three/SceneManager";
-import { CameraController } from "@/three/controllers/CameraController";
-import { ControlsController } from "@/three/controllers/ControlsController";
-import { TransitionController } from "@/three/controllers/TransitionController";
-import { SharedMaterialsController } from "@/three/controllers/SharedMaterialsController";
-import { GridLayer } from "@/three/layers/GridLayer";
-import { PolytopeBaseLayer } from "@/three/layers/PolytopeBaseLayer";
-import { PolytopeRubberBandLayer } from "@/three/layers/PolytopeRubberBandLayer";
-import { ObjectiveLayer } from "@/three/layers/ObjectiveLayer";
-import { TraceLineLayer } from "@/three/layers/TraceLineLayer";
-import { TracePointsLayer } from "@/three/layers/TracePointsLayer";
-import { PolytopeVerticesLayer } from "@/three/layers/PolytopeVerticesLayer";
-import { ConstraintHighlightLayer } from "@/three/layers/ConstraintHighlightLayer";
-import { IterateLineLayer } from "@/three/layers/IterateLineLayer";
-import { IteratePointsLayer } from "@/three/layers/IteratePointsLayer";
-import { IterateRestartPointsLayer } from "@/three/layers/IterateRestartPointsLayer";
-import { IterateStarLayer } from "@/three/layers/IterateStarLayer";
-import { IterateHighlightLayer } from "@/three/layers/IterateHighlightLayer";
-import type { Layer } from "@/three/Layer";
+import { SceneManager } from "@/canvas3d/SceneManager";
+import { CameraController } from "@/canvas3d/controllers/CameraController";
+import { ControlsController } from "@/canvas3d/controllers/ControlsController";
+import { TransitionController } from "@/canvas3d/controllers/TransitionController";
+import { SharedMaterialsController } from "@/canvas3d/controllers/SharedMaterialsController";
+import { GridLayer } from "@/canvas3d/layers/GridLayer";
+import { PolytopeBaseLayer } from "@/canvas3d/layers/PolytopeBaseLayer";
+import { PolytopeRubberBandLayer } from "@/canvas3d/layers/PolytopeRubberBandLayer";
+import { ObjectiveLayer } from "@/canvas3d/layers/ObjectiveLayer";
+import { TraceLineLayer } from "@/canvas3d/layers/TraceLineLayer";
+import { TracePointsLayer } from "@/canvas3d/layers/TracePointsLayer";
+import { PolytopeVerticesLayer } from "@/canvas3d/layers/PolytopeVerticesLayer";
+import { ConstraintHighlightLayer } from "@/canvas3d/layers/ConstraintHighlightLayer";
+import { IterateLineLayer } from "@/canvas3d/layers/IterateLineLayer";
+import { IteratePointsLayer } from "@/canvas3d/layers/IteratePointsLayer";
+import { IterateRestartPointsLayer } from "@/canvas3d/layers/IterateRestartPointsLayer";
+import { IterateStarLayer } from "@/canvas3d/layers/IterateStarLayer";
+import { IterateHighlightLayer } from "@/canvas3d/layers/IterateHighlightLayer";
+import type { Layer } from "@/canvas3d/Layer";
 
 export function LpvizCanvasGL({
   onBridgeReady,

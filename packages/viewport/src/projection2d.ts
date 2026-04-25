@@ -102,6 +102,7 @@ export function buildViewport2DSnapshot(
     mode: "2d",
     width,
     height,
+    sidebarWidth,
     gridSpacing: normalizedState.gridSpacing,
     scaleFactor,
     unitsPerPixel,
