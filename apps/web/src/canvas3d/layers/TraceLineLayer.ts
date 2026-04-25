@@ -94,7 +94,7 @@ export class TraceLineLayer implements Layer {
     const snap = ctx.getSnapshot();
     const is3D = snap.mode === "3d";
 
-    this.object3D.scale.z = raw.zScale / 100;
+    this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
     this.object3D.position.z = is3D ? 0 : TRACE_Z_OFFSET;
 
     const p = this.prev;

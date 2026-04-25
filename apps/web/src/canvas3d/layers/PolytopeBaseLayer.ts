@@ -126,10 +126,10 @@ function getDisplayedObjectiveZ(x: number, y: number, ov: PointXY | null, zAxisO
 function getRenderZ(
   x: number, y: number,
   ov: PointXY | null, zScale: number, zAxisOffsetOnly: boolean,
-  is3D: boolean, offset: number,
+  is3D: boolean, offset: number, transitionZMultiplier = 1,
 ) {
   if (!is3D) return offset;
-  return (getDisplayedObjectiveZ(x, y, ov, zAxisOffsetOnly) * zScale) / 100 + offset;
+  return (getDisplayedObjectiveZ(x, y, ov, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier + offset;
 }
 
 type PolytopeRenderResult = {
@@ -156,6 +156,7 @@ function buildPolytopeGeometry(
   const isNonconvex = !VRep.fromPoints(displayVertices).isConvex();
   const is3D = snap.mode === "3d";
   const { objectiveVector: ov, zScale, zAxisOffsetOnly } = state;
+  const tzm = snap.transitionZMultiplier;
 
   const bounds: Bounds =
     completionMode === "open" && !hasDerived && polytope?.kind === "unbounded"
@@ -183,8 +184,8 @@ function buildPolytopeGeometry(
     const highlighted = !hasDerived && highlightIndex === i;
     const arr = highlighted ? highlightSegments : normalSegments;
     arr.push(
-      s.x, s.y, getRenderZ(s.x, s.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z),
-      e.x, e.y, getRenderZ(e.x, e.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z),
+      s.x, s.y, getRenderZ(s.x, s.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
+      e.x, e.y, getRenderZ(e.x, e.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
     );
   }
 
@@ -198,8 +199,8 @@ function buildPolytopeGeometry(
       if (!clipped) continue;
       const [s, e] = clipped;
       normalSegments.push(
-        s.x, s.y, getRenderZ(s.x, s.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z),
-        e.x, e.y, getRenderZ(e.x, e.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z),
+        s.x, s.y, getRenderZ(s.x, s.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
+        e.x, e.y, getRenderZ(e.x, e.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
       );
     }
   }
@@ -228,6 +229,7 @@ type PrevState = {
   unitsPerPixel: number;
   targetX: number; targetY: number;
   mode: string;
+  transitionZMultiplier: number;
 };
 
 export class PolytopeBaseLayer implements Layer {
@@ -305,7 +307,8 @@ export class PolytopeBaseLayer implements Layer {
       p.orthoB !== snap.orthographic.bottom ||
       p.unitsPerPixel !== snap.unitsPerPixel ||
       p.targetX !== snap.target.x ||
-      p.targetY !== snap.target.y;
+      p.targetY !== snap.target.y ||
+      p.transitionZMultiplier !== snap.transitionZMultiplier;
 
     this.normalEdges.material = is3D ? normalMat3D : normalMat2D;
     this.highlightEdges.material = is3D ? highlightMat3D : highlightMat2D;
@@ -322,6 +325,7 @@ export class PolytopeBaseLayer implements Layer {
       orthoL: snap.orthographic.left, orthoR: snap.orthographic.right,
       orthoT: snap.orthographic.top, orthoB: snap.orthographic.bottom,
       unitsPerPixel: snap.unitsPerPixel, targetX: snap.target.x, targetY: snap.target.y,
+      transitionZMultiplier: snap.transitionZMultiplier,
     };
 
     const result = buildPolytopeGeometry(raw, snap);
@@ -335,8 +339,9 @@ export class PolytopeBaseLayer implements Layer {
       const newFillGeo = new ShapeGeometry(buildShapeFromVertices(result.fillVertices));
       if (is3D) {
         const pos = newFillGeo.getAttribute("position") as Float32BufferAttribute;
+        const tzm = snap.transitionZMultiplier;
         for (let i = 0; i < pos.count; i++) {
-          pos.setZ(i, getRenderZ(pos.getX(i), pos.getY(i), raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, true, 0));
+          pos.setZ(i, getRenderZ(pos.getX(i), pos.getY(i), raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, true, 0, tzm));
         }
         pos.needsUpdate = true;
         newFillGeo.computeBoundingBox();

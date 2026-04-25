@@ -53,6 +53,7 @@ type PrevState = {
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
+  transitionZMultiplier: number;
 };
 
 export class IterateStarLayer implements Layer {
@@ -90,7 +91,8 @@ export class IterateStarLayer implements Layer {
       p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode
+      p.mode === snap.mode &&
+      p.transitionZMultiplier === snap.transitionZMultiplier
     ) {
       return;
     }
@@ -102,6 +104,7 @@ export class IterateStarLayer implements Layer {
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
+      transitionZMultiplier: snap.transitionZMultiplier,
     };
 
     const entry = raw.iteratePath[raw.iteratePath.length - 1];
@@ -112,7 +115,7 @@ export class IterateStarLayer implements Layer {
 
     const is3D = snap.mode === "3d";
     const z = is3D
-      ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 + ITERATE_STAR_Z
+      ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier + ITERATE_STAR_Z
       : ITERATE_STAR_Z;
 
     this.object3D.geometry.setAttribute("position", new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3));

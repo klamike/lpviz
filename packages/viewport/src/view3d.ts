@@ -315,6 +315,7 @@ export function buildViewport3DSnapshot(
     height,
     scaleFactor,
     unitsPerPixel,
+    transitionZMultiplier: 1,
     target: { ...pose.target },
     orthographic: {
       left: -(width * unitsPerPixel) / 2,

@@ -106,6 +106,7 @@ export function buildViewport2DSnapshot(
     gridSpacing: normalizedState.gridSpacing,
     scaleFactor,
     unitsPerPixel,
+    transitionZMultiplier: 1,
     target,
     orthographic: {
       left: -(width * unitsPerPixel) / 2,

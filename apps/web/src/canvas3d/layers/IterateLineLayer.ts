@@ -36,9 +36,10 @@ function getIterateRenderZ(
   zScale: number,
   zAxisOffsetOnly: boolean,
   is3D: boolean,
+  transitionZMultiplier = 1,
 ) {
   if (!is3D) return ITERATE_Z;
-  return (getDisplayedIterateZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) / 100 + ITERATE_Z;
+  return (getDisplayedIterateZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier + ITERATE_Z;
 }
 
 function buildLinePositions(
@@ -47,6 +48,7 @@ function buildLinePositions(
   zScale: number,
   zAxisOffsetOnly: boolean,
   is3D: boolean,
+  transitionZMultiplier = 1,
 ) {
   if (path.length < 2) return new Float32Array();
   const positions = new Float32Array(path.length * 3);
@@ -54,14 +56,14 @@ function buildLinePositions(
     const entry = path[i]!;
     positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = getIterateRenderZ(entry, objectiveVector, zScale, zAxisOffsetOnly, is3D);
+    positions[i * 3 + 2] = getIterateRenderZ(entry, objectiveVector, zScale, zAxisOffsetOnly, is3D, transitionZMultiplier);
   }
   return positions;
 }
 
 type SegmentEntry = { color: string; positions: Float32Array };
 
-function buildIterateSegments(raw: State, is3D: boolean): SegmentEntry[] {
+function buildIterateSegments(raw: State, is3D: boolean, transitionZMultiplier = 1): SegmentEntry[] {
   if (raw.iteratePath.length < 2) return [];
 
   const hasPhases =
@@ -69,7 +71,7 @@ function buildIterateSegments(raw: State, is3D: boolean): SegmentEntry[] {
 
   if (!hasPhases) {
     const positions = buildLinePositions(
-      raw.iteratePath, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D,
+      raw.iteratePath, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, transitionZMultiplier,
     );
     return positions.length > 0 ? [{ color: ITERATE_LINE_COLOR, positions }] : [];
   }
@@ -82,7 +84,7 @@ function buildIterateSegments(raw: State, is3D: boolean): SegmentEntry[] {
     const currentPhase = raw.iteratePhases[i]!;
     if (currentPhase !== raw.iteratePhases[i - 1]!) {
       const slice = raw.iteratePath.slice(segStart, i + 1);
-      const positions = buildLinePositions(slice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D);
+      const positions = buildLinePositions(slice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, transitionZMultiplier);
       if (positions.length > 0) {
         segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions });
       }
@@ -91,7 +93,7 @@ function buildIterateSegments(raw: State, is3D: boolean): SegmentEntry[] {
     }
   }
   const lastSlice = raw.iteratePath.slice(segStart);
-  const lastPositions = buildLinePositions(lastSlice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D);
+  const lastPositions = buildLinePositions(lastSlice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, transitionZMultiplier);
   if (lastPositions.length > 0) {
     segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions: lastPositions });
   }
@@ -119,6 +121,7 @@ type PrevState = {
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
+  transitionZMultiplier: number;
 };
 
 export class IterateLineLayer implements Layer {
@@ -144,7 +147,8 @@ export class IterateLineLayer implements Layer {
       p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode
+      p.mode === snap.mode &&
+      p.transitionZMultiplier === snap.transitionZMultiplier
     ) {
       return;
     }
@@ -157,6 +161,7 @@ export class IterateLineLayer implements Layer {
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
+      transitionZMultiplier: snap.transitionZMultiplier,
     };
 
     if (raw.iteratePath.length < 2 || !shouldRenderSnapshotMode(snap.mode, raw)) {
@@ -166,7 +171,7 @@ export class IterateLineLayer implements Layer {
     }
 
     const is3D = snap.mode === "3d";
-    const segments = buildIterateSegments(raw, is3D);
+    const segments = buildIterateSegments(raw, is3D, snap.transitionZMultiplier);
 
     if (segments.length === 0) {
       this.object3D.visible = false;

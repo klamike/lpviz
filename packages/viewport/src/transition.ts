@@ -276,6 +276,7 @@ export function buildViewportTransitionFrame(
       height,
       scaleFactor,
       unitsPerPixel,
+      transitionZMultiplier: plan.direction === "to2d" ? 1 - clampedProgress : clampedProgress,
       target,
       orthographic: {
         left: -(width * unitsPerPixel) / 2,

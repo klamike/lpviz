@@ -12,6 +12,7 @@ export type ViewportRenderSnapshot = {
   gridSpacing: number;
   scaleFactor: number;
   unitsPerPixel: number;
+  transitionZMultiplier: number;
   target: {
     x: number;
     y: number;
@@ -72,6 +73,7 @@ export const DEFAULT_VIEWPORT_RENDER_SNAPSHOT: ViewportRenderSnapshot = {
   gridSpacing: 20,
   scaleFactor: 1,
   unitsPerPixel: 1 / 20,
+  transitionZMultiplier: 1,
   target: { x: 0, y: 0, z: 0 },
   orthographic: {
     left: -window.innerWidth / 40,

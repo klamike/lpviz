@@ -62,6 +62,7 @@ type PrevState = {
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
+  transitionZMultiplier: number;
 };
 
 export class IterateRestartPointsLayer implements Layer {
@@ -104,7 +105,8 @@ export class IterateRestartPointsLayer implements Layer {
       p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode
+      p.mode === snap.mode &&
+      p.transitionZMultiplier === snap.transitionZMultiplier
     ) {
       return;
     }
@@ -118,6 +120,7 @@ export class IterateRestartPointsLayer implements Layer {
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
+      transitionZMultiplier: snap.transitionZMultiplier,
     };
 
     if (!shouldRenderSnapshotMode(snap.mode, raw)) {
@@ -146,7 +149,7 @@ export class IterateRestartPointsLayer implements Layer {
       positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
       positions[i * 3 + 2] = is3D
-        ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 + ITERATE_Z
+        ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier + ITERATE_Z
         : ITERATE_Z;
 
       if (colors) {

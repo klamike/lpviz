@@ -27,6 +27,7 @@ const docHtmlInputs = findHtmlFiles(docsDir);
 export default defineConfig(({ mode }) => ({
   plugins: [
     react({
+      fastRefresh: false,
       babel: {
         plugins: ["babel-plugin-react-compiler"],
       },
@@ -65,5 +66,4 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     emptyOutDir: false,
   },
-  server: { hmr: false }
 }));

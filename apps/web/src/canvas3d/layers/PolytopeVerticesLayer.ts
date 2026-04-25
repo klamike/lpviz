@@ -41,10 +41,11 @@ function getVertexZ(
   zAxisOffsetOnly: boolean,
   zScale: number,
   is3D: boolean,
+  transitionZMultiplier = 1,
 ): number {
   if (!is3D) return VERTEX_Z;
   const ov = objectiveVector ? objectiveVector.x * point.x + objectiveVector.y * point.y : 0;
-  return ((zAxisOffsetOnly ? 0 : ov) * zScale) / 100 + VERTEX_Z;
+  return ((zAxisOffsetOnly ? 0 : ov) * zScale) / 100 * transitionZMultiplier + VERTEX_Z;
 }
 
 function buildVertexPositions(
@@ -56,6 +57,7 @@ function buildVertexPositions(
   zScale: number,
   zAxisOffsetOnly: boolean,
   is3D: boolean,
+  transitionZMultiplier = 1,
 ): Float32Array {
   const out: number[] = [];
   for (let index = 0; index < displayVertices.length; index++) {
@@ -66,7 +68,7 @@ function buildVertexPositions(
       (index === 0 || index === displayVertices.length - 1);
     const isSquare = isAnchor;
     if (shapeFilter === "square" ? !isSquare : isSquare) continue;
-    out.push(v.x, v.y, getVertexZ(v, objectiveVector, zAxisOffsetOnly, zScale, is3D));
+    out.push(v.x, v.y, getVertexZ(v, objectiveVector, zAxisOffsetOnly, zScale, is3D, transitionZMultiplier));
   }
   return new Float32Array(out);
 }
@@ -86,6 +88,7 @@ type PrevState = {
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
+  transitionZMultiplier: number;
 };
 
 export class PolytopeVerticesLayer implements Layer {
@@ -147,7 +150,8 @@ export class PolytopeVerticesLayer implements Layer {
       p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode
+      p.mode === snap.mode &&
+      p.transitionZMultiplier === snap.transitionZMultiplier
     ) {
       return;
     }
@@ -161,6 +165,7 @@ export class PolytopeVerticesLayer implements Layer {
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
+      transitionZMultiplier: snap.transitionZMultiplier,
     };
 
     const hasDerived =
@@ -176,12 +181,12 @@ export class PolytopeVerticesLayer implements Layer {
     applyPositions(
       this.circlePoints,
       buildVertexPositions(displayVertices, "circle", raw.completionMode, hasDerived,
-        raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D),
+        raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, snap.transitionZMultiplier),
     );
     applyPositions(
       this.squarePoints,
       buildVertexPositions(displayVertices, "square", raw.completionMode, hasDerived,
-        raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D),
+        raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, snap.transitionZMultiplier),
     );
   }
 
