@@ -18,7 +18,7 @@ sometimes (maybe already fixed) when switching solvers, only first 4 rows of vir
 -
 z scale should adapt to the range of values being displayed. then we can get rid of the 500*eps etc...
 
--
+99b450d
 remove colorByPhase from IPM
 
 -
@@ -114,3 +114,6 @@ make exclude obj = true the only option, delete all dead code this creates.
 
 -
 fix z scale transition for iteratehighlightlayer (and check all other layers as well)
+
+-
+replace maxit text fields with log-space sliders (style the slider range to somehow communicate that it is log-spaced)

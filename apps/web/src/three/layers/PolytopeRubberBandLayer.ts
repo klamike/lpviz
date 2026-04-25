@@ -21,10 +21,10 @@ function getDisplayedObjectiveZ(x: number, y: number, ov: import("@lpviz/math/ty
 function getRenderZ(
   x: number, y: number,
   ov: import("@lpviz/math/types").PointXY | null, zScale: number, zAxisOffsetOnly: boolean,
-  is3D: boolean, offset: number,
+  is3D: boolean, offset: number, transitionZMultiplier: number,
 ) {
   if (!is3D) return offset;
-  return (getDisplayedObjectiveZ(x, y, ov, zAxisOffsetOnly) * zScale) / 100 + offset;
+  return (getDisplayedObjectiveZ(x, y, ov, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier + offset;
 }
 
 type RubberBandState = {
@@ -88,10 +88,10 @@ export class PolytopeRubberBandLayer implements Layer {
     const last = rbState.lastVertex;
     RUBBER_BAND_BUF[0] = last.x;
     RUBBER_BAND_BUF[1] = last.y;
-    RUBBER_BAND_BUF[2] = getRenderZ(last.x, last.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z);
+    RUBBER_BAND_BUF[2] = getRenderZ(last.x, last.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z, snap.transitionZMultiplier);
     RUBBER_BAND_BUF[3] = mouse.x;
     RUBBER_BAND_BUF[4] = mouse.y;
-    RUBBER_BAND_BUF[5] = getRenderZ(mouse.x, mouse.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z);
+    RUBBER_BAND_BUF[5] = getRenderZ(mouse.x, mouse.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z, snap.transitionZMultiplier);
     this.geometry.setPositions(RUBBER_BAND_BUF);
     this.object3D.visible = true;
   }
