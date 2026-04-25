@@ -140,7 +140,6 @@ export function createSolverControls({
           alphaMax: s.alphaMax,
           correctorThreshold: s.correctorThreshold,
           maxitIPM: s.maxitIPM,
-          ipmColorByPhase: s.ipmColorByPhase,
         };
       },
       applySharedSettings: (settings: ShareSettings) => {
@@ -153,8 +152,6 @@ export function createSolverControls({
           );
         if (settings.maxitIPM !== undefined)
           updateSolverSetting("maxitIPM", settings.maxitIPM);
-        if (settings.ipmColorByPhase !== undefined)
-          updateSolverSetting("ipmColorByPhase", settings.ipmColorByPhase);
       },
       buildRequest: (state: State) => {
         if (!state.objectiveVector || !hasPolytopeLines(state.polytope)) {
@@ -168,7 +165,6 @@ export function createSolverControls({
           alphaMax: s.alphaMax,
           correctorThreshold: s.correctorThreshold,
           maxit: Math.max(1, s.maxitIPM || 1),
-          colorByPhase: s.ipmColorByPhase,
         };
       },
       applyResult: (

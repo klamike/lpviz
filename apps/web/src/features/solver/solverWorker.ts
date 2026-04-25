@@ -19,7 +19,6 @@ export type SolverWorkerPayload =
       alphaMax: number;
       correctorThreshold: number;
       maxit: number;
-      colorByPhase: boolean;
     }
   | {
       solver: "simplex";
@@ -133,7 +132,6 @@ async function runIPM(
   alphamax: number,
   correctorThreshold: number,
   maxit: number,
-  colorByPhase: boolean,
 ) {
   return wrapSolverCall("IPM", () => {
     const options = {
@@ -144,7 +142,6 @@ async function runIPM(
       alphaMax: alphamax,
       correctorThreshold,
       maxit,
-      colorByPhase,
     };
     return ipm(lines, objective, options);
   });
@@ -191,7 +188,6 @@ async function executeSolver(
         data.alphaMax,
         data.correctorThreshold,
         data.maxit,
-        data.colorByPhase,
       ),
     };
   }

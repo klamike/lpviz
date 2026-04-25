@@ -310,7 +310,6 @@ export function areSolverSettingsEqual(
     a.alphaMax === b.alphaMax &&
     a.correctorThreshold === b.correctorThreshold &&
     a.maxitIPM === b.maxitIPM &&
-    a.ipmColorByPhase === b.ipmColorByPhase &&
     a.simplexDualMode === b.simplexDualMode &&
     a.pdhgEta === b.pdhgEta &&
     a.pdhgTau === b.pdhgTau &&

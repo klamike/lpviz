@@ -50,7 +50,6 @@ export interface IPMResult {
       rows: Extract<VirtualResultRow, { kind: "ipm" }>[];
       footer?: string;
       mu?: number[];
-      phases?: number[];
     };
   };
 }
@@ -90,7 +89,6 @@ export function applyIPMResult(
       header: sol.header,
       rows: sol.rows,
       footer: sol.footer,
-      phases: sol.phases,
       zFrom: (xy, index) => {
         const obj = objectiveVector
           ? objectiveVector.x * xy[0] + objectiveVector.y * xy[1]

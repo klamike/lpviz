@@ -4,7 +4,6 @@ export type ShareSettings = {
   alphaMax?: number;
   correctorThreshold?: number;
   maxitIPM?: number;
-  ipmColorByPhase?: boolean;
   simplexDualMode?: boolean;
   pdhgEta?: number;
   pdhgTau?: number;
@@ -40,7 +39,6 @@ const shareKeyMap = {
   alphaMax: "a",
   correctorThreshold: "f",
   maxitIPM: "i",
-  ipmColorByPhase: "w",
   simplexDualMode: "d",
   pdhgEta: "e",
   pdhgTau: "t",

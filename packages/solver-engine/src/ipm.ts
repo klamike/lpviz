@@ -16,7 +16,6 @@ interface IPMOptions {
   alphaMax: number;
   correctorThreshold: number;
   verbose: boolean;
-  colorByPhase: boolean;
 }
 
 interface IPMSolutionData {
@@ -34,26 +33,7 @@ interface IPMSolutionData {
     infeasibility: number;
     mu: number;
   }>;
-  phases?: number[];
   footer?: string;
-}
-
-const COMPLEMENTARITY_RATIO_THRESHOLD = 100;
-
-function computeComplementarityPhase(s: Float64Array, y: Float64Array) {
-  let phase = 0;
-  for (let i = 0; i < s.length; i++) {
-    const slack = Math.max(s[i]!, 1e-16);
-    const dual = Math.max(y[i]!, 1e-16);
-    const label =
-      dual >= slack * COMPLEMENTARITY_RATIO_THRESHOLD
-        ? 1
-        : slack >= dual * COMPLEMENTARITY_RATIO_THRESHOLD
-          ? 2
-          : 0;
-    phase = (phase * 33 + label) >>> 0;
-  }
-  return phase;
 }
 
 export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
@@ -65,7 +45,6 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
     alphaMax,
     correctorThreshold,
     verbose,
-    colorByPhase,
   } = opts;
 
   if (maxit > MAX_ITERATIONS_LIMIT) {
@@ -93,7 +72,6 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
       alphaMax,
       correctorThreshold,
       verbose,
-      colorByPhase,
     },
   );
 }
@@ -112,7 +90,6 @@ function ipmCore(
     alphaMax,
     correctorThreshold,
     verbose,
-    colorByPhase,
   } = opts;
   const m = A.rows;
   const n = A.cols;
@@ -125,7 +102,6 @@ function ipmCore(
     mu: [],
     header: " Iter        x        y        Obj     Infeas          µ",
     rows: [],
-    phases: colorByPhase ? [] : undefined,
   };
   const res = { iterates: { solution } };
 
@@ -172,9 +148,6 @@ function ipmCore(
 
     logIter(solution, verbose, x, mu, pObj, pRes);
     pushIter(solution, x, s, y, mu);
-    if (colorByPhase) {
-      solution.phases!.push(computeComplementarityPhase(s, y));
-    }
 
     if (pRes <= eps_p && infinityNorm(rD) <= eps_d && gap <= eps_opt) {
       converged = true;

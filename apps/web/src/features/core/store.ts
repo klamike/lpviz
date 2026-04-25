@@ -70,7 +70,6 @@ export type SolverSettings = {
   alphaMax: number;
   correctorThreshold: number;
   maxitIPM: number;
-  ipmColorByPhase: boolean;
   simplexDualMode: boolean;
   pdhgEta: number;
   pdhgTau: number;
@@ -88,7 +87,6 @@ export const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
   alphaMax: 0.1,
   correctorThreshold: 0.9,
   maxitIPM: 1000,
-  ipmColorByPhase: false,
   simplexDualMode: false,
   pdhgEta: 0.25,
   pdhgTau: 0.25,
