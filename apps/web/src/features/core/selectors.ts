@@ -39,7 +39,6 @@ export type TopResultUiState = {
   maximizeVisible: boolean;
   nullStateVisible: boolean;
   objectiveActive: boolean;
-  objectiveDisplayText: string;
   subjectToVisible: boolean;
 };
 
@@ -150,7 +149,6 @@ export function selectTopResultUiState(state: State): TopResultUiState {
       state.objectiveVector === null &&
       state.currentObjective === null,
     objectiveActive,
-    objectiveDisplayText: formatObjectiveDisplay(state.objectiveVector),
     subjectToVisible:
       hasPolytopeLines(state.polytope) && state.polytope.lines.length > 0,
   };
@@ -164,7 +162,6 @@ export function areTopResultUiStatesEqual(
     a.maximizeVisible === b.maximizeVisible &&
     a.nullStateVisible === b.nullStateVisible &&
     a.objectiveActive === b.objectiveActive &&
-    a.objectiveDisplayText === b.objectiveDisplayText &&
     a.subjectToVisible === b.subjectToVisible
   );
 }
@@ -313,7 +310,7 @@ export function areSolverSettingsEqual(
   );
 }
 
-function formatObjectiveDisplay(
+export function formatObjectiveDisplay(
   objectiveVector: State["objectiveVector"],
 ): string {
   if (!objectiveVector) {

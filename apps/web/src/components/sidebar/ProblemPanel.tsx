@@ -1,9 +1,10 @@
-import { useDeferredValue, type RefObject } from "react";
+import { useDeferredValue, useLayoutEffect, useRef, type RefObject } from "react";
 
-import { useLpvizStore } from "@/features/core/store";
+import { getState, subscribe, useLpvizStore } from "@/features/core/store";
 import {
   areInequalitiesUiStatesEqual,
   areTopResultUiStatesEqual,
+  formatObjectiveDisplay,
   selectInequalitiesUiState,
   selectTopResultUiState,
 } from "@/features/core/selectors";
@@ -22,6 +23,21 @@ export function ProblemPanel({
     selectTopResultUiState,
     areTopResultUiStatesEqual,
   );
+  const objectiveDisplayRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const s0 = getState();
+    if (objectiveDisplayRef.current)
+      objectiveDisplayRef.current.textContent = formatObjectiveDisplay(s0.objectiveVector);
+    let prevObjective = s0.objectiveVector;
+    return subscribe((s) => {
+      if (s.objectiveVector !== prevObjective) {
+        prevObjective = s.objectiveVector;
+        if (objectiveDisplayRef.current)
+          objectiveDisplayRef.current.textContent = formatObjectiveDisplay(s.objectiveVector);
+      }
+    });
+  }, []);
   const inequalitiesUiState = useLpvizStore(
     selectInequalitiesUiState,
     areInequalitiesUiStatesEqual,
@@ -55,14 +71,13 @@ export function ProblemPanel({
         </div>
         <div
           id="objectiveDisplay"
+          ref={objectiveDisplayRef}
           className={
             topResultUiState.objectiveActive
               ? "objective-item objective-active"
               : undefined
           }
-        >
-          {topResultUiState.objectiveDisplayText}
-        </div>
+        />
         <div
           id="subjectTo"
           className={
