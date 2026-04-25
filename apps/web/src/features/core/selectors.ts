@@ -51,10 +51,7 @@ export type InequalitiesUiState = {
 export type ResultPanelUiState = {
   mode: State["resultDisplayMode"];
   blocks: ResultTextBlock[] | null;
-  virtualHeader: string | null;
-  virtualFooter: string | null;
   virtualShowEmpty: boolean;
-  virtualRows: ResultTextBlock[];
   maxLineChars: number;
 };
 
@@ -214,10 +211,7 @@ export function selectResultPanelUiState(state: State): ResultPanelUiState {
   return {
     mode: state.resultDisplayMode,
     blocks: state.resultBlocks,
-    virtualHeader: state.resultVirtualHeader,
-    virtualFooter: state.resultVirtualFooter,
     virtualShowEmpty: state.resultVirtualShowEmpty,
-    virtualRows: state.resultVirtualRows,
     maxLineChars: state.resultMaxLineChars,
   };
 }
@@ -226,16 +220,11 @@ export function areResultPanelUiStatesEqual(
   a: ResultPanelUiState,
   b: ResultPanelUiState,
 ): boolean {
-  // Note: virtualRows is intentionally excluded from this comparison.
-  // SolverLogPanel subscribes to state.resultVirtualRows directly and paints the
-  // VirtualList imperatively, so row-data changes shouldn't trigger React
-  // re-renders of SolverLogPanel or the O(n) deep compare that used to run here
-  // on every store update during objective rotation.
+  // virtualRows, virtualHeader, virtualFooter are managed imperatively via
+  // direct store subscription in SolverLogPanel — they don't go through React.
   if (
     a.mode !== b.mode ||
     a.blocks?.length !== b.blocks?.length ||
-    a.virtualHeader !== b.virtualHeader ||
-    a.virtualFooter !== b.virtualFooter ||
     a.virtualShowEmpty !== b.virtualShowEmpty ||
     a.maxLineChars !== b.maxLineChars
   ) {

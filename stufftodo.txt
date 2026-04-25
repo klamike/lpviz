@@ -65,7 +65,7 @@ is it possible to refactor makeLine2 to not create a new Line? (or rather, refac
 -
 combine iteratepoints, iteraterestartpoints, iteratestar, if it's not too complicated
 
--
+f567dc3
 add iteration counts to simplex footer
 
 -

@@ -122,6 +122,8 @@ export function SolverLogPanel() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<VirtualListHandle | null>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
   const mouseClientPosRef = useRef<{ x: number; y: number } | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const scrollTopRef = useRef(0);
@@ -131,20 +133,40 @@ export function SolverLogPanel() {
   runtimeActionsRef.current = runtimeActions;
   const virtualRowsRef = useRef(getState().resultVirtualRows);
 
-  // Drive VirtualList updates imperatively, bypassing React's render cycle
-  // entirely for row data. During objective rotation the solver writes fresh
-  // rows to the store at animation speed; routing that through
-  // useSyncExternalStore + selector + reconciliation + layout effect adds
-  // latency and makes the list feel sluggish vs. the vanilla JS version.
-  // Subscribe directly to the store and paint the visible pool synchronously
-  // from the listener — same as hand-written DOM code would do.
+  // Drive virtual panel updates imperatively, bypassing React's render cycle
+  // for row data, header, and footer. During objective rotation the solver
+  // writes fresh results at animation speed; routing these through
+  // useSyncExternalStore + reconciliation adds latency on the hot path.
   useLayoutEffect(() => {
-    virtualRowsRef.current = getState().resultVirtualRows;
+    const s0 = getState();
+    virtualRowsRef.current = s0.resultVirtualRows;
+    if (headerRef.current) headerRef.current.textContent = s0.resultVirtualHeader ?? "";
+    if (footerRef.current) {
+      footerRef.current.textContent = s0.resultVirtualFooter ?? "";
+      footerRef.current.style.display = s0.resultVirtualFooter ? "" : "none";
+    }
     listRef.current?.paint();
-    return subscribe((state) => {
-      if (state.resultVirtualRows !== virtualRowsRef.current) {
-        virtualRowsRef.current = state.resultVirtualRows;
+
+    let prevRows = s0.resultVirtualRows;
+    let prevHeader = s0.resultVirtualHeader;
+    let prevFooter = s0.resultVirtualFooter;
+
+    return subscribe((s) => {
+      if (s.resultVirtualRows !== prevRows) {
+        prevRows = s.resultVirtualRows;
+        virtualRowsRef.current = s.resultVirtualRows;
         listRef.current?.paint();
+      }
+      if (s.resultVirtualHeader !== prevHeader) {
+        prevHeader = s.resultVirtualHeader;
+        if (headerRef.current) headerRef.current.textContent = s.resultVirtualHeader ?? "";
+      }
+      if (s.resultVirtualFooter !== prevFooter) {
+        prevFooter = s.resultVirtualFooter;
+        if (footerRef.current) {
+          footerRef.current.textContent = s.resultVirtualFooter ?? "";
+          footerRef.current.style.display = s.resultVirtualFooter ? "" : "none";
+        }
       }
     });
   }, []);
@@ -302,9 +324,7 @@ export function SolverLogPanel() {
         <div
           className={`result-virtual-layout ${resultPanelUiState.mode === "virtual" ? "" : "is-hidden"}`.trim()}
         >
-          <div className="iterate-header">
-            {resultPanelUiState.virtualHeader ?? ""}
-          </div>
+          <div className="iterate-header" ref={headerRef} />
           <div
             ref={scrollContainerRef}
             className="iterate-scroll"
@@ -325,11 +345,7 @@ export function SolverLogPanel() {
               />
             )}
           </div>
-          {resultPanelUiState.virtualFooter ? (
-            <div className="iterate-footer">
-              {resultPanelUiState.virtualFooter}
-            </div>
-          ) : null}
+          <div className="iterate-footer" ref={footerRef} />
         </div>
       </div>
     </TerminalFrame>
