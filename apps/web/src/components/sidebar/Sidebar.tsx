@@ -6,8 +6,8 @@ import { areSolverSettingsEqual, selectSolverSettings } from "@/features/core/se
 import { AnimationControlsPanel } from "@/components/sidebar/AnimationControlsPanel";
 import { SidebarHeader } from "@/components/sidebar/SidebarHeader";
 import { SolverControlsPanel } from "@/components/sidebar/SolverControlsPanel";
-import { TopResultPanel } from "@/components/sidebar/TopResultPanel";
-import { UsagePanel } from "@/components/sidebar/UsagePanel";
+import { ProblemPanel } from "@/components/sidebar/ProblemPanel";
+import { SolverLogPanel } from "@/components/sidebar/SolverLogPanel";
 import { useAppActions } from "@/features/core/actions";
 
 export function Sidebar({
@@ -29,7 +29,7 @@ export function Sidebar({
         <div id="sidebarContent">
           <SidebarHeader />
           <div id="uiContainer">
-            <TopResultPanel topResultRef={topResultRef} />
+            <ProblemPanel topResultRef={topResultRef} />
             <SolverControlsPanel />
             <AnimationControlsPanel />
             <label className="is-hidden" htmlFor="replaySpeedSlider">
@@ -51,7 +51,7 @@ export function Sidebar({
               step="1"
               autoComplete="off"
             />
-            <UsagePanel />
+            <SolverLogPanel />
           </div>
         </div>
       </div>

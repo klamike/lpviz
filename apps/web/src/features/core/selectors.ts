@@ -227,9 +227,9 @@ export function areResultPanelUiStatesEqual(
   b: ResultPanelUiState,
 ): boolean {
   // Note: virtualRows is intentionally excluded from this comparison.
-  // UsagePanel subscribes to state.resultVirtualRows directly and paints the
+  // SolverLogPanel subscribes to state.resultVirtualRows directly and paints the
   // VirtualList imperatively, so row-data changes shouldn't trigger React
-  // re-renders of UsagePanel or the O(n) deep compare that used to run here
+  // re-renders of SolverLogPanel or the O(n) deep compare that used to run here
   // on every store update during objective rotation.
   if (
     a.mode !== b.mode ||
