@@ -6,7 +6,7 @@ import {
   hasOpenBoundaryClosure,
   verticesFromLines,
 } from "@lpviz/math/geometry";
-import { buildConstraintDerivation } from "./constraintDerivation";
+import { buildConstraintRep } from "./constraintRep";
 import type { PolytopeRepresentation } from "./polytopeTypes";
 
 export function deriveRegionFromPoints(
@@ -18,7 +18,7 @@ export function deriveRegionFromPoints(
   }
 
   const closed = completionMode === "closed";
-  const { inequalities, lines } = buildConstraintDerivation(points, closed);
+  const { inequalities, lines } = buildConstraintRep(points, closed);
 
   if (!closed) {
     const allVertices = verticesFromLines(lines);
