@@ -17,7 +17,7 @@ import { SHARED_STAR_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_STAR_COLOR = "#008000";
 const ITERATE_STAR_Z = 0.03;
-const ITERATE_STAR_PIXEL_SIZE = 18;
+const ITERATE_STAR_PIXEL_SIZE = 27;
 const ITERATE_STAR_RENDER_ORDER = RENDER_ORDER.iterateStar;
 
 const HUGE = 1e10;

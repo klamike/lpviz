@@ -17,7 +17,7 @@ import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_HIGHLIGHT_COLOR = "#008000";
 const ITERATE_HIGHLIGHT_Z = 0.03;
-const ITERATE_HIGHLIGHT_PIXEL_SIZE = 8 * 1.3;
+const ITERATE_HIGHLIGHT_PIXEL_SIZE = 8 * 2;
 const ITERATE_HIGHLIGHT_RENDER_ORDER = RENDER_ORDER.iterateHighlight;
 
 const HUGE = 1e10;
