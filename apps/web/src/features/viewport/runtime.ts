@@ -454,7 +454,6 @@ export async function createViewportRuntime({
     publishSnapshot(managerSnapshot);
   });
 
-  // Fully external viewport runtime backed by canvas-side state/snapshots.
   return {
     draw: () => {
       viewportBridge.invalidate();

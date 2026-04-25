@@ -30,7 +30,6 @@ export class CameraController {
       this.applySnapshot();
     });
 
-    // Initial apply
     this.applySnapshot();
   }
 

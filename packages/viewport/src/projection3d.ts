@@ -199,9 +199,6 @@ export function toLogicalCoords3D(
     projectionPlanePoint.set(0, 0, 0),
   );
 
-  // Only intersect when the ray isn't nearly parallel to the plane.
-  // A small denominator (ray · normal) means the intersection point is
-  // astronomically far away, which causes the drag target to "freak out".
   const dotTilted = projectionRaycaster.ray.direction.dot(projectionPlane.normal);
   let point: PointXY | null = null;
 
@@ -255,7 +252,6 @@ export function toLogicalCoords3D(
       }
     }
 
-    // Second fallback: flat z=0 plane.
     if (!point) {
       projectionPlane.setFromNormalAndCoplanarPoint(
         projectionPlaneNormal.set(0, 0, 1),

@@ -212,7 +212,6 @@ export class ControlsController {
     controls.maxDistance = this.controlsConfig.maxDistance;
 
     if (this.syncToken === this.controlsConfig.syncToken) {
-      // Still apply maxDistance fix from original effect 4
       const target = new Vector3(controls.target.x, controls.target.y, controls.target.z);
       const distance = perspectiveCamera.position.distanceTo(target);
       if (!Number.isFinite(distance) || distance > controls.maxDistance) {

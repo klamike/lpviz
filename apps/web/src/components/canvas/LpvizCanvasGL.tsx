@@ -40,7 +40,6 @@ export function LpvizCanvasGL({
     const transitionCtl = new TransitionController(mgr);
     const materialsCtl = new SharedMaterialsController(mgr);
 
-    // Register transition tick
     mgr.addTick(() => transitionCtl.tick());
 
     const layers: Layer[] = [

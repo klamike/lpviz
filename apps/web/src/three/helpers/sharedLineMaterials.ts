@@ -1,11 +1,6 @@
 import { Box3, type BufferGeometry, Sphere, Vector3 } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
-// ─── Shared LineMaterial cache ────────────────────────────────────────────────
-// All line objects with identical visual properties share one LineMaterial
-// instance. This lets Three.js skip redundant GPU state changes between draw
-// calls that use the same material.
-
 type LineMaterialKey = {
   color: string | number;
   linewidth: number;
@@ -37,7 +32,6 @@ export function getSharedLineMaterial(opts: LineMaterialKey): LineMaterial {
   return mat;
 }
 
-// Called once per frame by SharedMaterialsController when canvas size changes.
 let _lastW = 0;
 let _lastH = 0;
 

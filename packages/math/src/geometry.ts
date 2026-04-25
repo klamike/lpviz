@@ -1,7 +1,5 @@
 import type { Lines, PointXY, Vertices } from "./types";
 
-// ── polygon ──────────────────────────────────────────────────────────────────
-
 interface BoundingBox {
   minX: number;
   maxX: number;
@@ -239,8 +237,6 @@ export class VRep {
   }
 }
 
-// ── feasibleRegion ────────────────────────────────────────────────────────────
-
 export type RegionKind = "bounded" | "unbounded" | "empty" | "degenerate";
 
 export function satisfiesLines(
@@ -353,8 +349,6 @@ export function classifyRegion(
   return "unbounded";
 }
 
-// ── halfPlaneIntersection ─────────────────────────────────────────────────────
-
 export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {
   const intersections: Vertices = [];
   const n = lines.length;
@@ -405,8 +399,6 @@ export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {
     .sort((a, b) => a.angle - b.angle)
     .map(({ point }) => point);
 }
-
-// ── openRegionBoundary ────────────────────────────────────────────────────────
 
 export interface BoundaryRay {
   start: [number, number];
@@ -562,8 +554,6 @@ export function hasOpenBoundaryClosure(
 
   return false;
 }
-
-// ── objectiveDirection ────────────────────────────────────────────────────────
 
 export function isObjectiveDirectionUnbounded(
   lines: Lines,

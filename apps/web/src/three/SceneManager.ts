@@ -120,10 +120,8 @@ export class SceneManager {
     }
     this.dirty = false;
 
-    // Update layers
     this.layerHost.update(this.ctx);
 
-    // Run registered ticks
     for (const tick of this.ticks) {
       tick(this.ctx);
     }
