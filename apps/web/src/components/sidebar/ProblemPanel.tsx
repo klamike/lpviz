@@ -12,7 +12,7 @@ import { NullStateLogo } from "@/components/sidebar/NullStateLogo";
 import { TerminalFrame } from "@/components/sidebar/TerminalFrame";
 import { useAppActions } from "@/features/core/actions";
 
-export function TopResultPanel({
+export function ProblemPanel({
   topResultRef,
 }: {
   topResultRef: RefObject<HTMLDivElement | null>;

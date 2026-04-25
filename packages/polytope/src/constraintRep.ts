@@ -1,7 +1,7 @@
 import type { Lines, Vertices } from "@lpviz/math/types";
 import { centroid } from "@lpviz/math/geometry";
 
-export interface ConstraintDerivation {
+export interface ConstraintRep {
   inequalities: string[];
   lines: Lines;
 }
@@ -41,11 +41,11 @@ export function formatConstraint(A: number, B: number, C: number): string {
   return `${xTerm}${yTerm} ${inequalitySign} ${normalizedC}`.trim();
 }
 
-export function buildConstraintDerivation(
+export function buildConstraintRep(
   points: Vertices,
   closed: boolean,
   tol = 1e-6,
-): ConstraintDerivation {
+): ConstraintRep {
   const inequalities: string[] = [];
   const lines: Lines = [];
   const pointCount = points.length;

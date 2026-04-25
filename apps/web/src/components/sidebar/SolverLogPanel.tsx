@@ -100,7 +100,7 @@ const VirtualList = forwardRef<
   );
 });
 
-export function UsagePanel() {
+export function SolverLogPanel() {
   const runtimeActions = useAppActions();
   const resultPanelUiState = useLpvizStore(
     selectResultPanelUiState,
