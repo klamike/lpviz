@@ -1,8 +1,8 @@
 const NULL_STATE_LOGO_FONT_SIZE = 16;
-const NULL_STATE_LOGO_LINE_HEIGHT = 18;
-const NULL_STATE_LOGO_CHAR_ADVANCE = 9.6;
+export const NULL_STATE_LOGO_LINE_HEIGHT = 18;
+export const NULL_STATE_LOGO_CHAR_ADVANCE = 9.6;
 
-const NULL_STATE_LOGO_LINES = [
+export const NULL_STATE_LOGO_LINES = [
   "  ___                                   ",
   " /\\_ \\                   __             ",
   " \\//\\ \\   ______  __  __/\\_\\  _____     ",
@@ -11,14 +11,14 @@ const NULL_STATE_LOGO_LINES = [
   "    /\\____\\ \\  __/\\ \\___/ \\ \\_\\/\\____\\  ",
   "    \\/____/\\ \\ \\/  \\/__/   \\/_/\\/____/  ",
   "            \\ \\_\\                       ",
-  "             \\/_/               v0.1.0",
+  "             \\/_/               v1.0.0",
   "                                        ",
 ] as const;
 
-const NULL_STATE_LOGO_VIEWBOX_WIDTH =
+export const NULL_STATE_LOGO_VIEWBOX_WIDTH =
   Math.max(...NULL_STATE_LOGO_LINES.map((line) => line.length)) *
   NULL_STATE_LOGO_CHAR_ADVANCE;
-const NULL_STATE_LOGO_VIEWBOX_HEIGHT =
+export const NULL_STATE_LOGO_VIEWBOX_HEIGHT =
   NULL_STATE_LOGO_LINES.length * NULL_STATE_LOGO_LINE_HEIGHT;
 
 const glyphs = NULL_STATE_LOGO_LINES.flatMap((line, row) =>
