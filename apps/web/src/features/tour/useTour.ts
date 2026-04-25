@@ -95,16 +95,11 @@ export function useTour({
   sendPolytope: () => void;
   runAction: (target: TourActionTarget) => void;
 }): TourActions {
-  const canvasManagerRef = useRef<ViewportApi | null>(canvasManager);
-  canvasManagerRef.current = canvasManager;
-  const uiRef = useRef<TourUiController>(ui);
-  uiRef.current = ui;
-  const saveHistoryRef = useRef(saveHistory);
-  saveHistoryRef.current = saveHistory;
-  const sendPolytopeRef = useRef(sendPolytope);
-  sendPolytopeRef.current = sendPolytope;
-  const runActionRef = useRef(runAction);
-  runActionRef.current = runAction;
+  const canvasManagerRef = useLatest<ViewportApi | null>(canvasManager);
+  const uiRef = useLatest(ui);
+  const saveHistoryRef = useLatest(saveHistory);
+  const sendPolytopeRef = useLatest(sendPolytope);
+  const runActionRef = useLatest(runAction);
 
   const runningRef = useRef(false);
   const clickBlockerRef = useRef<((event: Event) => void) | null>(null);
@@ -378,12 +373,7 @@ export function useTour({
       runningRef.current = false;
       setClickBlocker(false);
     };
-  }, [
-    dismissHelpOverlay,
-    dismissNonconvexHint,
-    scheduleHelpOverlayIfNeeded,
-    setClickBlocker,
-  ]);
+  }, []);
 
   return { start, stop, reset, scheduleNonconvexHint };
 }

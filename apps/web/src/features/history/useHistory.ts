@@ -18,7 +18,7 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
   onRestoreRef.current = onRestore;
 
   const captureEntry = (state: HistorySnapshotSource): HistoryEntry => ({
-    vertices: JSON.parse(JSON.stringify(state.vertices)),
+    vertices: structuredClone(state.vertices),
     objectiveVector: state.objectiveVector
       ? { ...state.objectiveVector }
       : null,
@@ -58,15 +58,20 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
     const trimmed = sourceStack.slice(0, -1);
     setState(
       isRedo
-        ? { redoStack: trimmed }
-        : { historyStack: trimmed, redoStack: [...redoStack, currentEntry] },
+        ? {
+            redoStack: trimmed,
+            vertices: stateToRestore.vertices,
+            objectiveVector: stateToRestore.objectiveVector,
+            completionMode: stateToRestore.completionMode,
+          }
+        : {
+            historyStack: trimmed,
+            redoStack: [...redoStack, currentEntry],
+            vertices: stateToRestore.vertices,
+            objectiveVector: stateToRestore.objectiveVector,
+            completionMode: stateToRestore.completionMode,
+          },
     );
-
-    setState({
-      vertices: stateToRestore.vertices,
-      objectiveVector: stateToRestore.objectiveVector,
-      completionMode: stateToRestore.completionMode,
-    });
     onRestoreRef.current();
   };
 

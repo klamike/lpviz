@@ -28,6 +28,7 @@ import { computeObjectiveRotationStep } from "@lpviz/polytope/objectiveDirection
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { useEffect, useRef } from "react";
+import { useLatest } from "@/hooks/useLatest";
 
 const ROTATE_ROW_LIMIT = 20;
 const BASE_ROTATION_WAIT_MS = 30;
@@ -85,8 +86,7 @@ export function useSolver({
 }: {
   canvasManager: ViewportApi | null;
 }): SolverActions {
-  const canvasManagerRef = useRef<ViewportApi | null>(canvasManager);
-  canvasManagerRef.current = canvasManager;
+  const canvasManagerRef = useLatest<ViewportApi | null>(canvasManager);
 
   const requestGenerationRef = useRef(0);
   const rotationRafIdRef = useRef<number | null>(null);
@@ -523,13 +523,11 @@ export function useSolver({
     const solverSnapshot = getState();
     if (solverSnapshot.rotateObjectiveMode) return;
 
-    const animationIntervalId = solverSnapshot.animationIntervalId;
-    if (animationIntervalId !== null) {
-      clearInterval(animationIntervalId);
+    if (solverSnapshot.animationIntervalId !== null) {
+      clearInterval(solverSnapshot.animationIntervalId);
     }
-    setState({ animationIntervalId: null }, { viewportDirty: {} });
 
-    const intervalTime = getState().solverSettings.replaySpeed || 500;
+    const intervalTime = solverSnapshot.solverSettings.replaySpeed || 500;
     const iteratesToAnimate = [...solverSnapshot.originalIteratePath];
     const phasesToAnimate = [...solverSnapshot.originalIteratePhases];
     setState(
@@ -628,13 +626,13 @@ export function useSolver({
       }
       wasNavigatingViewport = snapshot.isNavigatingViewport;
     });
-  }, [flushDeferredRender]);
+  }, []);
 
   useEffect(() => {
     return () => {
       cancelRotationLoop();
     };
-  }, [cancelRotationLoop]);
+  }, []);
 
   return {
     updateSolverSetting,

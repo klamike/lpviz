@@ -1,5 +1,6 @@
 import type { ViewportApi } from "@/features/viewport/runtime";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLatest } from "@/hooks/useLatest";
 
 export function useSidebarViewportSync({
   canvasManager,
@@ -12,20 +13,21 @@ export function useSidebarViewportSync({
 }) {
   const sidebarWidthRef = useRef(sidebarWidth);
   sidebarWidthRef.current = sidebarWidth;
+  const syncViewportLayoutRef = useLatest(syncViewportLayout);
 
   useLayoutEffect(() => {
     if (!canvasManager) return;
-    syncViewportLayout(sidebarWidth);
-  }, [canvasManager, sidebarWidth, syncViewportLayout]);
+    syncViewportLayoutRef.current(sidebarWidth);
+  }, [canvasManager, sidebarWidth]);
 
   useEffect(() => {
     if (!canvasManager) return;
     const handleResize = () => {
-      syncViewportLayout(sidebarWidthRef.current);
+      syncViewportLayoutRef.current(sidebarWidthRef.current);
     };
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [canvasManager, syncViewportLayout]);
+  }, [canvasManager]);
 }
