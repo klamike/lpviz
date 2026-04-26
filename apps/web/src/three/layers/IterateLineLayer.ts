@@ -39,7 +39,7 @@ function getIterateRenderZ(
   transitionZMultiplier = 1,
 ) {
   if (!is3D) return ITERATE_Z;
-  return (getDisplayedIterateZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier + ITERATE_Z;
+  return (getDisplayedIterateZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier;
 }
 
 function buildLinePositions(

@@ -129,7 +129,7 @@ export class IterateHighlightLayer implements Layer {
 
     const is3D = snap.mode === "3d";
     const z = is3D
-      ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier + ITERATE_HIGHLIGHT_Z
+      ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
       : ITERATE_HIGHLIGHT_Z;
 
     this.object3D.geometry.setAttribute("position", new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3));

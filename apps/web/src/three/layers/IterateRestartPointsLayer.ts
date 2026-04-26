@@ -149,7 +149,7 @@ export class IterateRestartPointsLayer implements Layer {
       positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
       positions[i * 3 + 2] = is3D
-        ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier + ITERATE_Z
+        ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
         : ITERATE_Z;
 
       if (colors) {

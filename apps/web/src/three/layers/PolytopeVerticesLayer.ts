@@ -45,7 +45,7 @@ function getVertexZ(
 ): number {
   if (!is3D) return VERTEX_Z;
   const ov = objectiveVector ? objectiveVector.x * point.x + objectiveVector.y * point.y : 0;
-  return ((zAxisOffsetOnly ? 0 : ov) * zScale) / 100 * transitionZMultiplier + VERTEX_Z;
+  return ((zAxisOffsetOnly ? 0 : ov) * zScale) / 100 * transitionZMultiplier;
 }
 
 function buildVertexPositions(
