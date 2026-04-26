@@ -1,5 +1,5 @@
-import { sprintf } from "sprintf-js";
 import type { Lines, VecN, VecNs, Vertices } from "@lpviz/math/types";
+import { fmtE, fmtF, fmtIntL, fmtStrL, fmtStr } from "./fmt";
 import { dot, infinityNorm, linesToDenseAb, matVec } from "@lpviz/math/blas";
 import { solveDenseSystem } from "@lpviz/math/lapack";
 import { centroid, findStrictFeasiblePoint } from "@lpviz/math/geometry";
@@ -216,13 +216,7 @@ function centralPathXk(
         slackScratch,
       );
       console.log(
-        sprintf(
-          "Iter %d: f(x) = %.6f, ||grad||_inf = %.2e, alpha = %.2f",
-          iteration,
-          objectiveValue,
-          gradientInfinityNorm,
-          stepSize,
-        ),
+        `Iter ${iteration}: f(x) = ${objectiveValue.toFixed(6)}, ||grad||_inf = ${gradientInfinityNorm.toExponential(2)}, alpha = ${stepSize.toFixed(2)}`,
       );
     }
   }
@@ -251,14 +245,7 @@ export function centralPath(
 
   const points: VecNs = [];
   const logs: string[] = [];
-  const header = sprintf(
-    "  %-4s %8s %8s %10s %10s  \n",
-    "Iter",
-    "x",
-    "y",
-    "Obj",
-    "µ",
-  );
+  const header = `  ${fmtStrL("Iter", 4)} ${fmtStr("x", 8)} ${fmtStr("y", 8)} ${fmtStr("Obj", 10)} ${fmtStr("µ", 10)}  \n`;
   if (verbose) console.log(header);
   logs.push(header);
 
@@ -299,14 +286,7 @@ export function centralPath(
     const linearObjective = dot(c, optimalPoint);
     points.push(Float64Array.of(optimalPoint[0] ?? 0, optimalPoint[1] ?? 0, totalObjective));
 
-    const progressLog = sprintf(
-      "  %-4d %+8.2f %+8.2f %+10.1e %10.1e  \n",
-      points.length,
-      optimalPoint[0] ?? 0,
-      optimalPoint[1] ?? 0,
-      linearObjective,
-      mu,
-    );
+    const progressLog = `  ${fmtIntL(points.length, 4)} ${fmtF(optimalPoint[0] ?? 0, 8, 2)} ${fmtF(optimalPoint[1] ?? 0, 8, 2)} ${fmtE(linearObjective, 10, 1)} ${fmtE(mu, 10, 1, false)}  \n`;
     if (verbose) console.log(progressLog);
     logs.push(progressLog);
 

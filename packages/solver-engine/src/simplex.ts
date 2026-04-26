@@ -1,5 +1,5 @@
-import { sprintf } from "sprintf-js";
 import type { Lines, Vec2N, Vec2Ns, VecN } from "@lpviz/math/types";
+import { fmtE, fmtF, fmtInt } from "./fmt";
 import { type DenseMatrix, dot, linesToDenseAb, transposedMatVec } from "@lpviz/math/blas";
 import { solveDenseSystem } from "@lpviz/math/lapack";
 
@@ -191,14 +191,7 @@ function formatIterationLog(
 ) {
   const x0 = nOrig >= 1 ? (xTableau[0] ?? 0) - (xTableau[nOrig] ?? 0) : 0;
   const y0 = nOrig >= 2 ? (xTableau[1] ?? 0) - (xTableau[nOrig + 1] ?? 0) : 0;
-  return sprintf(
-    "%5d %+8.2f %+8.2f %+10.1e %s\n",
-    iteration,
-    x0,
-    y0,
-    objective,
-    basisString(basis),
-  );
+  return `${fmtInt(iteration, 5)} ${fmtF(x0, 8, 2)} ${fmtF(y0, 8, 2)} ${fmtE(objective, 10, 1)} ${basisString(basis)}\n`;
 }
 
 function recoverPrimalPointFromDualBasis(
@@ -241,14 +234,7 @@ function simplexCoreStandard(
   const iterations: Vec2Ns = [];
   const basisHistory: number[][] = [];
   const logs: string[] = [];
-  const header = sprintf(
-    "%5s %8s %8s %10s %s\n",
-    "Iter",
-    "x",
-    "y",
-    "Obj",
-    "basis".padEnd(nCols, " "),
-  );
+  const header = `${"Iter".padStart(5)} ${"x".padStart(8)} ${"y".padStart(8)} ${"Obj".padStart(10)} ${"basis".padEnd(nCols, " ")}\n`;
 
   if (verbose) console.log(header);
   logs.push(header);
@@ -269,14 +255,7 @@ function simplexCoreStandard(
     objective = state.objective;
 
     const [x, y] = pointFromBasis(state.basisIndices);
-    const line = sprintf(
-      "%5d %+8.2f %+8.2f %+10.1e %s\n",
-      iteration,
-      x,
-      y,
-      objective,
-      basisString(basis),
-    );
+    const line = `${fmtInt(iteration, 5)} ${fmtF(x, 8, 2)} ${fmtF(y, 8, 2)} ${fmtE(objective, 10, 1)} ${basisString(basis)}\n`;
     if (verbose) console.log(line);
     logs.push(line);
 
@@ -363,14 +342,7 @@ function simplexCore(
   let basis = basisInit.slice();
   const iterations: Vec2Ns = [];
   const logs: string[] = [];
-  const header = sprintf(
-    "%5s %8s %8s %10s %s\n",
-    "Iter",
-    "x",
-    "y",
-    "Obj",
-    "basis".padEnd(nCols, " "),
-  );
+  const header = `${"Iter".padStart(5)} ${"x".padStart(8)} ${"y".padStart(8)} ${"Obj".padStart(10)} ${"basis".padEnd(nCols, " ")}\n`;
   if (verbose) console.log(header);
   logs.push(header);
 

@@ -5,8 +5,7 @@
   "type": "module",
   "dependencies": {
     "@lpviz/math": "workspace:*",
-    "@lpviz/polytope": "workspace:*",
-    "sprintf-js": "^1.1.3"
+    "@lpviz/polytope": "workspace:*"
   },
   "exports": {
     "./*": "./src/*.ts"

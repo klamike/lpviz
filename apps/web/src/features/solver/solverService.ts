@@ -5,7 +5,12 @@ import {
   updateIteratePathsWithTrace,
 } from "@/features/core/store";
 import type { ResultTextBlock } from "@/features/solver/types";
-import { sprintf } from "sprintf-js";
+const fmtInt = (v: number, w: number) => String(v).padStart(w);
+const fmtStr = (v: string, w: number) => v.padStart(w);
+const fmtF = (v: number, w: number, d: number) =>
+  ((v >= 0 ? "+" : "") + v.toFixed(d)).padStart(w);
+const fmtE = (v: number, w: number, d: number, signed = true) =>
+  ((signed && v >= 0 ? "+" : "") + v.toExponential(d)).padStart(w);
 
 export type VirtualResultRow =
   | string
@@ -176,26 +181,10 @@ type CanonicalIterateResult = {
 export function formatVirtualResultRow(row: VirtualResultRow): string {
   if (typeof row === "string") return row;
   if (row.kind === "ipm") {
-    return sprintf(
-      "%5d %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
-      row.iteration,
-      row.x,
-      row.y,
-      row.objective,
-      row.infeasibility,
-      row.mu,
-    );
+    return `${fmtInt(row.iteration, 5)} ${fmtF(row.x, 8, 2)} ${fmtF(row.y, 8, 2)} ${fmtE(row.objective, 10, 1)} ${fmtE(row.infeasibility, 10, 1)} ${fmtE(row.mu, 10, 1, false)}`;
   }
   const iterationLabel = row.restart ? `${row.iteration}r` : `${row.iteration}`;
-  return sprintf(
-    "%5s %+8.2f %+8.2f %+10.1e %+10.1e %10.1e",
-    iterationLabel,
-    row.x,
-    row.y,
-    row.objective,
-    row.infeasibility,
-    row.epsilon,
-  );
+  return `${fmtStr(iterationLabel, 5)} ${fmtF(row.x, 8, 2)} ${fmtF(row.y, 8, 2)} ${fmtE(row.objective, 10, 1)} ${fmtE(row.infeasibility, 10, 1)} ${fmtE(row.epsilon, 10, 1, false)}`;
 }
 
 function applyCanonicalIterateResult(
