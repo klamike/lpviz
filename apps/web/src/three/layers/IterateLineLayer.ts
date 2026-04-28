@@ -3,7 +3,7 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
-import type { State } from "@/features/core/store";
+import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
@@ -14,21 +14,8 @@ const PHASE_COLORS = [
   "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
   "#ffff33", "#a65628", "#f781bf", "#999999", "#17becf",
 ];
-const ITERATE_Z = 0.03;
 const ITERATE_LINE_RENDER_ORDER = RENDER_ORDER.iterateLine;
 const ITERATE_LINE_THICKNESS = 3;
-
-function getDisplayedIterateZ(
-  entry: Float64Array,
-  objectiveVector: PointXY | null,
-  zAxisOffsetOnly: boolean,
-) {
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
-    : 0;
-  const totalValue = entry[2] !== undefined ? entry[2]! : objectiveValue;
-  return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
-}
 
 function getIterateRenderZ(
   entry: Float64Array,
@@ -38,8 +25,8 @@ function getIterateRenderZ(
   is3D: boolean,
   transitionZMultiplier = 1,
 ) {
-  if (!is3D) return ITERATE_Z;
-  return (getDisplayedIterateZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier;
+  if (!is3D) return 0;
+  return (computeIterateZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier;
 }
 
 function buildLinePositions(

@@ -9,14 +9,13 @@ import {
 } from "three";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
-import type { State } from "@/features/core/store";
+import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_HIGHLIGHT_COLOR = "#008000";
-const ITERATE_HIGHLIGHT_Z = 0.03;
 const ITERATE_HIGHLIGHT_PIXEL_SIZE = 8 * 2;
 const ITERATE_HIGHLIGHT_RENDER_ORDER = RENDER_ORDER.iterateHighlight;
 
@@ -31,18 +30,6 @@ function makePointsGeo(): BufferGeometry {
   geo.computeBoundingBox = () => {};
   geo.computeBoundingSphere = () => {};
   return geo;
-}
-
-function getDisplayedIterateZ(
-  entry: Float64Array,
-  objectiveVector: PointXY | null,
-  zAxisOffsetOnly: boolean,
-) {
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
-    : 0;
-  const totalValue = entry[2] !== undefined ? entry[2]! : objectiveValue;
-  return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
 }
 
 type PrevState = {
@@ -129,8 +116,8 @@ export class IterateHighlightLayer implements Layer {
 
     const is3D = snap.mode === "3d";
     const z = is3D
-      ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
-      : ITERATE_HIGHLIGHT_Z;
+      ? (computeIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
+      : 0;
 
     this.object3D.geometry.setAttribute("position", new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3));
     this.object3D.visible = true;

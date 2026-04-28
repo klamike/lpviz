@@ -394,6 +394,18 @@ export function addTraceToBuffer(iteratesArray: Float64Array[]): void {
   setState({ traceBuffer: appendedTraceBuffer(state, iteratesArray, snapshotObjectiveVector(state.objectiveVector)) });
 }
 
+export function computeIterateZ(
+  entry: Float64Array,
+  objectiveVector: PointXY | null,
+  zAxisOffsetOnly: boolean,
+): number {
+  const objectiveValue = objectiveVector
+    ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
+    : 0;
+  const totalValue = entry[2] !== undefined ? entry[2]! : objectiveValue;
+  return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
+}
+
 export function getDisplayedIterateZ(
   entry: Float64Array,
   objectiveOverride?: PointXY | null,
@@ -401,11 +413,7 @@ export function getDisplayedIterateZ(
   const { objectiveVector: currentObjective, zAxisOffsetOnly } = getState();
   const objectiveVector =
     objectiveOverride === undefined ? currentObjective : objectiveOverride;
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * entry[0] + objectiveVector.y * entry[1]
-    : 0;
-  const totalValue = entry[2] !== undefined ? entry[2] : objectiveValue;
-  return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
+  return computeIterateZ(entry, objectiveVector, zAxisOffsetOnly);
 }
 
 export function updateIteratePathsWithTrace(

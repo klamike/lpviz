@@ -10,7 +10,7 @@ import {
 } from "three";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
-import type { State } from "@/features/core/store";
+import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
@@ -23,7 +23,6 @@ const PHASE_COLORS = [
 ];
 const PHASE_COLORS_LINEAR: ReadonlyArray<readonly [number, number, number]> =
   PHASE_COLORS.map((hex) => { const c = new Color(hex); return [c.r, c.g, c.b] as const; });
-const ITERATE_Z = 0.03;
 const ITERATE_RESTART_POINT_SIZE = 8 * 1.4;
 const ITERATE_RESTART_POINTS_RENDER_ORDER = RENDER_ORDER.iterateRestartPoints;
 
@@ -38,18 +37,6 @@ function makePointsGeo(): BufferGeometry {
   geo.computeBoundingBox = () => {};
   geo.computeBoundingSphere = () => {};
   return geo;
-}
-
-function getDisplayedIterateZ(
-  entry: Float64Array,
-  objectiveVector: PointXY | null,
-  zAxisOffsetOnly: boolean,
-) {
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
-    : 0;
-  const totalValue = entry[2] !== undefined ? entry[2]! : objectiveValue;
-  return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
 }
 
 type PrevState = {
@@ -149,8 +136,8 @@ export class IterateRestartPointsLayer implements Layer {
       positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
       positions[i * 3 + 2] = is3D
-        ? (getDisplayedIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
-        : ITERATE_Z;
+        ? (computeIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
+        : 0;
 
       if (colors) {
         const rgb = PHASE_COLORS_LINEAR[raw.iteratePhases[restartIndex]! % PHASE_COLORS_LINEAR.length]!;
