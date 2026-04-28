@@ -656,7 +656,6 @@ export async function createViewportRuntime({
       return toLogicalCoords3D(managerSnapshot, getViewportRect(), x, y, {
         objectiveVector: state.objectiveVector,
         zScale: state.zScale,
-        zAxisOffsetOnly: state.zAxisOffsetOnly,
         snapToGrid: state.snapToGrid,
         editorInteractionKind: state.editorInteraction.kind,
         is3DMode: state.is3DMode,

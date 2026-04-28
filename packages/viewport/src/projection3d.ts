@@ -9,7 +9,6 @@ type ViewportRect = Pick<DOMRect, "width" | "height">;
 export type Viewport3DInteractionOptions = {
   objectiveVector: PointXY | null;
   zScale: number;
-  zAxisOffsetOnly: boolean;
   snapToGrid: boolean;
   editorInteractionKind: State["editorInteraction"]["kind"];
   is3DMode: boolean;
@@ -183,17 +182,7 @@ export function toLogicalCoords3D(
   projectionPointerNdc.set((x / width) * 2 - 1, -((y / height) * 2 - 1));
   projectionRaycaster.setFromCamera(projectionPointerNdc, projectionCamera);
 
-  if (options.objectiveVector && !options.zAxisOffsetOnly) {
-    projectionPlaneNormal
-      .set(
-        options.objectiveVector.x * (options.zScale / 100),
-        options.objectiveVector.y * (options.zScale / 100),
-        -1,
-      )
-      .normalize();
-  } else {
-    projectionPlaneNormal.set(0, 0, 1);
-  }
+  projectionPlaneNormal.set(0, 0, 1);
   projectionPlane.setFromNormalAndCoplanarPoint(
     projectionPlaneNormal,
     projectionPlanePoint.set(0, 0, 0),

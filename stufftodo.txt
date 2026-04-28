@@ -46,7 +46,7 @@ benchmarks for solvers and rendering (as part of this -- decide if its worth goi
 -
 move getVisibleBounds, clipLineToBounds to viewport package
 
--
+728cf13f
 dedupe/move getDisplayedIterateZ; this is app logic not three logic. also get rid of ITERATE_Z; just use drawing order to make sure it's on top.
 
 -
@@ -93,3 +93,6 @@ make sure camera is always above z= 0 + eps
 
 -
 track down + fix bug: lines can get cut off when zoom is high and camera is close
+
+-
+put objective arrow, polytope above (using render order, not offset) the grid

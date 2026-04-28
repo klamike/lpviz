@@ -176,7 +176,6 @@ export function LpvizProvider({
       zoomToFit: viewport.zoomToFit,
       resetView: viewport.resetView,
       toggle3D: viewport.toggle3D,
-      toggleZOffset: viewport.toggleZOffset,
       setZScale: viewport.setZScale,
       setActiveSolverMode: setActiveSolverModeWithSolve,
       setSidebarWidth: viewport.setSidebarWidth,

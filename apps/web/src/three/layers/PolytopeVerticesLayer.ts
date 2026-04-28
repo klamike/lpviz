@@ -35,17 +35,8 @@ function makePointsGeo(): BufferGeometry {
   return geo;
 }
 
-function getVertexZ(
-  point: PointXY,
-  objectiveVector: PointXY | null,
-  zAxisOffsetOnly: boolean,
-  zScale: number,
-  is3D: boolean,
-  transitionZMultiplier = 1,
-): number {
-  if (!is3D) return VERTEX_Z;
-  const ov = objectiveVector ? objectiveVector.x * point.x + objectiveVector.y * point.y : 0;
-  return ((zAxisOffsetOnly ? 0 : ov) * zScale) / 100 * transitionZMultiplier;
+function getVertexZ(is3D: boolean): number {
+  return is3D ? 0 : VERTEX_Z;
 }
 
 function buildVertexPositions(
@@ -53,11 +44,7 @@ function buildVertexPositions(
   shapeFilter: "circle" | "square",
   completionMode: State["completionMode"],
   hasDerivedClosedRegion: boolean,
-  objectiveVector: PointXY | null,
-  zScale: number,
-  zAxisOffsetOnly: boolean,
   is3D: boolean,
-  transitionZMultiplier = 1,
 ): Float32Array {
   const out: number[] = [];
   for (let index = 0; index < displayVertices.length; index++) {
@@ -68,7 +55,7 @@ function buildVertexPositions(
       (index === 0 || index === displayVertices.length - 1);
     const isSquare = isAnchor;
     if (shapeFilter === "square" ? !isSquare : isSquare) continue;
-    out.push(v.x, v.y, getVertexZ(v, objectiveVector, zAxisOffsetOnly, zScale, is3D, transitionZMultiplier));
+    out.push(v.x, v.y, getVertexZ(is3D));
   }
   return new Float32Array(out);
 }
@@ -82,9 +69,6 @@ type PrevState = {
   vertices: State["vertices"];
   completionMode: State["completionMode"];
   polytope: State["polytope"];
-  objectiveVector: PointXY | null;
-  zScale: number;
-  zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
@@ -145,9 +129,6 @@ export class PolytopeVerticesLayer implements Layer {
       p.vertices === raw.vertices &&
       p.completionMode === raw.completionMode &&
       p.polytope === raw.polytope &&
-      p.objectiveVector === raw.objectiveVector &&
-      p.zScale === raw.zScale &&
-      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
       p.mode === snap.mode &&
@@ -159,9 +140,6 @@ export class PolytopeVerticesLayer implements Layer {
       vertices: raw.vertices,
       completionMode: raw.completionMode,
       polytope: raw.polytope,
-      objectiveVector: raw.objectiveVector,
-      zScale: raw.zScale,
-      zAxisOffsetOnly: raw.zAxisOffsetOnly,
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
@@ -180,13 +158,11 @@ export class PolytopeVerticesLayer implements Layer {
 
     applyPositions(
       this.circlePoints,
-      buildVertexPositions(displayVertices, "circle", raw.completionMode, hasDerived,
-        raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, snap.transitionZMultiplier),
+      buildVertexPositions(displayVertices, "circle", raw.completionMode, hasDerived, is3D),
     );
     applyPositions(
       this.squarePoints,
-      buildVertexPositions(displayVertices, "square", raw.completionMode, hasDerived,
-        raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, snap.transitionZMultiplier),
+      buildVertexPositions(displayVertices, "square", raw.completionMode, hasDerived, is3D),
     );
   }
 

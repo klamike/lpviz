@@ -21,19 +21,17 @@ const traceMat3D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_
 function getDisplayedTraceZ(
   entry: Float64Array,
   objectiveVector: PointXY | null,
-  zAxisOffsetOnly: boolean,
 ) {
   const objectiveValue = objectiveVector
     ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
     : 0;
   const totalValue = entry[2] !== undefined ? entry[2] : objectiveValue;
-  return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
+  return totalValue - objectiveValue;
 }
 
 function buildTraceLinePositions(
   path: Float64Array[],
   objectiveVector: PointXY | null,
-  zAxisOffsetOnly: boolean,
 ) {
   if (path.length < 2) return new Float32Array();
   const positions = new Float32Array(path.length * 3);
@@ -41,21 +39,18 @@ function buildTraceLinePositions(
     const entry = path[i]!;
     positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector, zAxisOffsetOnly);
+    positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector);
   }
   return positions;
 }
 
-const traceLinePositionCache = new WeakMap<object, Map<string, Float32Array>>();
+const traceLinePositionCache = new WeakMap<object, Float32Array>();
 
-function getCachedTraceLinePositions(entry: State["traceBuffer"][number], zAxisOffsetOnly: boolean) {
-  const key = zAxisOffsetOnly ? "1" : "0";
-  let cache = traceLinePositionCache.get(entry);
-  if (!cache) { cache = new Map(); traceLinePositionCache.set(entry, cache); }
-  const cached = cache.get(key);
+function getCachedTraceLinePositions(entry: State["traceBuffer"][number]) {
+  let cached = traceLinePositionCache.get(entry);
   if (cached) return cached;
-  const positions = buildTraceLinePositions(entry.path, entry.objectiveVector, zAxisOffsetOnly);
-  cache.set(key, positions);
+  const positions = buildTraceLinePositions(entry.path, entry.objectiveVector);
+  traceLinePositionCache.set(entry, positions);
   return positions;
 }
 
@@ -73,7 +68,6 @@ function makeLine2(mat: ReturnType<typeof getSharedLineMaterial>, group: Group):
 type PrevState = {
   traceEnabled: boolean;
   traceBuffer: State["traceBuffer"];
-  zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
@@ -102,7 +96,6 @@ export class TraceLineLayer implements Layer {
       p &&
       p.traceEnabled === raw.traceEnabled &&
       p.traceBuffer === raw.traceBuffer &&
-      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
       p.mode === snap.mode
@@ -112,7 +105,6 @@ export class TraceLineLayer implements Layer {
     this.prev = {
       traceEnabled: raw.traceEnabled,
       traceBuffer: raw.traceBuffer,
-      zAxisOffsetOnly: raw.zAxisOffsetOnly,
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
@@ -127,7 +119,7 @@ export class TraceLineLayer implements Layer {
 
     const linePositions: Float32Array[] = [];
     for (const entry of raw.traceBuffer) {
-      const pos = getCachedTraceLinePositions(entry, raw.zAxisOffsetOnly);
+      const pos = getCachedTraceLinePositions(entry);
       if (pos.length >= 6) linePositions.push(pos);
     }
 

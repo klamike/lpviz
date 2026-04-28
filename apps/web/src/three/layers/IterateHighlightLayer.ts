@@ -37,7 +37,6 @@ type PrevState = {
   highlightIteratePathIndex: State["highlightIteratePathIndex"];
   iterateObjectiveVector: PointXY | null;
   zScale: number;
-  zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
@@ -77,7 +76,6 @@ export class IterateHighlightLayer implements Layer {
       p.highlightIteratePathIndex === raw.highlightIteratePathIndex &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
       p.zScale === raw.zScale &&
-      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
       p.mode === snap.mode &&
@@ -90,7 +88,6 @@ export class IterateHighlightLayer implements Layer {
       highlightIteratePathIndex: raw.highlightIteratePathIndex,
       iterateObjectiveVector: raw.iterateObjectiveVector,
       zScale: raw.zScale,
-      zAxisOffsetOnly: raw.zAxisOffsetOnly,
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
@@ -116,7 +113,7 @@ export class IterateHighlightLayer implements Layer {
 
     const is3D = snap.mode === "3d";
     const z = is3D
-      ? (computeIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
+      ? (computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) / 100 * snap.transitionZMultiplier
       : 0;
 
     this.object3D.geometry.setAttribute("position", new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3));

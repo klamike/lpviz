@@ -27,7 +27,6 @@ export function useShare({
       objectiveVector,
       solverMode,
       zScale,
-      zAxisOffsetOnly,
     } = getState();
     const payload = compactSharedAppState({
       vertices,
@@ -36,7 +35,6 @@ export function useShare({
       solverMode,
       settings: collectShareSettings(solverMode),
       zScale,
-      zAxisOffsetOnly,
     });
     const crushed = JSONCrush.crush(JSON.stringify(payload));
     window.prompt(

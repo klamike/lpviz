@@ -16,7 +16,6 @@ export type AppActions = {
   zoomToFit: () => void;
   resetView: () => void;
   toggle3D: () => void;
-  toggleZOffset: () => void;
   setZScale: (value: number) => void;
   setActiveSolverMode: (mode: SolverMode) => void;
   setSidebarWidth: (width: number) => void;

@@ -23,7 +23,6 @@ export type SharedAppState = {
   solverMode: SolverMode;
   settings: ShareSettings;
   zScale?: number;
-  zAxisOffsetOnly?: boolean;
 };
 
 const shareKeyMap = {
@@ -33,7 +32,6 @@ const shareKeyMap = {
   solverMode: "s",
   settings: "g",
   zScale: "l",
-  zAxisOffsetOnly: "u",
   x: "x",
   y: "y",
   alphaMax: "a",
@@ -105,8 +103,5 @@ export function buildSharedStatePatch(
       : null,
     solverMode: sharedState.solverMode,
     ...(sharedState.zScale !== undefined ? { zScale: sharedState.zScale } : {}),
-    ...(sharedState.zAxisOffsetOnly !== undefined
-      ? { zAxisOffsetOnly: sharedState.zAxisOffsetOnly }
-      : {}),
   };
 }

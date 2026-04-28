@@ -23,7 +23,6 @@ export type SolverControlsUiState = {
 export type CanvasControlsUiState = {
   is3DMode: boolean;
   toggle3DLabel: "2D" | "3D";
-  zAxisOffsetOnly: boolean;
   zScale: number;
 };
 
@@ -89,7 +88,6 @@ export function selectCanvasControlsUiState(
   return {
     is3DMode: state.is3DMode,
     toggle3DLabel: state.is3DMode ? "2D" : "3D",
-    zAxisOffsetOnly: state.zAxisOffsetOnly,
     zScale: state.zScale,
   };
 }
@@ -101,7 +99,6 @@ export function areCanvasControlsUiStatesEqual(
   return (
     a.is3DMode === b.is3DMode &&
     a.toggle3DLabel === b.toggle3DLabel &&
-    a.zAxisOffsetOnly === b.zAxisOffsetOnly &&
     a.zScale === b.zScale
   );
 }

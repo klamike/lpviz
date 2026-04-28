@@ -116,19 +116,6 @@ function getVisibleBoundingBox(snap: ReturnType<SceneContext["getSnapshot"]>): B
   };
 }
 
-function getDisplayedObjectiveZ(x: number, y: number, ov: PointXY | null, zAxisOffsetOnly: boolean) {
-  const val = ov ? ov.x * x + ov.y * y : 0;
-  return zAxisOffsetOnly ? 0 : val;
-}
-
-function getRenderZ(
-  x: number, y: number,
-  ov: PointXY | null, zScale: number, zAxisOffsetOnly: boolean,
-  is3D: boolean, offset: number, transitionZMultiplier = 1,
-) {
-  if (!is3D) return offset;
-  return (getDisplayedObjectiveZ(x, y, ov, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier + offset;
-}
 
 type PolytopeRenderResult = {
   fillVertices: PointXY[];
@@ -152,9 +139,6 @@ function buildPolytopeGeometry(
     : vertices;
   const isClosedRegion = completionMode === "closed" || hasDerived;
   const isNonconvex = !VRep.fromPoints(displayVertices).isConvex();
-  const is3D = snap.mode === "3d";
-  const { objectiveVector: ov, zScale, zAxisOffsetOnly } = state;
-  const tzm = snap.transitionZMultiplier;
 
   const bounds: BoundingBox =
     completionMode === "open" && !hasDerived && polytope?.kind === "unbounded"
@@ -182,8 +166,8 @@ function buildPolytopeGeometry(
     const highlighted = !hasDerived && highlightIndex === i;
     const arr = highlighted ? highlightSegments : normalSegments;
     arr.push(
-      s.x, s.y, getRenderZ(s.x, s.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
-      e.x, e.y, getRenderZ(e.x, e.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
+      s.x, s.y, EDGE_Z,
+      e.x, e.y, EDGE_Z,
     );
   }
 
@@ -197,8 +181,8 @@ function buildPolytopeGeometry(
       if (!clipped) continue;
       const [s, e] = clipped;
       normalSegments.push(
-        s.x, s.y, getRenderZ(s.x, s.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
-        e.x, e.y, getRenderZ(e.x, e.y, ov, zScale, zAxisOffsetOnly, is3D, EDGE_Z, tzm),
+        s.x, s.y, EDGE_Z,
+        e.x, e.y, EDGE_Z,
       );
     }
   }
@@ -218,9 +202,6 @@ type PrevState = {
   completionMode: State["completionMode"];
   highlightIndex: State["highlightIndex"];
   polytope: State["polytope"];
-  objectiveVector: PointXY | null;
-  zScale: number;
-  zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
   orthoL: number; orthoR: number; orthoT: number; orthoB: number;
@@ -293,9 +274,6 @@ export class PolytopeBaseLayer implements Layer {
       p.completionMode !== raw.completionMode ||
       p.highlightIndex !== raw.highlightIndex ||
       p.polytope !== raw.polytope ||
-      p.objectiveVector !== raw.objectiveVector ||
-      p.zScale !== raw.zScale ||
-      p.zAxisOffsetOnly !== raw.zAxisOffsetOnly ||
       p.is3DMode !== raw.is3DMode ||
       p.isTransitioning3D !== raw.isTransitioning3D ||
       p.mode !== snap.mode ||
@@ -317,8 +295,7 @@ export class PolytopeBaseLayer implements Layer {
     this.prev = {
       vertices: raw.vertices, completionMode: raw.completionMode,
       highlightIndex: raw.highlightIndex, polytope: raw.polytope,
-      objectiveVector: raw.objectiveVector, zScale: raw.zScale,
-      zAxisOffsetOnly: raw.zAxisOffsetOnly, is3DMode: raw.is3DMode,
+      is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D, mode: snap.mode,
       orthoL: snap.orthographic.left, orthoR: snap.orthographic.right,
       orthoT: snap.orthographic.top, orthoB: snap.orthographic.bottom,
@@ -337,9 +314,8 @@ export class PolytopeBaseLayer implements Layer {
       const newFillGeo = new ShapeGeometry(buildShapeFromVertices(result.fillVertices));
       if (is3D) {
         const pos = newFillGeo.getAttribute("position") as Float32BufferAttribute;
-        const tzm = snap.transitionZMultiplier;
         for (let i = 0; i < pos.count; i++) {
-          pos.setZ(i, getRenderZ(pos.getX(i), pos.getY(i), raw.objectiveVector, raw.zScale, raw.zAxisOffsetOnly, true, 0, tzm));
+          pos.setZ(i, 0);
         }
         pos.needsUpdate = true;
         newFillGeo.computeBoundingBox();

@@ -87,21 +87,6 @@ export function CanvasStage({
           {canvasControlsUiState.toggle3DLabel}
         </button>
         <button
-          id="toggleZOffsetButton"
-          className={
-            [
-              canvasControlsUiState.zAxisOffsetOnly ? "button-active" : "",
-              canvasControlsUiState.is3DMode ? "" : "is-hidden",
-            ]
-              .filter(Boolean)
-              .join(" ") || undefined
-          }
-          title="Toggle objective contribution in Z"
-          onClick={() => runtimeActions.toggleZOffset()}
-        >
-          Exclude Obj
-        </button>
-        <button
           id="shareButton"
           title="Share this configuration"
           onClick={() => runtimeActions.share()}

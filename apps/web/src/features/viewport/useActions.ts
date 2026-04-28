@@ -55,16 +55,6 @@ export function useViewportActions({
     cm.start3DTransition(!viewState.is3DMode);
   };
 
-  const toggleZOffset = () => {
-    const cm = canvasManagerRef.current;
-    if (!cm) return;
-    setState(
-      { zAxisOffsetOnly: !getState().zAxisOffsetOnly },
-      { viewportDirty: cm.getZScaleDirtyFlags() },
-    );
-    cm.draw();
-  };
-
   const setZScale = (value: number) => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
@@ -92,7 +82,6 @@ export function useViewportActions({
     resetView,
     zoomToFit,
     toggle3D,
-    toggleZOffset,
     setZScale,
     setSidebarWidth,
     syncViewportLayout,

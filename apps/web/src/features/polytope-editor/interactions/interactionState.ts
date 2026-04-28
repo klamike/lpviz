@@ -175,11 +175,7 @@ export function findBoundaryRayNearPoint(
 
 function getViewAnchor3D(state: State, vertex: { x: number; y: number }): DragViewAnchor3D | undefined {
   if (!state.is3DMode && !state.isTransitioning3D) return undefined;
-  const { objectiveVector, zScale, zAxisOffsetOnly } = state;
-  const z =
-    objectiveVector && !zAxisOffsetOnly
-      ? ((objectiveVector.x * vertex.x + objectiveVector.y * vertex.y) * zScale) / 100
-      : 0;
+  const z = 0;
   return { x: vertex.x, y: vertex.y, z };
 }
 

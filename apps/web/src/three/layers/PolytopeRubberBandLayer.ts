@@ -13,25 +13,8 @@ const POLY_LINE_THICKNESS = 2;
 
 const rbMat = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 
-function getDisplayedObjectiveZ(x: number, y: number, ov: import("@lpviz/math/types").PointXY | null, zAxisOffsetOnly: boolean) {
-  const val = ov ? ov.x * x + ov.y * y : 0;
-  return zAxisOffsetOnly ? 0 : val;
-}
-
-function getRenderZ(
-  x: number, y: number,
-  ov: import("@lpviz/math/types").PointXY | null, zScale: number, zAxisOffsetOnly: boolean,
-  is3D: boolean, offset: number, transitionZMultiplier: number,
-) {
-  if (!is3D) return offset;
-  return (getDisplayedObjectiveZ(x, y, ov, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier + offset;
-}
-
 type RubberBandState = {
   lastVertex: import("@lpviz/math/types").PointXY | null;
-  objectiveVector: import("@lpviz/math/types").PointXY | null;
-  zScale: number;
-  zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
 };
@@ -42,9 +25,6 @@ function selectRubberBandState(state: State): RubberBandState {
   const active = isDraft && !state.tourActive && verts.length >= 1;
   return {
     lastVertex: active ? verts[verts.length - 1]! : null,
-    objectiveVector: state.objectiveVector,
-    zScale: state.zScale,
-    zAxisOffsetOnly: state.zAxisOffsetOnly,
     is3DMode: state.is3DMode,
     isTransitioning3D: state.isTransitioning3D,
   };
@@ -84,14 +64,13 @@ export class PolytopeRubberBandLayer implements Layer {
       return;
     }
 
-    const is3D = snap.mode === "3d";
     const last = rbState.lastVertex;
     RUBBER_BAND_BUF[0] = last.x;
     RUBBER_BAND_BUF[1] = last.y;
-    RUBBER_BAND_BUF[2] = getRenderZ(last.x, last.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z, snap.transitionZMultiplier);
+    RUBBER_BAND_BUF[2] = EDGE_Z;
     RUBBER_BAND_BUF[3] = mouse.x;
     RUBBER_BAND_BUF[4] = mouse.y;
-    RUBBER_BAND_BUF[5] = getRenderZ(mouse.x, mouse.y, rbState.objectiveVector, rbState.zScale, rbState.zAxisOffsetOnly, is3D, EDGE_Z, snap.transitionZMultiplier);
+    RUBBER_BAND_BUF[5] = EDGE_Z;
     this.geometry.setPositions(RUBBER_BAND_BUF);
     this.object3D.visible = true;
   }

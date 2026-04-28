@@ -141,7 +141,6 @@ export type State = {
   redoStack: HistoryEntry[];
 
   is3DMode: boolean;
-  zAxisOffsetOnly: boolean;
   viewAngle: PointXYZ;
   zScale: number;
   isTransitioning3D: boolean;
@@ -199,7 +198,6 @@ const initialState: State = {
   redoStack: [],
 
   is3DMode: false,
-  zAxisOffsetOnly: false,
   viewAngle: { ...DEFAULT_VIEW_ANGLE },
   zScale: DEFAULT_Z_SCALE,
   isTransitioning3D: false,
@@ -397,23 +395,22 @@ export function addTraceToBuffer(iteratesArray: Float64Array[]): void {
 export function computeIterateZ(
   entry: Float64Array,
   objectiveVector: PointXY | null,
-  zAxisOffsetOnly: boolean,
 ): number {
   const objectiveValue = objectiveVector
     ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
     : 0;
   const totalValue = entry[2] !== undefined ? entry[2]! : objectiveValue;
-  return zAxisOffsetOnly ? totalValue - objectiveValue : totalValue;
+  return totalValue - objectiveValue;
 }
 
 export function getDisplayedIterateZ(
   entry: Float64Array,
   objectiveOverride?: PointXY | null,
 ): number {
-  const { objectiveVector: currentObjective, zAxisOffsetOnly } = getState();
+  const { objectiveVector: currentObjective } = getState();
   const objectiveVector =
     objectiveOverride === undefined ? currentObjective : objectiveOverride;
-  return computeIterateZ(entry, objectiveVector, zAxisOffsetOnly);
+  return computeIterateZ(entry, objectiveVector);
 }
 
 export function updateIteratePathsWithTrace(

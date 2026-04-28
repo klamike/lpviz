@@ -45,7 +45,6 @@ type PrevState = {
   iterateRestartIndices: State["iterateRestartIndices"];
   iterateObjectiveVector: PointXY | null;
   zScale: number;
-  zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
@@ -89,7 +88,6 @@ export class IterateRestartPointsLayer implements Layer {
       p.iterateRestartIndices === raw.iterateRestartIndices &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
       p.zScale === raw.zScale &&
-      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
       p.mode === snap.mode &&
@@ -103,7 +101,6 @@ export class IterateRestartPointsLayer implements Layer {
       iterateRestartIndices: raw.iterateRestartIndices,
       iterateObjectiveVector: raw.iterateObjectiveVector,
       zScale: raw.zScale,
-      zAxisOffsetOnly: raw.zAxisOffsetOnly,
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
@@ -136,7 +133,7 @@ export class IterateRestartPointsLayer implements Layer {
       positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
       positions[i * 3 + 2] = is3D
-        ? (computeIterateZ(entry, raw.iterateObjectiveVector, raw.zAxisOffsetOnly) * raw.zScale) / 100 * snap.transitionZMultiplier
+        ? (computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) / 100 * snap.transitionZMultiplier
         : 0;
 
       if (colors) {

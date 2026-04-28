@@ -21,19 +21,17 @@ function getIterateRenderZ(
   entry: Float64Array,
   objectiveVector: PointXY | null,
   zScale: number,
-  zAxisOffsetOnly: boolean,
   is3D: boolean,
   transitionZMultiplier = 1,
 ) {
   if (!is3D) return 0;
-  return (computeIterateZ(entry, objectiveVector, zAxisOffsetOnly) * zScale) / 100 * transitionZMultiplier;
+  return (computeIterateZ(entry, objectiveVector) * zScale) / 100 * transitionZMultiplier;
 }
 
 function buildLinePositions(
   path: Float64Array[],
   objectiveVector: PointXY | null,
   zScale: number,
-  zAxisOffsetOnly: boolean,
   is3D: boolean,
   transitionZMultiplier = 1,
 ) {
@@ -43,7 +41,7 @@ function buildLinePositions(
     const entry = path[i]!;
     positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = getIterateRenderZ(entry, objectiveVector, zScale, zAxisOffsetOnly, is3D, transitionZMultiplier);
+    positions[i * 3 + 2] = getIterateRenderZ(entry, objectiveVector, zScale, is3D, transitionZMultiplier);
   }
   return positions;
 }
@@ -58,7 +56,7 @@ function buildIterateSegments(raw: State, is3D: boolean, transitionZMultiplier =
 
   if (!hasPhases) {
     const positions = buildLinePositions(
-      raw.iteratePath, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, transitionZMultiplier,
+      raw.iteratePath, raw.iterateObjectiveVector, raw.zScale, is3D, transitionZMultiplier,
     );
     return positions.length > 0 ? [{ color: ITERATE_LINE_COLOR, positions }] : [];
   }
@@ -71,7 +69,7 @@ function buildIterateSegments(raw: State, is3D: boolean, transitionZMultiplier =
     const currentPhase = raw.iteratePhases[i]!;
     if (currentPhase !== raw.iteratePhases[i - 1]!) {
       const slice = raw.iteratePath.slice(segStart, i + 1);
-      const positions = buildLinePositions(slice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, transitionZMultiplier);
+      const positions = buildLinePositions(slice, raw.iterateObjectiveVector, raw.zScale, is3D, transitionZMultiplier);
       if (positions.length > 0) {
         segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions });
       }
@@ -80,7 +78,7 @@ function buildIterateSegments(raw: State, is3D: boolean, transitionZMultiplier =
     }
   }
   const lastSlice = raw.iteratePath.slice(segStart);
-  const lastPositions = buildLinePositions(lastSlice, raw.iterateObjectiveVector, raw.zScale, raw.zAxisOffsetOnly, is3D, transitionZMultiplier);
+  const lastPositions = buildLinePositions(lastSlice, raw.iterateObjectiveVector, raw.zScale, is3D, transitionZMultiplier);
   if (lastPositions.length > 0) {
     segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions: lastPositions });
   }
@@ -104,7 +102,6 @@ type PrevState = {
   iteratePhases: State["iteratePhases"];
   iterateObjectiveVector: PointXY | null;
   zScale: number;
-  zAxisOffsetOnly: boolean;
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
@@ -131,7 +128,6 @@ export class IterateLineLayer implements Layer {
       p.iteratePhases === raw.iteratePhases &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
       p.zScale === raw.zScale &&
-      p.zAxisOffsetOnly === raw.zAxisOffsetOnly &&
       p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
       p.mode === snap.mode &&
@@ -144,7 +140,6 @@ export class IterateLineLayer implements Layer {
       iteratePhases: raw.iteratePhases,
       iterateObjectiveVector: raw.iterateObjectiveVector,
       zScale: raw.zScale,
-      zAxisOffsetOnly: raw.zAxisOffsetOnly,
       is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
