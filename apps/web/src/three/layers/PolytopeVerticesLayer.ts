@@ -18,7 +18,6 @@ import { SHARED_CIRCLE_TEXTURE, SHARED_SQUARE_TEXTURE } from "../helpers/sharedT
 
 const VERTEX_COLOR = "#ff0000";
 const OPEN_ANCHOR_COLOR = "#ff0000";
-const VERTEX_Z = 0.004;
 const VERTEX_PIXEL_SIZE = 10;
 const VERTEX_RENDER_ORDER = RENDER_ORDER.polytopeVertices;
 
@@ -35,16 +34,11 @@ function makePointsGeo(): BufferGeometry {
   return geo;
 }
 
-function getVertexZ(is3D: boolean): number {
-  return is3D ? 0 : VERTEX_Z;
-}
-
 function buildVertexPositions(
   displayVertices: PointXY[],
   shapeFilter: "circle" | "square",
   completionMode: State["completionMode"],
   hasDerivedClosedRegion: boolean,
-  is3D: boolean,
 ): Float32Array {
   const out: number[] = [];
   for (let index = 0; index < displayVertices.length; index++) {
@@ -55,7 +49,7 @@ function buildVertexPositions(
       (index === 0 || index === displayVertices.length - 1);
     const isSquare = isAnchor;
     if (shapeFilter === "square" ? !isSquare : isSquare) continue;
-    out.push(v.x, v.y, getVertexZ(is3D));
+    out.push(v.x, v.y, 0);
   }
   return new Float32Array(out);
 }
@@ -69,10 +63,6 @@ type PrevState = {
   vertices: State["vertices"];
   completionMode: State["completionMode"];
   polytope: State["polytope"];
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-  mode: string;
-  transitionZMultiplier: number;
 };
 
 export class PolytopeVerticesLayer implements Layer {
@@ -128,11 +118,7 @@ export class PolytopeVerticesLayer implements Layer {
       p &&
       p.vertices === raw.vertices &&
       p.completionMode === raw.completionMode &&
-      p.polytope === raw.polytope &&
-      p.is3DMode === raw.is3DMode &&
-      p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode &&
-      p.transitionZMultiplier === snap.transitionZMultiplier
+      p.polytope === raw.polytope
     ) {
       return;
     }
@@ -140,10 +126,6 @@ export class PolytopeVerticesLayer implements Layer {
       vertices: raw.vertices,
       completionMode: raw.completionMode,
       polytope: raw.polytope,
-      is3DMode: raw.is3DMode,
-      isTransitioning3D: raw.isTransitioning3D,
-      mode: snap.mode,
-      transitionZMultiplier: snap.transitionZMultiplier,
     };
 
     const hasDerived =
@@ -154,15 +136,13 @@ export class PolytopeVerticesLayer implements Layer {
       hasDerived && raw.polytope?.kind === "bounded"
         ? raw.polytope.vertices.map(([x, y]) => ({ x, y }))
         : raw.vertices;
-    const is3D = snap.mode === "3d";
-
     applyPositions(
       this.circlePoints,
-      buildVertexPositions(displayVertices, "circle", raw.completionMode, hasDerived, is3D),
+      buildVertexPositions(displayVertices, "circle", raw.completionMode, hasDerived),
     );
     applyPositions(
       this.squarePoints,
-      buildVertexPositions(displayVertices, "square", raw.completionMode, hasDerived, is3D),
+      buildVertexPositions(displayVertices, "square", raw.completionMode, hasDerived),
     );
   }
 

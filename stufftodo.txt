@@ -73,7 +73,7 @@ make dismissHelpOverlay not slow
 -
 debug memory leak, especially when not tracing
 
--
+3c079b4fccf4fac1d3263c164b29784b469dce47
 make exclude obj = true the only option, delete all dead code this creates.
 
 -

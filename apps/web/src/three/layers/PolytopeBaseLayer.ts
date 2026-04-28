@@ -22,18 +22,14 @@ import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMat
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
 const POLYTOPE_HIGHLIGHT_COLOR = "#ff0000";
 const POLYTOPE_OUTLINE_COLOR = "#000000";
-const FILL_Z = 0.001;
-const EDGE_Z = 0.002;
 const POLY_LINE_THICKNESS = 2;
 const CLIP_MARGIN_PX = 50;
 const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_UNBOUNDED_EXTENT = 5000;
 const EPS = 1e-10;
 
-const normalMat2D = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const normalMat3D = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
-const highlightMat2D = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const highlightMat3D = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
+const normalMat = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const highlightMat = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 
 function buildShapeFromVertices(vertices: ReadonlyArray<PointXY>) {
   const shape = new Shape();
@@ -166,8 +162,8 @@ function buildPolytopeGeometry(
     const highlighted = !hasDerived && highlightIndex === i;
     const arr = highlighted ? highlightSegments : normalSegments;
     arr.push(
-      s.x, s.y, EDGE_Z,
-      e.x, e.y, EDGE_Z,
+      s.x, s.y, 0,
+      e.x, e.y, 0,
     );
   }
 
@@ -181,8 +177,8 @@ function buildPolytopeGeometry(
       if (!clipped) continue;
       const [s, e] = clipped;
       normalSegments.push(
-        s.x, s.y, EDGE_Z,
-        e.x, e.y, EDGE_Z,
+        s.x, s.y, 0,
+        e.x, e.y, 0,
       );
     }
   }
@@ -233,7 +229,7 @@ export class PolytopeBaseLayer implements Layer {
 
     const nGeo = new LineSegmentsGeometry();
     applyHugeBounds(nGeo);
-    const nEdges = new LineSegments2(nGeo, normalMat2D);
+    const nEdges = new LineSegments2(nGeo, normalMat);
     nEdges.frustumCulled = false;
     nEdges.renderOrder = RENDER_ORDER.polyEdges;
     nEdges.computeLineDistances = () => nEdges;
@@ -241,7 +237,7 @@ export class PolytopeBaseLayer implements Layer {
 
     const hGeo = new LineSegmentsGeometry();
     applyHugeBounds(hGeo);
-    const hEdges = new LineSegments2(hGeo, highlightMat2D);
+    const hEdges = new LineSegments2(hGeo, highlightMat);
     hEdges.frustumCulled = false;
     hEdges.renderOrder = RENDER_ORDER.polyEdges;
     hEdges.computeLineDistances = () => hEdges;
@@ -286,9 +282,7 @@ export class PolytopeBaseLayer implements Layer {
       p.targetY !== snap.target.y ||
       p.transitionZMultiplier !== snap.transitionZMultiplier;
 
-    this.normalEdges.material = is3D ? normalMat3D : normalMat2D;
-    this.highlightEdges.material = is3D ? highlightMat3D : highlightMat2D;
-    this.fillMesh.position.set(0, 0, is3D ? 0 : FILL_Z);
+    this.fillMesh.position.set(0, 0, 0);
 
     if (!changed) return;
 

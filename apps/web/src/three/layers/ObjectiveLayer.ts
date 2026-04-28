@@ -13,17 +13,14 @@ import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMat
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";
-const OBJECTIVE_Z = 0.015;
 const OBJECTIVE_RENDER_ORDER = RENDER_ORDER.objective;
 const OBJECTIVE_LINE_THICKNESS = 3;
 const OBJECTIVE_HEAD_LENGTH_PX = 16;
 const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
 
-const objMat2DGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const objMat2DRed = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const objMat3DGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
-const objMat3DRed = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
+const objMatGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const objMatRed = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 
 function buildArrowHeadSegments(tip: PointXY, angle: number, length: number): [number, number, number, number][] {
   return [ARROW_HALF_ANGLE, -ARROW_HALF_ANGLE].map((offset) => {
@@ -39,7 +36,6 @@ type PrevState = {
   completionMode: State["completionMode"];
   polytope: State["polytope"];
   tourActive: boolean;
-  is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
   unitsPerPixel: number;
@@ -54,7 +50,7 @@ export class ObjectiveLayer implements Layer {
   constructor() {
     const objGeo = new LineSegmentsGeometry();
     applyHugeBounds(objGeo);
-    const objSegs = new LineSegments2(objGeo, objMat2DGreen);
+    const objSegs = new LineSegments2(objGeo, objMatGreen);
     objSegs.renderOrder = OBJECTIVE_RENDER_ORDER;
     objSegs.frustumCulled = false;
     objSegs.visible = false;
@@ -78,7 +74,6 @@ export class ObjectiveLayer implements Layer {
       p.completionMode === raw.completionMode &&
       p.polytope === raw.polytope &&
       p.tourActive === raw.tourActive &&
-      p.is3DMode === raw.is3DMode &&
       p.isTransitioning3D === raw.isTransitioning3D &&
       p.mode === snap.mode &&
       p.unitsPerPixel === snap.unitsPerPixel
@@ -92,7 +87,6 @@ export class ObjectiveLayer implements Layer {
       completionMode: raw.completionMode,
       polytope: raw.polytope,
       tourActive: raw.tourActive,
-      is3DMode: raw.is3DMode,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
       unitsPerPixel: snap.unitsPerPixel,
@@ -114,14 +108,12 @@ export class ObjectiveLayer implements Layer {
       return;
     }
 
-    const is3D = snap.mode === "3d";
-    const objectiveZ = is3D ? 0 : OBJECTIVE_Z;
     const headLength = OBJECTIVE_HEAD_LENGTH_PX * snap.unitsPerPixel;
     const angle = Math.atan2(target.y, target.x);
 
-    const positions: number[] = [0, 0, objectiveZ, target.x, target.y, objectiveZ];
+    const positions: number[] = [0, 0, 0, target.x, target.y, 0];
     for (const [x1, y1, x2, y2] of buildArrowHeadSegments(target, angle, headLength)) {
-      positions.push(x1, y1, objectiveZ, x2, y2, objectiveZ);
+      positions.push(x1, y1, 0, x2, y2, 0);
     }
 
     this.objGeo.setPositions(positions);
@@ -132,9 +124,7 @@ export class ObjectiveLayer implements Layer {
       hasPolytopeLines(raw.polytope) &&
       isObjectiveDirectionUnbounded(raw.polytope.lines, [target.x, target.y]);
 
-    this.objSegs.material = is3D
-      ? (isUnbounded ? objMat3DRed : objMat3DGreen)
-      : (isUnbounded ? objMat2DRed : objMat2DGreen);
+    this.objSegs.material = isUnbounded ? objMatRed : objMatGreen;
     this.objSegs.visible = true;
   }
 

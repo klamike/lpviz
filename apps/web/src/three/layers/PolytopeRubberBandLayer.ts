@@ -8,7 +8,7 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 
 const POLYTOPE_OUTLINE_COLOR = "#000000";
-const EDGE_Z = 0.002;
+
 const POLY_LINE_THICKNESS = 2;
 
 const rbMat = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
@@ -67,10 +67,10 @@ export class PolytopeRubberBandLayer implements Layer {
     const last = rbState.lastVertex;
     RUBBER_BAND_BUF[0] = last.x;
     RUBBER_BAND_BUF[1] = last.y;
-    RUBBER_BAND_BUF[2] = EDGE_Z;
+    RUBBER_BAND_BUF[2] = 0;
     RUBBER_BAND_BUF[3] = mouse.x;
     RUBBER_BAND_BUF[4] = mouse.y;
-    RUBBER_BAND_BUF[5] = EDGE_Z;
+    RUBBER_BAND_BUF[5] = 0;
     this.geometry.setPositions(RUBBER_BAND_BUF);
     this.object3D.visible = true;
   }
