@@ -12,7 +12,7 @@ const fmtF = (v: number, w: number, d: number) =>
 const fmtE = (v: number, w: number, d: number, signed = true) =>
   ((signed && v >= 0 ? "+" : "") + v.toExponential(d)).padStart(w);
 
-export type VirtualResultRow =
+type VirtualResultRow =
   | string
   | {
       kind: "ipm";

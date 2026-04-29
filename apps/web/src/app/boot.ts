@@ -1,5 +1,5 @@
 import type { AppContext } from "@/app/appContext";
-import { registerAppActions, type AppActions } from "@/features/core/actions";
+import type { AppActions } from "@/features/core/actions";
 import { setState } from "@/features/core/store";
 import { createHistoryService } from "@/features/history/historyService";
 import { createPolytopeService } from "@/features/polytope-editor/polytopeService";
@@ -111,8 +111,6 @@ export function boot(root: HTMLElement) {
       window.requestAnimationFrame(() => viewport.zoomToFit());
     },
   };
-
-  registerAppActions(actions);
 
   const ctx: AppContext = {
     actions,

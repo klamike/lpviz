@@ -4,7 +4,7 @@ const FONT_SIZE = 16;
 const LINE_HEIGHT = 18;
 const CHAR_ADVANCE = 9.6;
 
-export const NULL_STATE_LOGO_LINES = [
+const NULL_STATE_LOGO_LINES = [
   "  ___                                   ",
   " /\\_ \\                   __             ",
   " \\//\\ \\   ______  __  __/\\_\\  _____     ",
@@ -17,14 +17,19 @@ export const NULL_STATE_LOGO_LINES = [
   "                                        ",
 ] as const;
 
-export const NULL_STATE_LOGO_VIEWBOX_WIDTH = Math.max(...NULL_STATE_LOGO_LINES.map((line) => line.length)) * CHAR_ADVANCE;
-export const NULL_STATE_LOGO_VIEWBOX_HEIGHT = NULL_STATE_LOGO_LINES.length * LINE_HEIGHT;
+const NULL_STATE_LOGO_VIEWBOX_WIDTH =
+  Math.max(...NULL_STATE_LOGO_LINES.map((line) => line.length)) * CHAR_ADVANCE;
+const NULL_STATE_LOGO_VIEWBOX_HEIGHT =
+  NULL_STATE_LOGO_LINES.length * LINE_HEIGHT;
 
 export function renderNullStateLogo(container: HTMLElement) {
   container.replaceChildren();
 
   const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", `0 0 ${NULL_STATE_LOGO_VIEWBOX_WIDTH} ${NULL_STATE_LOGO_VIEWBOX_HEIGHT}`);
+  svg.setAttribute(
+    "viewBox",
+    `0 0 ${NULL_STATE_LOGO_VIEWBOX_WIDTH} ${NULL_STATE_LOGO_VIEWBOX_HEIGHT}`,
+  );
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   svg.setAttribute("aria-hidden", "true");
   svg.classList.add("null-state-logo");

@@ -1,4 +1,4 @@
-export type ViewportTransitionConfig = {
+type ViewportTransitionConfig = {
   active: boolean;
   runId: number;
   targetMode: boolean;

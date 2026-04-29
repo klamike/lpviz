@@ -23,7 +23,7 @@ type ActivePanState = {
   gridSpacing: number;
 };
 
-export type Viewport2DControlsConfig = {
+type Viewport2DControlsConfig = {
   enabled: boolean;
   blocked: boolean;
   panEnabled: boolean;
@@ -88,11 +88,6 @@ export function resetViewport2DControlsConfig() {
   activePanState = null;
   config = DEFAULT_VIEWPORT_2D_CONTROLS_CONFIG;
   emit();
-}
-
-export function subscribeViewport2DControlsConfig(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
 }
 
 export function getViewport2DControlsConfig() {

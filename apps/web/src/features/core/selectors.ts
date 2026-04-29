@@ -1,32 +1,24 @@
-import type { ResultTextBlock } from "@/features/solver/types";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-import {
-  computeDrawingPhase,
-  type SolverMode,
-  type SolverSettings,
-  type State,
-} from "./store";
-
-const SOLVER_MODES: SolverMode[] = ["ipm", "pdhg", "simplex", "central"];
+import { computeDrawingPhase, type SolverMode, type State } from "./store";
 
 type SolverButtonUiState = {
   active: boolean;
   disabled: boolean;
 };
 
-export type SolverControlsUiState = {
+type SolverControlsUiState = {
   activeMode: SolverMode;
   buttons: Record<SolverMode, SolverButtonUiState>;
 };
 
-export type CanvasControlsUiState = {
+type CanvasControlsUiState = {
   is3DMode: boolean;
   toggle3DLabel: "2D" | "3D";
   zScale: number;
 };
 
-export type AnimationControlsUiState = {
+type AnimationControlsUiState = {
   animateDisabled: boolean;
   startRotateDisabled: boolean;
   stopRotateDisabled: boolean;
@@ -34,23 +26,16 @@ export type AnimationControlsUiState = {
   traceEnabled: boolean;
 };
 
-export type TopResultUiState = {
+type TopResultUiState = {
   maximizeVisible: boolean;
   nullStateVisible: boolean;
   objectiveActive: boolean;
   subjectToVisible: boolean;
 };
 
-export type InequalitiesUiState = {
+type InequalitiesUiState = {
   items: string[];
   message: string | null;
-};
-
-export type ResultPanelUiState = {
-  mode: State["resultDisplayMode"];
-  blocks: ResultTextBlock[] | null;
-  virtualShowEmpty: boolean;
-  maxLineChars: number;
 };
 
 export function selectSolverControlsUiState(
@@ -67,21 +52,6 @@ export function selectSolverControlsUiState(
   };
 }
 
-export function areSolverControlsUiStatesEqual(
-  a: SolverControlsUiState,
-  b: SolverControlsUiState,
-): boolean {
-  if (a.activeMode !== b.activeMode) {
-    return false;
-  }
-
-  return SOLVER_MODES.every((mode) => {
-    const current = a.buttons[mode];
-    const next = b.buttons[mode];
-    return current.active === next.active && current.disabled === next.disabled;
-  });
-}
-
 export function selectCanvasControlsUiState(
   state: State,
 ): CanvasControlsUiState {
@@ -90,17 +60,6 @@ export function selectCanvasControlsUiState(
     toggle3DLabel: state.is3DMode ? "2D" : "3D",
     zScale: state.zScale,
   };
-}
-
-export function areCanvasControlsUiStatesEqual(
-  a: CanvasControlsUiState,
-  b: CanvasControlsUiState,
-): boolean {
-  return (
-    a.is3DMode === b.is3DMode &&
-    a.toggle3DLabel === b.toggle3DLabel &&
-    a.zScale === b.zScale
-  );
 }
 
 export function selectAnimationControlsUiState(
@@ -123,19 +82,6 @@ export function selectAnimationControlsUiState(
   };
 }
 
-export function areAnimationControlsUiStatesEqual(
-  a: AnimationControlsUiState,
-  b: AnimationControlsUiState,
-): boolean {
-  return (
-    a.animateDisabled === b.animateDisabled &&
-    a.startRotateDisabled === b.startRotateDisabled &&
-    a.stopRotateDisabled === b.stopRotateDisabled &&
-    a.rotateObjectiveMode === b.rotateObjectiveMode &&
-    a.traceEnabled === b.traceEnabled
-  );
-}
-
 export function selectTopResultUiState(state: State): TopResultUiState {
   const objectiveActive = state.objectiveVector !== null;
 
@@ -149,18 +95,6 @@ export function selectTopResultUiState(state: State): TopResultUiState {
     subjectToVisible:
       hasPolytopeLines(state.polytope) && state.polytope.lines.length > 0,
   };
-}
-
-export function areTopResultUiStatesEqual(
-  a: TopResultUiState,
-  b: TopResultUiState,
-): boolean {
-  return (
-    a.maximizeVisible === b.maximizeVisible &&
-    a.nullStateVisible === b.nullStateVisible &&
-    a.objectiveActive === b.objectiveActive &&
-    a.subjectToVisible === b.subjectToVisible
-  );
 }
 
 export function selectInequalitiesUiState(state: State): InequalitiesUiState {
@@ -188,55 +122,6 @@ export function selectInequalitiesUiState(state: State): InequalitiesUiState {
         : state.polytope.inequalities,
     message: null,
   };
-}
-
-export function areInequalitiesUiStatesEqual(
-  a: InequalitiesUiState,
-  b: InequalitiesUiState,
-): boolean {
-  if (a.message !== b.message || a.items.length !== b.items.length) {
-    return false;
-  }
-
-  return a.items.every((item, index) => item === b.items[index]);
-}
-
-export function selectResultPanelUiState(state: State): ResultPanelUiState {
-  return {
-    mode: state.resultDisplayMode,
-    blocks: state.resultBlocks,
-    virtualShowEmpty: state.resultVirtualShowEmpty,
-    maxLineChars: state.resultMaxLineChars,
-  };
-}
-
-export function areResultPanelUiStatesEqual(
-  a: ResultPanelUiState,
-  b: ResultPanelUiState,
-): boolean {
-  // virtualRows, virtualHeader, virtualFooter are managed imperatively via
-  // direct store subscription in SolverLogPanel.
-  if (
-    a.mode !== b.mode ||
-    a.blocks?.length !== b.blocks?.length ||
-    a.virtualShowEmpty !== b.virtualShowEmpty ||
-    a.maxLineChars !== b.maxLineChars
-  ) {
-    return false;
-  }
-
-  if (!a.blocks || !b.blocks) {
-    return a.blocks === b.blocks;
-  }
-
-  return a.blocks.every((block, index) => {
-    const nextBlock = b.blocks![index];
-    return (
-      block.className === nextBlock.className &&
-      block.text === nextBlock.text &&
-      block.index === nextBlock.index
-    );
-  });
 }
 
 function getSolverButtonUiState(
@@ -279,32 +164,6 @@ function isSolverSelectable(state: State, mode: SolverMode): boolean {
     state.objectiveVector.x,
     state.objectiveVector.y,
   ]);
-}
-
-export function selectSolverSettings(state: State): SolverSettings {
-  return { ...state.solverSettings };
-}
-
-export function areSolverSettingsEqual(
-  a: SolverSettings,
-  b: SolverSettings,
-): boolean {
-  return (
-    a.alphaMax === b.alphaMax &&
-    a.correctorThreshold === b.correctorThreshold &&
-    a.maxitIPM === b.maxitIPM &&
-    a.simplexDualMode === b.simplexDualMode &&
-    a.pdhgEta === b.pdhgEta &&
-    a.pdhgTau === b.pdhgTau &&
-    a.maxitPDHG === b.maxitPDHG &&
-    a.pdhgIneqMode === b.pdhgIneqMode &&
-    a.pdhgHalpernMode === b.pdhgHalpernMode &&
-    a.pdhgColorByBasis === b.pdhgColorByBasis &&
-    a.centralPathIter === b.centralPathIter &&
-    a.objectiveAngleStep === b.objectiveAngleStep &&
-    a.objectiveRotationSpeed === b.objectiveRotationSpeed &&
-    a.replaySpeed === b.replaySpeed
-  );
 }
 
 export function formatObjectiveDisplay(

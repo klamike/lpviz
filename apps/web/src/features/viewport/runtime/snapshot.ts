@@ -77,11 +77,6 @@ export function resetViewportRenderSnapshot() {
   stableListeners.forEach((l) => l());
 }
 
-export function subscribeViewportRenderSnapshot(listener: () => void) {
-  stableListeners.add(listener);
-  return () => stableListeners.delete(listener);
-}
-
 export function subscribeFullViewportRenderSnapshot(listener: () => void) {
   fullListeners.add(listener);
   return () => fullListeners.delete(listener);

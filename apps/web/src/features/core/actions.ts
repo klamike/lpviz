@@ -23,20 +23,3 @@ export type AppActions = {
   syncViewportLayout: (sidebarWidth: number) => void;
   loadGalleryProblem: (problem: GalleryProblem) => void;
 };
-
-let appActions: AppActions | null = null;
-
-export function registerAppActions(actions: AppActions): void {
-  appActions = actions;
-}
-
-export function getAppActions(): AppActions {
-  if (!appActions) {
-    throw new Error("LpvizProvider is missing");
-  }
-  return appActions;
-}
-
-export function useAppActions(): AppActions {
-  return getAppActions();
-}

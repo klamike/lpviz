@@ -9,12 +9,12 @@ type DenseMatrixN = {
 
 type SimplexStatus = "optimal" | "unbounded" | "unavailable";
 
-export interface BaseOptionsN {
+interface BaseOptionsN {
   tol: number;
   verbose: boolean;
 }
 
-export interface IPMOptionsN extends BaseOptionsN {
+interface IPMOptionsN extends BaseOptionsN {
   eps_p: number;
   eps_d: number;
   eps_opt: number;
@@ -23,11 +23,11 @@ export interface IPMOptionsN extends BaseOptionsN {
   correctorThreshold: number;
 }
 
-export interface SimplexOptionsN extends BaseOptionsN {
+interface SimplexOptionsN extends BaseOptionsN {
   dual: boolean;
 }
 
-export interface PDHGOptionsN extends BaseOptionsN {
+interface PDHGOptionsN extends BaseOptionsN {
   ineq: boolean;
   halpern: boolean;
   maxit: number;
@@ -36,7 +36,7 @@ export interface PDHGOptionsN extends BaseOptionsN {
   colorByBasis: boolean;
 }
 
-export interface CentralPathOptionsN {
+interface CentralPathOptionsN {
   niter: number;
   verbose: boolean;
 }

@@ -1,5 +1,3 @@
-export type Disposable = { update?: () => void; destroy: () => void };
-
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   options: {
@@ -21,23 +19,4 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 }
 export function clear(node: Element): void {
   node.replaceChildren();
-}
-export function setHidden(node: HTMLElement, hidden: boolean): void {
-  node.classList.toggle("is-hidden", hidden);
-  node.classList.toggle("is-block", !hidden);
-}
-export function listen(
-  target: EventTarget,
-  type: string,
-  handler: EventListenerOrEventListenerObject,
-  options?: boolean | AddEventListenerOptions,
-): () => void {
-  target.addEventListener(type, handler, options);
-  return () => target.removeEventListener(type, handler, options);
-}
-export function setClass(
-  node: HTMLElement,
-  className: string | undefined,
-): void {
-  node.className = className ?? "";
 }

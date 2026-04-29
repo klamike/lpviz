@@ -1,4 +1,4 @@
-export type ResultTextBlockClassName =
+type ResultTextBlockClassName =
   | "iterate-header"
   | "iterate-item"
   | "iterate-item-nohover"

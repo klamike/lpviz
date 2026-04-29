@@ -8,7 +8,7 @@ export { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE };
 
 export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
 export type CompletionMode = "draft" | "closed" | "open";
-export type CompletedInteraction =
+type CompletedInteraction =
   | "none"
   | "dragged-point"
   | "dragged-objective"
@@ -19,7 +19,7 @@ export type DrawingPhase =
   | "awaiting_objective"
   | "objective_preview"
   | "ready_for_solvers";
-export type ConstraintDragOperation =
+type ConstraintDragOperation =
   | { kind: "closed-line"; lineIndex: number; lines: Line[] }
   | { kind: "open-vertices"; vertexIndices: [number, number] };
 export type HistoryEntry = {
@@ -61,7 +61,7 @@ export type ViewportDirtyFlags = Partial<{
   iterate: boolean;
 }>;
 
-export type StateChangeMeta = {
+type StateChangeMeta = {
   viewportDirty?: ViewportDirtyFlags;
 };
 
@@ -82,7 +82,7 @@ export type SolverSettings = {
   replaySpeed: number;
 };
 
-export const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
+const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
   alphaMax: 0.1,
   correctorThreshold: 0.9,
   maxitIPM: 1000,

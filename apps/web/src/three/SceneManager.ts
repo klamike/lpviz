@@ -6,7 +6,7 @@ import type { Layer } from "./Layer";
 import { LayerHost } from "./LayerHost";
 import type { SceneContext } from "./SceneContext";
 
-export type Size = { width: number; height: number; dpr: number };
+type Size = { width: number; height: number; dpr: number };
 
 export class SceneManager {
   readonly scene = new Scene();

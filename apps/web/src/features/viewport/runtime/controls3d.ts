@@ -6,7 +6,7 @@ import {
 
 export type { ViewportPerspectivePose };
 
-export type Viewport3DControlsConfig = {
+type Viewport3DControlsConfig = {
   enabled: boolean;
   blocked: boolean;
   maxDistance: number;

@@ -78,7 +78,7 @@ import {
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 
-export type ViewportZBounds = {
+type ViewportZBounds = {
   minZ: number;
   maxZ: number;
 };

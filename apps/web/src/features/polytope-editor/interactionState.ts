@@ -9,11 +9,11 @@ import type { ViewportApi } from "@/features/viewport/runtime";
 import { type BoundingBox, VRep } from "@lpviz/math/geometry";
 import type { PointXY } from "@lpviz/math/types";
 
-export const VERTEX_HIT_RADIUS = 12;
-export const DRAG_THRESHOLD_PX = 5;
+const VERTEX_HIT_RADIUS = 12;
+const DRAG_THRESHOLD_PX = 5;
 const EPS = 1e-10;
 
-export type Bounds = BoundingBox;
+type Bounds = BoundingBox;
 
 export type ConstraintDragTarget = Extract<DragTarget, { kind: "constraint" }>;
 
@@ -85,7 +85,7 @@ export function findEdgeNearPoint(
   return null;
 }
 
-export function getVisibleBounds(canvasManager: ViewportApi): Bounds {
+function getVisibleBounds(canvasManager: ViewportApi): Bounds {
   const margin = 50;
   const topLeft = canvasManager.toLogicalCoords(-margin, -margin);
   const bottomRight = canvasManager.toLogicalCoords(
@@ -100,7 +100,7 @@ export function getVisibleBounds(canvasManager: ViewportApi): Bounds {
   };
 }
 
-export function distanceToSegment(
+function distanceToSegment(
   point: PointXY,
   start: PointXY,
   end: PointXY,
@@ -117,7 +117,7 @@ export function distanceToSegment(
   return Math.hypot(point.x - projection.x, point.y - projection.y);
 }
 
-export function clipRayToBounds(
+function clipRayToBounds(
   start: PointXY,
   direction: PointXY,
   bounds: Bounds,

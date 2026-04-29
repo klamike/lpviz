@@ -5,7 +5,7 @@ import {
   type State,
 } from "@/features/core/store";
 
-export type HistorySnapshotSource = Pick<
+type HistorySnapshotSource = Pick<
   State,
   "vertices" | "objectiveVector" | "completionMode"
 >;

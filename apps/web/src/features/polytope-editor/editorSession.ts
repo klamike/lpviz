@@ -10,7 +10,7 @@ import type { PointXY } from "@lpviz/math/types";
 import { type PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
 import { deriveRegionFromPoints } from "@lpviz/polytope/regionAssembly";
 
-export type EditorRegionResult =
+type EditorRegionResult =
   | { status: "nonconvex" }
   | {
       status: "ready";
@@ -22,13 +22,13 @@ export type EditorRegionResult =
       } | null;
     };
 
-export type EditorEditResult = {
+type EditorEditResult = {
   vertices: PointXY[];
   completionMode: CompletionMode;
   interiorPoint: PointXY | null;
 };
 
-export type EditorTransition =
+type EditorTransition =
   | { kind: "noop" }
   | { kind: "reject-nonconvex" }
   | {

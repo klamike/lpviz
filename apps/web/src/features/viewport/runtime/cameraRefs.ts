@@ -1,6 +1,6 @@
 import type { OrthographicCamera, PerspectiveCamera } from "three";
 
-export type ViewportCameraRefs = {
+type ViewportCameraRefs = {
   ortho: OrthographicCamera | null;
   perspective: PerspectiveCamera | null;
 };
