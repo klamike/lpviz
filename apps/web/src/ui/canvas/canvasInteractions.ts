@@ -17,9 +17,6 @@ import {
   getEditorContext,
   getEditorTransition,
 } from "@/features/polytope-editor/editorSession";
-import type { ViewportApi } from "@/features/viewport/runtime";
-import { verticesFromLines } from "@lpviz/math/geometry";
-import type { PointXY } from "@lpviz/math/types";
 import {
   exceedsDragThreshold,
   findBoundaryRayNearPoint,
@@ -30,6 +27,9 @@ import {
   getLogicalFromClient,
   type ConstraintDragTarget,
 } from "@/features/polytope-editor/interactions/interactionState";
+import type { ViewportApi } from "@/features/viewport/runtime";
+import { verticesFromLines } from "@lpviz/math/geometry";
+import type { PointXY } from "@lpviz/math/types";
 
 export function attachCanvasInteractions({
   canvasManager,
