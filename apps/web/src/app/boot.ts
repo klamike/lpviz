@@ -13,7 +13,7 @@ import { mountCanvasStage } from "@/ui/canvas/mountCanvasStage";
 import { mountSmallScreenOverlay } from "@/ui/overlays/mountSmallScreenOverlay";
 import { mountSidebar } from "@/ui/sidebar/mountSidebar";
 
-const DEFAULT_SIDEBAR_WIDTH = 370;
+const DEFAULT_SIDEBAR_WIDTH = 450;
 
 export function boot(root: HTMLElement) {
   root.replaceChildren();

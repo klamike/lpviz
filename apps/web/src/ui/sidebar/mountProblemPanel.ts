@@ -6,17 +6,16 @@ import {
 } from "@/features/core/selectors";
 import { getState, subscribe, type State } from "@/features/core/store";
 import { clear, el } from "@/ui/dom";
-
-const LOGO = `  ___                                   \n /\\_ \\                   __             \n \\//\\ \\   ______  __  __/\\_\\  _____     \n   \\ \\ \\ /\\  __ \\/\\ \\/\\ \\/\\ \\/\\__  \\    \n    \\_\\ \\\\ \\ \\_\\ \\ \\ \\_/ \\ \\ \\/_/  /_   \n    /\\____\\ \\  __/\\ \\___/ \\ \\_\\/\\____\\  \n    \\/____/\\ \\ \\/  \\/__/   \\/_/\\/____/  \n            \\ \\_\\                       \n             \\/_/               v1.0.0`;
+import { renderNullStateLogo } from "@/ui/logo";
 
 export function mountProblemPanel(parent: HTMLElement, ctx: AppContext) {
   const frame = el("div", { id: "terminal-container2" });
   const topResult = el("div", { id: "topResult" });
-  const nullState = el("pre", {
+  const nullState = el("div", {
     id: "nullStateMessage",
     attrs: { "aria-label": "lpviz logo" },
-    text: LOGO,
   });
+  renderNullStateLogo(nullState);
   const maximize = el("div", { id: "maximize", text: "maximize" });
   const objective = el("div", { id: "objectiveDisplay" });
   const subjectTo = el("div", { id: "subjectTo", text: "subject to" });
