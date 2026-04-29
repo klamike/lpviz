@@ -119,26 +119,21 @@ function dot(a: ArrayLike<number>, b: ArrayLike<number>) {
   return sum;
 }
 
-function matVec(matrix: DenseMatrixN, vector: ArrayLike<number>, out: number[]) {
-  const result = denseToMatrix(matrix).mmul(Matrix.columnVector(Array.from(vector))).to1DArray();
-  for (let i = 0; i < result.length; i++) out[i] = result[i]!;
+function matVec(matrix: DenseMatrixN, vector: ArrayLike<number>) {
+  return denseToMatrix(matrix).mmul(Matrix.columnVector(Array.from(vector))).to1DArray();
 }
 
-function transposedMatVec(matrix: DenseMatrixN, vector: ArrayLike<number>, out: number[]) {
-  const result = denseToMatrix(matrix).transpose().mmul(Matrix.columnVector(Array.from(vector))).to1DArray();
-  out.fill(0);
-  for (let i = 0; i < result.length; i++) out[i] = result[i]!;
+function transposedMatVec(matrix: DenseMatrixN, vector: ArrayLike<number>) {
+  return denseToMatrix(matrix).transpose().mmul(Matrix.columnVector(Array.from(vector))).to1DArray();
 }
 
-function solveDenseSystem(matrix: ArrayLike<number>, size: number, rhs: ArrayLike<number>, out: number[], _luScratch?: number[]) {
+function solveDenseSystem(matrix: ArrayLike<number>, size: number, rhs: ArrayLike<number>) {
   const rows: number[][] = [];
   for (let row = 0; row < size; row++) {
     const rowOffset = row * size;
     rows.push(Array.from(matrix).slice(rowOffset, rowOffset + size));
   }
-  const solution = solve(new Matrix(rows), Matrix.columnVector(Array.from(rhs))).to1DArray();
-  for (let i = 0; i < solution.length; i++) out[i] = solution[i]!;
-  return out;
+  return solve(new Matrix(rows), Matrix.columnVector(Array.from(rhs))).to1DArray();
 }
 
 function transposeMatrix(matrix: DenseMatrixN): DenseMatrixN {
@@ -197,7 +192,8 @@ function concatenateVectors(...vectors: ArrayLike<number>[]): number[] {
   return out;
 }
 
-function extractColumn(matrix: DenseMatrixN, column: number, out = zeros(matrix.rows)) {
+function extractColumn(matrix: DenseMatrixN, column: number) {
+  const out = zeros(matrix.rows);
   for (let row = 0; row < matrix.rows; row++) out[row] = matrix.data[row * matrix.cols + column]!;
   return out;
 }
@@ -237,24 +233,13 @@ function ipmCore(A: DenseMatrixN, b: number[], c: number[], opts: IPMOptionsN) {
   const x = zeros(n);
   const s = filled(m, 1);
   const y = filled(m, 1);
-  const ax = zeros(m);
-  const aty = zeros(n);
-  const rP = zeros(m);
-  const rD = zeros(n);
-  const K = zeros(systemSize * systemSize);
-  const rhsAff = zeros(systemSize);
-  const rhsCor = zeros(systemSize);
-  const deltaAff = zeros(systemSize);
-  const deltaCor = zeros(systemSize);
-  const luScratch = zeros(systemSize * systemSize);
-  const dx = zeros(n);
-  const ds = zeros(m);
-  const dy = zeros(m);
   let iteration = 0;
 
   while (++iteration <= maxit) {
-    matVec(A, x, ax);
-    transposedMatVec(A, y, aty);
+    const ax = matVec(A, x);
+    const aty = transposedMatVec(A, y);
+    const rP = zeros(m);
+    const rD = zeros(n);
     for (let i = 0; i < m; i++) rP[i] = b[i]! - ax[i]! + s[i]!;
     for (let j = 0; j < n; j++) rD[j] = c[j]! - aty[j]!;
     const mu = dot(s, y) / m;
@@ -267,27 +252,37 @@ function ipmCore(A: DenseMatrixN, b: number[], c: number[], opts: IPMOptionsN) {
     solution.y.push(y.slice());
     solution.mu.push(mu);
     if (pRes <= eps_p && infinityNorm(rD) <= eps_d && gap <= eps_opt) break;
-    buildKktSystem(K, A, s, y);
+    const K = buildKktSystem(A, s, y);
+    const rhsAff = zeros(systemSize);
     for (let i = 0; i < m; i++) rhsAff[i] = rP[i]!;
     for (let j = 0; j < n; j++) rhsAff[m + j] = rD[j]!;
     for (let i = 0; i < m; i++) rhsAff[m + n + i] = -s[i]! * y[i]!;
-    solveDenseSystem(K, systemSize, rhsAff, deltaAff, luScratch);
+    const deltaAff = solveDenseSystem(K, systemSize, rhsAff);
     const alphaP = alphaStep(s, deltaAff, n, m);
     const alphaD = alphaStep(y, deltaAff, n + m, m);
     let muAff = 0;
     for (let i = 0; i < m; i++) muAff += (s[i]! + alphaP * deltaAff[n + i]!) * (y[i]! + alphaD * deltaAff[n + m + i]!);
     muAff /= m;
+    let dx: number[];
+    let ds: number[];
+    let dy: number[];
     if (!(alphaP >= correctorThreshold && alphaD >= correctorThreshold)) {
-      rhsCor.fill(0);
+      const rhsCor = zeros(systemSize);
       const sigma = Math.max(SIGMA_MIN, Math.min(SIGMA_MAX, (muAff / mu) ** SIGMA_POWER));
       for (let i = 0; i < m; i++) rhsCor[m + n + i] = -(deltaAff[n + i]! * deltaAff[n + m + i]! - sigma * mu);
-      solveDenseSystem(K, systemSize, rhsCor, deltaCor, luScratch);
+      const deltaCor = solveDenseSystem(K, systemSize, rhsCor);
+      dx = zeros(n);
+      ds = zeros(m);
+      dy = zeros(m);
       for (let j = 0; j < n; j++) dx[j] = deltaAff[j]! + deltaCor[j]!;
       for (let i = 0; i < m; i++) {
         ds[i] = deltaAff[n + i]! + deltaCor[n + i]!;
         dy[i] = deltaAff[n + m + i]! + deltaCor[n + m + i]!;
       }
     } else {
+      dx = zeros(n);
+      ds = zeros(m);
+      dy = zeros(m);
       for (let j = 0; j < n; j++) dx[j] = deltaAff[j]!;
       for (let i = 0; i < m; i++) {
         ds[i] = deltaAff[n + i]!;
@@ -305,11 +300,11 @@ function ipmCore(A: DenseMatrixN, b: number[], c: number[], opts: IPMOptionsN) {
   return res;
 }
 
-function buildKktSystem(K: number[], A: DenseMatrixN, s: number[], y: number[]) {
+function buildKktSystem(A: DenseMatrixN, s: number[], y: number[]) {
   const m = A.rows;
   const n = A.cols;
   const size = n + 2 * m;
-  K.fill(0);
+  const K = zeros(size * size);
   for (let i = 0; i < m; i++) {
     const rowOffset = i * size;
     const aOffset = i * n;
@@ -325,6 +320,7 @@ function buildKktSystem(K: number[], A: DenseMatrixN, s: number[], y: number[]) 
     K[rowOffset + n + i] = y[i]!;
     K[rowOffset + n + m + i] = s[i]!;
   }
+  return K;
 }
 
 function alphaStep(values: number[], delta: ArrayLike<number>, offset: number, length: number) {
@@ -347,17 +343,14 @@ function buildBasisState(cVec: number[], A: DenseMatrixN, bVec: number[], basis:
     const sourceCol = basisIndices[basisCol]!;
     for (let row = 0; row < mRows; row++) B.data[row * mRows + basisCol] = A.data[row * nCols + sourceCol]!;
   }
-  const xB = zeros(mRows);
-  solveDenseSystem(B.data, mRows, bVec, xB);
+  const xB = solveDenseSystem(B.data, mRows, bVec);
   const xTableau = zeros(nCols);
   for (let basisIndex = 0; basisIndex < mRows; basisIndex++) xTableau[basisIndices[basisIndex]!] = xB[basisIndex]!;
   const cB = zeros(mRows);
   for (let i = 0; i < mRows; i++) cB[i] = cVec[basisIndices[i]!]!;
   const BT = transposeMatrix(B);
-  const y = zeros(mRows);
-  solveDenseSystem(BT.data, mRows, cB, y);
-  const aty = zeros(nCols);
-  transposedMatVec(A, y, aty);
+  const y = solveDenseSystem(BT.data, mRows, cB);
+  const aty = transposedMatVec(A, y);
   const reducedCosts = zeros(nCols);
   for (let j = 0; j < nCols; j++) reducedCosts[j] = cVec[j]! - aty[j]!;
   return { B, xB, xTableau, basisIndices, reducedCosts, objective: dot(cVec, xTableau) };
@@ -372,8 +365,6 @@ function simplexCoreStandard(cVec: number[], A: DenseMatrixN, bVec: number[], ba
   let iteration = 0;
   let status: SimplexStatus = "optimal";
   let objective = 0;
-  const enterColumn = zeros(mRows);
-  const direction = zeros(mRows);
   while (true) {
     if (++iteration > MAX_SIMPLEX_ITERATIONS) throw new Error(`Simplex stalled after ${MAX_SIMPLEX_ITERATIONS} iterations`);
     const state = buildBasisState(cVec, A, bVec, basis);
@@ -388,8 +379,8 @@ function simplexCoreStandard(cVec: number[], A: DenseMatrixN, bVec: number[], ba
       }
     }
     if (enterIndex === -1) break;
-    extractColumn(A, enterIndex, enterColumn);
-    solveDenseSystem(state.B.data, state.B.rows, enterColumn, direction);
+    const enterColumn = extractColumn(A, enterIndex);
+    const direction = solveDenseSystem(state.B.data, state.B.rows, enterColumn);
     let leaveBasisIndex = -1;
     let minRatio = Infinity;
     let smallestLeavingIndex = Infinity;
@@ -422,8 +413,6 @@ function simplexCore(cVec: number[], A: DenseMatrixN, bVec: number[], basisInit:
   let objective = 0;
   let status: SimplexStatus = "optimal";
   let basisIndices: number[] = [];
-  const enterColumn = zeros(A.rows);
-  const direction = zeros(A.rows);
   while (true) {
     if (++iteration > MAX_SIMPLEX_ITERATIONS) throw new Error(`Simplex stalled after ${MAX_SIMPLEX_ITERATIONS} iterations`);
     const state = buildBasisState(cVec, A, bVec, basis);
@@ -439,8 +428,8 @@ function simplexCore(cVec: number[], A: DenseMatrixN, bVec: number[], basisInit:
       }
     }
     if (enterIndex === -1) break;
-    extractColumn(A, enterIndex, enterColumn);
-    solveDenseSystem(state.B.data, state.B.rows, enterColumn, direction);
+    const enterColumn = extractColumn(A, enterIndex);
+    const direction = solveDenseSystem(state.B.data, state.B.rows, enterColumn);
     let leaveIndexInBasis = -1;
     let minRatio = Infinity;
     let smallestLeavingOriginalIndex = Infinity;
@@ -496,8 +485,6 @@ function recoverPrimalPointFromDualBasis(lines: Lines, basisIndices: number[], t
 function pivotOutArtificialVariables(phase1Matrix: DenseMatrixN, bVec: number[], basisInit: boolean[], originalColumnCount: number, tol: number) {
   const basis = basisInit.slice();
   const zeroCosts = zeros(phase1Matrix.cols);
-  const column = zeros(phase1Matrix.rows);
-  const direction = zeros(phase1Matrix.rows);
   while (true) {
     const basisIndices = basis.flatMap((isBasic, index) => (isBasic ? [index] : []));
     const artificialIndex = basisIndices.find((index) => index >= originalColumnCount);
@@ -507,8 +494,8 @@ function pivotOutArtificialVariables(phase1Matrix: DenseMatrixN, bVec: number[],
     let replacement = -1;
     for (let j = 0; j < originalColumnCount; j++) {
       if (basis[j]) continue;
-      extractColumn(phase1Matrix, j, column);
-      solveDenseSystem(state.B.data, state.B.rows, column, direction);
+      const column = extractColumn(phase1Matrix, j);
+      const direction = solveDenseSystem(state.B.data, state.B.rows, column);
       if (Math.abs(direction[rowIndex]!) > tol) {
         replacement = j;
         break;
@@ -602,11 +589,11 @@ function computeIneqBasisPhase(yk: number[]) {
   return phase;
 }
 
-function pdhgEqEpsilon(A: DenseMatrixN, b: number[], c: number[], xk: number[], yk: number[], axScratch: number[], atYScratch: number[], bNorm: number, cNorm: number) {
-  matVec(A, xk, axScratch);
+function pdhgEqEpsilon(A: DenseMatrixN, b: number[], c: number[], xk: number[], yk: number[], bNorm: number, cNorm: number) {
+  const axScratch = matVec(A, xk);
   let primalResidual = 0;
   for (let i = 0; i < axScratch.length; i++) primalResidual = Math.max(primalResidual, Math.abs(axScratch[i]! - b[i]!));
-  transposedMatVec(A, yk, atYScratch);
+  const atYScratch = transposedMatVec(A, yk);
   let dualResidual = 0;
   for (let i = 0; i < atYScratch.length; i++) dualResidual = Math.max(dualResidual, Math.max(0, -atYScratch[i]! - c[i]!));
   const cTx = dot(c, xk);
@@ -623,20 +610,13 @@ function pdhgStandardForm(A: DenseMatrixN, b: number[], c: number[], options: Om
   const cNorm = infinityNorm(c);
   let xk = zeros(n);
   let yk = zeros(m);
-  let nextX = zeros(n);
-  let nextY = zeros(m);
-  let halpernX = zeros(n);
-  let halpernY = zeros(m);
   const anchorX = zeros(n);
   const anchorY = zeros(m);
-  const axScratch = zeros(m);
-  const atYScratch = zeros(n);
-  const extrapolatedXScratch = zeros(n);
   let k = 1;
   let innerIteration = 1;
   let initialFixedPointError = Number.POSITIVE_INFINITY;
   let lastTrialFixedPointError = Number.POSITIVE_INFINITY;
-  let epsilonK = pdhgEqEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
+  let epsilonK = pdhgEqEpsilon(A, b, c, xk, yk, bNorm, cNorm);
   const iterates: number[][] = [];
   const eps: number[] = [];
   const phases: number[] = [];
@@ -646,13 +626,16 @@ function pdhgStandardForm(A: DenseMatrixN, b: number[], c: number[], options: Om
     if (colorByBasis) phases.push(computeSlackBasisPhase(xk, m, slackOffset));
     eps.push(epsilonK);
     if (epsilonK <= tol || k === maxit) break;
-    transposedMatVec(A, yk, atYScratch);
+    const atYScratch = transposedMatVec(A, yk);
+    let nextX = zeros(n);
+    const extrapolatedXScratch = zeros(n);
     for (let i = 0; i < n; i++) {
       const candidate = xk[i]! - eta * (c[i]! + atYScratch[i]!);
       nextX[i] = candidate > 0 ? candidate : 0;
       extrapolatedXScratch[i] = 2 * nextX[i]! - xk[i]!;
     }
-    matVec(A, extrapolatedXScratch, axScratch);
+    const axScratch = matVec(A, extrapolatedXScratch);
+    let nextY = zeros(m);
     for (let i = 0; i < m; i++) nextY[i] = yk[i]! + tau * (axScratch[i]! - b[i]!);
     if (halpern) {
       const fixedPointError = computeFixedPointError(xk, nextX, yk, nextY);
@@ -666,6 +649,8 @@ function pdhgStandardForm(A: DenseMatrixN, b: number[], c: number[], options: Om
         innerIteration = 1;
         restartIndices.push(iterates.length - 1);
       } else {
+        let halpernX = zeros(n);
+        let halpernY = zeros(m);
         const weight = innerIteration / (innerIteration + 1);
         const anchorWeight = 1 - weight;
         for (let i = 0; i < n; i++) halpernX[i] = weight * nextX[i]! + anchorWeight * anchorX[i]!;
@@ -680,7 +665,7 @@ function pdhgStandardForm(A: DenseMatrixN, b: number[], c: number[], options: Om
       [yk, nextY] = [nextY, yk];
     }
     k++;
-    epsilonK = pdhgEqEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
+    epsilonK = pdhgEqEpsilon(A, b, c, xk, yk, bNorm, cNorm);
   }
   return { iterations: iterates, eps, phases: colorByBasis ? phases : undefined, restartIndices: halpern ? restartIndices : undefined };
 }
@@ -714,11 +699,11 @@ function pdhgEqNumber(lines: Lines, objective: ArrayLike<number>, options: Omit<
   }) };
 }
 
-function pdhgIneqEpsilon(A: DenseMatrixN, b: number[], c: number[], xk: number[], yk: number[], axScratch: number[], atYScratch: number[], bNorm: number, cNorm: number) {
-  matVec(A, xk, axScratch);
+function pdhgIneqEpsilon(A: DenseMatrixN, b: number[], c: number[], xk: number[], yk: number[], bNorm: number, cNorm: number) {
+  const axScratch = matVec(A, xk);
   let primalResidual = 0;
   for (let i = 0; i < axScratch.length; i++) primalResidual = Math.max(primalResidual, Math.max(0, axScratch[i]! - b[i]!));
-  transposedMatVec(A, yk, atYScratch);
+  const atYScratch = transposedMatVec(A, yk);
   let dualResidual = 0;
   for (let i = 0; i < atYScratch.length; i++) dualResidual = Math.max(dualResidual, Math.abs(c[i]! + atYScratch[i]!));
   const cTx = dot(c, xk);
@@ -737,20 +722,13 @@ function pdhgIneqNumber(lines: Lines, objective: ArrayLike<number>, options: Omi
   const cNorm = infinityNorm(c);
   let xk = zeros(n);
   let yk = filled(m, 1);
-  let nextX = zeros(n);
-  let nextY = zeros(m);
-  let halpernX = zeros(n);
-  let halpernY = zeros(m);
   const anchorX = zeros(n);
   const anchorY = filled(m, 1);
-  const axScratch = zeros(m);
-  const atYScratch = zeros(n);
-  const extrapolatedYScratch = zeros(m);
   let k = 1;
   let innerIteration = 1;
   let initialFixedPointError = Number.POSITIVE_INFINITY;
   let lastTrialFixedPointError = Number.POSITIVE_INFINITY;
-  let epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
+  let epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk, bNorm, cNorm);
   const iterations: number[][] = [];
   const eps: number[] = [];
   const phases: number[] = [];
@@ -758,13 +736,16 @@ function pdhgIneqNumber(lines: Lines, objective: ArrayLike<number>, options: Omi
   while (k <= maxit && epsilonK > tol) {
     iterations.push(xk.slice());
     if (colorByBasis) phases.push(computeIneqBasisPhase(yk));
-    matVec(A, xk, axScratch);
+    const axScratch = matVec(A, xk);
+    let nextY = zeros(m);
+    const extrapolatedYScratch = zeros(m);
     for (let i = 0; i < m; i++) {
       const candidate = yk[i]! + tau * (axScratch[i]! - b[i]!);
       nextY[i] = candidate > 0 ? candidate : 0;
       extrapolatedYScratch[i] = 2 * nextY[i]! - yk[i]!;
     }
-    transposedMatVec(A, extrapolatedYScratch, atYScratch);
+    const atYScratch = transposedMatVec(A, extrapolatedYScratch);
+    let nextX = zeros(n);
     for (let i = 0; i < n; i++) nextX[i] = xk[i]! - eta * (c[i]! + atYScratch[i]!);
     eps.push(epsilonK);
     if (halpern) {
@@ -779,6 +760,8 @@ function pdhgIneqNumber(lines: Lines, objective: ArrayLike<number>, options: Omi
         innerIteration = 1;
         restartIndices.push(iterations.length - 1);
       } else {
+        let halpernX = zeros(n);
+        let halpernY = zeros(m);
         const weight = innerIteration / (innerIteration + 1);
         const anchorWeight = 1 - weight;
         for (let i = 0; i < n; i++) halpernX[i] = weight * nextX[i]! + anchorWeight * anchorX[i]!;
@@ -793,7 +776,7 @@ function pdhgIneqNumber(lines: Lines, objective: ArrayLike<number>, options: Omi
       [yk, nextY] = [nextY, yk];
     }
     k++;
-    epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
+    epsilonK = pdhgIneqEpsilon(A, b, c, xk, yk, bNorm, cNorm);
   }
   return { iterations, eps, phases: colorByBasis ? phases : undefined, restartIndices: halpern ? restartIndices : undefined };
 }
@@ -817,25 +800,23 @@ function centralPathMu(niter: number) {
   return Array.from({ length: niter }, (_, index) => 10 ** (BARRIER_PARAM_START + index * stepSize));
 }
 
-function computeCentralObjective(A: DenseMatrixN, b: number[], c: number[], mu: number, point: number[], axScratch: number[], slackScratch: number[]) {
-  matVec(A, point, axScratch);
+function computeCentralObjective(A: DenseMatrixN, b: number[], c: number[], mu: number, point: number[]) {
+  const axScratch = matVec(A, point);
   let logBarrier = 0;
   for (let i = 0; i < b.length; i++) {
     const slack = b[i]! - axScratch[i]!;
-    slackScratch[i] = slack;
     if (slack <= 0) return -Infinity;
     logBarrier += Math.log(slack);
   }
   return dot(c, point) + mu * logBarrier;
 }
 
-function computeNewtonStep(A: DenseMatrixN, b: number[], c: number[], mu: number, point: number[], gradient: number[], hessian: number[], axScratch: number[], slackScratch: number[], stepScratch: number[], luScratch: number[]) {
-  matVec(A, point, axScratch);
-  for (let i = 0; i < c.length; i++) gradient[i] = c[i]!;
-  hessian.fill(0);
+function computeNewtonStep(A: DenseMatrixN, b: number[], c: number[], mu: number, point: number[]) {
+  const axScratch = matVec(A, point);
+  const gradient = clone(c);
+  const hessian = zeros(c.length * c.length);
   for (let i = 0; i < b.length; i++) {
     const slack = b[i]! - axScratch[i]!;
-    slackScratch[i] = slack;
     if (slack <= 0) return null;
     const invSlack = 1 / slack;
     const hessianScale = mu * invSlack * invSlack;
@@ -847,17 +828,17 @@ function computeNewtonStep(A: DenseMatrixN, b: number[], c: number[], mu: number
       for (let k = 0; k < A.cols; k++) hessian[j * A.cols + k] += hessianScale * aij * A.data[rowOffset + k]!;
     }
   }
-  solveDenseSystem(hessian, A.cols, gradient, stepScratch, luScratch);
-  return stepScratch;
+  return { gradient, step: solveDenseSystem(hessian, A.cols, gradient) };
 }
 
-function performLineSearch(A: DenseMatrixN, b: number[], c: number[], mu: number, currentPoint: number[], newtonStep: number[], gradient: number[], candidatePoint: number[], axScratch: number[], slackScratch: number[]) {
+function performLineSearch(A: DenseMatrixN, b: number[], c: number[], mu: number, currentPoint: number[], newtonStep: number[], gradient: number[]) {
   let stepSize = 1;
-  const currentObjective = computeCentralObjective(A, b, c, mu, currentPoint, axScratch, slackScratch);
+  const currentObjective = computeCentralObjective(A, b, c, mu, currentPoint);
   const gradientDotStep = dot(gradient, newtonStep);
   for (let i = 0; i < MAX_LINE_SEARCH_ITERATIONS; i++) {
+    const candidatePoint = zeros(currentPoint.length);
     for (let j = 0; j < currentPoint.length; j++) candidatePoint[j] = currentPoint[j]! + newtonStep[j]! * stepSize;
-    const candidateObjective = computeCentralObjective(A, b, c, mu, candidatePoint, axScratch, slackScratch);
+    const candidateObjective = computeCentralObjective(A, b, c, mu, candidatePoint);
     if (candidateObjective !== -Infinity && candidateObjective >= currentObjective + LINE_SEARCH_SUFFICIENT_DECREASE * stepSize * gradientDotStep) return stepSize;
     stepSize *= LINE_SEARCH_SHRINK_FACTOR;
     if (stepSize < MIN_STEP_SIZE) return stepSize;
@@ -867,19 +848,12 @@ function performLineSearch(A: DenseMatrixN, b: number[], c: number[], mu: number
 
 function centralPathXk(A: DenseMatrixN, b: number[], c: number[], mu: number, x0: number[]) {
   const currentPoint = x0.slice();
-  const gradient = zeros(c.length);
-  const hessian = zeros(c.length * c.length);
-  const step = zeros(c.length);
-  const candidatePoint = zeros(c.length);
-  const axScratch = zeros(b.length);
-  const slackScratch = zeros(b.length);
-  const luScratch = zeros(c.length * c.length);
   for (let iteration = 1; iteration <= DEFAULT_MAX_NEWTON_ITERATIONS; iteration++) {
-    const newtonStep = computeNewtonStep(A, b, c, mu, currentPoint, gradient, hessian, axScratch, slackScratch, step, luScratch);
+    const newtonStep = computeNewtonStep(A, b, c, mu, currentPoint);
     if (newtonStep === null) return null;
-    const stepSize = performLineSearch(A, b, c, mu, currentPoint, newtonStep, gradient, candidatePoint, axScratch, slackScratch);
-    for (let j = 0; j < currentPoint.length; j++) currentPoint[j] += newtonStep[j]! * stepSize;
-    if (infinityNorm(gradient) < DEFAULT_CONVERGENCE_TOLERANCE) return currentPoint.slice();
+    const stepSize = performLineSearch(A, b, c, mu, currentPoint, newtonStep.step, newtonStep.gradient);
+    for (let j = 0; j < currentPoint.length; j++) currentPoint[j] += newtonStep.step[j]! * stepSize;
+    if (infinityNorm(newtonStep.gradient) < DEFAULT_CONVERGENCE_TOLERANCE) return currentPoint.slice();
   }
   return null;
 }
@@ -890,12 +864,10 @@ export function centralPathNumber(vertices: Vertices, lines: Lines, objective: A
   const c = clone(objective);
   const points: number[][] = [];
   let currentPoint = centroid(vertices);
-  const axScratch = zeros(b.length);
-  const slackScratch = zeros(b.length);
   for (const mu of centralPathMu(opts.niter)) {
     const optimalPoint = centralPathXk(A, b, c, mu, currentPoint);
     if (!optimalPoint) continue;
-    const totalObjective = computeCentralObjective(A, b, c, mu, optimalPoint, axScratch, slackScratch);
+    const totalObjective = computeCentralObjective(A, b, c, mu, optimalPoint);
     points.push([optimalPoint[0] ?? 0, optimalPoint[1] ?? 0, totalObjective]);
     currentPoint = optimalPoint;
   }
