@@ -11,6 +11,7 @@
     "dev": "vite --port 3000",
     "build": "vite build",
     "preview": "vite preview --port 3000",
+    "bench:solvers": "bun apps/web/src/bench/solverArrayBench.ts",
     "check:workspace-imports": "node scripts/checkWorkspaceImports.mjs",
     "format": "prettier --write --print-width 3000 lpviz && bun lpviz/restoreAsciiArt.ts && bunx tsc && bunx knip",
     "deploy": "npx wrangler deploy --assets=./dist --name lpviz --compatibility-date 2025-09-01",
@@ -32,9 +33,9 @@
     "@lpviz/polytope": "workspace:*",
     "@lpviz/solver-engine": "workspace:*",
     "@lpviz/viewport": "workspace:*",
-
     "@types/react-virtualized": "^9.22.3",
     "jsoncrush": "^1.1.8",
+    "ml-matrix": "^6.12.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-virtualized": "^9.22.6",
