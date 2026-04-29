@@ -10,7 +10,7 @@ import type { ViewportBridge } from "@/features/viewport/types";
 import { LpvizCanvasGL } from "./LpvizCanvasGL";
 
 import { useAppActions } from "@/features/core/actions";
-import { useTourActionTarget } from "@/features/tour/TourContext";
+import { ProblemGallery } from "@/features/problem-gallery/ProblemGallery";
 import { useViewportBridgeSetter } from "@/features/viewport/Bridge";
 
 export function CanvasStage({
@@ -22,7 +22,6 @@ export function CanvasStage({
 }) {
   const runtimeActions = useAppActions();
   const setViewportBridge = useViewportBridgeSetter();
-  const toggle3DTargetRef = useTourActionTarget("toggle-3d");
   const canvasControlsUiState = useLpvizStore(
     selectCanvasControlsUiState,
     areCanvasControlsUiStatesEqual,
@@ -47,6 +46,7 @@ export function CanvasStage({
           onBridgeDispose={handleBridgeDispose}
         />
       </div>
+      <ProblemGallery sidebarWidth={sidebarWidth} />
       <div id="zoomControls">
         <button
           title="Reset Zoom (Home)"
@@ -77,7 +77,6 @@ export function CanvasStage({
         </button>
         <button
           id="toggle3DButton"
-          ref={toggle3DTargetRef}
           className={
             canvasControlsUiState.is3DMode ? "button-active" : undefined
           }

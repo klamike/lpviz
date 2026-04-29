@@ -358,8 +358,6 @@ export function useCanvasInteractions({
         return;
       }
 
-      if (getState().tourActive) return;
-
       updatePointerPreview(phaseSnapshot, logicalCoords);
     };
 
@@ -432,12 +430,10 @@ export function useCanvasInteractions({
 
     const shouldIgnoreEditEvent = () => {
       const state = getState();
-      return state.isTransitioning3D || state.tourActive;
+      return state.isTransitioning3D;
     };
 
     const finishOpenRegion = () => {
-      if (getState().tourActive) return;
-
       const finishResult = getEditorTransition(getState(), {
         kind: "finish-open",
       });

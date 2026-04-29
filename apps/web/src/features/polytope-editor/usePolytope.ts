@@ -4,15 +4,11 @@ import { useRef } from "react";
 
 export function usePolytope({
   handleProblemChange,
-  scheduleNonconvexHint,
 }: {
   handleProblemChange: () => void;
-  scheduleNonconvexHint: () => void;
 }) {
   const handleProblemChangeRef = useRef(handleProblemChange);
   handleProblemChangeRef.current = handleProblemChange;
-  const scheduleNonconvexHintRef = useRef(scheduleNonconvexHint);
-  scheduleNonconvexHintRef.current = scheduleNonconvexHint;
 
   const send = () => {
     const state = getState();
@@ -22,7 +18,6 @@ export function usePolytope({
       if (regionResult.status === "nonconvex") {
         setState({ polytope: null, inequalitiesMessage: "Nonconvex", highlightIndex: null });
         handleProblemChangeRef.current();
-        scheduleNonconvexHintRef.current();
         return;
       }
 
@@ -46,13 +41,11 @@ export function usePolytope({
           ? { highlightIndex: null }
           : {}),
       });
-      scheduleNonconvexHintRef.current();
       handleProblemChangeRef.current();
     } catch (error) {
       console.error("Error:", error);
       setState({ polytope: null, inequalitiesMessage: "Error computing inequalities.", highlightIndex: null });
       handleProblemChangeRef.current();
-      scheduleNonconvexHintRef.current();
     }
   };
 

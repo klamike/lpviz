@@ -7,12 +7,9 @@ import {
 } from "@/features/core/selectors";
 
 import { useAppActions } from "@/features/core/actions";
-import { useTourActionTarget } from "@/features/tour/TourContext";
 
 export function SolverControlsPanel() {
   const runtimeActions = useAppActions();
-  const activateIpmTargetRef = useTourActionTarget("activate-ipm");
-  const activateCentralTargetRef = useTourActionTarget("activate-central");
   const solverControlsUiState = useLpvizStore(
     selectSolverControlsUiState,
     areSolverControlsUiStatesEqual,
@@ -27,7 +24,6 @@ export function SolverControlsPanel() {
       <div className="button-group">
         <button
           id="ipmButton"
-          ref={activateIpmTargetRef}
           className={
             solverControlsUiState.buttons.ipm.active
               ? "button-active"
@@ -62,7 +58,6 @@ export function SolverControlsPanel() {
         </button>
         <button
           id="iteratePathButton"
-          ref={activateCentralTargetRef}
           className={
             solverControlsUiState.buttons.central.active
               ? "button-active"

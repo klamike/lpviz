@@ -22,7 +22,7 @@ type RubberBandState = {
 function selectRubberBandState(state: State): RubberBandState {
   const isDraft = state.completionMode === "draft";
   const verts = state.vertices;
-  const active = isDraft && !state.tourActive && verts.length >= 1;
+  const active = isDraft && verts.length >= 1;
   return {
     lastVertex: active ? verts[verts.length - 1]! : null,
     is3DMode: state.is3DMode,

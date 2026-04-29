@@ -35,7 +35,6 @@ type PrevState = {
   currentObjective: PointXY | null;
   completionMode: State["completionMode"];
   polytope: State["polytope"];
-  tourActive: boolean;
   isTransitioning3D: boolean;
   mode: string;
   unitsPerPixel: number;
@@ -73,7 +72,6 @@ export class ObjectiveLayer implements Layer {
       p.currentObjective === raw.currentObjective &&
       p.completionMode === raw.completionMode &&
       p.polytope === raw.polytope &&
-      p.tourActive === raw.tourActive &&
       p.isTransitioning3D === raw.isTransitioning3D &&
       p.mode === snap.mode &&
       p.unitsPerPixel === snap.unitsPerPixel
@@ -86,7 +84,6 @@ export class ObjectiveLayer implements Layer {
       currentObjective: raw.currentObjective,
       completionMode: raw.completionMode,
       polytope: raw.polytope,
-      tourActive: raw.tourActive,
       isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
       unitsPerPixel: snap.unitsPerPixel,
@@ -99,7 +96,7 @@ export class ObjectiveLayer implements Layer {
 
     const target =
       raw.objectiveVector ||
-      (raw.completionMode !== "draft" && raw.currentObjective && !raw.tourActive
+      (raw.completionMode !== "draft" && raw.currentObjective
         ? raw.currentObjective
         : null);
 

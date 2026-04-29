@@ -4,7 +4,7 @@
       }
       replace this with a VRep.isValid(), delete boundingBox and BoundingBox
 
-- [ ] get rid of tour, replace with a problem gallery at top of viewport
+- [x] get rid of tour, replace with a problem gallery at top of viewport
 
 - [ ] sometimes (maybe already fixed) when switching solvers, only first 4 rows of virtualized results appear, until scroll when it fixes itself.
 

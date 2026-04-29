@@ -8,12 +8,11 @@ import {
 } from "react";
 
 import { registerAppActions, type AppActions } from "@/features/core/actions";
-import { useTourUiController } from "@/features/tour/TourContext";
 import { ViewportBridgeSetterContext } from "@/features/viewport/Bridge";
-import { getState } from "@/features/core/store";
-import type { TourActionTarget } from "@/features/tour/types";
+import { setState } from "@/features/core/store";
 import { createViewportRuntime, type ViewportRuntime } from "@/features/viewport/runtime";
 import { type ViewportBridge } from "@/features/viewport/types";
+import type { GalleryProblem } from "@/features/problem-gallery/problems";
 
 import { useCanvasInteractions } from "@/features/polytope-editor/interactions/useCanvasInteractions";
 import { useHistory } from "@/features/history/useHistory";
@@ -21,7 +20,6 @@ import { usePolytope } from "@/features/polytope-editor/usePolytope";
 import { useShare } from "@/features/share/useShare";
 import { useSidebarViewportSync } from "@/hooks/useSidebarViewportSync";
 import { useSolver } from "@/features/solver/useSolver";
-import { useTour } from "@/features/tour/useTour";
 import { useUrlParamsSync } from "@/features/share/useUrlParamsSync";
 import { useViewportActions } from "@/features/viewport/useActions";
 
@@ -34,7 +32,6 @@ export function LpvizProvider({
   const [canvasManager, setCanvasManager] = useState<ViewportRuntime | null>(
     null,
   );
-  const tourUi = useTourUiController();
 
   useEffect(() => {
     if (!viewportBridge) return;
@@ -63,16 +60,10 @@ export function LpvizProvider({
   }, [viewportBridge]);
 
   const solverHandleProblemChangeRef = useRef<() => void>(() => {});
-  const scheduleNonconvexHintRef = useRef<() => void>(() => {});
-  const runActionRef = useRef<(target: TourActionTarget) => void>(() => {});
 
   const polytope = usePolytope({
     handleProblemChange: useCallback(
       () => solverHandleProblemChangeRef.current(),
-      [],
-    ),
-    scheduleNonconvexHint: useCallback(
-      () => scheduleNonconvexHintRef.current(),
       [],
     ),
   });
@@ -99,38 +90,6 @@ export function LpvizProvider({
 
   const share = useShare({ solverControls: solver.solverControls });
 
-  const tour = useTour({
-    canvasManager,
-    ui: tourUi,
-    saveHistory: history.save,
-    sendPolytope: polytope.send,
-    runAction: useCallback(
-      (target: TourActionTarget) => runActionRef.current(target),
-      [],
-    ),
-  });
-  scheduleNonconvexHintRef.current = tour.scheduleNonconvexHint;
-
-  runActionRef.current = (target) => {
-    if (target === "activate-ipm") {
-      solver.setActiveSolverMode("ipm", true);
-      return;
-    }
-    if (target === "activate-central") {
-      solver.setActiveSolverMode("central", true);
-      return;
-    }
-    if (target === "toggle-3d") {
-      viewport.toggle3D();
-      return;
-    }
-    if (target === "start-rotation") {
-      solver.startRotation();
-      return;
-    }
-    solver.setTraceEnabled(!getState().traceEnabled);
-  };
-
   useCanvasInteractions({
     canvasManager,
     saveHistory: history.save,
@@ -151,8 +110,6 @@ export function LpvizProvider({
     invalidatePendingSolveResults: solver.invalidatePendingSolveResults,
     setActiveSolverMode: solver.setActiveSolverMode,
     sendPolytope: polytope.send,
-    resetTour: tour.reset,
-    startDemo: tour.start,
   });
 
   const setActiveSolverModeWithSolve = useCallback(
@@ -160,6 +117,46 @@ export function LpvizProvider({
       solver.setActiveSolverMode(mode, true);
     },
     [solver],
+  );
+
+  const loadGalleryProblem = useCallback(
+    (problem: GalleryProblem) => {
+      const cm = canvasManagerRef.current;
+      history.save();
+      solver.invalidatePendingSolveResults();
+      solver.stopRotation();
+      setState(
+        {
+          vertices: problem.vertices.map((vertex) => ({ ...vertex })),
+          completionMode: "closed",
+          interiorPoint: { ...problem.interiorPoint },
+          polytope: null,
+          inequalitiesMessage: null,
+          objectiveVector: { ...problem.objectiveVector },
+          currentObjective: null,
+          highlightIndex: null,
+          highlightIteratePathIndex: null,
+          editorInteraction: { kind: "idle" },
+          lastCompletedInteraction: "none",
+          rotateObjectiveMode: false,
+          animationIntervalId: null,
+        },
+        {
+          viewportDirty: {
+            grid: true,
+            polytope: true,
+            constraints: true,
+            objective: true,
+            trace: true,
+            iterate: true,
+          },
+        },
+      );
+      polytope.sendRef.current();
+      cm?.draw();
+      window.requestAnimationFrame(() => viewport.zoomToFit());
+    },
+    [history, solver, viewport, polytope.sendRef],
   );
 
   const actions = useMemo<AppActions>(
@@ -180,8 +177,9 @@ export function LpvizProvider({
       setActiveSolverMode: setActiveSolverModeWithSolve,
       setSidebarWidth: viewport.setSidebarWidth,
       syncViewportLayout: viewport.syncViewportLayout,
+      loadGalleryProblem,
     }),
-    [solver, share, viewport, setActiveSolverModeWithSolve],
+    [solver, share, viewport, setActiveSolverModeWithSolve, loadGalleryProblem],
   );
 
   const bridgeSetter = useCallback((bridge: ViewportBridge | null) => {

@@ -3,7 +3,6 @@ import { SmallScreenOverlay } from "@/components/overlays/SmallScreenOverlay";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { useSidebarLayout } from "@/hooks/useSidebarLayout";
 import { LpvizProvider } from "@/providers/LpvizProvider";
-import { TourProvider } from "@/features/tour/TourProvider";
 
 function App() {
   const { sidebarWidth, topResultRef, beginResize } = useSidebarLayout();
@@ -17,8 +16,4 @@ function App() {
   );
 }
 
-export default () => (
-  <TourProvider>
-    <App />
-  </TourProvider>
-);
+export default App;

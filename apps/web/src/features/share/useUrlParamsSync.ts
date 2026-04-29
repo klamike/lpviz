@@ -17,8 +17,6 @@ type UseUrlParamsSyncOptions = {
   invalidatePendingSolveResults: () => void;
   setActiveSolverMode: (mode: SolverMode, solve?: boolean) => void;
   sendPolytope: () => void;
-  resetTour: () => void;
-  startDemo: () => Promise<void> | void;
 };
 
 export function useUrlParamsSync({
@@ -28,8 +26,6 @@ export function useUrlParamsSync({
   invalidatePendingSolveResults,
   setActiveSolverMode,
   sendPolytope,
-  resetTour,
-  startDemo,
 }: UseUrlParamsSyncOptions) {
   const appliedRef = useRef(false);
   const solverControlsRef = useRef(solverControls);
@@ -42,10 +38,6 @@ export function useUrlParamsSync({
   setActiveSolverModeRef.current = setActiveSolverMode;
   const sendPolytopeRef = useRef(sendPolytope);
   sendPolytopeRef.current = sendPolytope;
-  const resetTourRef = useRef(resetTour);
-  resetTourRef.current = resetTour;
-  const startDemoRef = useRef(startDemo);
-  startDemoRef.current = startDemo;
 
   useEffect(() => {
     if (!canvasManager || appliedRef.current) return;
@@ -95,14 +87,9 @@ export function useUrlParamsSync({
           applySharedState(expandSharedAppState(data) as SharedAppState);
         }
         history.replaceState(null, "", window.location.pathname);
-        resetTourRef.current();
       } catch (error) {
         console.error("Failed to load shared state", error);
       }
-    }
-
-    if (params.has("demo")) {
-      void startDemoRef.current();
     }
   }, [canvasManager]);
 }

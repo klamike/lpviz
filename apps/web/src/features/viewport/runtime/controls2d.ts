@@ -66,8 +66,7 @@ const applyConfig = (
   }
 };
 
-const canZoomViewport2D = () =>
-  config.enabled && !config.blocked && !getState().tourActive;
+const canZoomViewport2D = () => config.enabled && !config.blocked;
 
 const canPanViewport2D = () =>
   canZoomViewport2D() &&

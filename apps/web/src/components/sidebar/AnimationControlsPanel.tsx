@@ -7,12 +7,9 @@ import {
 } from "@/features/core/selectors";
 
 import { useAppActions } from "@/features/core/actions";
-import { useTourActionTarget } from "@/features/tour/TourContext";
 
 export function AnimationControlsPanel() {
   const runtimeActions = useAppActions();
-  const startRotationTargetRef = useTourActionTarget("start-rotation");
-  const toggleTraceTargetRef = useTourActionTarget("toggle-trace");
   const animationControlsUiState = useLpvizStore(
     selectAnimationControlsUiState,
     areAnimationControlsUiStatesEqual,
@@ -35,7 +32,6 @@ export function AnimationControlsPanel() {
       <div className="button-group">
         <button
           id="startRotateObjectiveButton"
-          ref={startRotationTargetRef}
           disabled={animationControlsUiState.startRotateDisabled}
           onClick={() => runtimeActions.startRotation()}
         >
@@ -108,7 +104,6 @@ export function AnimationControlsPanel() {
             </label>
             <input
               type="checkbox"
-              ref={toggleTraceTargetRef}
               id="traceCheckbox"
               checked={animationControlsUiState.traceEnabled}
               onChange={(e) => {

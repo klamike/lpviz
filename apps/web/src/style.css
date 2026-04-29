@@ -90,92 +90,157 @@ body {
 }
 
 /* ================================
-    Overlay: Tour
+    Problem Gallery
     ================================ */
-.tour-layer {
+.problem-gallery {
   position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
+  top: 0;
+  z-index: 90;
+  display: block;
+  width: 44px;
+  height: 28px;
+  overflow: hidden;
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  background: rgba(250, 250, 250, 0.94);
+  border: 1px solid #333;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+  transform-origin: top center;
+  transition:
+    width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
-.tour-cursor {
-  position: fixed;
-  z-index: 10000;
-  width: 24px;
-  height: 24px;
-  pointer-events: none;
-  opacity: 0;
-  transform: translate(-25%, -25%);
-  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
-  transition: all 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+.problem-gallery.is-expanded {
+  width: var(--problem-gallery-expanded-width);
+  height: 96px;
+  background: rgba(250, 250, 250, 0.92);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
 }
 
-.tour-cursor.is-visible {
-  opacity: 1;
-}
-
-.tour-cursor.is-clicking {
-  transform: translate(-25%, -25%) scale(1.8);
-  filter: drop-shadow(2px 2px 8px rgba(74, 144, 226, 0.6));
-  transition-duration: 100ms;
-}
-
-.tour-popup {
-  position: fixed;
-  bottom: 20px;
-  color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+.problem-gallery__toggle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 28px;
+  padding: 0;
   font-family: "JuliaMono", monospace;
+  font-size: 1rem;
+  line-height: 1;
+  color: #333;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   cursor: pointer;
-  transform: translateY(100px);
-  opacity: 0;
-  transition: all 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  max-width: min(320px, calc(100% - 40px));
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.problem-gallery.is-expanded .problem-gallery__toggle {
+  width: 100%;
+  height: 18px;
+  opacity: 1;
   pointer-events: auto;
 }
 
-.tour-popup--left {
-  left: 20px;
+.problem-gallery__chevron {
+  display: block;
+  width: 12px;
+  height: 8px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: center;
+  transition: transform 180ms ease;
 }
 
-.tour-popup--right {
-  right: 20px;
+.problem-gallery.is-expanded .problem-gallery__chevron {
+  transform: scaleY(-1);
 }
 
-.tour-popup.is-visible {
-  transform: translateY(0);
+.problem-gallery__items {
+  display: flex;
+  align-items: flex-start;
+  max-width: inherit;
+  gap: 8px;
+  padding: 8px;
+  padding-top: 22px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+  height: 96px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-18px);
+  transition:
+    opacity 150ms ease 80ms,
+    transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.problem-gallery__items::-webkit-scrollbar {
+  display: none;
+}
+
+.problem-gallery.is-expanded .problem-gallery__items {
   opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
-.tour-popup__content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  gap: 12px;
-}
-
-.tour-popup__text {
-  text-align: left;
-}
-
-.tour-popup__close {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: #fff;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+.problem-gallery__item {
+  display: grid;
+  grid-template-rows: 36px 13px;
+  place-items: center;
+  flex: 0 0 84px;
+  width: 84px;
+  height: 64px;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  margin: 0;
+  font-family: "JuliaMono", monospace;
+  font-size: 0.68rem;
+  line-height: 1;
+  color: #333;
+  background: #fafafa;
+  border: 1px solid #333;
+  border-radius: 4px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  flex: 0 0 auto;
+}
+
+.problem-gallery__item:hover,
+.problem-gallery__item:focus-visible {
+  background: #f0f0f0;
+}
+
+.problem-gallery__thumb {
+  width: 54px;
+  height: 36px;
+}
+
+.problem-gallery__thumb polygon {
+  fill: rgba(76, 175, 80, 0.16);
+  stroke: #333;
+  stroke-width: 1.5;
+}
+
+.problem-gallery__thumb line {
+  stroke: #c0392b;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 /* ================================

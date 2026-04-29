@@ -1,4 +1,5 @@
 import type { SolverMode, SolverSettings } from "./store";
+import type { GalleryProblem } from "@/features/problem-gallery/problems";
 
 export type AppActions = {
   setConstraintHighlight: (index: number | null) => void;
@@ -20,6 +21,7 @@ export type AppActions = {
   setActiveSolverMode: (mode: SolverMode) => void;
   setSidebarWidth: (width: number) => void;
   syncViewportLayout: (sidebarWidth: number) => void;
+  loadGalleryProblem: (problem: GalleryProblem) => void;
 };
 
 let appActions: AppActions | null = null;

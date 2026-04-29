@@ -153,7 +153,6 @@ export type State = {
   traceEnabled: boolean;
   traceBuffer: TraceEntry[];
   maxTraceCount: number;
-  tourActive: boolean;
   isNavigatingViewport: boolean;
 };
 
@@ -210,7 +209,6 @@ const initialState: State = {
   traceEnabled: false,
   traceBuffer: [],
   maxTraceCount: 0,
-  tourActive: false,
   isNavigatingViewport: false,
 };
 
