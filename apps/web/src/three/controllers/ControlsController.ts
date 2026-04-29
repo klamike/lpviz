@@ -1,4 +1,4 @@
-import { Vector3, type PerspectiveCamera } from "three";
+import { Plane, Raycaster, Vector2, Vector3, type PerspectiveCamera } from "three";
 import type { SceneManager } from "../SceneManager";
 import {
   getViewport2DControlsConfig,
@@ -52,6 +52,13 @@ export class ControlsController {
   private controlsMaxDistance = 1000;
   private controlsTarget = new Vector3();
   private active3DDrag: Active3DDrag | null = null;
+  private wheelAnchorAfter = new Vector3();
+  private wheelAnchorBefore = new Vector3();
+  private wheelDelta = new Vector3();
+  private wheelPlane = new Plane();
+  private wheelPlaneNormal = new Vector3();
+  private wheelPointerNdc = new Vector2();
+  private wheelRaycaster = new Raycaster();
 
   constructor(private sceneManager: SceneManager) {
     const canvas = sceneManager.renderer.domElement;
@@ -317,9 +324,53 @@ export class ControlsController {
       );
       if (!Number.isFinite(nextDistance)) return;
 
+      const rect = canvas.getBoundingClientRect();
+      const hasCursorAnchor =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        this.wheelPlaneNormal
+          .subVectors(this.controlsTarget, perspectiveCamera.position)
+          .normalize()
+          .lengthSq() > 0;
+      let anchoredZoom = false;
+
+      if (hasCursorAnchor) {
+        this.wheelPointerNdc.set(
+          ((event.clientX - rect.left) / rect.width) * 2 - 1,
+          -(((event.clientY - rect.top) / rect.height) * 2 - 1),
+        );
+        this.wheelPlane.setFromNormalAndCoplanarPoint(
+          this.wheelPlaneNormal,
+          this.controlsTarget,
+        );
+        perspectiveCamera.updateMatrixWorld();
+        this.wheelRaycaster.setFromCamera(this.wheelPointerNdc, perspectiveCamera);
+        anchoredZoom = this.wheelRaycaster.ray.intersectPlane(
+          this.wheelPlane,
+          this.wheelAnchorBefore,
+        ) !== null;
+      }
+
       perspectiveCamera.position
         .copy(this.controlsTarget)
         .add(offset.normalize().multiplyScalar(nextDistance));
+      if (anchoredZoom) {
+        perspectiveCamera.updateMatrixWorld();
+        this.wheelRaycaster.setFromCamera(this.wheelPointerNdc, perspectiveCamera);
+        if (
+          this.wheelRaycaster.ray.intersectPlane(
+            this.wheelPlane,
+            this.wheelAnchorAfter,
+          )
+        ) {
+          this.wheelDelta.subVectors(
+            this.wheelAnchorBefore,
+            this.wheelAnchorAfter,
+          );
+          perspectiveCamera.position.add(this.wheelDelta);
+          this.controlsTarget.add(this.wheelDelta);
+        }
+      }
       event.preventDefault();
       event.stopImmediatePropagation();
       this.controlsConfig.onStart?.();

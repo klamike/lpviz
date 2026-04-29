@@ -35,7 +35,8 @@ const VirtualList = forwardRef<
     if (!outer || !spacer) return;
 
     const rows = rowsRef.current;
-    const rh = rowHeightRef.current;
+    const rawRowHeight = rowHeightRef.current;
+    const rh = Number.isFinite(rawRowHeight) && rawRowHeight > 0 ? rawRowHeight : 22;
     const scrollTop = outer.scrollTop;
     const viewHeight = outer.clientHeight;
     const rowCount = rows.length;
@@ -49,18 +50,22 @@ const VirtualList = forwardRef<
     const count = rowCount > 0 ? last - first + 1 : 0;
 
     const pool = poolRef.current;
-    while (pool.length < count) {
+    const createPooledRow = () => {
       const div = document.createElement("div");
       div.style.cssText = "position:absolute;left:0;right:0;";
       outer.appendChild(div);
-      pool.push(div);
+      return div;
+    };
+
+    while (pool.length < count) {
+      pool.push(createPooledRow());
     }
 
     const height = `${rh}px`;
     for (let i = 0; i < count; i++) {
       const rowIdx = first + i;
       const row = rows[rowIdx];
-      const div = pool[i]!;
+      const div = pool[i] ?? (pool[i] = createPooledRow());
       // Only touch styles when they actually change. During objective
       // rotation only text changes frame-to-frame, so skipping these writes
       // avoids gratuitous style invalidations and is the biggest per-frame
@@ -77,7 +82,8 @@ const VirtualList = forwardRef<
       }
     }
     for (let i = count; i < pool.length; i++) {
-      if (pool[i]!.style.display !== "none") pool[i]!.style.display = "none";
+      const div = pool[i];
+      if (div && div.style.display !== "none") div.style.display = "none";
     }
   }, [rowsRef]);
 
