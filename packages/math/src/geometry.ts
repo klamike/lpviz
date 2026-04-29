@@ -71,6 +71,15 @@ export class VRep {
     return Math.hypot(p1.x - p2.x, p1.y - p2.y);
   }
 
+  static isValid(points: ReadonlyArray<PointXY>): boolean {
+    return (
+      points.length > 0 &&
+      points.every(
+        (pt) => pt != null && Number.isFinite(pt.x) && Number.isFinite(pt.y),
+      )
+    );
+  }
+
   get vertexCount(): number {
     return this.points.length;
   }
@@ -90,24 +99,6 @@ export class VRep {
       x: sumX / this.points.length,
       y: sumY / this.points.length,
     };
-  }
-
-  boundingBox(): BoundingBox | null {
-    if (this.points.length === 0) {
-      return null;
-    }
-    let minX = this.points[0].x;
-    let maxX = this.points[0].x;
-    let minY = this.points[0].y;
-    let maxY = this.points[0].y;
-    for (let i = 1; i < this.points.length; i++) {
-      const point = this.points[i];
-      minX = Math.min(minX, point.x);
-      maxX = Math.max(maxX, point.x);
-      minY = Math.min(minY, point.y);
-      maxY = Math.max(maxY, point.y);
-    }
-    return { minX, maxX, minY, maxY };
   }
 
   isConvex(): boolean {

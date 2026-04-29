@@ -1,6 +1,6 @@
 import { getDisplayedIterateZ } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
 import { VRep } from "@lpviz/math/geometry";
+import type { PointXY } from "@lpviz/math/types";
 
 type TraceEntry = {
   path: Float64Array[];
@@ -29,7 +29,10 @@ export function collectZoomFitBounds({
   const points: PointXY[] = [];
   const zValues: number[] = [];
 
-  const appendPath = (path: Float64Array[], objectiveOverride?: PointXY | null) => {
+  const appendPath = (
+    path: Float64Array[],
+    objectiveOverride?: PointXY | null,
+  ) => {
     path.forEach((entry) => {
       points.push({ x: entry[0], y: entry[1] });
       zValues.push(getDisplayedIterateZ(entry, objectiveOverride));
@@ -52,13 +55,25 @@ export function collectZoomFitBounds({
     }
   }
 
-  const bounds = VRep.fromPoints(points).boundingBox();
-  if (!bounds) {
+  if (!VRep.isValid(points)) {
     return null;
   }
 
+  let minX = points[0].x;
+  let maxX = points[0].x;
+  let minY = points[0].y;
+  let maxY = points[0].y;
+
+  for (let i = 1; i < points.length; i++) {
+    const point = points[i];
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+
   return {
-    bounds,
+    bounds: { minX, maxX, minY, maxY },
     zBounds: zValues.length
       ? {
           minZ: Math.min(...zValues),
