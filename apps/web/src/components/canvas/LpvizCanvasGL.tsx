@@ -62,7 +62,7 @@ export function LpvizCanvasGL({
     onBridgeReady({
       getCanvasElement: () => canvas,
       getCanvasRect: () => canvas.getBoundingClientRect(),
-      invalidate: () => mgr.invalidate(),
+      invalidate: (options) => mgr.invalidate(options),
     });
 
     mgr.start();

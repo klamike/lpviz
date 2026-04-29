@@ -18,6 +18,27 @@ function hasStableChange(
   prev: ViewportRenderSnapshot,
   next: ViewportRenderSnapshot,
 ): boolean {
+  const isPure3DCameraMove =
+    prev.mode === "3d" &&
+    next.mode === "3d" &&
+    prev.width === next.width &&
+    prev.height === next.height &&
+    prev.scaleFactor === next.scaleFactor &&
+    prev.unitsPerPixel === next.unitsPerPixel &&
+    prev.gridSpacing === next.gridSpacing &&
+    prev.orthographic.left === next.orthographic.left &&
+    prev.orthographic.right === next.orthographic.right &&
+    prev.orthographic.top === next.orthographic.top &&
+    prev.orthographic.bottom === next.orthographic.bottom &&
+    prev.perspective.fov === next.perspective.fov &&
+    prev.perspective.aspect === next.perspective.aspect &&
+    prev.perspective.near === next.perspective.near &&
+    prev.perspective.far === next.perspective.far;
+
+  if (isPure3DCameraMove) {
+    return false;
+  }
+
   return (
     prev.mode !== next.mode ||
     prev.width !== next.width ||
@@ -39,13 +60,15 @@ function hasStableChange(
   );
 }
 
-export function setViewportRenderSnapshot(next: ViewportRenderSnapshot) {
+export function setViewportRenderSnapshot(next: ViewportRenderSnapshot): boolean {
   const prev = snapshot;
+  const stableChanged = hasStableChange(prev, next);
   snapshot = next;
   fullListeners.forEach((l) => l());
-  if (hasStableChange(prev, next)) {
+  if (stableChanged) {
     stableListeners.forEach((l) => l());
   }
+  return stableChanged;
 }
 
 export function resetViewportRenderSnapshot() {

@@ -176,7 +176,7 @@ export class ControlsController {
     const handleChange = () => {
       if (!controls.enabled || this.applyingSnapshot) return;
       this.controlsConfig.onChange?.(buildPose());
-      this.sceneManager.invalidate();
+      this.sceneManager.invalidate({ layers: false });
     };
     const handleEnd = () => {
       if (!controls.enabled || this.applyingSnapshot) return;
@@ -245,7 +245,7 @@ export class ControlsController {
     controls.update();
 
     this.applyingSnapshot = false;
-    this.sceneManager.invalidate();
+    this.sceneManager.invalidate({ layers: false });
   }
 
   dispose(): void {

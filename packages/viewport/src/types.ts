@@ -1,7 +1,7 @@
 export type ViewportBridge = {
   getCanvasElement: () => HTMLCanvasElement;
   getCanvasRect: () => DOMRect;
-  invalidate: () => void;
+  invalidate: (options?: { layers?: boolean }) => void;
 };
 
 export type ViewportRenderSnapshot = {

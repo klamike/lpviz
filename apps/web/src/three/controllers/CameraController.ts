@@ -75,7 +75,7 @@ export class CameraController {
     this.sceneManager.setCamera(
       snap.mode === "2d" ? this.ortho : this.perspective,
     );
-    this.sceneManager.invalidate();
+    this.sceneManager.invalidate({ layers: false });
   }
 
   getCameras() {

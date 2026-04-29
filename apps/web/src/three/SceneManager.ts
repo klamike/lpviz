@@ -19,6 +19,7 @@ export class SceneManager {
 
   private camera: Camera | null = null;
   private dirty = true;
+  private layersDirty = true;
   private rafId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private disposed = false;
@@ -120,7 +121,10 @@ export class SceneManager {
     }
     this.dirty = false;
 
-    this.layerHost.update(this.ctx);
+    if (this.layersDirty) {
+      this.layersDirty = false;
+      this.layerHost.update(this.ctx);
+    }
 
     for (const tick of this.ticks) {
       tick(this.ctx);
@@ -131,13 +135,18 @@ export class SceneManager {
     }
   };
 
-  invalidate(): void {
+  invalidate(options: { layers?: boolean } = {}): void {
+    this.layersDirty ||= options.layers ?? true;
     if (!this.dirty) {
       this.dirty = true;
     }
   }
 
   setCamera(cam: Camera): void {
+    if (this.camera === cam) {
+      this.invalidate({ layers: false });
+      return;
+    }
     this.camera = cam;
     this.invalidate();
   }

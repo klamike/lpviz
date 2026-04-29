@@ -193,8 +193,8 @@ export async function createViewportRuntime({
   };
 
   const publishSnapshot = (snapshot: ViewportRenderSnapshot) => {
-    setViewportRenderSnapshot(snapshot);
-    viewportBridge.invalidate();
+    const stableChanged = setViewportRenderSnapshot(snapshot);
+    viewportBridge.invalidate({ layers: stableChanged });
   };
 
   const getViewportRect = () => viewportBridge.getCanvasRect();
