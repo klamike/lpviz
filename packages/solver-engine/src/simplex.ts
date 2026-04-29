@@ -563,6 +563,9 @@ function solveDualMode(
     if (verbose) console.log(unavailableMessage);
     return {
       iterations: [] as Float64Array[],
+      phase1Iterations: phase1.basisHistory.map((basisIndices) =>
+        Float64Array.from(dualPointFromBasis(basisIndices)),
+      ),
       logs: [phase1.logs, phase2Logs],
       status: "unavailable" as const,
     };
@@ -588,9 +591,20 @@ function solveDualMode(
     iterations: phase2.basisHistory.map((basisIndices) =>
       Float64Array.from(dualPointFromBasis(basisIndices)),
     ),
+    phase1Iterations: phase1.basisHistory.map((basisIndices) =>
+      Float64Array.from(dualPointFromBasis(basisIndices)),
+    ),
     logs: [phase1.logs, phase2.logs],
     status: phase2.status,
   };
+}
+
+function primalPointFromSplitTableau(tableauX: Vec2N, n: number) {
+  const point = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    point[i] = (tableauX[i] ?? 0) - (tableauX[n + i] ?? 0);
+  }
+  return point;
 }
 
 export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
@@ -636,7 +650,11 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
   );
 
   if (verbose) console.log("Phase One");
-  const { finalBasis: rawBasis1, logs: log1 } = simplexCore(
+  const {
+    finalBasis: rawBasis1,
+    iterations: phase1TableauIterations,
+    logs: log1,
+  } = simplexCore(
     cPhase1,
     aPhase1,
     bPhase1,
@@ -665,16 +683,16 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
     },
   );
 
-  const xIterations = iterations.map((tableauX: Vec2N) => {
-    const point = new Float64Array(n);
-    for (let i = 0; i < n; i++) {
-      point[i] = (tableauX[i] ?? 0) - (tableauX[n + i] ?? 0);
-    }
-    return point;
-  });
+  const xIterations = iterations.map((tableauX: Vec2N) =>
+    primalPointFromSplitTableau(tableauX, n),
+  );
+  const phase1Iterations = phase1TableauIterations.map((tableauX: Vec2N) =>
+    primalPointFromSplitTableau(tableauX, n),
+  );
 
   return {
     iterations: xIterations,
+    phase1Iterations,
     logs: [log1, logs],
     mode: "primal" as const,
     status,

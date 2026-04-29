@@ -126,6 +126,9 @@ export function SolverLogPanel() {
 
   const rowHeight = fontSize != null ? Math.ceil(fontSize * 1.2) : 22;
 
+  const blockContainerRef = useRef<HTMLDivElement>(null);
+  const blockMouseClientPosRef = useRef<{ x: number; y: number } | null>(null);
+  const blockRafIdRef = useRef<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<VirtualListHandle | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -187,6 +190,52 @@ export function SolverLogPanel() {
     scrollTopRef.current = scrollTop;
   }, []);
 
+  const updateBlockHighlightAtPointer = useCallback(() => {
+    const pos = blockMouseClientPosRef.current;
+    const container = blockContainerRef.current;
+    if (!pos || !container) {
+      runtimeActionsRef.current.setIterateHighlight(null);
+      return false;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    if (
+      pos.x < containerRect.left ||
+      pos.x > containerRect.right ||
+      pos.y < containerRect.top ||
+      pos.y > containerRect.bottom
+    ) {
+      blockMouseClientPosRef.current = null;
+      runtimeActionsRef.current.setIterateHighlight(null);
+      return false;
+    }
+
+    const element = document.elementFromPoint(pos.x, pos.y);
+    const row = element?.closest<HTMLElement>(".iterate-item");
+    if (!row || !container.contains(row)) {
+      runtimeActionsRef.current.setIterateHighlight(null);
+      return true;
+    }
+
+    const index = Number(row.dataset.index);
+    runtimeActionsRef.current.setIterateHighlight(
+      Number.isInteger(index) ? index : null,
+    );
+    return true;
+  }, []);
+
+  const startBlockHighlightTracking = useCallback(() => {
+    if (blockRafIdRef.current !== null) return;
+    const tick = () => {
+      if (!updateBlockHighlightAtPointer()) {
+        blockRafIdRef.current = null;
+        return;
+      }
+      blockRafIdRef.current = requestAnimationFrame(tick);
+    };
+    blockRafIdRef.current = requestAnimationFrame(tick);
+  }, [updateBlockHighlightAtPointer]);
+
   const startHighlightTracking = useCallback(() => {
     if (rafIdRef.current !== null) return;
     const tick = () => {
@@ -221,6 +270,10 @@ export function SolverLogPanel() {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
+      if (blockRafIdRef.current !== null) {
+        cancelAnimationFrame(blockRafIdRef.current);
+        blockRafIdRef.current = null;
+      }
     };
   }, []);
 
@@ -238,6 +291,33 @@ export function SolverLogPanel() {
     mouseClientPosRef.current = { x: e.clientX, y: e.clientY };
     startHighlightTracking();
   }, [startHighlightTracking]);
+
+  const handleBlockMouseEnter = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    blockMouseClientPosRef.current = { x: e.clientX, y: e.clientY };
+    updateBlockHighlightAtPointer();
+    startBlockHighlightTracking();
+  }, [startBlockHighlightTracking, updateBlockHighlightAtPointer]);
+
+  const handleBlockMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    blockMouseClientPosRef.current = { x: e.clientX, y: e.clientY };
+    updateBlockHighlightAtPointer();
+    startBlockHighlightTracking();
+  }, [startBlockHighlightTracking, updateBlockHighlightAtPointer]);
+
+  const handleBlockWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    blockMouseClientPosRef.current = { x: e.clientX, y: e.clientY };
+    updateBlockHighlightAtPointer();
+    startBlockHighlightTracking();
+  }, [startBlockHighlightTracking, updateBlockHighlightAtPointer]);
+
+  const handleBlockMouseLeave = useCallback(() => {
+    blockMouseClientPosRef.current = null;
+    runtimeActionsRef.current.setIterateHighlight(null);
+    if (blockRafIdRef.current !== null) {
+      cancelAnimationFrame(blockRafIdRef.current);
+      blockRafIdRef.current = null;
+    }
+  }, []);
 
   return (
     <TerminalFrame
@@ -301,7 +381,13 @@ export function SolverLogPanel() {
         ) : null}
         {resultPanelUiState.mode === "blocks" &&
         resultPanelUiState.blocks !== null ? (
-          <div>
+          <div
+            ref={blockContainerRef}
+            onMouseEnter={handleBlockMouseEnter}
+            onMouseMove={handleBlockMouseMove}
+            onMouseLeave={handleBlockMouseLeave}
+            onWheel={handleBlockWheel}
+          >
             {resultPanelUiState.blocks.map((block, index) => (
               <div
                 key={index}

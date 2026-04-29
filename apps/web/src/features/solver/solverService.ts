@@ -61,6 +61,7 @@ export interface IPMResult {
 
 export interface SimplexResult {
   iterations: Float64Array[];
+  phase1Iterations?: Float64Array[];
   logs: string[][];
   mode: "primal" | "dual";
   status?: "optimal" | "unbounded" | "unavailable";
@@ -110,13 +111,27 @@ export function applySimplexResult(
   result: SimplexResult,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
-  updateIteratePathsWithTrace(result.iterations);
+  const phase1Iterations = result.phase1Iterations ?? [];
+  const iterations =
+    phase1Iterations.length > 0
+      ? [...phase1Iterations, ...result.iterations]
+      : result.iterations;
+  const phases =
+    phase1Iterations.length > 0
+      ? [
+          ...Array.from({ length: phase1Iterations.length }, () => 0),
+          ...Array.from({ length: result.iterations.length }, () => 1),
+        ]
+      : undefined;
+  updateIteratePathsWithTrace(iterations, phases);
   updateResult({
     type: "blocks",
     blocks: generateSimplexBlocks(
       result.logs[0],
       result.logs[1],
       result.status,
+      phase1Iterations.length,
+      result.iterations.length,
     ),
   });
 }
@@ -217,6 +232,8 @@ function generateSimplexBlocks(
   phase1logs: string[] = [],
   phase2logs: string[] = [],
   status: SimplexResult["status"] = "optimal",
+  phase1IterationCount = 0,
+  phase2IterationCount = 0,
 ): ResultTextBlock[] {
   const normalizeLog = (value: string) => value.replace(/\n+$/g, "");
   const createBlock = (
@@ -257,7 +274,11 @@ function generateSimplexBlocks(
       ? []
       : [
           createBlock("iterate-header", `${phase1Title}\n${phase1Header}`),
-          ...phase1Rows.map((log) => createBlock("iterate-item-nohover", log)),
+          ...phase1Rows.map((log, i) =>
+            i < phase1IterationCount
+              ? createBlock("iterate-item", log, i)
+              : createBlock("iterate-item-nohover", log),
+          ),
           ...(phase1Footer
             ? [createBlock("iterate-footer", phase1Footer)]
             : []),
@@ -266,7 +287,11 @@ function generateSimplexBlocks(
   return [
     ...setupBlocks,
     createBlock("iterate-header", `${phase2Title}\n${phase2Header}`),
-    ...phase2Rows.map((log, i) => createBlock("iterate-item", log, i)),
+    ...phase2Rows.map((log, i) =>
+      i < phase2IterationCount
+        ? createBlock("iterate-item", log, phase1IterationCount + i)
+        : createBlock("iterate-item-nohover", log),
+    ),
     ...(phase2Footer ? [createBlock("iterate-footer", phase2Footer)] : []),
   ];
 }
