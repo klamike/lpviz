@@ -618,6 +618,7 @@ export async function createViewportRuntime({
       if (!getState().isTransitioning3D) {
         const nextView = buildResetViewport3DView(
           managerSnapshot,
+          currentSidebarWidth,
           getViewportRect(),
         );
         applyExternalPerspectivePose(nextView.pose, { syncControls: true });

@@ -4,10 +4,6 @@
       }
       replace this with a VRep.isValid(), delete boundingBox and BoundingBox
 
-- [x] get rid of tour, replace with a problem gallery at top of viewport
-
-- [ ] sometimes (maybe already fixed) when switching solvers, only first 4 rows of virtualized results appear, until scroll when it fixes itself.
-
 - [ ] z scale should adapt to the range of values being displayed. then we can get rid of the 500\*eps etc...
 
 - [ ] decide to either expose or remove dual simplex
@@ -34,9 +30,6 @@ re-evaluate if this is necessary
 
 - [ ] move getVisibleBounds, clipLineToBounds to viewport package
 
-728cf13f
-dedupe/move getDisplayedIterateZ; this is app logic not three logic. also get rid of ITERATE_Z; just use drawing order to make sure it's on top.
-
 - [ ] is it possible to refactor makeLine2 to not create a new Line? (or rather, refactor update to now call makeLine2 each time). ideally we'd share stuff for performance.
 
 - [ ] combine iteratepoints, iteraterestartpoints, iteratestar, if it's not too complicated
@@ -53,14 +46,7 @@ dedupe/move getDisplayedIterateZ; this is app logic not three logic. also get ri
 
 - [ ] debug memory leak, especially when not tracing
 
-3c079b4fccf4fac1d3263c164b29784b469dce47
-make exclude obj = true the only option, delete all dead code this creates.
-
 - [ ] replace maxit text fields with log-space sliders (style the slider range to somehow communicate that it is log-spaced)
-
-- [ ] fix zoom button in 3d (currently can cut off the polytope)
-
-- [ ] fix home button in 3d (seems it's using the center of the window instead of the center of the viewport)
 
 - [ ] allow central path when unbounded
 

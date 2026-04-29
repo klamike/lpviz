@@ -8,6 +8,8 @@ import {
   buildPerspectivePoseFromViewAngle,
   getPerspectiveDistanceForUnitsPerPixel,
   getScaleFactorFromPerspectiveDistance,
+  getViewportVisibleCenterCanvasPoint,
+  projectCanvasPointToWorldPlane,
 } from "./transition";
 import type { ViewportPerspectivePose } from "./types";
 
@@ -238,7 +240,8 @@ export function getMaxPerspectiveDistance3D(
 
 export function buildResetViewport3DView(
   snapshot: ViewportRenderSnapshot,
-  rect?: ViewportRect,
+  sidebarWidth: number,
+  rect: ViewportRect,
 ): Viewport3DViewState {
   const distance = clampPerspectiveDistance3D(
     snapshot,
@@ -246,7 +249,29 @@ export function buildResetViewport3DView(
     rect,
   );
   const viewAngle = { ...DEFAULT_VIEW_ANGLE };
-  const target = { ...DEFAULT_TARGET };
+  const defaultPose = buildPerspectivePoseFromViewAngle(
+    viewAngle,
+    distance,
+    DEFAULT_TARGET,
+  );
+  const defaultSnapshot = buildViewport3DSnapshot(snapshot, defaultPose, rect);
+  const visibleCenter = projectCanvasPointToWorldPlane(
+    defaultSnapshot,
+    rect,
+    getViewportVisibleCenterCanvasPoint(rect, sidebarWidth),
+    0,
+  );
+  const desiredCenter = {
+    x: -(sidebarWidth / 2) / Math.max(EPS, snapshot.gridSpacing),
+    y: 0,
+  };
+  const target = visibleCenter
+    ? {
+        x: DEFAULT_TARGET.x + desiredCenter.x - visibleCenter.x,
+        y: DEFAULT_TARGET.y + desiredCenter.y - visibleCenter.y,
+        z: DEFAULT_TARGET.z,
+      }
+    : DEFAULT_TARGET;
 
   return {
     viewAngle,
