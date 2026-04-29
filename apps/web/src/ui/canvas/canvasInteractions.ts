@@ -26,7 +26,7 @@ import {
   getLocalFromClient,
   getLogicalFromClient,
   type ConstraintDragTarget,
-} from "@/features/polytope-editor/interactions/interactionState";
+} from "@/features/polytope-editor/interactionState";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import { verticesFromLines } from "@lpviz/math/geometry";
 import type { PointXY } from "@lpviz/math/types";
