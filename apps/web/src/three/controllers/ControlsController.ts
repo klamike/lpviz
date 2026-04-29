@@ -265,7 +265,7 @@ export class ControlsController {
           MIN_ELEVATION,
           Math.min(
             MAX_ELEVATION,
-            drag.startElevation - dy * ROTATE_RADIANS_PER_PIXEL,
+            drag.startElevation + dy * ROTATE_RADIANS_PER_PIXEL,
           ),
         );
         const cosElevation = Math.cos(elevation);
