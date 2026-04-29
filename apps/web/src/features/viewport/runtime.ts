@@ -312,6 +312,7 @@ export async function createViewportRuntime({
       snapshot: managerSnapshot,
       onStart: () => {
         beginViewportNavigation();
+        scheduleViewportNavigationEnd();
       },
       onChange: (pose) => {
         applyExternalPerspectivePose(pose);
