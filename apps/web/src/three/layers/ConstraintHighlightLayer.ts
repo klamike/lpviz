@@ -20,8 +20,7 @@ const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_3D_EXTENT = 5000;
 const EPS = 1e-10;
 
-const constraintMat2D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const constraintMat3D = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: 1 });
+const constraintMat = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
 
 function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): BoundingBox {
   if (snap.mode === "2d") {
@@ -85,7 +84,7 @@ export class ConstraintHighlightLayer implements Layer {
   constructor() {
     const cGeo = new LineSegmentsGeometry();
     applyHugeBounds(cGeo);
-    const cSegs = new LineSegments2(cGeo, constraintMat2D);
+    const cSegs = new LineSegments2(cGeo, constraintMat);
     cSegs.renderOrder = CONSTRAINT_RENDER_ORDER;
     cSegs.frustumCulled = false;
     cSegs.visible = false;
@@ -168,8 +167,7 @@ export class ConstraintHighlightLayer implements Layer {
     this.cGeo.setPositions([start.x, start.y, 0, end.x, end.y, 0]);
     delete (this.cGeo as any)._maxInstanceCount;
 
-    const is3D = snap.mode === "3d";
-    this.cSegs.material = is3D ? constraintMat3D : constraintMat2D;
+    this.cSegs.material = constraintMat;
     this.cSegs.visible = true;
   }
 

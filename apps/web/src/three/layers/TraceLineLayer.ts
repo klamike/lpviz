@@ -3,6 +3,7 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { computeIterateZ } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
@@ -10,24 +11,11 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 
 const TRACE_COLOR = "#ffa500";
-const TRACE_Z_OFFSET = 0.02;
 const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 const TRACE_LINE_THICKNESS = 2;
 
-const traceMat2D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: TRACE_OPACITY });
-const traceMat3D = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: true, depthWrite: true, opacity: TRACE_OPACITY });
-
-function getDisplayedTraceZ(
-  entry: Float64Array,
-  objectiveVector: PointXY | null,
-) {
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
-    : 0;
-  const totalValue = entry[2] !== undefined ? entry[2] : objectiveValue;
-  return totalValue - objectiveValue;
-}
+const traceMat = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: TRACE_OPACITY });
 
 function buildTraceLinePositions(
   path: Float64Array[],
@@ -39,7 +27,7 @@ function buildTraceLinePositions(
     const entry = path[i]!;
     positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector);
+    positions[i * 3 + 2] = computeIterateZ(entry, objectiveVector);
   }
   return positions;
 }
@@ -86,10 +74,7 @@ export class TraceLineLayer implements Layer {
   update(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
-    const is3D = snap.mode === "3d";
-
     this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
-    this.object3D.position.z = is3D ? 0 : TRACE_Z_OFFSET;
 
     const p = this.prev;
     if (
@@ -129,7 +114,7 @@ export class TraceLineLayer implements Layer {
       return;
     }
 
-    const mat = is3D ? traceMat3D : traceMat2D;
+    const mat = traceMat;
 
     while (this.pool.length < linePositions.length) {
       this.pool.push(makeLine2(mat, this.object3D));
