@@ -17,20 +17,26 @@ const DEFAULT_SIDEBAR_WIDTH = 450;
 
 export function boot(root: HTMLElement) {
   root.replaceChildren();
+
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
   let canvasManager: ViewportRuntime | null = null;
   let urlApplied = false;
   let solverHandleProblemChange = () => {};
+
   const disposers: Array<() => void> = [];
+
   const history = createHistoryService(() => {
     canvasManager?.draw();
     polytope.send();
   });
+
   const polytope = createPolytopeService(() => solverHandleProblemChange);
   const solver = createSolverActions(() => canvasManager);
-  solverHandleProblemChange = solver.handleProblemChange;
   const viewport = createViewportActions(() => canvasManager, sidebarWidth);
   const share = createShareService(() => solver.solverControls);
+
+  solverHandleProblemChange = solver.handleProblemChange;
+
   const setCanvasManager = (runtime: ViewportRuntime | null) => {
     canvasManager = runtime;
     if (runtime && !urlApplied) {
@@ -45,23 +51,30 @@ export function boot(root: HTMLElement) {
       });
     }
   };
+
   const actions: AppActions = {
     setConstraintHighlight: solver.setConstraintHighlight,
     setIterateHighlight: solver.setIterateHighlight,
+
     updateSolverSetting: solver.updateSolverSetting,
     recomputeIfModeActive: solver.recomputeIfModeActive,
     setTraceEnabled: solver.setTraceEnabled,
+
     startReplay: solver.startReplay,
     startRotation: solver.startRotation,
     stopRotation: solver.stopRotation,
+
     share: share.share,
+
     zoomToFit: viewport.zoomToFit,
     resetView: viewport.resetView,
     toggle3D: viewport.toggle3D,
     setZScale: viewport.setZScale,
+
     setActiveSolverMode: (mode) => solver.setActiveSolverMode(mode, true),
     setSidebarWidth: viewport.setSidebarWidth,
     syncViewportLayout: viewport.syncViewportLayout,
+
     loadGalleryProblem: (problem: GalleryProblem) => {
       history.save();
       solver.invalidatePendingSolveResults();
@@ -98,19 +111,26 @@ export function boot(root: HTMLElement) {
       window.requestAnimationFrame(() => viewport.zoomToFit());
     },
   };
+
   registerAppActions(actions);
+
   const ctx: AppContext = {
     actions,
     services: { history, polytope, solver, viewport },
+
     getCanvasManager: () => canvasManager,
     setCanvasManager,
+
     getSidebarWidth: () => sidebarWidth,
     setSidebarWidthValue: (w) => {
       sidebarWidth = w;
     },
+
     disposers,
   };
+
   const sidebar = mountSidebar(root, ctx);
+
   const onResizeStart = () => {
     const move = (event: MouseEvent) => {
       sidebarWidth = Math.max(
@@ -130,10 +150,13 @@ export function boot(root: HTMLElement) {
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
   };
+
   const stage = mountCanvasStage(root, ctx, onResizeStart);
   const overlay = mountSmallScreenOverlay(root);
+
   const onResize = () => viewport.syncViewportLayout(sidebarWidth);
   window.addEventListener("resize", onResize);
+
   return {
     destroy: () => {
       window.removeEventListener("resize", onResize);
