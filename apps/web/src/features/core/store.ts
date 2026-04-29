@@ -480,7 +480,7 @@ function buildIterateStatePatch(
 }
 
 export function resetTraceState(): void {
-  if (!getState().traceEnabled) return;
+  if (getState().traceBuffer.length === 0) return;
   setState({ traceBuffer: [] });
 }
 

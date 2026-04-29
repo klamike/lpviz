@@ -225,6 +225,7 @@ export function useSolver({
 
   const clearComputedState = () => {
     clearIterateState();
+    resetTraceState();
     clearResultState();
   };
 
@@ -468,6 +469,7 @@ export function useSolver({
     }
 
     if (!state.rotateObjectiveMode) {
+      resetTraceState();
       void computePath();
       return;
     }
@@ -580,14 +582,14 @@ export function useSolver({
 
   const resetTraceAndRedrawIfNeeded = () => {
     const cm = canvasManagerRef.current;
-    if (!getState().traceEnabled) return;
+    if (getState().traceBuffer.length === 0) return;
     resetTraceState();
     cm?.draw();
   };
 
   const setActiveSolverMode = (mode: SolverMode, solve = false) => {
     invalidatePendingSolveResults();
-    if (getState().rotateObjectiveMode) {
+    if (getState().solverMode !== mode) {
       resetTraceAndRedrawIfNeeded();
     }
     setState({ solverMode: mode });
