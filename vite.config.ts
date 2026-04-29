@@ -1,9 +1,7 @@
 // @ts-nocheck
-import react from "@vitejs/plugin-react";
 import { readdirSync, statSync } from "fs";
 import { resolve } from "path";
 import { defineConfig } from "vite";
-import svgr from "vite-plugin-svgr";
 
 function findHtmlFiles(dir: string): string[] {
   const entries = readdirSync(dir);
@@ -24,22 +22,10 @@ function findHtmlFiles(dir: string): string[] {
 const docsDir = resolve(__dirname, "docs");
 const docHtmlInputs = findHtmlFiles(docsDir);
 
-export default defineConfig(({ mode }) => ({
-  plugins: [
-    react({
-      fastRefresh: false,
-      babel: {
-        plugins: ["babel-plugin-react-compiler"],
-      },
-    }),
-    svgr(),
-  ],
+export default defineConfig({
   resolve: {
     alias: [
-      {
-        find: "@",
-        replacement: resolve(__dirname, "apps/web/src"),
-      },
+      { find: "@", replacement: resolve(__dirname, "apps/web/src") },
       {
         find: /^@lpviz\/math\/(.+)$/,
         replacement: resolve(__dirname, "packages/math/src/$1"),
@@ -66,4 +52,4 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     emptyOutDir: false,
   },
-}));
+});

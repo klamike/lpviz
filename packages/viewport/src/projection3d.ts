@@ -1,6 +1,5 @@
 import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 
-import { getDisplayedIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import type { ViewportRenderSnapshot } from "./types";
 
@@ -10,10 +9,11 @@ export type Viewport3DInteractionOptions = {
   objectiveVector: PointXY | null;
   zScale: number;
   snapToGrid: boolean;
-  editorInteractionKind: State["editorInteraction"]["kind"];
+  editorInteractionKind: string;
   is3DMode: boolean;
   isTransitioning3D: boolean;
   viewAnchor3D?: { x: number; y: number; z: number };
+  zValueForPoint?: (entry: Float64Array) => number;
 };
 
 const MAX_3D_DRAG_BOUND = 5000;
@@ -136,10 +136,13 @@ export function toCanvasCoords3D(
   point: PointXY,
   z: number | undefined,
   zScale: number,
+  zValueForPoint?: (entry: Float64Array) => number,
 ): PointXY {
-  const zValue = getDisplayedIterateZ(
-    z === undefined ? Float64Array.of(point.x, point.y) : Float64Array.of(point.x, point.y, z),
-  );
+  const entry =
+    z === undefined
+      ? Float64Array.of(point.x, point.y)
+      : Float64Array.of(point.x, point.y, z);
+  const zValue = zValueForPoint ? zValueForPoint(entry) : (z ?? 0);
   return projectWorldPosition3D(snapshot, rect, {
     x: point.x,
     y: point.y,
@@ -188,7 +191,9 @@ export function toLogicalCoords3D(
     projectionPlanePoint.set(0, 0, 0),
   );
 
-  const dotTilted = projectionRaycaster.ray.direction.dot(projectionPlane.normal);
+  const dotTilted = projectionRaycaster.ray.direction.dot(
+    projectionPlane.normal,
+  );
   let point: PointXY | null = null;
 
   if (Math.abs(dotTilted) >= PLANE_PARALLEL_THRESHOLD) {
@@ -225,7 +230,9 @@ export function toLogicalCoords3D(
           options.viewAnchor3D.z,
         ),
       );
-      const dotView = projectionRaycaster.ray.direction.dot(projectionPlane.normal);
+      const dotView = projectionRaycaster.ray.direction.dot(
+        projectionPlane.normal,
+      );
       if (Math.abs(dotView) >= PLANE_PARALLEL_THRESHOLD) {
         const viewHit = projectionRaycaster.ray.intersectPlane(
           projectionPlane,

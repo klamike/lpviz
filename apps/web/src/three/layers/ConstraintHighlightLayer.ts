@@ -1,16 +1,19 @@
+import type { State } from "@/features/core/store";
+import { type BoundingBox } from "@lpviz/math/geometry";
+import type { Line, PointXY } from "@lpviz/math/types";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
+import { projectCanvasPointToWorldPlane } from "@lpviz/viewport/transition";
 import { Group } from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
-import type { State } from "@/features/core/store";
-import { projectCanvasPointToWorldPlane } from "@lpviz/viewport/transition";
-import type { Line, PointXY } from "@lpviz/math/types";
-import { type BoundingBox } from "@lpviz/math/geometry";
-import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
+import {
+  applyHugeBounds,
+  getSharedLineMaterial,
+} from "../helpers/sharedLineMaterials";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const CONSTRAINT_COLOR = "#ff0000";
 const CONSTRAINT_RENDER_ORDER = RENDER_ORDER.constraintLines;
@@ -20,9 +23,17 @@ const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_3D_EXTENT = 5000;
 const EPS = 1e-10;
 
-const constraintMat = getSharedLineMaterial({ color: CONSTRAINT_COLOR, linewidth: CONSTRAINT_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const constraintMat = getSharedLineMaterial({
+  color: CONSTRAINT_COLOR,
+  linewidth: CONSTRAINT_LINE_THICKNESS,
+  depthTest: false,
+  depthWrite: false,
+  opacity: 1,
+});
 
-function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): BoundingBox {
+function getVisibleBounds(
+  snap: ReturnType<SceneContext["getSnapshot"]>,
+): BoundingBox {
   if (snap.mode === "2d") {
     const halfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
     const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
@@ -34,17 +45,30 @@ function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): Boundi
       maxY: snap.target.y + halfHeight + marginUnits,
     };
   }
-  const rect = { width: Math.max(1, snap.width), height: Math.max(1, snap.height) };
+  const rect = {
+    width: Math.max(1, snap.width),
+    height: Math.max(1, snap.height),
+  };
   const screenPoints = [
-    { x: 0, y: 0 }, { x: rect.width / 2, y: 0 }, { x: rect.width, y: 0 },
-    { x: 0, y: rect.height / 2 }, { x: rect.width, y: rect.height / 2 },
-    { x: 0, y: rect.height }, { x: rect.width / 2, y: rect.height }, { x: rect.width, y: rect.height },
+    { x: 0, y: 0 },
+    { x: rect.width / 2, y: 0 },
+    { x: rect.width, y: 0 },
+    { x: 0, y: rect.height / 2 },
+    { x: rect.width, y: rect.height / 2 },
+    { x: 0, y: rect.height },
+    { x: rect.width / 2, y: rect.height },
+    { x: rect.width, y: rect.height },
   ];
   const pts = screenPoints
     .map((p) => projectCanvasPointToWorldPlane(snap, rect, p, 0))
     .filter((p): p is PointXY => p !== null);
   if (pts.length === 0) {
-    return { minX: -DEFAULT_3D_EXTENT, maxX: DEFAULT_3D_EXTENT, minY: -DEFAULT_3D_EXTENT, maxY: DEFAULT_3D_EXTENT };
+    return {
+      minX: -DEFAULT_3D_EXTENT,
+      maxX: DEFAULT_3D_EXTENT,
+      minY: -DEFAULT_3D_EXTENT,
+      maxY: DEFAULT_3D_EXTENT,
+    };
   }
   return {
     minX: Math.min(...pts.map((p) => p.x)) - CLIP_MARGIN_UNITS,
@@ -54,13 +78,22 @@ function getVisibleBounds(snap: ReturnType<SceneContext["getSnapshot"]>): Boundi
   };
 }
 
-function clipLineToBounds(line: Line, b: BoundingBox): [PointXY, PointXY] | null {
+function clipLineToBounds(
+  line: Line,
+  b: BoundingBox,
+): [PointXY, PointXY] | null {
   const [A, B, C] = line;
   if (Math.abs(A) < EPS && Math.abs(B) < EPS) return null;
   if (Math.abs(B) > Math.abs(A)) {
-    return [{ x: b.minX, y: (C - A * b.minX) / B }, { x: b.maxX, y: (C - A * b.maxX) / B }];
+    return [
+      { x: b.minX, y: (C - A * b.minX) / B },
+      { x: b.maxX, y: (C - A * b.maxX) / B },
+    ];
   }
-  return [{ y: b.minY, x: (C - B * b.minY) / A }, { y: b.maxY, x: (C - B * b.maxY) / A }];
+  return [
+    { y: b.minY, x: (C - B * b.minY) / A },
+    { y: b.maxY, x: (C - B * b.maxY) / A },
+  ];
 }
 
 type PrevState = {
@@ -70,9 +103,16 @@ type PrevState = {
   is3DMode: boolean;
   isTransitioning3D: boolean;
   mode: string;
-  orthoLeft: number; orthoRight: number; orthoTop: number; orthoBottom: number;
-  targetX: number; targetY: number; unitsPerPixel: number;
-  width: number; height: number; scaleFactor: number;
+  orthoLeft: number;
+  orthoRight: number;
+  orthoTop: number;
+  orthoBottom: number;
+  targetX: number;
+  targetY: number;
+  unitsPerPixel: number;
+  width: number;
+  height: number;
+  scaleFactor: number;
 };
 
 export class ConstraintHighlightLayer implements Layer {

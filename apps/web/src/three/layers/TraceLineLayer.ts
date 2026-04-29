@@ -1,21 +1,30 @@
+import type { State } from "@/features/core/store";
+import { computeIterateZ } from "@/features/core/store";
+import type { PointXY } from "@lpviz/math/types";
 import { Group } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
-import { computeIterateZ } from "@/features/core/store";
-import type { State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
+import {
+  applyHugeBounds,
+  getSharedLineMaterial,
+} from "../helpers/sharedLineMaterials";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 const TRACE_LINE_THICKNESS = 2;
 
-const traceMat = getSharedLineMaterial({ color: TRACE_COLOR, linewidth: TRACE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: TRACE_OPACITY });
+const traceMat = getSharedLineMaterial({
+  color: TRACE_COLOR,
+  linewidth: TRACE_LINE_THICKNESS,
+  depthTest: false,
+  depthWrite: false,
+  opacity: TRACE_OPACITY,
+});
 
 function buildTraceLinePositions(
   path: Float64Array[],
@@ -42,7 +51,10 @@ function getCachedTraceLinePositions(entry: State["traceBuffer"][number]) {
   return positions;
 }
 
-function makeLine2(mat: ReturnType<typeof getSharedLineMaterial>, group: Group): Line2 {
+function makeLine2(
+  mat: ReturnType<typeof getSharedLineMaterial>,
+  group: Group,
+): Line2 {
   const geo = new LineGeometry();
   applyHugeBounds(geo);
   const ln = new Line2(geo, mat);
@@ -95,7 +107,10 @@ export class TraceLineLayer implements Layer {
       mode: snap.mode,
     };
 
-    const shouldShow = raw.traceEnabled && raw.traceBuffer.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
+    const shouldShow =
+      raw.traceEnabled &&
+      raw.traceBuffer.length > 0 &&
+      shouldRenderSnapshotMode(snap.mode, raw);
     if (!shouldShow) {
       this.object3D.visible = false;
       for (const ln of this.pool) ln.visible = false;

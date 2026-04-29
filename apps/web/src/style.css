@@ -485,11 +485,6 @@ body {
   min-height: 0;
 }
 
-#result.virtualized .iterate-scroll .ReactVirtualized__Grid {
-  outline: none;
-  overflow-anchor: none;
-}
-
 /* -------------------------------
     GitHub Icon
     ------------------------------- */
@@ -814,12 +809,34 @@ input[type="range"]:not(#zScaleSlider)::-webkit-slider-runnable-track {
   border-radius: 4px;
 }
 
-input[type="range"].log-slider:not(#zScaleSlider)::-webkit-slider-runnable-track {
+input[type="range"].log-slider:not(
+    #zScaleSlider
+  )::-webkit-slider-runnable-track {
   background:
-    linear-gradient(90deg, transparent calc(20% - 1px), #333 calc(20% - 1px) calc(20% + 1px), transparent calc(20% + 1px)),
-    linear-gradient(90deg, transparent calc(40% - 1px), #333 calc(40% - 1px) calc(40% + 1px), transparent calc(40% + 1px)),
-    linear-gradient(90deg, transparent calc(60% - 1px), #333 calc(60% - 1px) calc(60% + 1px), transparent calc(60% + 1px)),
-    linear-gradient(90deg, transparent calc(80% - 1px), #333 calc(80% - 1px) calc(80% + 1px), transparent calc(80% + 1px)),
+    linear-gradient(
+      90deg,
+      transparent calc(20% - 1px),
+      #333 calc(20% - 1px) calc(20% + 1px),
+      transparent calc(20% + 1px)
+    ),
+    linear-gradient(
+      90deg,
+      transparent calc(40% - 1px),
+      #333 calc(40% - 1px) calc(40% + 1px),
+      transparent calc(40% + 1px)
+    ),
+    linear-gradient(
+      90deg,
+      transparent calc(60% - 1px),
+      #333 calc(60% - 1px) calc(60% + 1px),
+      transparent calc(60% + 1px)
+    ),
+    linear-gradient(
+      90deg,
+      transparent calc(80% - 1px),
+      #333 calc(80% - 1px) calc(80% + 1px),
+      transparent calc(80% + 1px)
+    ),
     #ddd;
 }
 
@@ -853,10 +870,30 @@ input[type="range"]:not(#zScaleSlider)::-moz-range-track {
 
 input[type="range"].log-slider:not(#zScaleSlider)::-moz-range-track {
   background:
-    linear-gradient(90deg, transparent calc(20% - 1px), #333 calc(20% - 1px) calc(20% + 1px), transparent calc(20% + 1px)),
-    linear-gradient(90deg, transparent calc(40% - 1px), #333 calc(40% - 1px) calc(40% + 1px), transparent calc(40% + 1px)),
-    linear-gradient(90deg, transparent calc(60% - 1px), #333 calc(60% - 1px) calc(60% + 1px), transparent calc(60% + 1px)),
-    linear-gradient(90deg, transparent calc(80% - 1px), #333 calc(80% - 1px) calc(80% + 1px), transparent calc(80% + 1px)),
+    linear-gradient(
+      90deg,
+      transparent calc(20% - 1px),
+      #333 calc(20% - 1px) calc(20% + 1px),
+      transparent calc(20% + 1px)
+    ),
+    linear-gradient(
+      90deg,
+      transparent calc(40% - 1px),
+      #333 calc(40% - 1px) calc(40% + 1px),
+      transparent calc(40% + 1px)
+    ),
+    linear-gradient(
+      90deg,
+      transparent calc(60% - 1px),
+      #333 calc(60% - 1px) calc(60% + 1px),
+      transparent calc(60% + 1px)
+    ),
+    linear-gradient(
+      90deg,
+      transparent calc(80% - 1px),
+      #333 calc(80% - 1px) calc(80% + 1px),
+      transparent calc(80% + 1px)
+    ),
     #ddd;
 }
 

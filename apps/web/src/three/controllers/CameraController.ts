@@ -1,16 +1,13 @@
 import {
-  OrthographicCamera,
-  PerspectiveCamera,
-} from "three";
-import type { SceneManager } from "../SceneManager";
-import {
-  setViewportCameraRefs,
   resetViewportCameraRefs,
+  setViewportCameraRefs,
 } from "@/features/viewport/runtime/cameraRefs";
 import {
-  subscribeFullViewportRenderSnapshot,
   getViewportRenderSnapshot,
+  subscribeFullViewportRenderSnapshot,
 } from "@/features/viewport/runtime/snapshot";
+import { OrthographicCamera, PerspectiveCamera } from "three";
+import type { SceneManager } from "../SceneManager";
 
 export class CameraController {
   private ortho: OrthographicCamera;
@@ -64,11 +61,7 @@ export class CameraController {
       snap.perspective.up.y,
       snap.perspective.up.z,
     );
-    this.perspective.lookAt(
-      snap.target.x,
-      snap.target.y,
-      snap.target.z,
-    );
+    this.perspective.lookAt(snap.target.x, snap.target.y, snap.target.z);
     this.perspective.updateProjectionMatrix();
     this.perspective.updateMatrixWorld();
 

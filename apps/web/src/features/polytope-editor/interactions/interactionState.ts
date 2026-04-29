@@ -1,9 +1,13 @@
-import { getEditorContext } from "@/features/polytope-editor/editorSession";
-import type { DragTarget, DragViewAnchor3D, State } from "@/features/core/store";
+import type {
+  DragTarget,
+  DragViewAnchor3D,
+  State,
+} from "@/features/core/store";
 import { getState } from "@/features/core/store";
+import { getEditorContext } from "@/features/polytope-editor/editorSession";
 import type { ViewportApi } from "@/features/viewport/runtime";
-import type { PointXY } from "@lpviz/math/types";
 import { type BoundingBox, VRep } from "@lpviz/math/geometry";
+import type { PointXY } from "@lpviz/math/types";
 
 export const VERTEX_HIT_RADIUS = 12;
 export const DRAG_THRESHOLD_PX = 5;
@@ -173,7 +177,10 @@ export function findBoundaryRayNearPoint(
   return null;
 }
 
-function getViewAnchor3D(state: State, vertex: { x: number; y: number }): DragViewAnchor3D | undefined {
+function getViewAnchor3D(
+  state: State,
+  vertex: { x: number; y: number },
+): DragViewAnchor3D | undefined {
   if (!state.is3DMode && !state.isTransitioning3D) return undefined;
   const z = 0;
   return { x: vertex.x, y: vertex.y, z };
@@ -198,7 +205,11 @@ export function getDragStartTarget(
     );
     if (index === -1) return null;
     const vertex = state.vertices[index];
-    return { kind: "point", index, viewAnchor3D: vertex ? getViewAnchor3D(state, vertex) : undefined };
+    return {
+      kind: "point",
+      index,
+      viewAnchor3D: vertex ? getViewAnchor3D(state, vertex) : undefined,
+    };
   }
 
   if (state.objectiveVector) {
@@ -221,7 +232,11 @@ export function getDragStartTarget(
   );
   if (vertexIndex !== -1) {
     const vertex = state.vertices[vertexIndex];
-    return { kind: "point", index: vertexIndex, viewAnchor3D: vertex ? getViewAnchor3D(state, vertex) : undefined };
+    return {
+      kind: "point",
+      index: vertexIndex,
+      viewAnchor3D: vertex ? getViewAnchor3D(state, vertex) : undefined,
+    };
   }
 
   if (session.kind === "editing-closed" && state.vertices.length >= 3) {

@@ -1,33 +1,24 @@
-import { compactSharedAppState, type ShareSettings } from "@/features/share/sharedState";
-import type { SolverControl } from "@/features/solver/solverControls";
 import { getState, type SolverMode } from "@/features/core/store";
+import {
+  compactSharedAppState,
+  type ShareSettings,
+} from "@/features/share/sharedState";
+import type { SolverControl } from "@/features/solver/solverControls";
 import JSONCrush from "jsoncrush";
 
-export function useShare({
-  solverControls,
-}: {
-  solverControls: SolverControl[];
-}) {
+export function createShareService(getSolverControls: () => SolverControl[]) {
   const collectShareSettings = (mode: SolverMode): ShareSettings => {
     const settings = getState().solverSettings;
-    const solverControl = solverControls.find(
-      (control) => control.mode === mode,
-    );
+    const solverControl = getSolverControls().find((c) => c.mode === mode);
     return {
       objectiveAngleStep: settings.objectiveAngleStep,
       objectiveRotationSpeed: settings.objectiveRotationSpeed,
       ...(solverControl?.collectShareSettings() ?? {}),
     };
   };
-
   const share = () => {
-    const {
-      vertices,
-      completionMode,
-      objectiveVector,
-      solverMode,
-      zScale,
-    } = getState();
+    const { vertices, completionMode, objectiveVector, solverMode, zScale } =
+      getState();
     const payload = compactSharedAppState({
       vertices,
       completionMode,
@@ -42,6 +33,5 @@ export function useShare({
       `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(crushed)}`,
     );
   };
-
   return { share, collectShareSettings };
 }

@@ -1,15 +1,18 @@
+import type { State } from "@/features/core/store";
+import type { PointXY } from "@lpviz/math/types";
+import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import { Group } from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
-import type { State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
-import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
+import {
+  applyHugeBounds,
+  getSharedLineMaterial,
+} from "../helpers/sharedLineMaterials";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";
@@ -19,13 +22,34 @@ const OBJECTIVE_HEAD_LENGTH_PX = 16;
 const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
 
-const objMatGreen = getSharedLineMaterial({ color: OBJECTIVE_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const objMatRed = getSharedLineMaterial({ color: OBJECTIVE_UNBOUNDED_COLOR, linewidth: OBJECTIVE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const objMatGreen = getSharedLineMaterial({
+  color: OBJECTIVE_COLOR,
+  linewidth: OBJECTIVE_LINE_THICKNESS,
+  depthTest: false,
+  depthWrite: false,
+  opacity: 1,
+});
+const objMatRed = getSharedLineMaterial({
+  color: OBJECTIVE_UNBOUNDED_COLOR,
+  linewidth: OBJECTIVE_LINE_THICKNESS,
+  depthTest: false,
+  depthWrite: false,
+  opacity: 1,
+});
 
-function buildArrowHeadSegments(tip: PointXY, angle: number, length: number): [number, number, number, number][] {
+function buildArrowHeadSegments(
+  tip: PointXY,
+  angle: number,
+  length: number,
+): [number, number, number, number][] {
   return [ARROW_HALF_ANGLE, -ARROW_HALF_ANGLE].map((offset) => {
     const a = angle + offset;
-    return [tip.x, tip.y, tip.x - length * Math.cos(a), tip.y - length * Math.sin(a)] as [number, number, number, number];
+    return [
+      tip.x,
+      tip.y,
+      tip.x - length * Math.cos(a),
+      tip.y - length * Math.sin(a),
+    ] as [number, number, number, number];
   });
 }
 
@@ -109,7 +133,11 @@ export class ObjectiveLayer implements Layer {
     const angle = Math.atan2(target.y, target.x);
 
     const positions: number[] = [0, 0, 0, target.x, target.y, 0];
-    for (const [x1, y1, x2, y2] of buildArrowHeadSegments(target, angle, headLength)) {
+    for (const [x1, y1, x2, y2] of buildArrowHeadSegments(
+      target,
+      angle,
+      headLength,
+    )) {
       positions.push(x1, y1, 0, x2, y2, 0);
     }
 

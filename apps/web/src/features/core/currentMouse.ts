@@ -1,10 +1,9 @@
-import { useSyncExternalStore } from "react";
 import type { PointXY } from "@lpviz/math/types";
 
 let value: PointXY | null = null;
 const listeners = new Set<() => void>();
 
-function subscribe(listener: () => void) {
+export function subscribeCurrentMouse(listener: () => void) {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -21,8 +20,4 @@ export function setCurrentMouse(next: PointXY | null) {
   }
   value = next;
   listeners.forEach((listener) => listener());
-}
-
-export function useCurrentMouse(): PointXY | null {
-  return useSyncExternalStore(subscribe, getCurrentMouse, getCurrentMouse);
 }

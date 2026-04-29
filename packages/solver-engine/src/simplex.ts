@@ -1,7 +1,12 @@
+import {
+  type DenseMatrix,
+  dot,
+  linesToDenseAb,
+  transposedMatVec,
+} from "@lpviz/math/blas";
+import { solveDenseSystem } from "@lpviz/math/lapack";
 import type { Lines, Vec2N, Vec2Ns, VecN } from "@lpviz/math/types";
 import { fmtE, fmtF, fmtInt } from "./fmt";
-import { type DenseMatrix, dot, linesToDenseAb, transposedMatVec } from "@lpviz/math/blas";
-import { solveDenseSystem } from "@lpviz/math/lapack";
 
 const MAX_ITERATIONS = 100_000;
 
@@ -46,10 +51,7 @@ function scaleMatrix(matrix: DenseMatrix, scale: number): DenseMatrix {
   return out;
 }
 
-function scaleRows(
-  matrix: DenseMatrix,
-  rowScales: Float64Array,
-): DenseMatrix {
+function scaleRows(matrix: DenseMatrix, rowScales: Float64Array): DenseMatrix {
   const out = createDenseMatrix(matrix.rows, matrix.cols);
   for (let row = 0; row < matrix.rows; row++) {
     const scale = rowScales[row]!;
@@ -654,19 +656,13 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
     finalBasis: rawBasis1,
     iterations: phase1TableauIterations,
     logs: log1,
-  } = simplexCore(
-    cPhase1,
-    aPhase1,
-    bPhase1,
-    phase1Basis,
-    {
-      tol,
-      verbose,
-      phase1: true,
-      nOrig: n,
-      m,
-    },
-  );
+  } = simplexCore(cPhase1, aPhase1, bPhase1, phase1Basis, {
+    tol,
+    verbose,
+    phase1: true,
+    nOrig: n,
+    m,
+  });
 
   if (verbose) console.log("Primal Simplex");
   const { iterations, logs, status } = simplexCore(

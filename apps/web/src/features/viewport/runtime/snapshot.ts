@@ -1,5 +1,3 @@
-import { useSyncExternalStore } from "react";
-
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type ViewportRenderSnapshot,
@@ -60,7 +58,9 @@ function hasStableChange(
   );
 }
 
-export function setViewportRenderSnapshot(next: ViewportRenderSnapshot): boolean {
+export function setViewportRenderSnapshot(
+  next: ViewportRenderSnapshot,
+): boolean {
   const prev = snapshot;
   const stableChanged = hasStableChange(prev, next);
   snapshot = next;
@@ -94,20 +94,6 @@ export function getViewportRenderSnapshot() {
 // Used by most scene layers. Only re-renders when layout-relevant fields change
 // (mode, zoom, target, bounds). Silent during pure 3D orbit, preventing ~13
 // components from reconciling at 60 fps for no visual reason.
-export function useViewportRenderSnapshot() {
-  return useSyncExternalStore(
-    subscribeViewportRenderSnapshot,
-    getViewportRenderSnapshot,
-    getViewportRenderSnapshot,
-  );
-}
 
 // Used only by CameraRig, which must update the Three.js camera on every orbit
 // frame to keep perspective.position/up in sync.
-export function useFullViewportRenderSnapshot() {
-  return useSyncExternalStore(
-    subscribeFullViewportRenderSnapshot,
-    getViewportRenderSnapshot,
-    getViewportRenderSnapshot,
-  );
-}

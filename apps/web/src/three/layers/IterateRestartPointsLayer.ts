@@ -1,22 +1,17 @@
-import {
-  BufferAttribute,
-  Points,
-  PointsMaterial,
-} from "three";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
 import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
-import { RENDER_ORDER } from "../helpers/renderOrder";
-import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { BufferAttribute, Points, PointsMaterial } from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
 import { PHASE_COLORS_LINEAR } from "../helpers/phaseColors";
+import { RENDER_ORDER } from "../helpers/renderOrder";
+import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { SHARED_SQUARE_TEXTURE } from "../helpers/sharedTextures";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const ITERATE_RESTART_POINT_COLOR = "#800080";
 const ITERATE_RESTART_POINT_SIZE = 8 * 1.4;
 const ITERATE_RESTART_POINTS_RENDER_ORDER = RENDER_ORDER.iterateRestartPoints;
-
 
 type PrevState = {
   iteratePath: State["iteratePath"];
@@ -46,8 +41,16 @@ export class IterateRestartPointsLayer implements Layer {
       alphaMap: SHARED_SQUARE_TEXTURE,
       alphaTest: 0.2,
     };
-    this.matPlain = new PointsMaterial({ ...shared, color: ITERATE_RESTART_POINT_COLOR, vertexColors: false });
-    this.matColored = new PointsMaterial({ ...shared, color: "#ffffff", vertexColors: true });
+    this.matPlain = new PointsMaterial({
+      ...shared,
+      color: ITERATE_RESTART_POINT_COLOR,
+      vertexColors: false,
+    });
+    this.matColored = new PointsMaterial({
+      ...shared,
+      color: "#ffffff",
+      vertexColors: true,
+    });
     const pts = new Points(makePointsGeo(), this.matPlain);
     pts.renderOrder = ITERATE_RESTART_POINTS_RENDER_ORDER;
     pts.frustumCulled = false;
@@ -101,10 +104,13 @@ export class IterateRestartPointsLayer implements Layer {
 
     const is3D = snap.mode === "3d";
     const hasPhases =
-      raw.iteratePhases.length === raw.iteratePath.length && raw.iteratePhases.length > 0;
+      raw.iteratePhases.length === raw.iteratePath.length &&
+      raw.iteratePhases.length > 0;
 
     const positions = new Float32Array(visibleRestartIndices.length * 3);
-    const colors = hasPhases ? new Float32Array(visibleRestartIndices.length * 3) : null;
+    const colors = hasPhases
+      ? new Float32Array(visibleRestartIndices.length * 3)
+      : null;
 
     for (let i = 0; i < visibleRestartIndices.length; i++) {
       const restartIndex = visibleRestartIndices[i]!;
@@ -112,20 +118,31 @@ export class IterateRestartPointsLayer implements Layer {
       positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
       positions[i * 3 + 2] = is3D
-        ? (computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) / 100 * snap.transitionZMultiplier
+        ? ((computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) /
+            100) *
+          snap.transitionZMultiplier
         : 0;
 
       if (colors) {
-        const rgb = PHASE_COLORS_LINEAR[raw.iteratePhases[restartIndex]! % PHASE_COLORS_LINEAR.length]!;
+        const rgb =
+          PHASE_COLORS_LINEAR[
+            raw.iteratePhases[restartIndex]! % PHASE_COLORS_LINEAR.length
+          ]!;
         colors[i * 3] = rgb[0];
         colors[i * 3 + 1] = rgb[1];
         colors[i * 3 + 2] = rgb[2];
       }
     }
 
-    this.object3D.geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    this.object3D.geometry.setAttribute(
+      "position",
+      new BufferAttribute(positions, 3),
+    );
     if (colors) {
-      this.object3D.geometry.setAttribute("color", new BufferAttribute(colors, 3));
+      this.object3D.geometry.setAttribute(
+        "color",
+        new BufferAttribute(colors, 3),
+      );
       this.object3D.material = this.matColored;
     } else {
       this.object3D.material = this.matPlain;

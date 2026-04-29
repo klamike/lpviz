@@ -1,5 +1,5 @@
-import type { PointXY } from "@lpviz/math/types";
 import { isObjectiveDirectionUnbounded } from "@lpviz/math/geometry";
+import type { PointXY } from "@lpviz/math/types";
 import { hasPolytopeLines, type PolytopeRepresentation } from "./polytopeTypes";
 
 export { isObjectiveDirectionUnbounded } from "@lpviz/math/geometry";

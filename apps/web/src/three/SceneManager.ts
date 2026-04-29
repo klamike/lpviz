@@ -1,14 +1,10 @@
-import {
-  Scene,
-  WebGLRenderer,
-  Camera,
-} from "three";
-import { LayerHost } from "./LayerHost";
-import type { Layer } from "./Layer";
-import type { SceneContext } from "./SceneContext";
-import { getViewportRenderSnapshot } from "@/features/viewport/runtime/snapshot";
-import { getState } from "@/features/core/store";
 import { getCurrentMouse } from "@/features/core/currentMouse";
+import { getState } from "@/features/core/store";
+import { getViewportRenderSnapshot } from "@/features/viewport/runtime/snapshot";
+import { Camera, Scene, WebGLRenderer } from "three";
+import type { Layer } from "./Layer";
+import { LayerHost } from "./LayerHost";
+import type { SceneContext } from "./SceneContext";
 
 export type Size = { width: number; height: number; dpr: number };
 
@@ -40,10 +36,7 @@ export class SceneManager {
 
   private readonly ctx: SceneContext;
 
-  constructor(
-    canvas: HTMLCanvasElement,
-    options: { dpr: [number, number] },
-  ) {
+  constructor(canvas: HTMLCanvasElement, options: { dpr: [number, number] }) {
     const [minDpr, maxDpr] = options.dpr;
     const dpr = Math.min(maxDpr, Math.max(minDpr, window.devicePixelRatio));
 
@@ -85,10 +78,7 @@ export class SceneManager {
   }
 
   private setSize(width: number, height: number): void {
-    const dpr = Math.min(
-      2,
-      Math.max(1, window.devicePixelRatio),
-    );
+    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio));
     if (
       this._size.width === width &&
       this._size.height === height &&

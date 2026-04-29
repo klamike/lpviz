@@ -1,20 +1,13 @@
 import {
   DEFAULT_VIEW_ANGLE,
+  getDisplayedIterateZ,
   getState,
   setState,
   subscribe,
   type ViewportDirtyFlags,
 } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
 import type { BoundingBox } from "@lpviz/math/geometry";
-import {
-  getViewport2DControlsConfig,
-  getViewport2DControlsSnapshot,
-  resetViewport2DControlsConfig,
-  setViewport2DControlsConfig,
-  setViewport2DControlsState,
-  syncViewport2DControlsStateFromSnapshot,
-} from "./runtime/controls2d";
+import type { PointXY } from "@lpviz/math/types";
 import {
   buildViewport2DSnapshot,
   fitViewport2DToBounds,
@@ -22,10 +15,6 @@ import {
   toCanvasCoords2D,
   toLogicalCoords2D,
 } from "@lpviz/viewport/projection2d";
-import {
-  resetViewport3DControlsConfig,
-  setViewport3DControlsConfig,
-} from "./runtime/controls3d";
 import {
   getObjectiveScreenPosition3D,
   toCanvasCoords3D,
@@ -51,6 +40,29 @@ import {
   isDefault3DView,
 } from "@lpviz/viewport/view3d";
 import {
+  getConstraintViewportDirtyFlags,
+  getDraftPreviewViewportDirtyFlags,
+  getIterateViewportDirtyFlags,
+  getObjectiveViewportDirtyFlags,
+  getPolytopeViewportDirtyFlags,
+  getTraceViewportDirtyFlags,
+  getViewportUnboundedClipBounds,
+  getZScaleViewportDirtyFlags,
+  isViewport3DState,
+} from "./dirtyFlags";
+import {
+  getViewport2DControlsConfig,
+  getViewport2DControlsSnapshot,
+  resetViewport2DControlsConfig,
+  setViewport2DControlsConfig,
+  setViewport2DControlsState,
+  syncViewport2DControlsStateFromSnapshot,
+} from "./runtime/controls2d";
+import {
+  resetViewport3DControlsConfig,
+  setViewport3DControlsConfig,
+} from "./runtime/controls3d";
+import {
   resetViewportRenderSnapshot,
   setViewportRenderSnapshot,
 } from "./runtime/snapshot";
@@ -63,17 +75,6 @@ import {
   type ViewportBridge,
   type ViewportRenderSnapshot,
 } from "./types";
-import {
-  getConstraintViewportDirtyFlags,
-  getDraftPreviewViewportDirtyFlags,
-  getIterateViewportDirtyFlags,
-  getObjectiveViewportDirtyFlags,
-  getPolytopeViewportDirtyFlags,
-  getTraceViewportDirtyFlags,
-  getViewportUnboundedClipBounds,
-  getZScaleViewportDirtyFlags,
-  isViewport3DState,
-} from "./dirtyFlags";
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 
@@ -644,6 +645,7 @@ export async function createViewportRuntime({
           getViewportRect(),
           x,
           y,
+          { snapToGrid: getState().snapToGrid },
         );
       }
 
@@ -679,6 +681,7 @@ export async function createViewportRuntime({
         { x, y },
         z,
         getState().zScale,
+        getDisplayedIterateZ,
       );
     },
     getObjectiveScreenPosition: (point) => {

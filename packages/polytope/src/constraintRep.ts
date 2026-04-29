@@ -1,5 +1,5 @@
-import type { Lines, Vertices } from "@lpviz/math/types";
 import { centroid } from "@lpviz/math/geometry";
+import type { Lines, Vertices } from "@lpviz/math/types";
 
 export interface ConstraintRep {
   inequalities: string[];

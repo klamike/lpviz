@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from "react";
 import type { OrthographicCamera, PerspectiveCamera } from "three";
 
 export type ViewportCameraRefs = {
@@ -36,12 +35,4 @@ export function subscribeViewportCameraRefs(listener: () => void) {
 
 export function getViewportCameraRefs() {
   return cameraRefs;
-}
-
-export function useViewportCameraRefs() {
-  return useSyncExternalStore(
-    subscribeViewportCameraRefs,
-    getViewportCameraRefs,
-    getViewportCameraRefs,
-  );
 }

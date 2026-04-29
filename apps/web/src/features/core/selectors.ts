@@ -215,7 +215,7 @@ export function areResultPanelUiStatesEqual(
   b: ResultPanelUiState,
 ): boolean {
   // virtualRows, virtualHeader, virtualFooter are managed imperatively via
-  // direct store subscription in SolverLogPanel — they don't go through React.
+  // direct store subscription in SolverLogPanel.
   if (
     a.mode !== b.mode ||
     a.blocks?.length !== b.blocks?.length ||

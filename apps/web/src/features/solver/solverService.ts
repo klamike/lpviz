@@ -216,7 +216,9 @@ function applyCanonicalIterateResult(
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
   const iteratesWithZ = zFrom
-    ? iterations.map((xy, index) => Float64Array.of(xy[0]!, xy[1]!, zFrom(xy, index)))
+    ? iterations.map((xy, index) =>
+        Float64Array.of(xy[0]!, xy[1]!, zFrom(xy, index)),
+      )
     : iterations;
 
   if (updateTrace) {

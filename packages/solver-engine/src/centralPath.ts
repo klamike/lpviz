@@ -1,8 +1,8 @@
-import type { Lines, VecN, VecNs, Vertices } from "@lpviz/math/types";
-import { fmtE, fmtF, fmtIntL, fmtStrL, fmtStr } from "./fmt";
 import { dot, infinityNorm, linesToDenseAb, matVec } from "@lpviz/math/blas";
-import { solveDenseSystem } from "@lpviz/math/lapack";
 import { centroid, findStrictFeasiblePoint } from "@lpviz/math/geometry";
+import { solveDenseSystem } from "@lpviz/math/lapack";
+import type { Lines, VecN, VecNs, Vertices } from "@lpviz/math/types";
+import { fmtE, fmtF, fmtIntL, fmtStr, fmtStrL } from "./fmt";
 
 const MIN_STEP_SIZE = 1e-10;
 const LINE_SEARCH_SHRINK_FACTOR = 0.5;
@@ -284,7 +284,13 @@ export function centralPath(
       slackScratch,
     );
     const linearObjective = dot(c, optimalPoint);
-    points.push(Float64Array.of(optimalPoint[0] ?? 0, optimalPoint[1] ?? 0, totalObjective));
+    points.push(
+      Float64Array.of(
+        optimalPoint[0] ?? 0,
+        optimalPoint[1] ?? 0,
+        totalObjective,
+      ),
+    );
 
     const progressLog = `  ${fmtIntL(points.length, 4)} ${fmtF(optimalPoint[0] ?? 0, 8, 2)} ${fmtF(optimalPoint[1] ?? 0, 8, 2)} ${fmtE(linearObjective, 10, 1)} ${fmtE(mu, 10, 1, false)}  \n`;
     if (verbose) console.log(progressLog);

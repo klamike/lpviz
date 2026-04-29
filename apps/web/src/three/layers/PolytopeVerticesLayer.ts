@@ -1,23 +1,20 @@
-import {
-  BufferAttribute,
-  Group,
-  Points,
-  PointsMaterial,
-} from "three";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
 import type { State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
+import { BufferAttribute, Group, Points, PointsMaterial } from "three";
+import { makePointsGeo } from "../helpers/makePointsGeo";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { makePointsGeo } from "../helpers/makePointsGeo";
-import { SHARED_CIRCLE_TEXTURE, SHARED_SQUARE_TEXTURE } from "../helpers/sharedTextures";
+import {
+  SHARED_CIRCLE_TEXTURE,
+  SHARED_SQUARE_TEXTURE,
+} from "../helpers/sharedTextures";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const VERTEX_COLOR = "#ff0000";
 const OPEN_ANCHOR_COLOR = "#ff0000";
 const VERTEX_PIXEL_SIZE = 10;
 const VERTEX_RENDER_ORDER = RENDER_ORDER.polytopeVertices;
-
 
 function buildVertexPositions(
   displayVertices: PointXY[],
@@ -94,7 +91,8 @@ export class PolytopeVerticesLayer implements Layer {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
 
-    const visible = raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
+    const visible =
+      raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
     this.object3D.visible = visible;
     if (!visible) return;
 
@@ -123,11 +121,21 @@ export class PolytopeVerticesLayer implements Layer {
         : raw.vertices;
     applyPositions(
       this.circlePoints,
-      buildVertexPositions(displayVertices, "circle", raw.completionMode, hasDerived),
+      buildVertexPositions(
+        displayVertices,
+        "circle",
+        raw.completionMode,
+        hasDerived,
+      ),
     );
     applyPositions(
       this.squarePoints,
-      buildVertexPositions(displayVertices, "square", raw.completionMode, hasDerived),
+      buildVertexPositions(
+        displayVertices,
+        "square",
+        raw.completionMode,
+        hasDerived,
+      ),
     );
   }
 

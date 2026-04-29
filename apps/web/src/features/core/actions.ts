@@ -1,5 +1,5 @@
-import type { SolverMode, SolverSettings } from "./store";
 import type { GalleryProblem } from "@/features/problem-gallery/problems";
+import type { SolverMode, SolverSettings } from "./store";
 
 export type AppActions = {
   setConstraintHighlight: (index: number | null) => void;

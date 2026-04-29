@@ -1,6 +1,12 @@
-import type { Lines, VecM, VecN } from "@lpviz/math/types";
-import { dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/blas";
+import {
+  dot,
+  infinityNorm,
+  linesToDenseAb,
+  matVec,
+  transposedMatVec,
+} from "@lpviz/math/blas";
 import { solveDenseSystem } from "@lpviz/math/lapack";
+import type { Lines, VecM, VecN } from "@lpviz/math/types";
 import { formatMilliseconds } from "./time";
 
 const MAX_ITERATIONS_LIMIT = 100_000;

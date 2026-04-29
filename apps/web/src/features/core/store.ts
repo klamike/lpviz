@@ -1,11 +1,10 @@
 import type { ResultTextBlock } from "@/features/solver/types";
 import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math/types";
 import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
-import { useCallback, useRef, useSyncExternalStore } from "react";
+import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "@lpviz/viewport/defaults";
 
 export const MAX_TRACE_POINT_SPRITES = 1200;
-export const DEFAULT_VIEW_ANGLE: PointXYZ = { x: -1.15, y: 0.4, z: 0 };
-export const DEFAULT_Z_SCALE = 0.1;
+export { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE };
 
 export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
 export type CompletionMode = "draft" | "closed" | "open";
@@ -264,76 +263,15 @@ function createStore<T>(
 
 const lpvizStore = createStore<State>(() => initialState);
 
-function useStoreWithEquality<U>(
-  selector: (state: State) => U,
-  equalityFn: (a: U, b: U) => boolean,
-): U {
-  const selectedRef = useRef<U>(undefined as unknown as U);
-  const initializedRef = useRef(false);
-
-  const getSnapshot = useCallback(() => {
-    const next = selector(lpvizStore.getState());
-    if (initializedRef.current) {
-      const prev = selectedRef.current;
-      if (equalityFn(prev, next)) {
-        return prev;
-      }
-    }
-    initializedRef.current = true;
-    selectedRef.current = next;
-    return next;
-  }, [selector, equalityFn]);
-
-  const getServerSnapshot = useCallback(() => {
-    const next = selector(lpvizStore.getInitialState());
-    selectedRef.current = next;
-    return next;
-  }, [selector]);
-
-  return useSyncExternalStore(
-    lpvizStore.subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
-}
-
-export function useLpvizStore(): State;
-export function useLpvizStore<U>(selector: (state: State) => U): U;
-export function useLpvizStore<U>(
-  selector: (state: State) => U,
-  equalityFn: (a: U, b: U) => boolean,
-): U;
-export function useLpvizStore<U>(
-  selector?: (state: State) => U,
-  equalityFn?: (a: U, b: U) => boolean,
-): U | State {
-  if (selector && equalityFn) {
-    return useStoreWithEquality(selector, equalityFn);
-  }
-  return useSyncExternalStore(
-    lpvizStore.subscribe,
-    () => (selector ? selector(lpvizStore.getState()) : lpvizStore.getState()),
-    () =>
-      selector
-        ? selector(lpvizStore.getInitialState())
-        : lpvizStore.getInitialState(),
-  );
-}
-
 export function getState(): State {
   return lpvizStore.getState();
 }
 
-export function setState(
-  patch: Partial<State>,
-  _meta?: StateChangeMeta,
-): void {
+export function setState(patch: Partial<State>, _meta?: StateChangeMeta): void {
   lpvizStore.setState(patch);
 }
 
-export function subscribe(
-  listener: (snapshot: State) => void,
-): () => void {
+export function subscribe(listener: (snapshot: State) => void): () => void {
   return lpvizStore.subscribe(listener);
 }
 
@@ -381,13 +319,22 @@ export function updateIteratePaths(
 }
 
 export function clearIterateState(): void {
-  setState({ ...buildIterateStatePatch([], undefined, undefined, null), highlightIteratePathIndex: null });
+  setState({
+    ...buildIterateStatePatch([], undefined, undefined, null),
+    highlightIteratePathIndex: null,
+  });
 }
 
 export function addTraceToBuffer(iteratesArray: Float64Array[]): void {
   const state = getState();
   if (!state.traceEnabled || iteratesArray.length === 0) return;
-  setState({ traceBuffer: appendedTraceBuffer(state, iteratesArray, snapshotObjectiveVector(state.objectiveVector)) });
+  setState({
+    traceBuffer: appendedTraceBuffer(
+      state,
+      iteratesArray,
+      snapshotObjectiveVector(state.objectiveVector),
+    ),
+  });
 }
 
 export function computeIterateZ(
@@ -425,7 +372,11 @@ export function updateIteratePathsWithTrace(
     objectiveSnapshot,
   );
   if (state.traceEnabled && iteratesArray.length > 0) {
-    patch.traceBuffer = appendedTraceBuffer(state, iteratesArray, objectiveSnapshot);
+    patch.traceBuffer = appendedTraceBuffer(
+      state,
+      iteratesArray,
+      objectiveSnapshot,
+    );
   }
   setState(patch);
 }

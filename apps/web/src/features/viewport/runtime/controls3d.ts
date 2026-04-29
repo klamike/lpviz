@@ -1,10 +1,8 @@
-import { useSyncExternalStore } from "react";
-
+import type { ViewportPerspectivePose } from "@lpviz/viewport/types";
 import {
   DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   type ViewportRenderSnapshot,
 } from "../types";
-import type { ViewportPerspectivePose } from "@lpviz/viewport/types";
 
 export type { ViewportPerspectivePose };
 
@@ -53,12 +51,4 @@ export function subscribeViewport3DControlsConfig(listener: () => void) {
 
 export function getViewport3DControlsConfig() {
   return config;
-}
-
-export function useViewport3DControlsConfig() {
-  return useSyncExternalStore(
-    subscribeViewport3DControlsConfig,
-    getViewport3DControlsConfig,
-    getViewport3DControlsConfig,
-  );
 }

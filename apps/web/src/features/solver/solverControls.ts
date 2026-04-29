@@ -1,4 +1,10 @@
-import type { ResultTextBlock } from "@/features/solver/types";
+import {
+  getState,
+  type SolverMode,
+  type SolverSettings,
+  type State,
+} from "@/features/core/store";
+import type { ShareSettings } from "@/features/share/sharedState";
 import {
   applyCentralPathResult,
   applyIPMResult,
@@ -10,14 +16,8 @@ import type {
   SolverWorkerPayload,
   SolverWorkerSuccessResponse,
 } from "@/features/solver/solverWorker";
-import {
-  getState,
-  type SolverMode,
-  type SolverSettings,
-  type State,
-} from "@/features/core/store";
+import type { ResultTextBlock } from "@/features/solver/types";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-import type { ShareSettings } from "@/features/share/sharedState";
 
 export type SolverSettingUpdater = <K extends keyof SolverSettings>(
   key: K,
@@ -109,7 +109,10 @@ export function createSolverControls({
           solver: "central",
           vertices: state.polytope.vertices,
           lines: state.polytope.lines,
-          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
+          objective: Float64Array.of(
+            state.objectiveVector.x,
+            state.objectiveVector.y,
+          ),
           niter: Math.max(1, state.solverSettings.centralPathIter || 1),
         };
       },
@@ -161,7 +164,10 @@ export function createSolverControls({
         return {
           solver: "ipm",
           lines: state.polytope.lines,
-          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
+          objective: Float64Array.of(
+            state.objectiveVector.x,
+            state.objectiveVector.y,
+          ),
           alphaMax: s.alphaMax,
           correctorThreshold: s.correctorThreshold,
           maxit: Math.max(1, s.maxitIPM || 1),
@@ -202,7 +208,10 @@ export function createSolverControls({
         return {
           solver: "simplex",
           lines: state.polytope.lines,
-          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
+          objective: Float64Array.of(
+            state.objectiveVector.x,
+            state.objectiveVector.y,
+          ),
           dual: state.solverSettings.simplexDualMode,
         };
       },
@@ -254,7 +263,10 @@ export function createSolverControls({
         return {
           solver: "pdhg",
           lines: state.polytope.lines,
-          objective: Float64Array.of(state.objectiveVector.x, state.objectiveVector.y),
+          objective: Float64Array.of(
+            state.objectiveVector.x,
+            state.objectiveVector.y,
+          ),
           ineq: s.pdhgIneqMode,
           halpern: s.pdhgHalpernMode,
           maxit: Math.max(1, s.maxitPDHG || 1),

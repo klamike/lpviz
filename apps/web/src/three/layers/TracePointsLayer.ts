@@ -1,23 +1,20 @@
-import {
-  BufferAttribute,
-  Group,
-  Points,
-  PointsMaterial,
-} from "three";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
-import { computeIterateZ, MAX_TRACE_POINT_SPRITES } from "@/features/core/store";
 import type { State } from "@/features/core/store";
+import {
+  computeIterateZ,
+  MAX_TRACE_POINT_SPRITES,
+} from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
+import { BufferAttribute, Group, Points, PointsMaterial } from "three";
+import { makePointsGeo } from "../helpers/makePointsGeo";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { makePointsGeo } from "../helpers/makePointsGeo";
 import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_POINT_PIXEL_SIZE = 6;
 const TRACE_POINTS_RENDER_ORDER = RENDER_ORDER.tracePoints;
-
 
 function buildTracePathPositions(
   path: Float64Array[],
@@ -40,7 +37,11 @@ function buildTraceSamplePositions(pathPositions: Float32Array) {
   const step = Math.max(1, Math.ceil(pointCount / MAX_TRACE_POINT_SPRITES));
   const samples: number[] = [];
   for (let i = 0; i < pointCount; i += step) {
-    samples.push(pathPositions[i * 3]!, pathPositions[i * 3 + 1]!, pathPositions[i * 3 + 2]!);
+    samples.push(
+      pathPositions[i * 3]!,
+      pathPositions[i * 3 + 1]!,
+      pathPositions[i * 3 + 2]!,
+    );
   }
   const lastBase = (pointCount - 1) * 3;
   if (
@@ -49,26 +50,35 @@ function buildTraceSamplePositions(pathPositions: Float32Array) {
     samples[samples.length - 2] !== pathPositions[lastBase + 1] ||
     samples[samples.length - 1] !== pathPositions[lastBase + 2]
   ) {
-    samples.push(pathPositions[lastBase]!, pathPositions[lastBase + 1]!, pathPositions[lastBase + 2]!);
+    samples.push(
+      pathPositions[lastBase]!,
+      pathPositions[lastBase + 1]!,
+      pathPositions[lastBase + 2]!,
+    );
   }
   return samples;
 }
 
 const tracePointPositionCache = new WeakMap<object, Float32Array>();
 
-function getCachedTracePointPositions(
-  entry: State["traceBuffer"][number],
-) {
+function getCachedTracePointPositions(entry: State["traceBuffer"][number]) {
   let cached = tracePointPositionCache.get(entry);
   if (cached) return cached;
   const pathPos = buildTracePathPositions(entry.path, entry.objectiveVector);
-  const sampled = pathPos.length === 0 ? new Float32Array() : new Float32Array(buildTraceSamplePositions(pathPos));
+  const sampled =
+    pathPos.length === 0
+      ? new Float32Array()
+      : new Float32Array(buildTraceSamplePositions(pathPos));
   tracePointPositionCache.set(entry, sampled);
   return sampled;
 }
 
 function buildAllTracePointPositions(raw: State, mode: "2d" | "3d") {
-  if (!raw.traceEnabled || raw.traceBuffer.length === 0 || !shouldRenderSnapshotMode(mode, raw)) {
+  if (
+    !raw.traceEnabled ||
+    raw.traceBuffer.length === 0 ||
+    !shouldRenderSnapshotMode(mode, raw)
+  ) {
     return new Float32Array();
   }
   const chunks = raw.traceBuffer
@@ -78,7 +88,10 @@ function buildAllTracePointPositions(raw: State, mode: "2d" | "3d") {
   const total = chunks.reduce((s, c) => s + c.length, 0);
   const out = new Float32Array(total);
   let offset = 0;
-  for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length; }
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
   return out;
 }
 
@@ -142,7 +155,10 @@ export class TracePointsLayer implements Layer {
     const positions = buildAllTracePointPositions(raw, snap.mode);
     this.object3D.visible = positions.length > 0;
     if (positions.length > 0) {
-      this.pts.geometry.setAttribute("position", new BufferAttribute(positions, 3));
+      this.pts.geometry.setAttribute(
+        "position",
+        new BufferAttribute(positions, 3),
+      );
     }
   }
 

@@ -1,5 +1,5 @@
-import { deriveRegionFromPoints } from "@lpviz/polytope/regionAssembly";
 import type { Lines, Vertices } from "@lpviz/math/types";
+import { deriveRegionFromPoints } from "@lpviz/polytope/regionAssembly";
 
 const CONSTRAINT_COUNT = 20;
 
@@ -16,11 +16,15 @@ const polytope = deriveRegionFromPoints(
 );
 
 if (polytope.kind !== "bounded") {
-  throw new Error(`20-constraint benchmark fixture must be bounded, got ${polytope.kind}`);
+  throw new Error(
+    `20-constraint benchmark fixture must be bounded, got ${polytope.kind}`,
+  );
 }
 
 if (polytope.lines.length !== CONSTRAINT_COUNT) {
-  throw new Error(`20-constraint benchmark fixture built ${polytope.lines.length} constraints`);
+  throw new Error(
+    `20-constraint benchmark fixture built ${polytope.lines.length} constraints`,
+  );
 }
 
 export const problem20 = {
@@ -29,4 +33,3 @@ export const problem20 = {
   vertices: polytope.vertices,
   objective: Float64Array.of(1.25, 0.75),
 } as const;
-

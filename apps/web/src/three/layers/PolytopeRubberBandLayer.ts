@@ -1,17 +1,26 @@
+import type { State } from "@/features/core/store";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
-import type { State } from "@/features/core/store";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
+import {
+  applyHugeBounds,
+  getSharedLineMaterial,
+} from "../helpers/sharedLineMaterials";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const POLYTOPE_OUTLINE_COLOR = "#000000";
 
 const POLY_LINE_THICKNESS = 2;
 
-const rbMat = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const rbMat = getSharedLineMaterial({
+  color: POLYTOPE_OUTLINE_COLOR,
+  linewidth: POLY_LINE_THICKNESS,
+  depthTest: false,
+  depthWrite: false,
+  opacity: 1,
+});
 
 type RubberBandState = {
   lastVertex: import("@lpviz/math/types").PointXY | null;

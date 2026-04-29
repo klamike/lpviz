@@ -1,5 +1,3 @@
-import { useSyncExternalStore } from "react";
-
 export type ViewportTransitionConfig = {
   active: boolean;
   runId: number;
@@ -44,12 +42,4 @@ export function subscribeViewportTransitionConfig(listener: () => void) {
 
 export function getViewportTransitionConfig() {
   return config;
-}
-
-export function useViewportTransitionConfig() {
-  return useSyncExternalStore(
-    subscribeViewportTransitionConfig,
-    getViewportTransitionConfig,
-    getViewportTransitionConfig,
-  );
 }

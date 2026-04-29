@@ -1,5 +1,7 @@
-import { Plane, Raycaster, Vector2, Vector3, type PerspectiveCamera } from "three";
-import type { SceneManager } from "../SceneManager";
+import {
+  getViewportCameraRefs,
+  subscribeViewportCameraRefs,
+} from "@/features/viewport/runtime/cameraRefs";
 import {
   getViewport2DControlsConfig,
   startViewport2DPan,
@@ -8,14 +10,18 @@ import {
   zoomViewport2DAtCanvasPoint,
 } from "@/features/viewport/runtime/controls2d";
 import {
-  type ViewportPerspectivePose,
-  subscribeViewport3DControlsConfig,
   getViewport3DControlsConfig,
+  subscribeViewport3DControlsConfig,
+  type ViewportPerspectivePose,
 } from "@/features/viewport/runtime/controls3d";
 import {
-  subscribeViewportCameraRefs,
-  getViewportCameraRefs,
-} from "@/features/viewport/runtime/cameraRefs";
+  Plane,
+  Raycaster,
+  Vector2,
+  Vector3,
+  type PerspectiveCamera,
+} from "three";
+import type { SceneManager } from "../SceneManager";
 
 const WHEEL_ZOOM_FACTOR = 1.05;
 const ROTATE_RADIANS_PER_PIXEL = 0.008;
@@ -90,7 +96,13 @@ export class ControlsController {
   private setup2DListeners(canvas: HTMLCanvasElement): void {
     const handleMouseDown = (event: MouseEvent) => {
       if (event.button !== 0) return;
-      if (!startViewport2DPan(event.clientX, event.clientY, canvas.getBoundingClientRect())) {
+      if (
+        !startViewport2DPan(
+          event.clientX,
+          event.clientY,
+          canvas.getBoundingClientRect(),
+        )
+      ) {
         return;
       }
       canvas.focus();
@@ -107,7 +119,14 @@ export class ControlsController {
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       const touch = event.touches[0];
-      if (!touch || !startViewport2DPan(touch.clientX, touch.clientY, canvas.getBoundingClientRect())) {
+      if (
+        !touch ||
+        !startViewport2DPan(
+          touch.clientX,
+          touch.clientY,
+          canvas.getBoundingClientRect(),
+        )
+      ) {
         return;
       }
       canvas.focus();
@@ -129,7 +148,9 @@ export class ControlsController {
     };
     const handleWheel = (event: WheelEvent) => {
       const dominantDelta =
-        Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+        Math.abs(event.deltaY) > Math.abs(event.deltaX)
+          ? event.deltaY
+          : event.deltaX;
       if (dominantDelta === 0) return;
 
       const rect = canvas.getBoundingClientRect();
@@ -138,7 +159,8 @@ export class ControlsController {
         !zoomViewport2DAtCanvasPoint(
           { x: event.clientX - rect.left, y: event.clientY - rect.top },
           rect,
-          state.scaleFactor * (dominantDelta < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR),
+          state.scaleFactor *
+            (dominantDelta < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR),
         )
       ) {
         return;
@@ -153,7 +175,9 @@ export class ControlsController {
     canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
     window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", handleTouchEnd, { passive: false });
-    window.addEventListener("touchcancel", handleTouchCancel, { passive: false });
+    window.addEventListener("touchcancel", handleTouchCancel, {
+      passive: false,
+    });
     canvas.addEventListener("wheel", handleWheel, { passive: false });
 
     this.cleanup2D = () => {
@@ -168,8 +192,13 @@ export class ControlsController {
     };
   }
 
-  private setup3DControls(perspectiveCamera: PerspectiveCamera, canvas: HTMLCanvasElement): void {
-    const buildPose = (target = this.controlsTarget): ViewportPerspectivePose => ({
+  private setup3DControls(
+    perspectiveCamera: PerspectiveCamera,
+    canvas: HTMLCanvasElement,
+  ): void {
+    const buildPose = (
+      target = this.controlsTarget,
+    ): ViewportPerspectivePose => ({
       position: {
         x: perspectiveCamera.position.x,
         y: perspectiveCamera.position.y,
@@ -212,9 +241,7 @@ export class ControlsController {
       return {
         distance,
         yaw: Math.atan2(offset.y, offset.x),
-        elevation: Math.asin(
-          Math.max(-1, Math.min(1, offset.z / distance)),
-        ),
+        elevation: Math.asin(Math.max(-1, Math.min(1, offset.z / distance))),
       };
     };
 
@@ -277,8 +304,10 @@ export class ControlsController {
         );
         const cosElevation = Math.cos(elevation);
         perspectiveCamera.position.set(
-          drag.startTarget.x + drag.startDistance * cosElevation * Math.cos(yaw),
-          drag.startTarget.y + drag.startDistance * cosElevation * Math.sin(yaw),
+          drag.startTarget.x +
+            drag.startDistance * cosElevation * Math.cos(yaw),
+          drag.startTarget.y +
+            drag.startDistance * cosElevation * Math.sin(yaw),
           drag.startTarget.z + drag.startDistance * Math.sin(elevation),
         );
         emitPose(drag.startTarget);
@@ -344,11 +373,15 @@ export class ControlsController {
           this.controlsTarget,
         );
         perspectiveCamera.updateMatrixWorld();
-        this.wheelRaycaster.setFromCamera(this.wheelPointerNdc, perspectiveCamera);
-        anchoredZoom = this.wheelRaycaster.ray.intersectPlane(
-          this.wheelPlane,
-          this.wheelAnchorBefore,
-        ) !== null;
+        this.wheelRaycaster.setFromCamera(
+          this.wheelPointerNdc,
+          perspectiveCamera,
+        );
+        anchoredZoom =
+          this.wheelRaycaster.ray.intersectPlane(
+            this.wheelPlane,
+            this.wheelAnchorBefore,
+          ) !== null;
       }
 
       perspectiveCamera.position
@@ -356,7 +389,10 @@ export class ControlsController {
         .add(offset.normalize().multiplyScalar(nextDistance));
       if (anchoredZoom) {
         perspectiveCamera.updateMatrixWorld();
-        this.wheelRaycaster.setFromCamera(this.wheelPointerNdc, perspectiveCamera);
+        this.wheelRaycaster.setFromCamera(
+          this.wheelPointerNdc,
+          perspectiveCamera,
+        );
         if (
           this.wheelRaycaster.ray.intersectPlane(
             this.wheelPlane,
@@ -434,7 +470,11 @@ export class ControlsController {
       snapshot.perspective.up.y,
       snapshot.perspective.up.z,
     );
-    this.controlsTarget.set(snapshot.target.x, snapshot.target.y, snapshot.target.z);
+    this.controlsTarget.set(
+      snapshot.target.x,
+      snapshot.target.y,
+      snapshot.target.z,
+    );
     perspectiveCamera.lookAt(this.controlsTarget);
     perspectiveCamera.updateProjectionMatrix();
     perspectiveCamera.updateMatrixWorld();

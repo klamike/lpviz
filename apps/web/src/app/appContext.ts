@@ -1,0 +1,21 @@
+import type { AppActions } from "@/features/core/actions";
+import type { HistoryService } from "@/features/history/historyService";
+import type { PolytopeService } from "@/features/polytope-editor/polytopeService";
+import type { SolverActions } from "@/features/solver/solverActions";
+import type { ViewportRuntime } from "@/features/viewport/runtime";
+import type { ViewportActions } from "@/features/viewport/viewportActions";
+
+export type AppContext = {
+  actions: AppActions;
+  services: {
+    history: HistoryService;
+    polytope: PolytopeService;
+    solver: SolverActions;
+    viewport: ViewportActions;
+  };
+  getCanvasManager: () => ViewportRuntime | null;
+  setCanvasManager: (runtime: ViewportRuntime | null) => void;
+  getSidebarWidth: () => number;
+  setSidebarWidthValue: (width: number) => void;
+  disposers: Array<() => void>;
+};

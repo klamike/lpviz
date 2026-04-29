@@ -1,14 +1,17 @@
+import { computeIterateZ, type State } from "@/features/core/store";
+import type { PointXY } from "@lpviz/math/types";
 import { Group } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
-import { computeIterateZ, type State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
+import { PHASE_COLORS } from "../helpers/phaseColors";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
-import { PHASE_COLORS } from "../helpers/phaseColors";
+import {
+  applyHugeBounds,
+  getSharedLineMaterial,
+} from "../helpers/sharedLineMaterials";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const ITERATE_LINE_COLOR = "#800080";
 const ITERATE_LINE_RENDER_ORDER = RENDER_ORDER.iterateLine;
@@ -22,7 +25,10 @@ function getIterateRenderZ(
   transitionZMultiplier = 1,
 ) {
   if (!is3D) return 0;
-  return (computeIterateZ(entry, objectiveVector) * zScale) / 100 * transitionZMultiplier;
+  return (
+    ((computeIterateZ(entry, objectiveVector) * zScale) / 100) *
+    transitionZMultiplier
+  );
 }
 
 function buildLinePositions(
@@ -38,24 +44,41 @@ function buildLinePositions(
     const entry = path[i]!;
     positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = getIterateRenderZ(entry, objectiveVector, zScale, is3D, transitionZMultiplier);
+    positions[i * 3 + 2] = getIterateRenderZ(
+      entry,
+      objectiveVector,
+      zScale,
+      is3D,
+      transitionZMultiplier,
+    );
   }
   return positions;
 }
 
 type SegmentEntry = { color: string; positions: Float32Array };
 
-function buildIterateSegments(raw: State, is3D: boolean, transitionZMultiplier = 1): SegmentEntry[] {
+function buildIterateSegments(
+  raw: State,
+  is3D: boolean,
+  transitionZMultiplier = 1,
+): SegmentEntry[] {
   if (raw.iteratePath.length < 2) return [];
 
   const hasPhases =
-    raw.iteratePhases.length === raw.iteratePath.length && raw.iteratePhases.length > 0;
+    raw.iteratePhases.length === raw.iteratePath.length &&
+    raw.iteratePhases.length > 0;
 
   if (!hasPhases) {
     const positions = buildLinePositions(
-      raw.iteratePath, raw.iterateObjectiveVector, raw.zScale, is3D, transitionZMultiplier,
+      raw.iteratePath,
+      raw.iterateObjectiveVector,
+      raw.zScale,
+      is3D,
+      transitionZMultiplier,
     );
-    return positions.length > 0 ? [{ color: ITERATE_LINE_COLOR, positions }] : [];
+    return positions.length > 0
+      ? [{ color: ITERATE_LINE_COLOR, positions }]
+      : [];
   }
 
   const segments: SegmentEntry[] = [];
@@ -66,18 +89,36 @@ function buildIterateSegments(raw: State, is3D: boolean, transitionZMultiplier =
     const currentPhase = raw.iteratePhases[i]!;
     if (currentPhase !== raw.iteratePhases[i - 1]!) {
       const slice = raw.iteratePath.slice(segStart, i + 1);
-      const positions = buildLinePositions(slice, raw.iterateObjectiveVector, raw.zScale, is3D, transitionZMultiplier);
+      const positions = buildLinePositions(
+        slice,
+        raw.iterateObjectiveVector,
+        raw.zScale,
+        is3D,
+        transitionZMultiplier,
+      );
       if (positions.length > 0) {
-        segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions });
+        segments.push({
+          color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!,
+          positions,
+        });
       }
       segStart = i - 1;
       segPhase = currentPhase;
     }
   }
   const lastSlice = raw.iteratePath.slice(segStart);
-  const lastPositions = buildLinePositions(lastSlice, raw.iterateObjectiveVector, raw.zScale, is3D, transitionZMultiplier);
+  const lastPositions = buildLinePositions(
+    lastSlice,
+    raw.iterateObjectiveVector,
+    raw.zScale,
+    is3D,
+    transitionZMultiplier,
+  );
   if (lastPositions.length > 0) {
-    segments.push({ color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!, positions: lastPositions });
+    segments.push({
+      color: PHASE_COLORS[segPhase % PHASE_COLORS.length]!,
+      positions: lastPositions,
+    });
   }
 
   return segments;
@@ -86,7 +127,16 @@ function buildIterateSegments(raw: State, is3D: boolean, transitionZMultiplier =
 function makeLine2(group: Group): Line2 {
   const geo = new LineGeometry();
   applyHugeBounds(geo);
-  const ln = new Line2(geo, getSharedLineMaterial({ color: ITERATE_LINE_COLOR, linewidth: ITERATE_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 }));
+  const ln = new Line2(
+    geo,
+    getSharedLineMaterial({
+      color: ITERATE_LINE_COLOR,
+      linewidth: ITERATE_LINE_THICKNESS,
+      depthTest: false,
+      depthWrite: false,
+      opacity: 1,
+    }),
+  );
   ln.renderOrder = ITERATE_LINE_RENDER_ORDER;
   ln.frustumCulled = false;
   ln.computeLineDistances = () => ln;
@@ -143,14 +193,21 @@ export class IterateLineLayer implements Layer {
       transitionZMultiplier: snap.transitionZMultiplier,
     };
 
-    if (raw.iteratePath.length < 2 || !shouldRenderSnapshotMode(snap.mode, raw)) {
+    if (
+      raw.iteratePath.length < 2 ||
+      !shouldRenderSnapshotMode(snap.mode, raw)
+    ) {
       this.object3D.visible = false;
       for (const ln of this.pool) ln.visible = false;
       return;
     }
 
     const is3D = snap.mode === "3d";
-    const segments = buildIterateSegments(raw, is3D, snap.transitionZMultiplier);
+    const segments = buildIterateSegments(
+      raw,
+      is3D,
+      snap.transitionZMultiplier,
+    );
 
     if (segments.length === 0) {
       this.object3D.visible = false;

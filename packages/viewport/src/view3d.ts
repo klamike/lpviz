@@ -1,9 +1,8 @@
 import { Euler, PerspectiveCamera, Vector3 } from "three";
 
-import { DEFAULT_VIEW_ANGLE } from "@/features/core/store";
-import type { PointXYZ } from "@lpviz/math/types";
 import type { BoundingBox } from "@lpviz/math/geometry";
-import type { ViewportRenderSnapshot } from "./types";
+import type { PointXYZ } from "@lpviz/math/types";
+import { DEFAULT_VIEW_ANGLE } from "./defaults";
 import {
   buildPerspectivePoseFromViewAngle,
   getPerspectiveDistanceForUnitsPerPixel,
@@ -11,7 +10,7 @@ import {
   getViewportVisibleCenterCanvasPoint,
   projectCanvasPointToWorldPlane,
 } from "./transition";
-import type { ViewportPerspectivePose } from "./types";
+import type { ViewportPerspectivePose, ViewportRenderSnapshot } from "./types";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 
@@ -175,7 +174,9 @@ const offsetTargetForVisibleViewport3D = (
   const viewport = getViewportSize(snapshot, rect);
   const verticalFov = snapshot.perspective.fov * (Math.PI / 180);
   const unitsPerPixelAtTarget =
-    (2 * Math.tan(verticalFov / 2) * Math.max(MIN_PERSPECTIVE_DISTANCE, distance)) /
+    (2 *
+      Math.tan(verticalFov / 2) *
+      Math.max(MIN_PERSPECTIVE_DISTANCE, distance)) /
     Math.max(1, viewport.height);
   const offset = (sidebarWidth / 2) * unitsPerPixelAtTarget;
   configureFitBasisFromViewAngle(viewAngle);

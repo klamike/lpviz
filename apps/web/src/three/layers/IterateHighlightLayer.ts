@@ -1,21 +1,16 @@
-import {
-  BufferAttribute,
-  Points,
-  PointsMaterial,
-} from "three";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
 import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
+import { BufferAttribute, Points, PointsMaterial } from "three";
+import { makePointsGeo } from "../helpers/makePointsGeo";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { makePointsGeo } from "../helpers/makePointsGeo";
 import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const ITERATE_HIGHLIGHT_COLOR = "#008000";
 const ITERATE_HIGHLIGHT_PIXEL_SIZE = 8 * 2;
 const ITERATE_HIGHLIGHT_RENDER_ORDER = RENDER_ORDER.iterateHighlight;
-
 
 type PrevState = {
   iteratePath: State["iteratePath"];
@@ -98,10 +93,15 @@ export class IterateHighlightLayer implements Layer {
 
     const is3D = snap.mode === "3d";
     const z = is3D
-      ? (computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) / 100 * snap.transitionZMultiplier
+      ? ((computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) /
+          100) *
+        snap.transitionZMultiplier
       : 0;
 
-    this.object3D.geometry.setAttribute("position", new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3));
+    this.object3D.geometry.setAttribute(
+      "position",
+      new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3),
+    );
     this.object3D.visible = true;
   }
 

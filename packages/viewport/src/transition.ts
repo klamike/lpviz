@@ -7,18 +7,10 @@ import {
   Vector3,
 } from "three";
 
-import {
-  DEFAULT_VIEW_ANGLE,
-  type State,
-  type ViewportDirtyFlags,
-} from "@/features/core/store";
 import type { PointXY, PointXYZ } from "@lpviz/math/types";
-import type { ViewportRenderSnapshot } from "./types";
-import {
-  clampScaleFactor2D,
-  type Viewport2DState,
-} from "./projection2d";
-import type { ViewportPerspectivePose } from "./types";
+import { DEFAULT_VIEW_ANGLE } from "./defaults";
+import { clampScaleFactor2D, type Viewport2DState } from "./projection2d";
+import type { ViewportPerspectivePose, ViewportRenderSnapshot } from "./types";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 
@@ -38,6 +30,25 @@ export type ViewportTransitionFrame = {
   target: PointXYZ;
   pose: ViewportPerspectivePose;
   snapshot: ViewportRenderSnapshot;
+};
+
+export type ViewportDirtyFlags = Partial<{
+  grid: boolean;
+  polytope: boolean;
+  constraints: boolean;
+  objective: boolean;
+  trace: boolean;
+  iterate: boolean;
+}>;
+export type ViewportTransitionStatePatch = {
+  isTransitioning3D: boolean;
+  transitionStartTime: number;
+  transition3DStartAngles: PointXYZ;
+  transition3DEndAngles: PointXYZ;
+  transitionDirection: "to3d" | "to2d" | null;
+  transitionProgress: number;
+  is3DMode: boolean;
+  viewAngle: PointXYZ;
 };
 
 export const TRANSITION_VIEWPORT_DIRTY_FLAGS: ViewportDirtyFlags = {
@@ -76,7 +87,7 @@ const projectionPointerWorld = new Vector3();
 export function getPerspectiveDistanceForUnitsPerPixel(
   snapshot: ViewportRenderSnapshot,
   unitsPerPixel: number,
-  height = snapshot.height || window.innerHeight,
+  height = snapshot.height || 1,
 ) {
   const fov = snapshot.perspective.fov * (Math.PI / 180);
   return Math.max(10, (height * unitsPerPixel) / (2 * Math.tan(fov / 2)));
@@ -85,7 +96,7 @@ export function getPerspectiveDistanceForUnitsPerPixel(
 export function getScaleFactorFromPerspectiveDistance(
   snapshot: ViewportRenderSnapshot,
   distance: number,
-  height = snapshot.height || window.innerHeight,
+  height = snapshot.height || 1,
 ) {
   const fov = snapshot.perspective.fov * (Math.PI / 180);
   const safeDistance = Math.max(10, distance);
@@ -163,7 +174,7 @@ export function buildTransitionStartState(
   targetMode: boolean,
   startTime: number,
   plan: ViewportTransitionPlan,
-): Partial<State> {
+): Partial<ViewportTransitionStatePatch> {
   return {
     isTransitioning3D: true,
     transitionStartTime: startTime,
@@ -179,7 +190,7 @@ export function buildTransitionStartState(
 export function buildTransitionProgressState(
   plan: ViewportTransitionPlan,
   progress: number,
-): Pick<State, "viewAngle" | "transitionProgress"> {
+): Pick<ViewportTransitionStatePatch, "viewAngle" | "transitionProgress"> {
   return {
     viewAngle: interpolateTransitionViewAngle(plan, progress),
     transitionProgress: Math.max(0, Math.min(1, progress)),
@@ -189,7 +200,7 @@ export function buildTransitionProgressState(
 export function buildTransitionCompleteState(
   plan: ViewportTransitionPlan,
 ): Pick<
-  State,
+  ViewportTransitionStatePatch,
   | "isTransitioning3D"
   | "transitionDirection"
   | "transitionProgress"
@@ -276,7 +287,8 @@ export function buildViewportTransitionFrame(
       height,
       scaleFactor,
       unitsPerPixel,
-      transitionZMultiplier: plan.direction === "to2d" ? 1 - clampedProgress : clampedProgress,
+      transitionZMultiplier:
+        plan.direction === "to2d" ? 1 - clampedProgress : clampedProgress,
       target,
       orthographic: {
         left: -(width * unitsPerPixel) / 2,

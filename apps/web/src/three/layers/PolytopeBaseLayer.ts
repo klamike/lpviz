@@ -1,3 +1,7 @@
+import type { State } from "@/features/core/store";
+import { type BoundingBox, VRep } from "@lpviz/math/geometry";
+import type { Line, PointXY } from "@lpviz/math/types";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import {
   DoubleSide,
   Float32BufferAttribute,
@@ -9,15 +13,14 @@ import {
 } from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
-import type { State } from "@/features/core/store";
-import type { Line, PointXY } from "@lpviz/math/types";
-import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-import { type BoundingBox, VRep } from "@lpviz/math/geometry";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
+import {
+  applyHugeBounds,
+  getSharedLineMaterial,
+} from "../helpers/sharedLineMaterials";
+import type { Layer } from "../Layer";
+import type { SceneContext } from "../SceneContext";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
 const POLYTOPE_HIGHLIGHT_COLOR = "#ff0000";
@@ -28,14 +31,27 @@ const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_UNBOUNDED_EXTENT = 5000;
 const EPS = 1e-10;
 
-const normalMat = getSharedLineMaterial({ color: POLYTOPE_OUTLINE_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
-const highlightMat = getSharedLineMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, linewidth: POLY_LINE_THICKNESS, depthTest: false, depthWrite: false, opacity: 1 });
+const normalMat = getSharedLineMaterial({
+  color: POLYTOPE_OUTLINE_COLOR,
+  linewidth: POLY_LINE_THICKNESS,
+  depthTest: false,
+  depthWrite: false,
+  opacity: 1,
+});
+const highlightMat = getSharedLineMaterial({
+  color: POLYTOPE_HIGHLIGHT_COLOR,
+  linewidth: POLY_LINE_THICKNESS,
+  depthTest: false,
+  depthWrite: false,
+  opacity: 1,
+});
 
 function buildShapeFromVertices(vertices: ReadonlyArray<PointXY>) {
   const shape = new Shape();
   if (vertices.length === 0) return shape;
   shape.moveTo(vertices[0].x, vertices[0].y);
-  for (let i = 1; i < vertices.length; i++) shape.lineTo(vertices[i].x, vertices[i].y);
+  for (let i = 1; i < vertices.length; i++)
+    shape.lineTo(vertices[i].x, vertices[i].y);
   shape.closePath();
   return shape;
 }
@@ -45,27 +61,37 @@ function clipPolygonToHalfPlane(polygon: PointXY[], line: Line): PointXY[] {
   const [A, B, C] = line;
   const inside = (p: PointXY) => A * p.x + B * p.y <= C + EPS;
   const intersect = (s: PointXY, e: PointXY): PointXY => {
-    const dx = e.x - s.x, dy = e.y - s.y;
+    const dx = e.x - s.x,
+      dy = e.y - s.y;
     const denom = A * dx + B * dy;
     if (Math.abs(denom) < EPS) return e;
     const t = (C - A * s.x - B * s.y) / denom;
     return { x: s.x + t * dx, y: s.y + t * dy };
   };
   const result: PointXY[] = [];
-  let prev = polygon[polygon.length - 1], prevIn = inside(prev);
+  let prev = polygon[polygon.length - 1],
+    prevIn = inside(prev);
   for (const cur of polygon) {
     const curIn = inside(cur);
-    if (curIn) { if (!prevIn) result.push(intersect(prev, cur)); result.push(cur); }
-    else if (prevIn) result.push(intersect(prev, cur));
-    prev = cur; prevIn = curIn;
+    if (curIn) {
+      if (!prevIn) result.push(intersect(prev, cur));
+      result.push(cur);
+    } else if (prevIn) result.push(intersect(prev, cur));
+    prev = cur;
+    prevIn = curIn;
   }
   return result;
 }
 
-function clipRegionToBoundingBox(lines: Line[], bounds: BoundingBox): PointXY[] {
+function clipRegionToBoundingBox(
+  lines: Line[],
+  bounds: BoundingBox,
+): PointXY[] {
   let polygon: PointXY[] = [
-    { x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.minY },
-    { x: bounds.maxX, y: bounds.maxY }, { x: bounds.minX, y: bounds.maxY },
+    { x: bounds.minX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.maxY },
+    { x: bounds.minX, y: bounds.maxY },
   ];
   for (const line of lines) {
     polygon = clipPolygonToHalfPlane(polygon, line);
@@ -75,7 +101,9 @@ function clipRegionToBoundingBox(lines: Line[], bounds: BoundingBox): PointXY[] 
 }
 
 function clipRayToBoundingBox(
-  start: PointXY, direction: PointXY, bounds: BoundingBox,
+  start: PointXY,
+  direction: PointXY,
+  bounds: BoundingBox,
 ): [PointXY, PointXY] | null {
   const candidates: Array<{ t: number; point: PointXY }> = [];
   if (Math.abs(direction.x) > EPS) {
@@ -83,7 +111,8 @@ function clipRayToBoundingBox(
       const t = (x - start.x) / direction.x;
       if (t <= EPS) continue;
       const y = start.y + t * direction.y;
-      if (y >= bounds.minY - EPS && y <= bounds.maxY + EPS) candidates.push({ t, point: { x, y } });
+      if (y >= bounds.minY - EPS && y <= bounds.maxY + EPS)
+        candidates.push({ t, point: { x, y } });
     }
   }
   if (Math.abs(direction.y) > EPS) {
@@ -91,7 +120,8 @@ function clipRayToBoundingBox(
       const t = (y - start.y) / direction.y;
       if (t <= EPS) continue;
       const x = start.x + t * direction.x;
-      if (x >= bounds.minX - EPS && x <= bounds.maxX + EPS) candidates.push({ t, point: { x, y } });
+      if (x >= bounds.minX - EPS && x <= bounds.maxX + EPS)
+        candidates.push({ t, point: { x, y } });
     }
   }
   if (candidates.length === 0) return null;
@@ -99,19 +129,27 @@ function clipRayToBoundingBox(
   return [start, candidates[0].point];
 }
 
-function getVisibleBoundingBox(snap: ReturnType<SceneContext["getSnapshot"]>): BoundingBox {
+function getVisibleBoundingBox(
+  snap: ReturnType<SceneContext["getSnapshot"]>,
+): BoundingBox {
   if (snap.mode !== "2d") {
-    return { minX: -DEFAULT_UNBOUNDED_EXTENT, maxX: DEFAULT_UNBOUNDED_EXTENT, minY: -DEFAULT_UNBOUNDED_EXTENT, maxY: DEFAULT_UNBOUNDED_EXTENT };
+    return {
+      minX: -DEFAULT_UNBOUNDED_EXTENT,
+      maxX: DEFAULT_UNBOUNDED_EXTENT,
+      minY: -DEFAULT_UNBOUNDED_EXTENT,
+      maxY: DEFAULT_UNBOUNDED_EXTENT,
+    };
   }
   const hw = (snap.orthographic.right - snap.orthographic.left) / 2;
   const hh = (snap.orthographic.top - snap.orthographic.bottom) / 2;
   const margin = CLIP_MARGIN_PX * snap.unitsPerPixel + CLIP_MARGIN_UNITS;
   return {
-    minX: snap.target.x - hw - margin, maxX: snap.target.x + hw + margin,
-    minY: snap.target.y - hh - margin, maxY: snap.target.y + hh + margin,
+    minX: snap.target.x - hw - margin,
+    maxX: snap.target.x + hw + margin,
+    minY: snap.target.y - hh - margin,
+    maxY: snap.target.y + hh + margin,
   };
 }
-
 
 type PolytopeRenderResult = {
   fillVertices: PointXY[];
@@ -125,26 +163,41 @@ function buildPolytopeGeometry(
   state: State,
   snap: ReturnType<SceneContext["getSnapshot"]>,
 ): PolytopeRenderResult | null {
-  if (state.vertices.length === 0 || !shouldRenderSnapshotMode(snap.mode, state)) return null;
+  if (
+    state.vertices.length === 0 ||
+    !shouldRenderSnapshotMode(snap.mode, state)
+  )
+    return null;
 
   const { vertices, completionMode, highlightIndex, polytope } = state;
   const regionFinished = completionMode !== "draft";
-  const hasDerived = completionMode === "open" && polytope?.kind === "bounded" && polytope.vertices.length >= 3;
-  const displayVertices: PointXY[] = hasDerived && polytope?.kind === "bounded"
-    ? polytope.vertices.map(([x, y]) => ({ x, y }))
-    : vertices;
+  const hasDerived =
+    completionMode === "open" &&
+    polytope?.kind === "bounded" &&
+    polytope.vertices.length >= 3;
+  const displayVertices: PointXY[] =
+    hasDerived && polytope?.kind === "bounded"
+      ? polytope.vertices.map(([x, y]) => ({ x, y }))
+      : vertices;
   const isClosedRegion = completionMode === "closed" || hasDerived;
   const isNonconvex = !VRep.fromPoints(displayVertices).isConvex();
 
   const bounds: BoundingBox =
     completionMode === "open" && !hasDerived && polytope?.kind === "unbounded"
-      ? { minX: -DEFAULT_UNBOUNDED_EXTENT, maxX: DEFAULT_UNBOUNDED_EXTENT, minY: -DEFAULT_UNBOUNDED_EXTENT, maxY: DEFAULT_UNBOUNDED_EXTENT }
+      ? {
+          minX: -DEFAULT_UNBOUNDED_EXTENT,
+          maxX: DEFAULT_UNBOUNDED_EXTENT,
+          minY: -DEFAULT_UNBOUNDED_EXTENT,
+          maxY: DEFAULT_UNBOUNDED_EXTENT,
+        }
       : getVisibleBoundingBox(snap);
 
   const fillVertices: PointXY[] =
     isClosedRegion && displayVertices.length >= 3
       ? displayVertices
-      : completionMode === "open" && polytope?.kind === "unbounded" && hasPolytopeLines(polytope)
+      : completionMode === "open" &&
+          polytope?.kind === "unbounded" &&
+          hasPolytopeLines(polytope)
         ? clipRegionToBoundingBox(polytope.lines, bounds)
         : [];
 
@@ -161,10 +214,7 @@ function buildPolytopeGeometry(
     const e = displayVertices[ni]!;
     const highlighted = !hasDerived && highlightIndex === i;
     const arr = highlighted ? highlightSegments : normalSegments;
-    arr.push(
-      s.x, s.y, 0,
-      e.x, e.y, 0,
-    );
+    arr.push(s.x, s.y, 0, e.x, e.y, 0);
   }
 
   if (completionMode === "open" && !hasDerived && polytope?.boundaryRays) {
@@ -176,14 +226,17 @@ function buildPolytopeGeometry(
       );
       if (!clipped) continue;
       const [s, e] = clipped;
-      normalSegments.push(
-        s.x, s.y, 0,
-        e.x, e.y, 0,
-      );
+      normalSegments.push(s.x, s.y, 0, e.x, e.y, 0);
     }
   }
 
-  return { fillVertices, isNonconvex, normalSegments, highlightSegments, mode: snap.mode };
+  return {
+    fillVertices,
+    isNonconvex,
+    normalSegments,
+    highlightSegments,
+    mode: snap.mode,
+  };
 }
 
 function applySegmentsGeometry(geo: LineSegmentsGeometry, segments: number[]) {
@@ -200,9 +253,13 @@ type PrevState = {
   polytope: State["polytope"];
   is3DMode: boolean;
   isTransitioning3D: boolean;
-  orthoL: number; orthoR: number; orthoT: number; orthoB: number;
+  orthoL: number;
+  orthoR: number;
+  orthoT: number;
+  orthoB: number;
   unitsPerPixel: number;
-  targetX: number; targetY: number;
+  targetX: number;
+  targetY: number;
   mode: string;
   transitionZMultiplier: number;
 };
@@ -220,8 +277,28 @@ export class PolytopeBaseLayer implements Layer {
   private prevFillGeo: ShapeGeometry | null = null;
 
   constructor() {
-    const fMatN = new MeshBasicMaterial({ color: POLYTOPE_FILL_COLOR, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-    const fMatH = new MeshBasicMaterial({ color: POLYTOPE_HIGHLIGHT_COLOR, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+    const fMatN = new MeshBasicMaterial({
+      color: POLYTOPE_FILL_COLOR,
+      transparent: true,
+      opacity: 0.6,
+      depthTest: false,
+      depthWrite: false,
+      side: DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
+    const fMatH = new MeshBasicMaterial({
+      color: POLYTOPE_HIGHLIGHT_COLOR,
+      transparent: true,
+      opacity: 0.6,
+      depthTest: false,
+      depthWrite: false,
+      side: DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
     const mesh = new Mesh(undefined, fMatN);
     mesh.renderOrder = RENDER_ORDER.polytopeFill;
     mesh.frustumCulled = false;
@@ -259,13 +336,15 @@ export class PolytopeBaseLayer implements Layer {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
 
-    const visible = raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
+    const visible =
+      raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
     this.object3D.visible = visible;
     if (!visible) return;
 
     const p = this.prev;
     const is3D = snap.mode === "3d";
-    const changed = !p ||
+    const changed =
+      !p ||
       p.vertices !== raw.vertices ||
       p.completionMode !== raw.completionMode ||
       p.highlightIndex !== raw.highlightIndex ||
@@ -287,13 +366,20 @@ export class PolytopeBaseLayer implements Layer {
     if (!changed) return;
 
     this.prev = {
-      vertices: raw.vertices, completionMode: raw.completionMode,
-      highlightIndex: raw.highlightIndex, polytope: raw.polytope,
+      vertices: raw.vertices,
+      completionMode: raw.completionMode,
+      highlightIndex: raw.highlightIndex,
+      polytope: raw.polytope,
       is3DMode: raw.is3DMode,
-      isTransitioning3D: raw.isTransitioning3D, mode: snap.mode,
-      orthoL: snap.orthographic.left, orthoR: snap.orthographic.right,
-      orthoT: snap.orthographic.top, orthoB: snap.orthographic.bottom,
-      unitsPerPixel: snap.unitsPerPixel, targetX: snap.target.x, targetY: snap.target.y,
+      isTransitioning3D: raw.isTransitioning3D,
+      mode: snap.mode,
+      orthoL: snap.orthographic.left,
+      orthoR: snap.orthographic.right,
+      orthoT: snap.orthographic.top,
+      orthoB: snap.orthographic.bottom,
+      unitsPerPixel: snap.unitsPerPixel,
+      targetX: snap.target.x,
+      targetY: snap.target.y,
       transitionZMultiplier: snap.transitionZMultiplier,
     };
 
@@ -305,9 +391,13 @@ export class PolytopeBaseLayer implements Layer {
     }
 
     if (result.fillVertices.length >= 3) {
-      const newFillGeo = new ShapeGeometry(buildShapeFromVertices(result.fillVertices));
+      const newFillGeo = new ShapeGeometry(
+        buildShapeFromVertices(result.fillVertices),
+      );
       if (is3D) {
-        const pos = newFillGeo.getAttribute("position") as Float32BufferAttribute;
+        const pos = newFillGeo.getAttribute(
+          "position",
+        ) as Float32BufferAttribute;
         for (let i = 0; i < pos.count; i++) {
           pos.setZ(i, 0);
         }
@@ -318,7 +408,9 @@ export class PolytopeBaseLayer implements Layer {
       if (this.prevFillGeo) this.prevFillGeo.dispose();
       this.prevFillGeo = newFillGeo;
       this.fillMesh.geometry = newFillGeo;
-      this.fillMesh.material = result.isNonconvex ? this.fillMatHighlight : this.fillMatNormal;
+      this.fillMesh.material = result.isNonconvex
+        ? this.fillMatHighlight
+        : this.fillMatNormal;
       this.fillMesh.visible = true;
     } else {
       this.fillMesh.visible = false;

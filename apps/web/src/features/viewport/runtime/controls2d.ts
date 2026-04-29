@@ -1,11 +1,5 @@
-import { useSyncExternalStore } from "react";
-
 import { getState } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
-import {
-  DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
-  type ViewportRenderSnapshot,
-} from "../types";
 import {
   buildViewport2DSnapshot,
   buildViewport2DStateFromTarget,
@@ -13,6 +7,10 @@ import {
   type Viewport2DState,
   zoomViewport2DStateAtCanvasPoint,
 } from "@lpviz/viewport/projection2d";
+import {
+  DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
+  type ViewportRenderSnapshot,
+} from "../types";
 
 type ViewportRect = Pick<DOMRect, "width" | "height">;
 
@@ -99,14 +97,6 @@ export function subscribeViewport2DControlsConfig(listener: () => void) {
 
 export function getViewport2DControlsConfig() {
   return config;
-}
-
-export function useViewport2DControlsConfig() {
-  return useSyncExternalStore(
-    subscribeViewport2DControlsConfig,
-    getViewport2DControlsConfig,
-    getViewport2DControlsConfig,
-  );
 }
 
 export function getViewport2DControlsSnapshot(rect: ViewportRect) {

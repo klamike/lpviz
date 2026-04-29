@@ -1,3 +1,4 @@
+import { type BoundingBox } from "@lpviz/math/geometry";
 import {
   BufferAttribute,
   BufferGeometry,
@@ -5,10 +6,9 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from "three";
+import { RENDER_ORDER } from "../helpers/renderOrder";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
-import { type BoundingBox } from "@lpviz/math/geometry";
-import { RENDER_ORDER } from "../helpers/renderOrder";
 
 const GRID_MARGIN_PX = 100;
 const GRID_OVERDRAW_UNITS = 5;
@@ -19,17 +19,26 @@ function getQuantizedGridBounds(
   snap: ReturnType<SceneContext["getSnapshot"]>,
 ): BoundingBox {
   if (snap.mode === "2d") {
-    const canvasHalfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
+    const canvasHalfWidth =
+      (snap.orthographic.right - snap.orthographic.left) / 2;
     const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
     const sidebarUnits = snap.sidebarWidth * snap.unitsPerPixel;
     const viewportCenterX = snap.target.x + sidebarUnits / 2;
     const halfWidth = canvasHalfWidth + sidebarUnits / 2;
     const marginUnits = GRID_MARGIN_PX * snap.unitsPerPixel;
     return {
-      minX: Math.floor(viewportCenterX - halfWidth - marginUnits - GRID_OVERDRAW_UNITS),
-      maxX: Math.ceil(viewportCenterX + halfWidth + marginUnits + GRID_OVERDRAW_UNITS),
-      minY: Math.floor(snap.target.y - halfHeight - marginUnits - GRID_OVERDRAW_UNITS),
-      maxY: Math.ceil(snap.target.y + halfHeight + marginUnits + GRID_OVERDRAW_UNITS),
+      minX: Math.floor(
+        viewportCenterX - halfWidth - marginUnits - GRID_OVERDRAW_UNITS,
+      ),
+      maxX: Math.ceil(
+        viewportCenterX + halfWidth + marginUnits + GRID_OVERDRAW_UNITS,
+      ),
+      minY: Math.floor(
+        snap.target.y - halfHeight - marginUnits - GRID_OVERDRAW_UNITS,
+      ),
+      maxY: Math.ceil(
+        snap.target.y + halfHeight + marginUnits + GRID_OVERDRAW_UNITS,
+      ),
     };
   }
 
@@ -37,7 +46,10 @@ function getQuantizedGridBounds(
   return { minX: -extent, maxX: extent, minY: -extent, maxY: extent };
 }
 
-function setLineSegmentsPositions(geo: BufferGeometry, positions: Float32Array) {
+function setLineSegmentsPositions(
+  geo: BufferGeometry,
+  positions: Float32Array,
+) {
   geo.setAttribute("position", new BufferAttribute(positions, 3));
 }
 
@@ -50,8 +62,14 @@ export class GridLayer implements Layer {
   constructor() {
     const gGeo = new BufferGeometry();
     const aGeo = new BufferGeometry();
-    const gridLines = new LineSegments(gGeo, new LineBasicMaterial({ color: GRID_COLOR }));
-    const axisLines = new LineSegments(aGeo, new LineBasicMaterial({ color: AXIS_COLOR }));
+    const gridLines = new LineSegments(
+      gGeo,
+      new LineBasicMaterial({ color: GRID_COLOR }),
+    );
+    const axisLines = new LineSegments(
+      aGeo,
+      new LineBasicMaterial({ color: AXIS_COLOR }),
+    );
     gridLines.renderOrder = RENDER_ORDER.grid;
     axisLines.renderOrder = RENDER_ORDER.axis;
     gridLines.frustumCulled = false;
@@ -68,7 +86,12 @@ export class GridLayer implements Layer {
     const b = getQuantizedGridBounds(snap);
     const p = this.prevBounds;
 
-    if (b.minX === p.minX && b.maxX === p.maxX && b.minY === p.minY && b.maxY === p.maxY) {
+    if (
+      b.minX === p.minX &&
+      b.maxX === p.maxX &&
+      b.minY === p.minY &&
+      b.maxY === p.maxY
+    ) {
       return;
     }
     this.prevBounds = b;

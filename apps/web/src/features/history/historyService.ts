@@ -1,22 +1,25 @@
-import { getState, setState, type HistoryEntry, type State } from "@/features/core/store";
-import { useRef } from "react";
+import {
+  getState,
+  setState,
+  type HistoryEntry,
+  type State,
+} from "@/features/core/store";
 
 export type HistorySnapshotSource = Pick<
   State,
   "vertices" | "objectiveVector" | "completionMode"
 >;
-
 export type SaveHistory = (
   snapshotSource?: HistorySnapshotSource,
   options?: { clearRedo?: boolean },
 ) => void;
-
 export type HandleUndoRedo = (isRedo: boolean) => void;
+export type HistoryService = {
+  save: SaveHistory;
+  handleUndoRedo: HandleUndoRedo;
+};
 
-export function useHistory({ onRestore }: { onRestore: () => void }) {
-  const onRestoreRef = useRef(onRestore);
-  onRestoreRef.current = onRestore;
-
+export function createHistoryService(onRestore: () => void): HistoryService {
   const captureEntry = (state: HistorySnapshotSource): HistoryEntry => ({
     vertices: structuredClone(state.vertices),
     objectiveVector: state.objectiveVector
@@ -24,36 +27,23 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
       : null,
     completionMode: state.completionMode,
   });
-
-  const save = (
-    snapshotSource: HistorySnapshotSource = getState(),
-    options: { clearRedo?: boolean } = {},
-  ) => {
+  const save: SaveHistory = (snapshotSource = getState(), options = {}) => {
     const snapshot = captureEntry(snapshotSource);
     const { historyStack } = getState();
     setState({
       historyStack: [...historyStack, snapshot],
-      ...(options.clearRedo ?? true ? { redoStack: [] } : {}),
+      ...((options.clearRedo ?? true) ? { redoStack: [] } : {}),
     });
   };
-
-  const handleUndoRedo = (isRedo: boolean) => {
+  const handleUndoRedo: HandleUndoRedo = (isRedo) => {
     const state = getState();
-    if (
-      isRedo ? state.redoStack.length === 0 : state.historyStack.length === 0
-    ) {
+    if (isRedo ? state.redoStack.length === 0 : state.historyStack.length === 0)
       return;
-    }
-
-    if (isRedo) {
-      save(getState(), { clearRedo: false });
-    }
-
+    if (isRedo) save(getState(), { clearRedo: false });
     const currentEntry = captureEntry(getState());
     const { historyStack, redoStack } = getState();
     const sourceStack = isRedo ? redoStack : historyStack;
     if (sourceStack.length === 0) return;
-
     const stateToRestore = sourceStack[sourceStack.length - 1]!;
     const trimmed = sourceStack.slice(0, -1);
     setState(
@@ -72,13 +62,7 @@ export function useHistory({ onRestore }: { onRestore: () => void }) {
             completionMode: stateToRestore.completionMode,
           },
     );
-    onRestoreRef.current();
+    onRestore();
   };
-
-  const saveRef = useRef(save);
-  saveRef.current = save;
-  const handleUndoRedoRef = useRef<HandleUndoRedo>(handleUndoRedo);
-  handleUndoRedoRef.current = handleUndoRedo;
-
-  return { save, handleUndoRedo, saveRef, handleUndoRedoRef };
+  return { save, handleUndoRedo };
 }

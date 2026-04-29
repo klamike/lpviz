@@ -1,5 +1,5 @@
-import type { Lines, Vertices } from "@lpviz/math/types";
 import type { BoundaryRay, RegionKind } from "@lpviz/math/geometry";
+import type { Lines, Vertices } from "@lpviz/math/types";
 
 type NonEmptyArray<T> = [T, ...T[]];
 type NonEmptyLines = NonEmptyArray<Lines[number]>;
