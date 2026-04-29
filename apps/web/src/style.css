@@ -814,6 +814,15 @@ input[type="range"]:not(#zScaleSlider)::-webkit-slider-runnable-track {
   border-radius: 4px;
 }
 
+input[type="range"].log-slider:not(#zScaleSlider)::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(90deg, transparent calc(20% - 1px), #333 calc(20% - 1px) calc(20% + 1px), transparent calc(20% + 1px)),
+    linear-gradient(90deg, transparent calc(40% - 1px), #333 calc(40% - 1px) calc(40% + 1px), transparent calc(40% + 1px)),
+    linear-gradient(90deg, transparent calc(60% - 1px), #333 calc(60% - 1px) calc(60% + 1px), transparent calc(60% + 1px)),
+    linear-gradient(90deg, transparent calc(80% - 1px), #333 calc(80% - 1px) calc(80% + 1px), transparent calc(80% + 1px)),
+    #ddd;
+}
+
 input[type="range"]:not(#zScaleSlider)::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 10px;
@@ -840,6 +849,15 @@ input[type="range"]:not(#zScaleSlider)::-moz-range-track {
   background: #ddd;
   border: 1px solid #333;
   border-radius: 4px;
+}
+
+input[type="range"].log-slider:not(#zScaleSlider)::-moz-range-track {
+  background:
+    linear-gradient(90deg, transparent calc(20% - 1px), #333 calc(20% - 1px) calc(20% + 1px), transparent calc(20% + 1px)),
+    linear-gradient(90deg, transparent calc(40% - 1px), #333 calc(40% - 1px) calc(40% + 1px), transparent calc(40% + 1px)),
+    linear-gradient(90deg, transparent calc(60% - 1px), #333 calc(60% - 1px) calc(60% + 1px), transparent calc(60% + 1px)),
+    linear-gradient(90deg, transparent calc(80% - 1px), #333 calc(80% - 1px) calc(80% + 1px), transparent calc(80% + 1px)),
+    #ddd;
 }
 
 input[type="range"]:not(#zScaleSlider)::-moz-range-thumb {
@@ -959,6 +977,25 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
   margin-top: 10px;
   margin-bottom: 10px;
   width: 100%;
+}
+
+.controlPanel .log-slider-control {
+  margin-top: 8px;
+}
+
+.controlPanel .log-slider {
+  margin-bottom: 4px;
+}
+
+.controlPanel .log-slider-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -2px;
+  margin-bottom: 10px;
+  color: #555;
+  font-family: "JuliaMono", monospace;
+  font-size: 0.7rem;
+  line-height: 1;
 }
 
 .controlPanel .settings-checkbox-row {

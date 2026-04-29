@@ -46,8 +46,6 @@ re-evaluate if this is necessary
 
 - [ ] debug memory leak, especially when not tracing
 
-- [ ] replace maxit text fields with log-space sliders (style the slider range to somehow communicate that it is log-spaced)
-
 - [ ] allow central path when unbounded
 
 - [ ] make sure camera is always above z= 0 + eps

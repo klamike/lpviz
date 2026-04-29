@@ -94,6 +94,7 @@ export function useSolver({
   const rotationElapsedMsRef = useRef(0);
   const rotationComputeInFlightRef = useRef(false);
   const objectiveRotationDirectionRef = useRef<1 | -1>(1);
+  const iterateHoverActiveRef = useRef(false);
 
   const lastVirtualResultRef = useRef<VirtualResultPayload | null>(null);
   const pendingRenderRef = useRef<{
@@ -561,7 +562,9 @@ export function useSolver({
           ...(phasesToAnimate.length > 0
             ? { iteratePhases: [...s.iteratePhases, phasesToAnimate[currentIndex]!] }
             : {}),
-          highlightIteratePathIndex: currentIndex,
+          ...(!iterateHoverActiveRef.current
+            ? { highlightIteratePathIndex: currentIndex }
+            : {}),
         },
         { viewportDirty: cm.getIterateDirtyFlags() },
       );
@@ -612,6 +615,7 @@ export function useSolver({
   const setIterateHighlight = (index: number | null) => {
     const cm = canvasManagerRef.current;
     if (!cm) return;
+    iterateHoverActiveRef.current = index !== null;
     if (getState().highlightIteratePathIndex === index) return;
     setState(
       { highlightIteratePathIndex: index },

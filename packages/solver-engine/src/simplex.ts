@@ -3,7 +3,7 @@ import { fmtE, fmtF, fmtInt } from "./fmt";
 import { type DenseMatrix, dot, linesToDenseAb, transposedMatVec } from "@lpviz/math/blas";
 import { solveDenseSystem } from "@lpviz/math/lapack";
 
-const MAX_ITERATIONS = 2 ** 16;
+const MAX_ITERATIONS = 100_000;
 
 type SimplexStatus = "optimal" | "unbounded" | "unavailable";
 

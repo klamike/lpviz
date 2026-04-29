@@ -7,6 +7,33 @@ import {
 } from "@/features/core/selectors";
 
 import { useAppActions } from "@/features/core/actions";
+import type { SolverMode, SolverSettings } from "@/features/core/store";
+
+const MAXIT_LOG_MIN = 0;
+const MAXIT_LOG_MAX = 5;
+const MAXIT_LOG_STEP = 0.01;
+const MAXIT_LOG_MARKS = [
+  { value: 1, label: "1" },
+  { value: 10, label: "10" },
+  { value: 100, label: "100" },
+  { value: 1000, label: "1k" },
+  { value: 10000, label: "10k" },
+  { value: 100000, label: "100k" },
+];
+
+const maxitToSliderValue = (value: number) =>
+  Math.min(
+    MAXIT_LOG_MAX,
+    Math.max(MAXIT_LOG_MIN, Math.log10(Math.max(1, value))),
+  );
+
+const sliderValueToMaxit = (value: string) =>
+  Math.max(1, Math.round(10 ** parseFloat(value)));
+
+const formatIterationCount = (value: number) =>
+  new Intl.NumberFormat("en-US").format(value);
+
+type MaxitSettingKey = Extract<keyof SolverSettings, "maxitIPM" | "maxitPDHG">;
 
 export function SolverControlsPanel() {
   const runtimeActions = useAppActions();
@@ -17,6 +44,42 @@ export function SolverControlsPanel() {
   const settings = useLpvizStore(
     selectSolverSettings,
     areSolverSettingsEqual,
+  );
+
+  const renderMaxitSlider = (
+    id: string,
+    value: number,
+    settingKey: MaxitSettingKey,
+    mode: SolverMode,
+  ) => (
+    <div className="log-slider-control">
+      <label htmlFor={id}>
+        Maximum iterations:
+        <span>{formatIterationCount(value)}</span>
+      </label>
+      <input
+        type="range"
+        id={id}
+        className="log-slider"
+        min={MAXIT_LOG_MIN}
+        max={MAXIT_LOG_MAX}
+        step={MAXIT_LOG_STEP}
+        value={maxitToSliderValue(value)}
+        onChange={(e) => {
+          runtimeActions.updateSolverSetting(
+            settingKey,
+            sliderValueToMaxit(e.target.value),
+          );
+          runtimeActions.recomputeIfModeActive(mode);
+        }}
+        autoComplete="off"
+      />
+      <div className="log-slider-scale" aria-hidden="true">
+        {MAXIT_LOG_MARKS.map((mark) => (
+          <span key={mark.value}>{mark.label}</span>
+        ))}
+      </div>
+    </div>
   );
 
   return (
@@ -114,22 +177,7 @@ export function SolverControlsPanel() {
             autoComplete="off"
           />
           <br />
-          <label htmlFor="maxitInput">Maximum iterations:</label>
-          <input
-            type="number"
-            id="maxitInput"
-            value={settings.maxitIPM}
-            onChange={(e) => {
-              runtimeActions.updateSolverSetting(
-                "maxitIPM",
-                Math.max(1, parseInt(e.target.value, 10) || 1),
-              );
-              runtimeActions.recomputeIfModeActive("ipm");
-            }}
-            min="1"
-            step="1"
-            autoComplete="off"
-          />
+          {renderMaxitSlider("maxitSliderIPM", settings.maxitIPM, "maxitIPM", "ipm")}
         </div>
       )}
 
@@ -177,22 +225,7 @@ export function SolverControlsPanel() {
             autoComplete="off"
           />
           <br />
-          <label htmlFor="maxitInputPDHG">Maximum iterations:</label>
-          <input
-            type="number"
-            id="maxitInputPDHG"
-            value={settings.maxitPDHG}
-            onChange={(e) => {
-              runtimeActions.updateSolverSetting(
-                "maxitPDHG",
-                Math.max(1, parseInt(e.target.value, 10) || 1),
-              );
-              runtimeActions.recomputeIfModeActive("pdhg");
-            }}
-            min="1"
-            step="1"
-            autoComplete="off"
-          />
+          {renderMaxitSlider("maxitSliderPDHG", settings.maxitPDHG, "maxitPDHG", "pdhg")}
           <div className="settings-checkbox-row">
             <label htmlFor="pdhgIneqMode">
               Inequality mode{" "}

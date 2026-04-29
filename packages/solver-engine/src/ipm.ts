@@ -3,7 +3,7 @@ import { dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lp
 import { solveDenseSystem } from "@lpviz/math/lapack";
 import { formatMilliseconds } from "./time";
 
-const MAX_ITERATIONS_LIMIT = 2 ** 16;
+const MAX_ITERATIONS_LIMIT = 100_000;
 const SIGMA_MIN = 1e-8;
 const SIGMA_MAX = 1 - 1e-8;
 const SIGMA_POWER = 3;
@@ -48,7 +48,7 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
   } = opts;
 
   if (maxit > MAX_ITERATIONS_LIMIT) {
-    throw new Error("maxit > 2^16 not allowed");
+    throw new Error(`maxit > ${MAX_ITERATIONS_LIMIT} not allowed`);
   }
 
   const { A, b } = linesToDenseAb(lines);

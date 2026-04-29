@@ -2,7 +2,7 @@ import type { Lines, Vec2Ns, VecN } from "@lpviz/math/types";
 import { createDenseMatrix, dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/blas";
 import { formatMilliseconds } from "./time";
 
-const MAX_ITERATIONS_LIMIT = 2 ** 16;
+const MAX_ITERATIONS_LIMIT = 100_000;
 
 interface PDHGEqOptions {
   maxit: number;
@@ -307,7 +307,9 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
     colorByBasis = false,
     halpern = false,
   } = options;
-  if (maxit > MAX_ITERATIONS_LIMIT) throw new Error("maxit > 2^16 not allowed");
+  if (maxit > MAX_ITERATIONS_LIMIT) {
+    throw new Error(`maxit > ${MAX_ITERATIONS_LIMIT} not allowed`);
+  }
 
   const { A: AOriginal, b } = linesToDenseAb(lines);
   const nOrig = AOriginal.cols;
