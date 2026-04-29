@@ -8,12 +8,9 @@ import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
+import { PHASE_COLORS } from "../helpers/phaseColors";
 
 const ITERATE_LINE_COLOR = "#800080";
-const PHASE_COLORS = [
-  "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
-  "#ffff33", "#a65628", "#f781bf", "#999999", "#17becf",
-];
 const ITERATE_LINE_RENDER_ORDER = RENDER_ORDER.iterateLine;
 const ITERATE_LINE_THICKNESS = 3;
 

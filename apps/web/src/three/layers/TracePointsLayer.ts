@@ -1,50 +1,23 @@
 import {
-  Box3,
   BufferAttribute,
-  BufferGeometry,
   Group,
   Points,
   PointsMaterial,
-  Sphere,
-  Vector3,
 } from "three";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
-import { MAX_TRACE_POINT_SPRITES } from "@/features/core/store";
+import { computeIterateZ, MAX_TRACE_POINT_SPRITES } from "@/features/core/store";
 import type { State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { makePointsGeo } from "../helpers/makePointsGeo";
 import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
 
 const TRACE_COLOR = "#ffa500";
-const TRACE_Z_OFFSET = 0.02;
 const TRACE_POINT_PIXEL_SIZE = 6;
 const TRACE_POINTS_RENDER_ORDER = RENDER_ORDER.tracePoints;
 
-const HUGE = 1e10;
-const HUGE_BOX = new Box3(new Vector3(-HUGE, -HUGE, -HUGE), new Vector3(HUGE, HUGE, HUGE));
-const HUGE_SPHERE = new Sphere(new Vector3(0, 0, 0), HUGE);
-
-function makePointsGeo(): BufferGeometry {
-  const geo = new BufferGeometry();
-  geo.boundingBox = HUGE_BOX.clone();
-  geo.boundingSphere = HUGE_SPHERE.clone();
-  geo.computeBoundingBox = () => {};
-  geo.computeBoundingSphere = () => {};
-  return geo;
-}
-
-function getDisplayedTraceZ(
-  entry: Float64Array,
-  objectiveVector: PointXY | null,
-) {
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
-    : 0;
-  const totalValue = entry[2] !== undefined ? entry[2] : objectiveValue;
-  return totalValue - objectiveValue;
-}
 
 function buildTracePathPositions(
   path: Float64Array[],
@@ -56,7 +29,7 @@ function buildTracePathPositions(
     const entry = path[i]!;
     positions[i * 3] = entry[0]!;
     positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = getDisplayedTraceZ(entry, objectiveVector);
+    positions[i * 3 + 2] = computeIterateZ(entry, objectiveVector);
   }
   return positions;
 }
@@ -145,10 +118,7 @@ export class TracePointsLayer implements Layer {
   update(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
-    const is3D = snap.mode === "3d";
-
     this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
-    this.object3D.position.z = is3D ? 0 : TRACE_Z_OFFSET;
 
     const p = this.prev;
     if (

@@ -1,11 +1,7 @@
 import {
-  Box3,
   BufferAttribute,
-  BufferGeometry,
   Points,
   PointsMaterial,
-  Sphere,
-  Vector3,
 } from "three";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -13,24 +9,13 @@ import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { makePointsGeo } from "../helpers/makePointsGeo";
 import { SHARED_STAR_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_STAR_COLOR = "#008000";
 const ITERATE_STAR_PIXEL_SIZE = 27;
 const ITERATE_STAR_RENDER_ORDER = RENDER_ORDER.iterateStar;
 
-const HUGE = 1e10;
-const HUGE_BOX = new Box3(new Vector3(-HUGE, -HUGE, -HUGE), new Vector3(HUGE, HUGE, HUGE));
-const HUGE_SPHERE = new Sphere(new Vector3(0, 0, 0), HUGE);
-
-function makePointsGeo(): BufferGeometry {
-  const geo = new BufferGeometry();
-  geo.boundingBox = HUGE_BOX.clone();
-  geo.boundingSphere = HUGE_SPHERE.clone();
-  geo.computeBoundingBox = () => {};
-  geo.computeBoundingSphere = () => {};
-  return geo;
-}
 
 type PrevState = {
   iteratePath: State["iteratePath"];

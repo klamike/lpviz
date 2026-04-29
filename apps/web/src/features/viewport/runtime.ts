@@ -700,6 +700,14 @@ export async function createViewportRuntime({
         return;
       }
 
+      // If the user was actively panning, the navigation-end timeout will fire
+      // during the transition when isExternalViewportNavigationOwned() is false
+      // (because isTransitioning3D=true) and silently bail out, leaving
+      // isNavigatingViewport stuck true. Clear it now before the transition
+      // disables the controls that set it.
+      clearViewportNavigationTimeout();
+      setViewportNavigationActive(false);
+
       const transitionBaseSnapshot = shouldUseExternal2DViewport()
         ? getExternal2DSnapshot()
         : managerSnapshot;

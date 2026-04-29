@@ -1,12 +1,7 @@
 import {
-  Box3,
   BufferAttribute,
-  BufferGeometry,
-  Color,
   Points,
   PointsMaterial,
-  Sphere,
-  Vector3,
 } from "three";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -14,30 +9,14 @@ import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
+import { makePointsGeo } from "../helpers/makePointsGeo";
+import { PHASE_COLORS_LINEAR } from "../helpers/phaseColors";
 import { SHARED_SQUARE_TEXTURE } from "../helpers/sharedTextures";
 
 const ITERATE_RESTART_POINT_COLOR = "#800080";
-const PHASE_COLORS = [
-  "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
-  "#ffff33", "#a65628", "#f781bf", "#999999", "#17becf",
-];
-const PHASE_COLORS_LINEAR: ReadonlyArray<readonly [number, number, number]> =
-  PHASE_COLORS.map((hex) => { const c = new Color(hex); return [c.r, c.g, c.b] as const; });
 const ITERATE_RESTART_POINT_SIZE = 8 * 1.4;
 const ITERATE_RESTART_POINTS_RENDER_ORDER = RENDER_ORDER.iterateRestartPoints;
 
-const HUGE = 1e10;
-const HUGE_BOX = new Box3(new Vector3(-HUGE, -HUGE, -HUGE), new Vector3(HUGE, HUGE, HUGE));
-const HUGE_SPHERE = new Sphere(new Vector3(0, 0, 0), HUGE);
-
-function makePointsGeo(): BufferGeometry {
-  const geo = new BufferGeometry();
-  geo.boundingBox = HUGE_BOX.clone();
-  geo.boundingSphere = HUGE_SPHERE.clone();
-  geo.computeBoundingBox = () => {};
-  geo.computeBoundingSphere = () => {};
-  return geo;
-}
 
 type PrevState = {
   iteratePath: State["iteratePath"];
