@@ -44,9 +44,6 @@ function hasStableChange(
     prev.scaleFactor !== next.scaleFactor ||
     prev.unitsPerPixel !== next.unitsPerPixel ||
     prev.gridSpacing !== next.gridSpacing ||
-    prev.target.x !== next.target.x ||
-    prev.target.y !== next.target.y ||
-    prev.target.z !== next.target.z ||
     prev.orthographic.left !== next.orthographic.left ||
     prev.orthographic.right !== next.orthographic.right ||
     prev.orthographic.top !== next.orthographic.top ||

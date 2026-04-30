@@ -29,25 +29,25 @@ export function mountCanvasGL(
   canvas.tabIndex = 0;
   parent.append(canvas);
   const mgr = new SceneManager(canvas, { dpr: [1, 2] });
+  const transitionCtl = new TransitionController(mgr);
+  mgr.addTick(() => transitionCtl.tick());
   const cameraCtl = new CameraController(mgr);
   const controlsCtl = new ControlsController(mgr);
-  const transitionCtl = new TransitionController(mgr);
   const materialsCtl = new SharedMaterialsController(mgr);
-  mgr.addTick(() => transitionCtl.tick());
   const layers: Layer[] = [
     new GridLayer(),
     new PolytopeBaseLayer(),
     new PolytopeRubberBandLayer(),
     new ObjectiveLayer(),
-    new TraceLineLayer(),
     new ConstraintHighlightLayer(),
     new PolytopeVerticesLayer(),
+    new TraceLineLayer(),
     new TracePointsLayer(),
     new IterateLineLayer(),
     new IteratePointsLayer(),
     new IterateRestartPointsLayer(),
-    new IterateStarLayer(),
     new IterateHighlightLayer(),
+    new IterateStarLayer(),
   ];
   for (const l of layers) mgr.addLayer(l);
   onBridgeReady({

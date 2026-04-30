@@ -43,6 +43,7 @@ const RUBBER_BAND_BUF = new Float32Array(6);
 
 export class PolytopeRubberBandLayer implements Layer {
   readonly object3D: Line2;
+  readonly invalidationKeys = ["polytope"] as const;
   private geometry: LineGeometry;
 
   constructor() {

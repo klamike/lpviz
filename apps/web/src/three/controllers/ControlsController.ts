@@ -4,6 +4,7 @@ import {
 } from "@/features/viewport/runtime/cameraRefs";
 import {
   getViewport2DControlsConfig,
+  isViewport2DPanActive,
   startViewport2DPan,
   stopViewport2DPan,
   updateViewport2DPan,
@@ -109,11 +110,13 @@ export class ControlsController {
       event.preventDefault();
     };
     const handleMouseMove = (event: MouseEvent) => {
-      if (!updateViewport2DPan(event.clientX, event.clientY)) return;
+      if (!isViewport2DPanActive()) return;
+      updateViewport2DPan(event.clientX, event.clientY);
       event.preventDefault();
     };
     const handleMouseUp = (event: MouseEvent) => {
-      if (event.button !== 0 || !stopViewport2DPan()) return;
+      if (event.button !== 0 || !isViewport2DPanActive()) return;
+      if (!stopViewport2DPan()) return;
       event.preventDefault();
     };
     const handleTouchStart = (event: TouchEvent) => {
@@ -135,14 +138,17 @@ export class ControlsController {
     const handleTouchMove = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       const touch = event.touches[0];
-      if (!touch || !updateViewport2DPan(touch.clientX, touch.clientY)) return;
+      if (!touch || !isViewport2DPanActive()) return;
+      updateViewport2DPan(touch.clientX, touch.clientY);
       event.preventDefault();
     };
     const handleTouchEnd = (event: TouchEvent) => {
+      if (!isViewport2DPanActive()) return;
       if (!stopViewport2DPan()) return;
       event.preventDefault();
     };
     const handleTouchCancel = (event: TouchEvent) => {
+      if (!isViewport2DPanActive()) return;
       if (!stopViewport2DPan()) return;
       event.preventDefault();
     };
@@ -221,19 +227,29 @@ export class ControlsController {
 
     const syncCamera = (target = this.controlsTarget) => {
       perspectiveCamera.lookAt(target);
-      perspectiveCamera.updateProjectionMatrix();
       perspectiveCamera.updateMatrixWorld();
+      perspectiveCamera.userData.lpvizLookAtTarget = {
+        x: target.x,
+        y: target.y,
+        z: target.z,
+      };
     };
 
     const emitPose = (target = this.controlsTarget) => {
       this.controlsTarget.copy(target);
       syncCamera(target);
       this.controlsConfig.onChange?.(buildPose(target));
-      this.sceneManager.invalidate({ layers: false });
     };
 
+    const orbitOffset = new Vector3();
+    const panForward = new Vector3();
+    const panBasisRight = new Vector3();
+    const panBasisUp = new Vector3();
+    const moveDelta = new Vector3();
+    const moveTarget = new Vector3();
+
     const getOrbitState = () => {
-      const offset = new Vector3().subVectors(
+      const offset = orbitOffset.subVectors(
         perspectiveCamera.position,
         this.controlsTarget,
       );
@@ -246,21 +262,57 @@ export class ControlsController {
     };
 
     const getPanBasis = (distance: number) => {
-      const forward = new Vector3()
+      const forward = panForward
         .subVectors(this.controlsTarget, perspectiveCamera.position)
         .normalize();
-      const right = new Vector3().crossVectors(forward, WORLD_UP);
+      const right = panBasisRight.crossVectors(forward, WORLD_UP);
       if (right.lengthSq() < 1e-8) {
         right.copy(FALLBACK_RIGHT);
       } else {
         right.normalize();
       }
-      const up = new Vector3().crossVectors(right, forward).normalize();
+      const up = panBasisUp.crossVectors(right, forward).normalize();
       const fov = (perspectiveCamera.fov * Math.PI) / 180;
       const unitsPerPixel =
         (2 * Math.tan(fov / 2) * Math.max(MIN_DISTANCE, distance)) /
         Math.max(1, canvas.clientHeight);
-      return { right, up, unitsPerPixel };
+      return { right: right.clone(), up: up.clone(), unitsPerPixel };
+    };
+
+    const apply3DMove = (clientX: number, clientY: number) => {
+      const drag = this.active3DDrag;
+      if (!drag || !canUse3DControls()) return;
+      const dx = clientX - drag.startClientX;
+      const dy = clientY - drag.startClientY;
+
+      if (drag.kind === "rotate") {
+        const yaw = drag.startYaw - dx * ROTATE_RADIANS_PER_PIXEL;
+        const elevation = Math.max(
+          MIN_ELEVATION,
+          Math.min(
+            MAX_ELEVATION,
+            drag.startElevation + dy * ROTATE_RADIANS_PER_PIXEL,
+          ),
+        );
+        const cosElevation = Math.cos(elevation);
+        perspectiveCamera.position.set(
+          drag.startTarget.x +
+            drag.startDistance * cosElevation * Math.cos(yaw),
+          drag.startTarget.y +
+            drag.startDistance * cosElevation * Math.sin(yaw),
+          drag.startTarget.z + drag.startDistance * Math.sin(elevation),
+        );
+        emitPose(drag.startTarget);
+        return;
+      }
+
+      const delta = moveDelta
+        .copy(drag.panRight)
+        .multiplyScalar(-dx * drag.unitsPerPixel)
+        .addScaledVector(drag.panUp, dy * drag.unitsPerPixel);
+      const target = moveTarget.copy(drag.startTarget).add(delta);
+      perspectiveCamera.position.copy(drag.startPosition).add(delta);
+      emitPose(target);
     };
 
     const handlePointerDown = (event: MouseEvent) => {
@@ -288,38 +340,8 @@ export class ControlsController {
     };
 
     const handlePointerMove = (event: MouseEvent) => {
-      const drag = this.active3DDrag;
-      if (!drag || !canUse3DControls()) return;
-      const dx = event.clientX - drag.startClientX;
-      const dy = event.clientY - drag.startClientY;
-
-      if (drag.kind === "rotate") {
-        const yaw = drag.startYaw - dx * ROTATE_RADIANS_PER_PIXEL;
-        const elevation = Math.max(
-          MIN_ELEVATION,
-          Math.min(
-            MAX_ELEVATION,
-            drag.startElevation + dy * ROTATE_RADIANS_PER_PIXEL,
-          ),
-        );
-        const cosElevation = Math.cos(elevation);
-        perspectiveCamera.position.set(
-          drag.startTarget.x +
-            drag.startDistance * cosElevation * Math.cos(yaw),
-          drag.startTarget.y +
-            drag.startDistance * cosElevation * Math.sin(yaw),
-          drag.startTarget.z + drag.startDistance * Math.sin(elevation),
-        );
-        emitPose(drag.startTarget);
-      } else {
-        const delta = new Vector3()
-          .addScaledVector(drag.panRight, -dx * drag.unitsPerPixel)
-          .addScaledVector(drag.panUp, dy * drag.unitsPerPixel);
-        const target = new Vector3().copy(drag.startTarget).add(delta);
-        perspectiveCamera.position.copy(drag.startPosition).add(delta);
-        emitPose(target);
-      }
-
+      if (!this.active3DDrag || !canUse3DControls()) return;
+      apply3DMove(event.clientX, event.clientY);
       event.preventDefault();
       event.stopImmediatePropagation();
     };

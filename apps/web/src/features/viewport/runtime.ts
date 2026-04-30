@@ -63,6 +63,7 @@ import {
   setViewport3DControlsConfig,
 } from "./runtime/controls3d";
 import {
+  getViewportRenderSnapshot,
   resetViewportRenderSnapshot,
   setViewportRenderSnapshot,
 } from "./runtime/snapshot";
@@ -78,7 +79,57 @@ import {
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 
-type ViewportZBounds = {
+const ALL_VIEWPORT_DIRTY_FLAGS: ViewportDirtyFlags = {
+  grid: true,
+  polytope: true,
+  constraints: true,
+  objective: true,
+  trace: true,
+  iterate: true,
+};
+
+const getGridPanKey = (snapshot: ViewportRenderSnapshot) =>
+  snapshot.mode === "2d"
+    ? `${Math.round(snapshot.target.x)}:${Math.round(snapshot.target.y)}`
+    : "";
+
+function getSnapshotViewportDirtyFlags(
+  prev: ViewportRenderSnapshot,
+  next: ViewportRenderSnapshot,
+): ViewportDirtyFlags {
+  if (prev.mode !== next.mode) {
+    return ALL_VIEWPORT_DIRTY_FLAGS;
+  }
+
+  if (prev.transitionZMultiplier !== next.transitionZMultiplier) {
+    return TRANSITION_VIEWPORT_DIRTY_FLAGS;
+  }
+
+  const sizeChanged = prev.width !== next.width || prev.height !== next.height;
+  const zoomChanged =
+    prev.scaleFactor !== next.scaleFactor ||
+    prev.unitsPerPixel !== next.unitsPerPixel ||
+    prev.gridSpacing !== next.gridSpacing ||
+    prev.orthographic.left !== next.orthographic.left ||
+    prev.orthographic.right !== next.orthographic.right ||
+    prev.orthographic.top !== next.orthographic.top ||
+    prev.orthographic.bottom !== next.orthographic.bottom ||
+    prev.perspective.fov !== next.perspective.fov ||
+    prev.perspective.aspect !== next.perspective.aspect ||
+    prev.perspective.near !== next.perspective.near ||
+    prev.perspective.far !== next.perspective.far;
+  if (zoomChanged || sizeChanged) {
+    return { grid: true, objective: true };
+  }
+
+  if (getGridPanKey(prev) !== getGridPanKey(next)) {
+    return { grid: true };
+  }
+
+  return {};
+}
+
+export type ViewportZBounds = {
   minZ: number;
   maxZ: number;
 };
@@ -137,6 +188,7 @@ export async function createViewportRuntime({
   let externalTransitionSnapshotActive = false;
   let externalTransitionProgress = 0;
   let activeTransitionPlan: ViewportTransitionPlan | null = null;
+  let cachedViewportRect = viewportBridge.getCanvasRect();
 
   const shouldUseExternal2DViewport = () => {
     const state = getState();
@@ -194,11 +246,25 @@ export async function createViewportRuntime({
   };
 
   const publishSnapshot = (snapshot: ViewportRenderSnapshot) => {
-    const stableChanged = setViewportRenderSnapshot(snapshot);
-    viewportBridge.invalidate({ layers: stableChanged });
+    const previousSnapshot = getViewportRenderSnapshot();
+    setViewportRenderSnapshot(snapshot);
+    const viewportDirty = getSnapshotViewportDirtyFlags(
+      previousSnapshot,
+      snapshot,
+    );
+    const hasLayerDirty = Object.keys(viewportDirty).length > 0;
+    viewportBridge.invalidate({
+      layers: hasLayerDirty,
+      viewportDirty: hasLayerDirty ? viewportDirty : undefined,
+    });
   };
 
-  const getViewportRect = () => viewportBridge.getCanvasRect();
+  const refreshViewportRect = () => {
+    cachedViewportRect = viewportBridge.getCanvasRect();
+    return cachedViewportRect;
+  };
+
+  const getViewportRect = () => cachedViewportRect;
 
   const buildPoseFromSnapshot = (snapshot: ViewportRenderSnapshot) => ({
     position: { ...snapshot.perspective.position },
@@ -370,9 +436,21 @@ export async function createViewportRuntime({
       panEnabled: true,
       sidebarWidth: currentSidebarWidth,
       fallbackSnapshot: managerSnapshot,
-      onStateChange: () => {
-        syncManagerPlanarState();
-        publishSnapshot(getExternal2DSnapshot());
+      onStateChange: (state) => {
+        managerSnapshot = buildViewport2DSnapshot(
+          state,
+          currentSidebarWidth,
+          getViewportRect(),
+          managerSnapshot,
+        );
+        setViewport2DControlsConfig(
+          {
+            sidebarWidth: currentSidebarWidth,
+            fallbackSnapshot: managerSnapshot,
+          },
+          { emit: false },
+        );
+        publishSnapshot(managerSnapshot);
       },
       onNavigationFrame: () => {
         notifyViewportNavigationFrame();
@@ -450,11 +528,20 @@ export async function createViewportRuntime({
     publishSnapshot(managerSnapshot);
   });
 
+  const unsubscribeViewportDirty = subscribe((_snapshot, meta) => {
+    const viewportDirty = meta?.viewportDirty;
+    if (!viewportDirty || Object.keys(viewportDirty).length === 0) {
+      return;
+    }
+    viewportBridge.invalidate({ viewportDirty });
+  });
+
   return {
     draw: () => {
-      viewportBridge.invalidate();
+      viewportBridge.invalidate({ layers: false });
     },
     updateDimensions: () => {
+      refreshViewportRect();
       if (shouldUseExternal2DViewport()) {
         managerSnapshot = getExternal2DSnapshot();
         setViewport2DControlsConfig(
@@ -488,6 +575,7 @@ export async function createViewportRuntime({
     },
     setSidebarWidth: (width) => {
       currentSidebarWidth = width;
+      refreshViewportRect();
       setViewport2DControlsConfig({ sidebarWidth: width }, { emit: false });
       if (shouldUseExternal2DViewport()) {
         syncManagerPlanarState();
@@ -810,7 +898,7 @@ export async function createViewportRuntime({
       });
     },
     getCanvasElement: () => viewportBridge.getCanvasElement(),
-    getCanvasRect: () => viewportBridge.getCanvasRect(),
+    getCanvasRect: () => getViewportRect() as DOMRect,
     getObjectiveDirtyFlags: () =>
       getObjectiveViewportDirtyFlags(isViewport3DState(getState())),
     getPolytopeDirtyFlags: () => getPolytopeViewportDirtyFlags(),
@@ -828,6 +916,7 @@ export async function createViewportRuntime({
       resetViewport3DControlsConfig();
       resetViewportTransitionConfig();
       unsubscribeExternalOwnership();
+      unsubscribeViewportDirty();
       resetViewportRenderSnapshot();
     },
   };

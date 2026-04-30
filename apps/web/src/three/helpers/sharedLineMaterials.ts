@@ -24,7 +24,7 @@ export function getSharedLineMaterial(opts: LineMaterialKey): LineMaterial {
       linewidth: opts.linewidth,
       depthTest: opts.depthTest,
       depthWrite: opts.depthWrite,
-      transparent: true,
+      transparent: opts.opacity < 1,
       opacity: opts.opacity,
     });
     materialCache.set(key, mat);

@@ -49,6 +49,8 @@ type PrevState = {
 
 export class PolytopeVerticesLayer implements Layer {
   readonly object3D: Group;
+  readonly renderPass = "vertices" as const;
+  readonly invalidationKeys = ["polytope"] as const;
   private circlePoints: Points;
   private squarePoints: Points;
   private prev: PrevState | null = null;
@@ -58,7 +60,7 @@ export class PolytopeVerticesLayer implements Layer {
       color: VERTEX_COLOR,
       size: VERTEX_PIXEL_SIZE,
       sizeAttenuation: false,
-      transparent: true,
+      transparent: false,
       depthTest: false,
       depthWrite: false,
       alphaMap: SHARED_CIRCLE_TEXTURE,
@@ -68,7 +70,7 @@ export class PolytopeVerticesLayer implements Layer {
       color: OPEN_ANCHOR_COLOR,
       size: VERTEX_PIXEL_SIZE,
       sizeAttenuation: false,
-      transparent: true,
+      transparent: false,
       depthTest: false,
       depthWrite: false,
       alphaMap: SHARED_SQUARE_TEXTURE,

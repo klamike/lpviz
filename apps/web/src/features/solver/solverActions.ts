@@ -121,32 +121,40 @@ export function createSolverActions(
       const rowsForLayout = limitVirtualRows
         ? payload.rows.slice(0, ROTATE_ROW_LIMIT)
         : payload.rows;
-      setState({
-        resultDisplayMode: "virtual",
-        resultBlocks: null,
-        resultVirtualHeader: payload.header || "",
-        resultVirtualFooter: payload.footer ?? null,
-        resultVirtualShowEmpty: rowsForLayout.length === 0,
-        resultVirtualRows: rowsForLayout.map(createVirtualBlock),
-        resultMaxLineChars: getMaxLineChars([
-          payload.header || "",
-          ...(payload.footer ? [payload.footer] : []),
-          ...rowsForLayout.map((r) => formatVirtualResultRow(r)),
-        ]),
-        highlightIteratePathIndex: null,
-      });
+      setState(
+        {
+          resultDisplayMode: "virtual",
+          resultBlocks: null,
+          resultVirtualHeader: payload.header || "",
+          resultVirtualFooter: payload.footer ?? null,
+          resultVirtualShowEmpty: rowsForLayout.length === 0,
+          resultVirtualRows: rowsForLayout.map(createVirtualBlock),
+          resultMaxLineChars: getMaxLineChars([
+            payload.header || "",
+            ...(payload.footer ? [payload.footer] : []),
+            ...rowsForLayout.map((r) => formatVirtualResultRow(r)),
+          ]),
+          highlightIteratePathIndex: null,
+        },
+        { viewportDirty: cm?.getIterateDirtyFlags() ?? {} },
+      );
     } else {
       lastVirtualResult = null;
-      setState({
-        resultDisplayMode: "blocks",
-        resultBlocks: payload.blocks,
-        resultVirtualHeader: null,
-        resultVirtualFooter: null,
-        resultVirtualShowEmpty: false,
-        resultVirtualRows: [],
-        resultMaxLineChars: getMaxLineChars(payload.blocks.map((b) => b.text)),
-        highlightIteratePathIndex: null,
-      });
+      setState(
+        {
+          resultDisplayMode: "blocks",
+          resultBlocks: payload.blocks,
+          resultVirtualHeader: null,
+          resultVirtualFooter: null,
+          resultVirtualShowEmpty: false,
+          resultVirtualRows: [],
+          resultMaxLineChars: getMaxLineChars(
+            payload.blocks.map((b) => b.text),
+          ),
+          highlightIteratePathIndex: null,
+        },
+        { viewportDirty: cm?.getIterateDirtyFlags() ?? {} },
+      );
     }
     cm?.draw();
   };

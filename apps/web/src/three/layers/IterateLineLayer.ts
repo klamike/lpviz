@@ -157,6 +157,8 @@ type PrevState = {
 
 export class IterateLineLayer implements Layer {
   readonly object3D: Group;
+  readonly renderPass = "trace" as const;
+  readonly invalidationKeys = ["iterate"] as const;
   private pool: Line2[] = [];
   private prev: PrevState | null = null;
 

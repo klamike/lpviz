@@ -211,27 +211,32 @@ const initialState: State = {
   isNavigatingViewport: false,
 };
 
-type StoreApi<T> = {
+type StoreApi<T, Meta = unknown> = {
   getState: () => T;
   getInitialState: () => T;
   setState: (
     partial: Partial<T> | ((state: T) => T | Partial<T>),
     replace?: boolean,
+    meta?: Meta,
   ) => void;
-  subscribe: (listener: (state: T) => void) => () => void;
+  subscribe: (listener: (state: T, meta?: Meta) => void) => () => void;
 };
 
-function createStore<T>(
+function createStore<T, Meta = unknown>(
   initializer: (
-    set: StoreApi<T>["setState"],
-    get: StoreApi<T>["getState"],
-    api: StoreApi<T>,
+    set: StoreApi<T, Meta>["setState"],
+    get: StoreApi<T, Meta>["getState"],
+    api: StoreApi<T, Meta>,
   ) => T,
-): StoreApi<T> {
-  const listeners = new Set<(state: T) => void>();
+): StoreApi<T, Meta> {
+  const listeners = new Set<(state: T, meta?: Meta) => void>();
   let state: T;
 
-  const setState: StoreApi<T>["setState"] = (partial, replace = false) => {
+  const setState: StoreApi<T, Meta>["setState"] = (
+    partial,
+    replace = false,
+    meta,
+  ) => {
     const nextState =
       typeof partial === "function"
         ? (partial as (state: T) => T | Partial<T>)(state)
@@ -244,7 +249,7 @@ function createStore<T>(
 
     if (!Object.is(resolvedState, state)) {
       state = resolvedState;
-      listeners.forEach((listener) => listener(state));
+      listeners.forEach((listener) => listener(state, meta));
     }
   };
 
@@ -255,23 +260,30 @@ function createStore<T>(
     return () => listeners.delete(listener);
   };
 
-  const api: StoreApi<T> = { setState, getState, getInitialState, subscribe };
+  const api: StoreApi<T, Meta> = {
+    setState,
+    getState,
+    getInitialState,
+    subscribe,
+  };
   const initialState = (state = initializer(setState, getState, api));
 
   return api;
 }
 
-const lpvizStore = createStore<State>(() => initialState);
+const lpvizStore = createStore<State, StateChangeMeta>(() => initialState);
 
 export function getState(): State {
   return lpvizStore.getState();
 }
 
 export function setState(patch: Partial<State>, _meta?: StateChangeMeta): void {
-  lpvizStore.setState(patch);
+  lpvizStore.setState(patch, false, _meta);
 }
 
-export function subscribe(listener: (snapshot: State) => void): () => void {
+export function subscribe(
+  listener: (snapshot: State, meta?: StateChangeMeta) => void,
+): () => void {
   return lpvizStore.subscribe(listener);
 }
 
@@ -315,26 +327,33 @@ export function updateIteratePaths(
       restartIndicesArray,
       snapshotObjectiveVector(objectiveVector),
     ),
+    { viewportDirty: { iterate: true } },
   );
 }
 
 export function clearIterateState(): void {
-  setState({
-    ...buildIterateStatePatch([], undefined, undefined, null),
-    highlightIteratePathIndex: null,
-  });
+  setState(
+    {
+      ...buildIterateStatePatch([], undefined, undefined, null),
+      highlightIteratePathIndex: null,
+    },
+    { viewportDirty: { iterate: true } },
+  );
 }
 
 export function addTraceToBuffer(iteratesArray: Float64Array[]): void {
   const state = getState();
   if (!state.traceEnabled || iteratesArray.length === 0) return;
-  setState({
-    traceBuffer: appendedTraceBuffer(
-      state,
-      iteratesArray,
-      snapshotObjectiveVector(state.objectiveVector),
-    ),
-  });
+  setState(
+    {
+      traceBuffer: appendedTraceBuffer(
+        state,
+        iteratesArray,
+        snapshotObjectiveVector(state.objectiveVector),
+      ),
+    },
+    { viewportDirty: { trace: true } },
+  );
 }
 
 export function computeIterateZ(
@@ -378,7 +397,14 @@ export function updateIteratePathsWithTrace(
       objectiveSnapshot,
     );
   }
-  setState(patch);
+  setState(patch, {
+    viewportDirty: {
+      iterate: true,
+      ...(state.traceEnabled && iteratesArray.length > 0
+        ? { trace: true }
+        : {}),
+    },
+  });
 }
 
 function snapshotObjectiveVector(objectiveVector: PointXY | null) {
@@ -432,16 +458,19 @@ function buildIterateStatePatch(
 
 export function resetTraceState(): void {
   if (getState().traceBuffer.length === 0) return;
-  setState({ traceBuffer: [] });
+  setState({ traceBuffer: [] }, { viewportDirty: { trace: true } });
 }
 
 export function setTraceCapacity(maxTraceCount: number): void {
   const { traceBuffer } = getState();
-  setState({
-    maxTraceCount,
-    traceBuffer:
-      traceBuffer.length > maxTraceCount
-        ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
-        : traceBuffer,
-  });
+  setState(
+    {
+      maxTraceCount,
+      traceBuffer:
+        traceBuffer.length > maxTraceCount
+          ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
+          : traceBuffer,
+    },
+    { viewportDirty: { trace: true } },
+  );
 }

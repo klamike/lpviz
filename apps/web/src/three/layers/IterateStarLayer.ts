@@ -14,6 +14,8 @@ const ITERATE_STAR_RENDER_ORDER = RENDER_ORDER.iterateStar;
 
 type PrevState = {
   iteratePath: State["iteratePath"];
+  originalIteratePath: State["originalIteratePath"];
+  animationIntervalId: State["animationIntervalId"];
   iterateObjectiveVector: PointXY | null;
   zScale: number;
   is3DMode: boolean;
@@ -24,6 +26,8 @@ type PrevState = {
 
 export class IterateStarLayer implements Layer {
   readonly object3D: Points;
+  readonly renderPass = "overlay" as const;
+  readonly invalidationKeys = ["iterate"] as const;
   private prev: PrevState | null = null;
 
   constructor() {
@@ -31,7 +35,7 @@ export class IterateStarLayer implements Layer {
       color: ITERATE_STAR_COLOR,
       size: ITERATE_STAR_PIXEL_SIZE,
       sizeAttenuation: false,
-      transparent: true,
+      transparent: false,
       depthTest: false,
       depthWrite: false,
       alphaMap: SHARED_STAR_TEXTURE,
@@ -52,6 +56,8 @@ export class IterateStarLayer implements Layer {
     if (
       p &&
       p.iteratePath === raw.iteratePath &&
+      p.originalIteratePath === raw.originalIteratePath &&
+      p.animationIntervalId === raw.animationIntervalId &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
       p.zScale === raw.zScale &&
       p.is3DMode === raw.is3DMode &&
@@ -63,6 +69,8 @@ export class IterateStarLayer implements Layer {
     }
     this.prev = {
       iteratePath: raw.iteratePath,
+      originalIteratePath: raw.originalIteratePath,
+      animationIntervalId: raw.animationIntervalId,
       iterateObjectiveVector: raw.iterateObjectiveVector,
       zScale: raw.zScale,
       is3DMode: raw.is3DMode,
@@ -70,6 +78,15 @@ export class IterateStarLayer implements Layer {
       mode: snap.mode,
       transitionZMultiplier: snap.transitionZMultiplier,
     };
+
+    const replayInProgress = raw.animationIntervalId !== null;
+    const replayComplete =
+      raw.originalIteratePath.length === 0 ||
+      raw.iteratePath.length >= raw.originalIteratePath.length;
+    if (replayInProgress && !replayComplete) {
+      this.object3D.visible = false;
+      return;
+    }
 
     const entry = raw.iteratePath[raw.iteratePath.length - 1];
     if (!entry || !shouldRenderSnapshotMode(snap.mode, raw)) {

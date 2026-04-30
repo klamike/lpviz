@@ -1,23 +1,48 @@
-import { getCurrentMouse } from "@/features/core/currentMouse";
-import { getState } from "@/features/core/store";
+import {
+  getCurrentMouse,
+  subscribeCurrentMouse,
+} from "@/features/core/currentMouse";
+import { getState, type ViewportDirtyFlags } from "@/features/core/store";
 import { getViewportRenderSnapshot } from "@/features/viewport/runtime/snapshot";
 import { Camera, Scene, WebGLRenderer } from "three";
-import type { Layer } from "./Layer";
+import type { Layer, RenderPassName } from "./Layer";
 import { LayerHost } from "./LayerHost";
 import type { SceneContext } from "./SceneContext";
 
 type Size = { width: number; height: number; dpr: number };
 
+const RENDER_PASSES = [
+  "background",
+  "transparent",
+  "foreground",
+  "vertices",
+  "traceLines",
+  "trace",
+  "overlay",
+] as const satisfies readonly RenderPassName[];
+
+type RenderScenes = Record<RenderPassName, Scene>;
+
 export class SceneManager {
-  readonly scene = new Scene();
+  readonly scenes: RenderScenes = {
+    background: new Scene(),
+    transparent: new Scene(),
+    foreground: new Scene(),
+    vertices: new Scene(),
+    traceLines: new Scene(),
+    trace: new Scene(),
+    overlay: new Scene(),
+  };
+  readonly scene = this.scenes.foreground;
   readonly renderer: WebGLRenderer;
   readonly layerHost = new LayerHost();
 
   private camera: Camera | null = null;
   private dirty = true;
-  private layersDirty = true;
+  private layersDirty: "all" | ViewportDirtyFlags | null = "all";
   private rafId: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private unsubscribeCurrentMouse: (() => void) | null = null;
   private disposed = false;
   private ticks = new Set<(ctx: SceneContext) => void>();
 
@@ -75,6 +100,14 @@ export class SceneManager {
       getCurrentMouse,
       invalidate: () => this.invalidate(),
     };
+
+    this.unsubscribeCurrentMouse = subscribeCurrentMouse(() => {
+      const state = getState();
+      if (state.completionMode !== "draft" || state.vertices.length === 0) {
+        return;
+      }
+      this.invalidate({ viewportDirty: { polytope: true } });
+    });
   }
 
   private setSize(width: number, height: number): void {
@@ -94,62 +127,108 @@ export class SceneManager {
   }
 
   start(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.scheduleFrame();
+  }
+
+  private scheduleFrame(): void {
     if (this.disposed || this.rafId !== null) {
       return;
     }
-    this.loop();
+    this.rafId = requestAnimationFrame(this.loop);
   }
 
   private loop = (): void => {
     if (this.disposed) {
       return;
     }
-    this.rafId = requestAnimationFrame(this.loop);
+    this.rafId = null;
 
     if (!this.dirty) {
       return;
     }
     this.dirty = false;
 
-    if (this.layersDirty) {
-      this.layersDirty = false;
-      this.layerHost.update(this.ctx);
-    }
-
     for (const tick of this.ticks) {
       tick(this.ctx);
     }
 
+    if (this.layersDirty) {
+      const layersDirty = this.layersDirty;
+      this.layersDirty = null;
+      this.layerHost.update(
+        this.ctx,
+        layersDirty === "all" ? undefined : layersDirty,
+      );
+    }
+
     if (this.camera) {
-      this.renderer.render(this.scene, this.camera);
+      this.renderScenes(this.camera);
+    }
+
+    if (this.dirty) {
+      this.scheduleFrame();
     }
   };
 
-  invalidate(options: { layers?: boolean } = {}): void {
-    this.layersDirty ||= options.layers ?? true;
+  invalidate(
+    options: { layers?: boolean; viewportDirty?: ViewportDirtyFlags } = {},
+  ): void {
+    if (options.layers ?? true) {
+      if (options.viewportDirty && Object.keys(options.viewportDirty).length) {
+        if (this.layersDirty !== "all") {
+          this.layersDirty = {
+            ...(this.layersDirty ?? {}),
+            ...options.viewportDirty,
+          };
+        }
+      } else {
+        this.layersDirty = "all";
+      }
+    }
     if (!this.dirty) {
       this.dirty = true;
     }
+    this.scheduleFrame();
   }
 
-  setCamera(cam: Camera): void {
+  setCamera(cam: Camera, options: { invalidate?: boolean } = {}): void {
+    const shouldInvalidate = options.invalidate ?? true;
     if (this.camera === cam) {
-      this.invalidate({ layers: false });
+      if (shouldInvalidate) {
+        this.invalidate({ layers: false });
+      }
       return;
     }
     this.camera = cam;
-    this.invalidate();
+    if (shouldInvalidate) {
+      this.invalidate();
+    }
   }
 
   addLayer(layer: Layer): void {
     this.layerHost.add(layer);
-    this.scene.add(layer.object3D);
+    if (layer.renderObjects) {
+      for (const { object3D, pass } of layer.renderObjects) {
+        this.scenes[pass].add(object3D);
+      }
+    } else {
+      this.scenes[layer.renderPass ?? "foreground"].add(layer.object3D);
+    }
     this.invalidate();
   }
 
   removeLayer(layer: Layer): void {
     this.layerHost.remove(layer);
-    this.scene.remove(layer.object3D);
+    if (layer.renderObjects) {
+      for (const { object3D, pass } of layer.renderObjects) {
+        this.scenes[pass].remove(object3D);
+      }
+    } else {
+      this.scenes[layer.renderPass ?? "foreground"].remove(layer.object3D);
+    }
     this.invalidate();
   }
 
@@ -174,12 +253,33 @@ export class SceneManager {
 
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.unsubscribeCurrentMouse?.();
+    this.unsubscribeCurrentMouse = null;
 
     this.layerHost.dispose();
-    for (const child of [...this.scene.children]) {
-      this.scene.remove(child);
+    for (const scene of Object.values(this.scenes)) {
+      for (const child of [...scene.children]) {
+        scene.remove(child);
+      }
     }
 
     this.renderer.dispose();
   }
+
+  private renderScenes(camera: Camera): void {
+    this.renderer.clear();
+    this.renderer.autoClear = false;
+    for (const pass of RENDER_PASSES) {
+      const scene = this.scenes[pass];
+      if (scene.children.length === 0 || scene.children.every(isHidden)) {
+        continue;
+      }
+      this.renderer.render(scene, camera);
+    }
+    this.renderer.autoClear = true;
+  }
+}
+
+function isHidden(object: { visible: boolean }): boolean {
+  return !object.visible;
 }

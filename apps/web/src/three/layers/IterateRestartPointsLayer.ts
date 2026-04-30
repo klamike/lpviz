@@ -27,6 +27,8 @@ type PrevState = {
 
 export class IterateRestartPointsLayer implements Layer {
   readonly object3D: Points;
+  readonly renderPass = "trace" as const;
+  readonly invalidationKeys = ["iterate"] as const;
   private matPlain: PointsMaterial;
   private matColored: PointsMaterial;
   private prev: PrevState | null = null;
@@ -35,7 +37,7 @@ export class IterateRestartPointsLayer implements Layer {
     const shared = {
       size: ITERATE_RESTART_POINT_SIZE,
       sizeAttenuation: false,
-      transparent: true,
+      transparent: false,
       depthTest: false,
       depthWrite: false,
       alphaMap: SHARED_SQUARE_TEXTURE,

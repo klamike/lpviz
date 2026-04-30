@@ -2,8 +2,8 @@ import type { State } from "@/features/core/store";
 import { computeIterateZ } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { Group } from "three";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
@@ -18,25 +18,31 @@ const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 const TRACE_LINE_THICKNESS = 2;
 
-const traceMat = getSharedLineMaterial({
-  color: TRACE_COLOR,
-  linewidth: TRACE_LINE_THICKNESS,
-  depthTest: false,
-  depthWrite: false,
-  opacity: TRACE_OPACITY,
-});
+const getTraceMat = (is3D: boolean) =>
+  getSharedLineMaterial({
+    color: TRACE_COLOR,
+    linewidth: TRACE_LINE_THICKNESS,
+    depthTest: is3D,
+    depthWrite: is3D,
+    opacity: TRACE_OPACITY,
+  });
 
 function buildTraceLinePositions(
   path: Float64Array[],
   objectiveVector: PointXY | null,
 ) {
   if (path.length < 2) return new Float32Array();
-  const positions = new Float32Array(path.length * 3);
-  for (let i = 0; i < path.length; i++) {
-    const entry = path[i]!;
-    positions[i * 3] = entry[0]!;
-    positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = computeIterateZ(entry, objectiveVector);
+  const positions = new Float32Array((path.length - 1) * 6);
+  for (let i = 0; i < path.length - 1; i++) {
+    const start = path[i]!;
+    const end = path[i + 1]!;
+    const base = i * 6;
+    positions[base] = start[0]!;
+    positions[base + 1] = start[1]!;
+    positions[base + 2] = computeIterateZ(start, objectiveVector);
+    positions[base + 3] = end[0]!;
+    positions[base + 4] = end[1]!;
+    positions[base + 5] = computeIterateZ(end, objectiveVector);
   }
   return positions;
 }
@@ -51,18 +57,19 @@ function getCachedTraceLinePositions(entry: State["traceBuffer"][number]) {
   return positions;
 }
 
-function makeLine2(
-  mat: ReturnType<typeof getSharedLineMaterial>,
-  group: Group,
-): Line2 {
-  const geo = new LineGeometry();
-  applyHugeBounds(geo);
-  const ln = new Line2(geo, mat);
-  ln.renderOrder = TRACE_RENDER_ORDER;
-  ln.frustumCulled = false;
-  ln.computeLineDistances = () => ln;
-  group.add(ln);
-  return ln;
+function buildAllTraceLineSegments(raw: State) {
+  const chunks = raw.traceBuffer
+    .map((entry) => getCachedTraceLinePositions(entry))
+    .filter((c) => c.length > 0);
+  if (chunks.length === 0) return new Float32Array();
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const out = new Float32Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
 }
 
 type PrevState = {
@@ -75,12 +82,24 @@ type PrevState = {
 
 export class TraceLineLayer implements Layer {
   readonly object3D: Group;
-  private pool: Line2[] = [];
-  private lastPositions: (Float32Array | null)[] = [];
+  readonly renderPass = "traceLines" as const;
+  readonly invalidationKeys = ["trace"] as const;
+  private geometry: LineSegmentsGeometry;
+  private line: LineSegments2;
   private prev: PrevState | null = null;
 
   constructor() {
+    const geometry = new LineSegmentsGeometry();
+    applyHugeBounds(geometry);
+    const line = new LineSegments2(geometry, getTraceMat(false));
+    line.renderOrder = TRACE_RENDER_ORDER;
+    line.frustumCulled = false;
+    line.computeLineDistances = () => line;
+    line.visible = false;
     this.object3D = new Group();
+    this.object3D.add(line);
+    this.geometry = geometry;
+    this.line = line;
   }
 
   update(ctx: SceneContext): void {
@@ -113,51 +132,25 @@ export class TraceLineLayer implements Layer {
       shouldRenderSnapshotMode(snap.mode, raw);
     if (!shouldShow) {
       this.object3D.visible = false;
-      for (const ln of this.pool) ln.visible = false;
+      this.line.visible = false;
       return;
     }
 
-    const linePositions: Float32Array[] = [];
-    for (const entry of raw.traceBuffer) {
-      const pos = getCachedTraceLinePositions(entry);
-      if (pos.length >= 6) linePositions.push(pos);
-    }
-
-    if (linePositions.length === 0) {
+    const segments = buildAllTraceLineSegments(raw);
+    if (segments.length === 0) {
       this.object3D.visible = false;
-      for (const ln of this.pool) ln.visible = false;
+      this.line.visible = false;
       return;
     }
 
-    const mat = traceMat;
-
-    while (this.pool.length < linePositions.length) {
-      this.pool.push(makeLine2(mat, this.object3D));
-      this.lastPositions.push(null);
-    }
-
-    for (let i = 0; i < linePositions.length; i++) {
-      const ln = this.pool[i]!;
-      const newPos = linePositions[i]!;
-      if (this.lastPositions[i] !== newPos) {
-        const geo = ln.geometry as LineGeometry;
-        geo.setPositions(newPos);
-        delete (geo as any)._maxInstanceCount;
-        this.lastPositions[i] = newPos;
-      }
-      ln.material = mat;
-      ln.visible = true;
-    }
-    for (let i = linePositions.length; i < this.pool.length; i++) {
-      this.pool[i]!.visible = false;
-    }
-
+    this.geometry.setPositions(segments);
+    delete (this.geometry as any)._maxInstanceCount;
+    this.line.material = getTraceMat(snap.mode === "3d");
+    this.line.visible = true;
     this.object3D.visible = true;
   }
 
   dispose(): void {
-    for (const ln of this.pool) ln.geometry.dispose();
-    this.pool = [];
-    this.lastPositions = [];
+    this.geometry.dispose();
   }
 }

@@ -105,6 +105,8 @@ type PrevState = {
 
 export class TracePointsLayer implements Layer {
   readonly object3D: Group;
+  readonly renderPass = "trace" as const;
+  readonly invalidationKeys = ["trace"] as const;
   private pts: Points;
   private prev: PrevState | null = null;
 
@@ -113,7 +115,7 @@ export class TracePointsLayer implements Layer {
       color: TRACE_COLOR,
       size: TRACE_POINT_PIXEL_SIZE,
       sizeAttenuation: false,
-      transparent: true,
+      transparent: false,
       depthTest: false,
       depthWrite: false,
       alphaMap: SHARED_CIRCLE_TEXTURE,

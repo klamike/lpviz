@@ -176,9 +176,14 @@ export function updateViewport2DPan(clientX: number, clientY: number) {
       activePanState.gridSpacing,
       config.sidebarWidth,
     ),
+    { emit: false },
   );
   config.onNavigationFrame?.();
   return true;
+}
+
+export function isViewport2DPanActive() {
+  return activePanState !== null && config.enabled;
 }
 
 export function stopViewport2DPan() {

@@ -22,20 +22,14 @@ const OBJECTIVE_HEAD_LENGTH_PX = 16;
 const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
 
-const objMatGreen = getSharedLineMaterial({
-  color: OBJECTIVE_COLOR,
-  linewidth: OBJECTIVE_LINE_THICKNESS,
-  depthTest: false,
-  depthWrite: false,
-  opacity: 1,
-});
-const objMatRed = getSharedLineMaterial({
-  color: OBJECTIVE_UNBOUNDED_COLOR,
-  linewidth: OBJECTIVE_LINE_THICKNESS,
-  depthTest: false,
-  depthWrite: false,
-  opacity: 1,
-});
+const getObjectiveMat = (color: string, is3D: boolean) =>
+  getSharedLineMaterial({
+    color,
+    linewidth: OBJECTIVE_LINE_THICKNESS,
+    depthTest: is3D,
+    depthWrite: is3D,
+    opacity: 1,
+  });
 
 function buildArrowHeadSegments(
   tip: PointXY,
@@ -66,6 +60,7 @@ type PrevState = {
 
 export class ObjectiveLayer implements Layer {
   readonly object3D: Group;
+  readonly invalidationKeys = ["objective"] as const;
   private objGeo: LineSegmentsGeometry;
   private objSegs: LineSegments2;
   private prev: PrevState | null = null;
@@ -73,7 +68,10 @@ export class ObjectiveLayer implements Layer {
   constructor() {
     const objGeo = new LineSegmentsGeometry();
     applyHugeBounds(objGeo);
-    const objSegs = new LineSegments2(objGeo, objMatGreen);
+    const objSegs = new LineSegments2(
+      objGeo,
+      getObjectiveMat(OBJECTIVE_COLOR, false),
+    );
     objSegs.renderOrder = OBJECTIVE_RENDER_ORDER;
     objSegs.frustumCulled = false;
     objSegs.visible = false;
@@ -149,7 +147,10 @@ export class ObjectiveLayer implements Layer {
       hasPolytopeLines(raw.polytope) &&
       isObjectiveDirectionUnbounded(raw.polytope.lines, [target.x, target.y]);
 
-    this.objSegs.material = isUnbounded ? objMatRed : objMatGreen;
+    this.objSegs.material = getObjectiveMat(
+      isUnbounded ? OBJECTIVE_UNBOUNDED_COLOR : OBJECTIVE_COLOR,
+      snap.mode === "3d",
+    );
     this.objSegs.visible = true;
   }
 

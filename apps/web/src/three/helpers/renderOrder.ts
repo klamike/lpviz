@@ -1,42 +1,32 @@
 /**
- * Global render-order buckets for the single-scene renderer.
+ * Render-order buckets within the explicit scene passes.
  *
- * The old viewport used multiple scenes rendered in this order:
+ * The viewport renders multiple scenes in this order:
  *   background -> transparent(fill) -> foreground -> vertices -> traceLines -> trace -> overlay
  *
- * Everything lives in one scene, so we need renderOrder
- * values that encode those former scene passes globally.
+ * These values only break ties inside a pass. Cross-pass ordering is handled
+ * by SceneManager.
  */
 
-const PASS = {
-  background: 0,
-  fill: 100,
-  foreground: 200,
-  vertices: 300,
-  traceLines: 400,
-  trace: 500,
-  overlay: 600,
-} as const;
-
 export const RENDER_ORDER = {
-  grid: PASS.background + 0,
-  axis: PASS.background + 1,
+  grid: 0,
+  axis: 1,
 
-  polytopeFill: PASS.fill + 2,
+  polytopeFill: 2,
 
-  polyEdges: PASS.foreground + 3,
-  objective: PASS.foreground + 4,
-  constraintLines: PASS.foreground + 6,
+  polyEdges: 3,
+  objective: 4,
+  constraintLines: 6,
 
-  polytopeVertices: PASS.vertices + 12,
+  polytopeVertices: 12,
 
-  traceLine: PASS.traceLines + 5,
+  traceLine: 5,
 
-  tracePoints: PASS.trace + 14,
-  iterateLine: PASS.trace + 20,
-  iteratePoints: PASS.trace + 22,
-  iterateRestartPoints: PASS.trace + 23,
-  iterateHighlight: PASS.trace + 26,
+  tracePoints: 14,
+  iterateLine: 20,
+  iteratePoints: 22,
+  iterateRestartPoints: 23,
+  iterateHighlight: 26,
 
-  iterateStar: PASS.overlay + 24,
+  iterateStar: 24,
 } as const;

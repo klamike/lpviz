@@ -1,8 +1,20 @@
 export type ViewportBridge = {
   getCanvasElement: () => HTMLCanvasElement;
   getCanvasRect: () => DOMRect;
-  invalidate: (options?: { layers?: boolean }) => void;
+  invalidate: (options?: {
+    layers?: boolean;
+    viewportDirty?: ViewportDirtyFlags;
+  }) => void;
 };
+
+export type ViewportDirtyFlags = Partial<{
+  grid: boolean;
+  polytope: boolean;
+  constraints: boolean;
+  objective: boolean;
+  trace: boolean;
+  iterate: boolean;
+}>;
 
 export type ViewportRenderSnapshot = {
   mode: "2d" | "3d";

@@ -1,5 +1,6 @@
 import type { Layer } from "./Layer";
 import type { SceneContext } from "./SceneContext";
+import type { ViewportDirtyFlags } from "@/features/core/store";
 
 export class LayerHost {
   private layers: Layer[] = [];
@@ -15,8 +16,11 @@ export class LayerHost {
     }
   }
 
-  update(ctx: SceneContext): void {
+  update(ctx: SceneContext, dirty?: ViewportDirtyFlags): void {
     for (const layer of this.layers) {
+      if (dirty && layer.invalidationKeys?.every((key) => !dirty[key])) {
+        continue;
+      }
       layer.update(ctx);
     }
   }

@@ -19,7 +19,7 @@ import {
   applyHugeBounds,
   getSharedLineMaterial,
 } from "../helpers/sharedLineMaterials";
-import type { Layer } from "../Layer";
+import type { Layer, LayerRenderObject } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
@@ -31,20 +31,14 @@ const CLIP_MARGIN_UNITS = 50;
 const DEFAULT_UNBOUNDED_EXTENT = 5000;
 const EPS = 1e-10;
 
-const normalMat = getSharedLineMaterial({
-  color: POLYTOPE_OUTLINE_COLOR,
-  linewidth: POLY_LINE_THICKNESS,
-  depthTest: false,
-  depthWrite: false,
-  opacity: 1,
-});
-const highlightMat = getSharedLineMaterial({
-  color: POLYTOPE_HIGHLIGHT_COLOR,
-  linewidth: POLY_LINE_THICKNESS,
-  depthTest: false,
-  depthWrite: false,
-  opacity: 1,
-});
+const getPolytopeEdgeMat = (color: string, is3D: boolean) =>
+  getSharedLineMaterial({
+    color,
+    linewidth: POLY_LINE_THICKNESS,
+    depthTest: is3D,
+    depthWrite: is3D,
+    opacity: 1,
+  });
 
 function buildShapeFromVertices(vertices: ReadonlyArray<PointXY>) {
   const shape = new Shape();
@@ -266,6 +260,8 @@ type PrevState = {
 
 export class PolytopeBaseLayer implements Layer {
   readonly object3D: Group;
+  readonly renderObjects: readonly LayerRenderObject[];
+  readonly invalidationKeys = ["polytope"] as const;
   private fillMesh: Mesh;
   private fillMatNormal: MeshBasicMaterial;
   private fillMatHighlight: MeshBasicMaterial;
@@ -306,7 +302,10 @@ export class PolytopeBaseLayer implements Layer {
 
     const nGeo = new LineSegmentsGeometry();
     applyHugeBounds(nGeo);
-    const nEdges = new LineSegments2(nGeo, normalMat);
+    const nEdges = new LineSegments2(
+      nGeo,
+      getPolytopeEdgeMat(POLYTOPE_OUTLINE_COLOR, false),
+    );
     nEdges.frustumCulled = false;
     nEdges.renderOrder = RENDER_ORDER.polyEdges;
     nEdges.computeLineDistances = () => nEdges;
@@ -314,15 +313,22 @@ export class PolytopeBaseLayer implements Layer {
 
     const hGeo = new LineSegmentsGeometry();
     applyHugeBounds(hGeo);
-    const hEdges = new LineSegments2(hGeo, highlightMat);
+    const hEdges = new LineSegments2(
+      hGeo,
+      getPolytopeEdgeMat(POLYTOPE_HIGHLIGHT_COLOR, false),
+    );
     hEdges.frustumCulled = false;
     hEdges.renderOrder = RENDER_ORDER.polyEdges;
     hEdges.computeLineDistances = () => hEdges;
     hEdges.visible = false;
 
-    const g = new Group();
-    g.add(mesh, nEdges, hEdges);
-    this.object3D = g;
+    const edgeGroup = new Group();
+    edgeGroup.add(nEdges, hEdges);
+    this.object3D = edgeGroup;
+    this.renderObjects = [
+      { object3D: mesh, pass: "transparent" },
+      { object3D: edgeGroup, pass: "foreground" },
+    ];
     this.fillMesh = mesh;
     this.fillMatNormal = fMatN;
     this.fillMatHighlight = fMatH;
@@ -339,6 +345,7 @@ export class PolytopeBaseLayer implements Layer {
     const visible =
       raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
     this.object3D.visible = visible;
+    this.fillMesh.visible = visible && this.fillMesh.visible;
     if (!visible) return;
 
     const p = this.prev;
@@ -387,6 +394,7 @@ export class PolytopeBaseLayer implements Layer {
 
     if (!result) {
       this.object3D.visible = false;
+      this.fillMesh.visible = false;
       return;
     }
 
@@ -418,6 +426,10 @@ export class PolytopeBaseLayer implements Layer {
 
     if (result.normalSegments.length >= 6) {
       applySegmentsGeometry(this.normalEdgesGeo, result.normalSegments);
+      this.normalEdges.material = getPolytopeEdgeMat(
+        POLYTOPE_OUTLINE_COLOR,
+        is3D,
+      );
       this.normalEdges.visible = true;
     } else {
       this.normalEdges.visible = false;
@@ -425,6 +437,10 @@ export class PolytopeBaseLayer implements Layer {
 
     if (result.highlightSegments.length >= 6) {
       applySegmentsGeometry(this.highlightEdgesGeo, result.highlightSegments);
+      this.highlightEdges.material = getPolytopeEdgeMat(
+        POLYTOPE_HIGHLIGHT_COLOR,
+        is3D,
+      );
       this.highlightEdges.visible = true;
     } else {
       this.highlightEdges.visible = false;

@@ -25,6 +25,8 @@ type PrevState = {
 
 export class IterateHighlightLayer implements Layer {
   readonly object3D: Points;
+  readonly renderPass = "trace" as const;
+  readonly invalidationKeys = ["iterate"] as const;
   private prev: PrevState | null = null;
 
   constructor() {
@@ -32,7 +34,7 @@ export class IterateHighlightLayer implements Layer {
       color: ITERATE_HIGHLIGHT_COLOR,
       size: ITERATE_HIGHLIGHT_PIXEL_SIZE,
       sizeAttenuation: false,
-      transparent: true,
+      transparent: false,
       depthTest: false,
       depthWrite: false,
       alphaMap: SHARED_CIRCLE_TEXTURE,

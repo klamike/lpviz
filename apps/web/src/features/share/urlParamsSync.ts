@@ -40,11 +40,23 @@ export function applyUrlParamsOnce({
   };
   const applySharedState = (sharedState: SharedAppState) => {
     invalidatePendingSolveResults();
-    setState({
-      ...buildSharedStatePatch(sharedState),
-      inequalitiesMessage: null,
-      highlightIndex: null,
-    });
+    setState(
+      {
+        ...buildSharedStatePatch(sharedState),
+        inequalitiesMessage: null,
+        highlightIndex: null,
+      },
+      {
+        viewportDirty: {
+          grid: true,
+          polytope: true,
+          constraints: true,
+          objective: true,
+          trace: true,
+          iterate: true,
+        },
+      },
+    );
     applySharedSettings(sharedState.settings);
     const state = getState();
     const regionFinished = state.completionMode !== "draft";

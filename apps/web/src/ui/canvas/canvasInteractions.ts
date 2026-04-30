@@ -328,11 +328,20 @@ export function attachCanvasInteractions({
   };
 
   const handleDragMove = (clientX: number, clientY: number) => {
+    const initialState = getState();
+    const initialInteraction = initialState.editorInteraction;
+    const phaseSnapshot = computeDrawingPhase(initialState);
+    if (
+      initialInteraction.kind === "idle" &&
+      phaseSnapshot === "ready_for_solvers"
+    ) {
+      return;
+    }
+
     const logicalCoords = getLogicalFromClient(canvasManager, clientX, clientY);
-    const initialInteraction = getState().editorInteraction;
     if (
       initialInteraction.kind === "pending-drag" &&
-      exceedsDragThreshold(getState(), clientX, clientY)
+      exceedsDragThreshold(initialState, clientX, clientY)
     ) {
       setState(
         {
@@ -348,7 +357,6 @@ export function attachCanvasInteractions({
 
     const state = getState();
     const interaction = state.editorInteraction;
-    const phaseSnapshot = computeDrawingPhase(state);
 
     if (interaction.kind === "dragging") {
       applyDraggingInteraction(interaction, logicalCoords);
@@ -414,7 +422,13 @@ export function attachCanvasInteractions({
     clientY: number,
     event: MouseEvent | TouchEvent,
   ) => {
-    if (getState().isTransitioning3D) return;
+    const state = getState();
+    if (
+      state.isTransitioning3D ||
+      (state.isNavigatingViewport && state.editorInteraction.kind === "idle")
+    ) {
+      return;
+    }
     handleDragMove(clientX, clientY);
     stopBlockedPointerEvent(event);
   };
@@ -614,7 +628,10 @@ export function attachCanvasInteractions({
     }
     if (event.key.toLowerCase() === "h") {
       const { objectiveHidden } = getState();
-      setState({ objectiveHidden: !objectiveHidden });
+      setState(
+        { objectiveHidden: !objectiveHidden },
+        { viewportDirty: canvasManager.getObjectiveDirtyFlags() },
+      );
       canvasManager.draw();
     }
   };
