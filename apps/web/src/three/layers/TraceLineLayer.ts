@@ -9,10 +9,7 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import {
-  applyHugeBounds,
-  getSharedLineMaterial,
-} from "../helpers/sharedLineMaterials";
+import { applyHugeBounds, getSharedLineMaterial } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 
@@ -30,10 +27,7 @@ const getTraceMat = (is3D: boolean) =>
     opacity: TRACE_OPACITY,
   });
 
-function buildTraceLinePositions(
-  path: Float64Array[],
-  objectiveVector: PointXY | null,
-) {
+function buildTraceLinePositions(path: Float64Array[], objectiveVector: PointXY | null) {
   if (path.length < 2) return new Float32Array();
   const positions = new Float32Array((path.length - 1) * 6);
   for (let i = 0; i < path.length - 1; i++) {
@@ -50,10 +44,7 @@ function buildTraceLinePositions(
   return positions;
 }
 
-function buildLegacyTraceLinePositions(
-  path: Float64Array[],
-  objectiveVector: PointXY | null,
-) {
+function buildLegacyTraceLinePositions(path: Float64Array[], objectiveVector: PointXY | null) {
   if (path.length < 2) return new Float32Array();
   const positions = new Float32Array(path.length * 3);
   for (let i = 0; i < path.length; i++) {
@@ -76,23 +67,16 @@ function getCachedTraceLinePositions(entry: State["traceBuffer"][number]) {
   return positions;
 }
 
-function getCachedLegacyTraceLinePositions(
-  entry: State["traceBuffer"][number],
-) {
+function getCachedLegacyTraceLinePositions(entry: State["traceBuffer"][number]) {
   let cached = legacyTraceLinePositionCache.get(entry);
   if (cached) return cached;
-  const positions = buildLegacyTraceLinePositions(
-    entry.path,
-    entry.objectiveVector,
-  );
+  const positions = buildLegacyTraceLinePositions(entry.path, entry.objectiveVector);
   legacyTraceLinePositionCache.set(entry, positions);
   return positions;
 }
 
 function buildAllTraceLineSegments(raw: State) {
-  const chunks = raw.traceBuffer
-    .map((entry) => getCachedTraceLinePositions(entry))
-    .filter((c) => c.length > 0);
+  const chunks = raw.traceBuffer.map((entry) => getCachedTraceLinePositions(entry)).filter((c) => c.length > 0);
   if (chunks.length === 0) return new Float32Array();
   const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const out = new Float32Array(total);
@@ -137,7 +121,9 @@ export class TraceLineLayer implements Layer {
     const line = new LineSegments2(geometry, getTraceMat(is3D));
     line.renderOrder = TRACE_RENDER_ORDER;
     line.frustumCulled = this.benchConfig.legacyBounds === true;
-    line.computeLineDistances = () => line;
+    if (!this.benchConfig.computeLineDistances) {
+      line.computeLineDistances = () => line;
+    }
     line.visible = false;
     this.object3D.add(line);
     return { geometry, line };
@@ -151,7 +137,9 @@ export class TraceLineLayer implements Layer {
     const line = new Line2(geometry, getTraceMat(is3D));
     line.renderOrder = TRACE_RENDER_ORDER;
     line.frustumCulled = this.benchConfig.legacyBounds === true;
-    line.computeLineDistances = () => line;
+    if (!this.benchConfig.computeLineDistances) {
+      line.computeLineDistances = () => line;
+    }
     line.visible = false;
     this.object3D.add(line);
     return line;
@@ -167,15 +155,7 @@ export class TraceLineLayer implements Layer {
     this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
 
     const p = this.prev;
-    if (
-      !this.benchConfig.forceAllDirty &&
-      p &&
-      p.traceEnabled === raw.traceEnabled &&
-      p.traceBuffer === raw.traceBuffer &&
-      p.is3DMode === raw.is3DMode &&
-      p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode
-    ) {
+    if (!this.benchConfig.forceAllDirty && p && p.traceEnabled === raw.traceEnabled && p.traceBuffer === raw.traceBuffer && p.is3DMode === raw.is3DMode && p.isTransitioning3D === raw.isTransitioning3D && p.mode === snap.mode) {
       return;
     }
     this.prev = {
@@ -186,10 +166,7 @@ export class TraceLineLayer implements Layer {
       mode: snap.mode,
     };
 
-    const shouldShow =
-      raw.traceEnabled &&
-      raw.traceBuffer.length > 0 &&
-      shouldRenderSnapshotMode(snap.mode, raw);
+    const shouldShow = raw.traceEnabled && raw.traceBuffer.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
     if (!shouldShow) {
       this.object3D.visible = false;
       this.line.visible = false;
@@ -204,9 +181,7 @@ export class TraceLineLayer implements Layer {
       // every visible trace whenever traceBuffer changed.
       this.line.visible = false;
       const mat = getTraceMat(is3D);
-      const linePositions = raw.traceBuffer
-        .map((entry) => getCachedLegacyTraceLinePositions(entry))
-        .filter((positions) => positions.length >= 6);
+      const linePositions = raw.traceBuffer.map((entry) => getCachedLegacyTraceLinePositions(entry)).filter((positions) => positions.length >= 6);
       while (this.legacyLinePool.length < linePositions.length) {
         this.legacyLinePool.push(this.makeLegacyLine(is3D));
       }
@@ -216,6 +191,9 @@ export class TraceLineLayer implements Layer {
         geometry.setPositions(linePositions[i]!);
         if (!this.benchConfig.legacyBounds) {
           applyHugeBounds(geometry);
+        }
+        if (this.benchConfig.computeLineDistances) {
+          line.computeLineDistances();
         }
         delete (geometry as any)._maxInstanceCount;
         line.material = mat;
@@ -239,6 +217,9 @@ export class TraceLineLayer implements Layer {
     this.geometry.setPositions(segments);
     if (!this.benchConfig.legacyBounds) {
       applyHugeBounds(this.geometry);
+    }
+    if (this.benchConfig.computeLineDistances) {
+      this.line.computeLineDistances();
     }
     delete (this.geometry as any)._maxInstanceCount;
     this.line.material = getTraceMat(is3D);

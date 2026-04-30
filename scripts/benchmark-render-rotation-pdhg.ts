@@ -4,16 +4,8 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, type Browser, type Page } from "playwright";
 
-type BenchVariant =
-  | "optimized"
-  | "old-trace-line-pool"
-  | "old-bounds-recompute"
-  | "old-orbit-layer-updates"
-  | "old-single-scene";
-type BenchScenario =
-  | "rotate-trace"
-  | "orbit-complete-trace"
-  | "draw-complete-trace";
+type BenchVariant = "optimized" | "old-trace-line-pool" | "old-bounds-recompute" | "old-line-distances" | "old-orbit-layer-updates" | "old-single-scene";
+type BenchScenario = "rotate-trace" | "orbit-complete-trace" | "draw-complete-trace";
 
 type FrameMetrics = {
   totalMs: number;
@@ -75,47 +67,25 @@ const port = Math.max(1024, Number(getArgValue("port", "4173")));
 const shape = getArgValue("shape", "square");
 const maxit = Math.max(1, Math.floor(Number(getArgValue("maxit", "1000"))));
 const angleStep = Number(getArgValue("angle-step", "0.001"));
-const sweepFraction = Math.min(
-  1,
-  Math.max(1e-6, Number(getArgValue("sweep-fraction", "0.25"))),
-);
+const sweepFraction = Math.min(1, Math.max(1e-6, Number(getArgValue("sweep-fraction", "0.25"))));
 const trials = Math.max(1, Math.floor(Number(getArgValue("trials", "5"))));
-const rotationReps = Math.max(
-  1,
-  Math.floor(Number(getArgValue("rotation-reps", "30"))),
-);
-const orbitReps = Math.max(
-  1,
-  Math.floor(Number(getArgValue("orbit-reps", "60"))),
-);
-const viewportWidth = Math.max(
-  1,
-  Math.floor(Number(getArgValue("viewport-width", "1600"))),
-);
-const viewportHeight = Math.max(
-  1,
-  Math.floor(Number(getArgValue("viewport-height", "1200"))),
-);
+const rotationReps = Math.max(1, Math.floor(Number(getArgValue("rotation-reps", "30"))));
+const orbitReps = Math.max(1, Math.floor(Number(getArgValue("orbit-reps", "60"))));
+const viewportWidth = Math.max(1, Math.floor(Number(getArgValue("viewport-width", "1600"))));
+const viewportHeight = Math.max(1, Math.floor(Number(getArgValue("viewport-height", "1200"))));
 const deviceScaleFactor = Number(getArgValue("device-scale-factor", "1"));
-const selectedVariants = parseVariants(
-  getArgValue(
-    "variants",
-    "optimized,old-trace-line-pool,old-bounds-recompute,old-orbit-layer-updates",
-  ),
-);
+const selectedVariants = parseVariants(getArgValue("variants", "optimized,old-trace-line-pool,old-bounds-recompute,old-line-distances,old-orbit-layer-updates,old-single-scene"));
 
 const VARIANT_LABELS: Record<BenchVariant, string> = {
   optimized: "Optimized",
   "old-trace-line-pool": "Old trace Line2 pool",
-  "old-bounds-recompute": "Old bounds recompute",
+  "old-bounds-recompute": "Naive bounds/frustum culling",
+  "old-line-distances": "Naive line distances",
   "old-orbit-layer-updates": "Old orbit layer updates",
-  "old-single-scene": "Old single scene",
+  "old-single-scene": "Naive single scene",
 };
 
-const SCENARIO_NAMES: Record<
-  Exclude<BenchScenario, "draw-complete-trace">,
-  string
-> = {
+const SCENARIO_NAMES: Record<Exclude<BenchScenario, "draw-complete-trace">, string> = {
   "rotate-trace": "Traced Rotate Time (ms)",
   "orbit-complete-trace": "3D Camera Move Time (ms)",
 };
@@ -126,7 +96,7 @@ async function main() {
     await waitForServer(`http://127.0.0.1:${port}/render-rotation-bench.html`);
     const browser = await chromium.launch({
       headless: hasFlag("headless"),
-      args: ["--enable-webgl", "--ignore-gpu-blocklist"],
+      args: ["--enable-webgl", "--ignore-gpu-blocklist", "--js-flags=--expose-gc"],
     });
 
     try {
@@ -145,19 +115,14 @@ async function main() {
         });
       }
 
-      const optimized = summaries.find(
-        (entry) => entry.variant === "optimized",
-      );
+      const optimized = summaries.find((entry) => entry.variant === "optimized");
       if (!optimized) throw new Error("The optimized variant must be included");
 
       const completeSummaries: VariantSummary[] = summaries.map((entry) => ({
         ...entry,
         ratiosVsOptimized: {
-          rotateTrace:
-            entry.rotateTrace.medianMs / optimized.rotateTrace.medianMs,
-          orbitCompleteTrace:
-            entry.orbitCompleteTrace.medianMs /
-            optimized.orbitCompleteTrace.medianMs,
+          rotateTrace: entry.rotateTrace.medianMs / optimized.rotateTrace.medianMs,
+          orbitCompleteTrace: entry.orbitCompleteTrace.medianMs / optimized.orbitCompleteTrace.medianMs,
         },
       }));
 
@@ -165,7 +130,7 @@ async function main() {
       const output = {
         generatedAt: new Date().toISOString(),
         command: process.argv.join(" "),
-        note: "Non-optimized variants are source-backed old paths from perf commits: pre-822e411 per-trace Line2 updates, pre-6e22a89/f227be2 geometry bounds recomputation, and pre-2995c65/34189c5 camera frames that update all layers.",
+        note: "Non-optimized variants cover source-backed old paths and naive Three.js baselines: pre-822e411 per-trace Line2 updates, pre-6e22a89/f227be2 geometry bounds/frustum culling, naive Line2 line-distance recomputation, pre-2995c65/34189c5 camera frames that update all layers, and a single-Scene renderer baseline.",
         parameters: {
           shape,
           maxit,
@@ -189,10 +154,7 @@ async function main() {
       await mkdir("bench-results", { recursive: true });
       const base = join("bench-results", `render-rotation-${timestamp}`);
       await writeFile(`${base}.json`, `${JSON.stringify(output, null, 2)}\n`);
-      await writeFile(
-        `${base}.md`,
-        renderMarkdown(metadata, completeSummaries),
-      );
+      await writeFile(`${base}.md`, renderMarkdown(metadata, completeSummaries));
       await writeFile(`${base}.tex`, renderLatex(metadata, completeSummaries));
       console.log(renderMarkdown(metadata, completeSummaries));
       console.log(`\nWrote ${base}.json, ${base}.md, and ${base}.tex`);
@@ -210,35 +172,16 @@ function parseVariants(value: string): BenchVariant[] {
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
-  const allowed = new Set<BenchVariant>([
-    "optimized",
-    "old-trace-line-pool",
-    "old-bounds-recompute",
-    "old-orbit-layer-updates",
-    "old-single-scene",
-  ]);
-  const parsed = variants.filter((variant): variant is BenchVariant =>
-    allowed.has(variant as BenchVariant),
-  );
+  const allowed = new Set<BenchVariant>(["optimized", "old-trace-line-pool", "old-bounds-recompute", "old-line-distances", "old-orbit-layer-updates", "old-single-scene"]);
+  const parsed = variants.filter((variant): variant is BenchVariant => allowed.has(variant as BenchVariant));
   return parsed.includes("optimized") ? parsed : ["optimized", ...parsed];
 }
 
 function startViteServer(portNumber: number) {
-  const server = spawn(
-    "bunx",
-    [
-      "vite",
-      "--host",
-      "127.0.0.1",
-      "--port",
-      String(portNumber),
-      "--strictPort",
-    ],
-    {
-      cwd: process.cwd(),
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
+  const server = spawn("bunx", ["vite", "--host", "127.0.0.1", "--port", String(portNumber), "--strictPort"], {
+    cwd: process.cwd(),
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   server.stdout.on("data", (chunk) => process.stderr.write(chunk));
   server.stderr.on("data", (chunk) => process.stderr.write(chunk));
   return server;
@@ -257,13 +200,12 @@ async function waitForServer(url: string) {
 
 async function onceExited(processHandle: ChildProcessWithoutNullStreams) {
   if (processHandle.exitCode !== null) return;
-  await new Promise<void>((resolve) =>
-    processHandle.once("exit", () => resolve()),
-  );
+  await new Promise<void>((resolve) => processHandle.once("exit", () => resolve()));
 }
 
 function buildUrl(variant: BenchVariant) {
   const searchParams = new URLSearchParams({
+    worker: "1",
     variant,
     shape,
     maxit: String(maxit),
@@ -291,21 +233,16 @@ async function openBenchPage(browser: Browser, variant: BenchVariant) {
     waitUntil: "domcontentloaded",
     timeout: 0,
   });
-  await page.waitForFunction(
-    () => Boolean(window.__LPVIZ_RENDER_BENCH__),
-    null,
-    { timeout: 0 },
-  );
+  await page.waitForFunction(() => Boolean(window.__LPVIZ_RENDER_BENCH__), null, { timeout: 0 });
   return { context, page };
 }
 
 async function readMetadata(browser: Browser) {
   const benchPage = await openBenchPage(browser, "optimized");
   try {
-    return (await benchPage.page.evaluate(() =>
-      window.__LPVIZ_RENDER_BENCH__!.describeScene(),
-    )) as BenchMetadata;
+    return (await benchPage.page.evaluate(() => window.__LPVIZ_RENDER_BENCH__!.describeScene())) as BenchMetadata;
   } finally {
+    await cleanupBenchPage(benchPage.page);
     await benchPage.page.close();
     await benchPage.context.close();
   }
@@ -333,11 +270,17 @@ async function runOnPage(page: Page, scenario: BenchScenario, reps: number) {
   )) as BenchRunResult;
 }
 
-async function measureVariant(
-  browser: Browser,
-  variant: BenchVariant,
-  rawResults: BenchRunResult[],
-) {
+async function cleanupBenchPage(page: Page) {
+  await page
+    .evaluate(async () => {
+      await window.__LPVIZ_RENDER_BENCH__?.cleanup();
+      (globalThis as typeof globalThis & { gc?: () => void }).gc?.();
+    })
+    .catch(() => {});
+  await page.goto("about:blank", { waitUntil: "domcontentloaded", timeout: 0 }).catch(() => {});
+}
+
+async function measureVariant(browser: Browser, variant: BenchVariant, rawResults: BenchRunResult[]) {
   const rotateTrialMedians: number[] = [];
   const orbitTrialMedians: number[] = [];
   const rotateSamples: FrameMetrics[] = [];
@@ -347,28 +290,17 @@ async function measureVariant(
     process.stderr.write(`Running ${variant} trial ${trial + 1}/${trials}\n`);
     const benchPage = await openBenchPage(browser, variant);
     try {
-      const rotate = await runOnPage(
-        benchPage.page,
-        "rotate-trace",
-        rotationReps,
-      );
+      const rotate = await runOnPage(benchPage.page, "rotate-trace", rotationReps);
       rawResults.push(rotate);
       rotateSamples.push(...rotate.samples);
-      rotateTrialMedians.push(
-        median(rotate.samples.map((sample) => sample.totalMs)),
-      );
+      rotateTrialMedians.push(median(rotate.samples.map((sample) => sample.totalMs)));
 
-      const orbit = await runOnPage(
-        benchPage.page,
-        "orbit-complete-trace",
-        orbitReps,
-      );
+      const orbit = await runOnPage(benchPage.page, "orbit-complete-trace", orbitReps);
       rawResults.push(orbit);
       orbitSamples.push(...orbit.samples);
-      orbitTrialMedians.push(
-        median(orbit.samples.map((sample) => sample.totalMs)),
-      );
+      orbitTrialMedians.push(median(orbit.samples.map((sample) => sample.totalMs)));
     } finally {
+      await cleanupBenchPage(benchPage.page);
       await benchPage.page.close();
       await benchPage.context.close();
     }
@@ -380,10 +312,7 @@ async function measureVariant(
   };
 }
 
-function summarizeSamples(
-  samples: FrameMetrics[],
-  trialMedians: number[],
-): ScenarioSummary {
+function summarizeSamples(samples: FrameMetrics[], trialMedians: number[]): ScenarioSummary {
   return {
     medianMs: median(trialMedians),
     p05Ms: percentile(
@@ -408,10 +337,7 @@ function median(values: number[]) {
 function percentile(values: number[], p: number) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(
-    sorted.length - 1,
-    Math.max(0, Math.round((sorted.length - 1) * p)),
-  );
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
   return sorted[index]!;
 }
 
@@ -429,49 +355,21 @@ function ratio(value: number) {
 }
 
 function renderMarkdown(metadata: BenchMetadata, summaries: VariantSummary[]) {
-  return [
-    "# Rendering rotation benchmark",
-    "",
-    `Shape: ${metadata.shape}; constraints: ${metadata.constraints}; maxit: ${metadata.maxit}; angle step: ${metadata.angleStep}; sweep fraction: ${metadata.sweepFraction}.`,
-    `Rotation steps: ${metadata.rotationSteps}; total trace points: ${metadata.totalTracePoints.toLocaleString()}.`,
-    "",
-    `| Variant | ${SCENARIO_NAMES["rotate-trace"]} | vs Opt. | ${SCENARIO_NAMES["orbit-complete-trace"]} | vs Opt. |`,
-    "| --- | ---: | ---: | ---: | ---: |",
-    ...summaries.map(
-      (entry) =>
-        `| ${entry.label} | ${fmt(entry.rotateTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.rotateTrace)} | ${fmt(entry.orbitCompleteTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.orbitCompleteTrace)} |`,
-    ),
-    "",
-  ].join("\n");
+  return ["# Rendering rotation benchmark", "", `Shape: ${metadata.shape}; constraints: ${metadata.constraints}; maxit: ${metadata.maxit}; angle step: ${metadata.angleStep}; sweep fraction: ${metadata.sweepFraction}.`, `Rotation steps: ${metadata.rotationSteps}; total trace points: ${metadata.totalTracePoints.toLocaleString()}.`, "", `| Variant | ${SCENARIO_NAMES["rotate-trace"]} | vs Opt. | ${SCENARIO_NAMES["orbit-complete-trace"]} | vs Opt. |`, "| --- | ---: | ---: | ---: | ---: |", ...summaries.map((entry) => `| ${entry.label} | ${fmt(entry.rotateTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.rotateTrace)} | ${fmt(entry.orbitCompleteTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.orbitCompleteTrace)} |`), ""].join("\n");
 }
 
 function renderLatex(_metadata: BenchMetadata, summaries: VariantSummary[]) {
   const byVariant = new Map(summaries.map((entry) => [entry.variant, entry]));
-  const ordered = [
-    "optimized",
-    "old-trace-line-pool",
-    "old-bounds-recompute",
-    "old-orbit-layer-updates",
-    "old-single-scene",
-  ] as const;
-  const rows = ordered
-    .map((variant) => byVariant.get(variant))
-    .filter((entry): entry is VariantSummary => Boolean(entry));
+  const ordered = ["optimized", "old-trace-line-pool", "old-bounds-recompute", "old-line-distances", "old-orbit-layer-updates", "old-single-scene"] as const;
+  const rows = ordered.map((variant) => byVariant.get(variant)).filter((entry): entry is VariantSummary => Boolean(entry));
   const optimized = rows[0];
   const rest = rows.slice(1);
-  const optimizedRow = optimized
-    ? `{Optimized} & {${latexMs(optimized.rotateTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.rotateTrace)}} & {${latexMs(optimized.orbitCompleteTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.orbitCompleteTrace)}} \\\\`
-    : "";
-  const ablationRows = rest
-    .map(
-      (entry) =>
-        `${entry.label} & ${latexMs(entry.rotateTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.rotateTrace)} & ${latexMs(entry.orbitCompleteTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.orbitCompleteTrace)} \\\\`,
-    )
-    .join("\n");
+  const optimizedRow = optimized ? `{Optimized} & {${latexMs(optimized.rotateTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.rotateTrace)}} & {${latexMs(optimized.orbitCompleteTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.orbitCompleteTrace)}} \\\\` : "";
+  const ablationRows = rest.map((entry) => `${entry.label} & ${latexMs(entry.rotateTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.rotateTrace)} & ${latexMs(entry.orbitCompleteTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.orbitCompleteTrace)} \\\\`).join("\n");
   return `\\begin{table}[t]
 \\color{red}% %%%%%%%%%%%TODO REMOVE
 \\centering
-\\caption{Rendering performance benchmark against real old slow paths found in perf commits: pre-822e411 trace line pool updates, pre-6e22a89/f227be2 geometry bounds recomputation, and pre-2995c65/34189c5 all-layer orbit updates. Workload: traced quarter-rotation using PDHG equality on a problem with 4 constraints, \\texttt{maxit}=1000, and angle step \\(0.001\\).}
+\\caption{Rendering performance benchmark against optimized render-loop paths and naive Three.js baselines: pre-822e411 trace line pool updates, pre-6e22a89/f227be2 geometry bounds/frustum culling, line-distance recomputation for dashed-line support, pre-2995c65/34189c5 all-layer orbit updates, and a single-Scene renderer. Workload: traced quarter-rotation using PDHG equality on a problem with 4 constraints, \\texttt{maxit}=1000, and angle step \\(0.001\\).}
 \\label{tab:renderperf}
 \\begin{tabular}{l@{\\hspace{0em}}rrrr}
 \\toprule

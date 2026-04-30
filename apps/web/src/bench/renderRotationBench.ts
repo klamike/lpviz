@@ -1,17 +1,6 @@
-import {
-  getRenderBenchConfig,
-  type RenderBenchConfig,
-} from "@/bench/renderBenchConfig";
-import {
-  DEFAULT_VIEW_ANGLE,
-  DEFAULT_Z_SCALE,
-  setState,
-  type State,
-} from "@/features/core/store";
-import {
-  createViewportRuntime,
-  type ViewportRuntime,
-} from "@/features/viewport/runtime";
+import { getRenderBenchConfig, type RenderBenchConfig } from "@/bench/renderBenchConfig";
+import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE, setState, type State } from "@/features/core/store";
+import { createViewportRuntime, type ViewportRuntime } from "@/features/viewport/runtime";
 import { mountCanvasGL } from "@/ui/canvas/mountCanvasGL";
 import "@/style.css";
 import type { Lines, PointXY, PointXYZ, Vertices } from "@lpviz/math/types";
@@ -19,16 +8,8 @@ import { deriveRegionFromPoints } from "@lpviz/polytope/regionAssembly";
 import { pdhgEq } from "@lpviz/solver-engine/pdhg_eq";
 import type { ViewportBridge } from "@lpviz/viewport/types";
 
-type BenchVariant =
-  | "optimized"
-  | "old-trace-line-pool"
-  | "old-bounds-recompute"
-  | "old-orbit-layer-updates"
-  | "old-single-scene";
-type BenchScenario =
-  | "rotate-trace"
-  | "orbit-complete-trace"
-  | "draw-complete-trace";
+type BenchVariant = "optimized" | "old-trace-line-pool" | "old-bounds-recompute" | "old-line-distances" | "old-orbit-layer-updates" | "old-single-scene";
+type BenchScenario = "rotate-trace" | "orbit-complete-trace" | "draw-complete-trace";
 
 type FrameMetrics = {
   totalMs: number;
@@ -72,10 +53,8 @@ type BenchResult = {
 
 type RenderRotationBenchApi = {
   describeScene(): BenchMetadata;
-  run(options: {
-    scenario: BenchScenario;
-    reps?: number;
-  }): Promise<BenchResult>;
+  run(options: { scenario: BenchScenario; reps?: number }): Promise<BenchResult>;
+  cleanup(): Promise<void>;
 };
 
 type ScenarioSummary = {
@@ -130,17 +109,13 @@ declare global {
 const VARIANT_LABELS: Record<BenchVariant, string> = {
   optimized: "Optimized",
   "old-trace-line-pool": "Old trace Line2 pool",
-  "old-bounds-recompute": "Old bounds recompute",
+  "old-bounds-recompute": "Naive bounds/frustum culling",
+  "old-line-distances": "Naive line distances",
   "old-orbit-layer-updates": "Old orbit layer updates",
-  "old-single-scene": "Old single scene",
+  "old-single-scene": "Naive single scene",
 };
 
-const DEFAULT_VARIANTS: BenchVariant[] = [
-  "optimized",
-  "old-trace-line-pool",
-  "old-bounds-recompute",
-  "old-orbit-layer-updates",
-];
+const DEFAULT_VARIANTS: BenchVariant[] = ["optimized", "old-trace-line-pool", "old-bounds-recompute", "old-line-distances", "old-orbit-layer-updates", "old-single-scene"];
 
 const pageParams = new URLSearchParams(window.location.search);
 if (pageParams.get("worker") === "1") {
@@ -216,9 +191,7 @@ function runLauncher(): void {
   const runButton = getElement<HTMLButtonElement>("bench-run");
   runButton.addEventListener("click", () => {
     void runFromUi().catch((error) => {
-      log(
-        `ERROR: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
-      );
+      log(`ERROR: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
       runButton.disabled = false;
     });
   });
@@ -255,46 +228,28 @@ async function runFromUi(): Promise<void> {
       };
       partial.set(variant, bucket);
       for (let trial = 0; trial < options.trials; trial++) {
-        log(
-          `Running ${VARIANT_LABELS[variant]} trial ${trial + 1}/${options.trials}`,
-        );
+        log(`Running ${VARIANT_LABELS[variant]} trial ${trial + 1}/${options.trials}`);
         const trialResult = await runOneTrial(options, variant);
         metadata ??= trialResult.metadata;
         rawResults.push(trialResult.rotate, trialResult.orbit);
         bucket.rotateSamples.push(...trialResult.rotate.samples);
         bucket.orbitSamples.push(...trialResult.orbit.samples);
-        bucket.rotateTrialMedians.push(
-          median(trialResult.rotate.samples.map((sample) => sample.totalMs)),
-        );
-        bucket.orbitTrialMedians.push(
-          median(trialResult.orbit.samples.map((sample) => sample.totalMs)),
-        );
+        bucket.rotateTrialMedians.push(median(trialResult.rotate.samples.map((sample) => sample.totalMs)));
+        bucket.orbitTrialMedians.push(median(trialResult.orbit.samples.map((sample) => sample.totalMs)));
       }
     }
 
     if (!metadata) throw new Error("No benchmark metadata collected");
     const optimizedBucket = partial.get("optimized");
     if (!optimizedBucket) throw new Error("Optimized variant is required");
-    const optimizedRotate = summarizeSamples(
-      optimizedBucket.rotateSamples,
-      optimizedBucket.rotateTrialMedians,
-    );
-    const optimizedOrbit = summarizeSamples(
-      optimizedBucket.orbitSamples,
-      optimizedBucket.orbitTrialMedians,
-    );
+    const optimizedRotate = summarizeSamples(optimizedBucket.rotateSamples, optimizedBucket.rotateTrialMedians);
+    const optimizedOrbit = summarizeSamples(optimizedBucket.orbitSamples, optimizedBucket.orbitTrialMedians);
 
     const summaries = options.variants.map((variant) => {
       const bucket = partial.get(variant);
       if (!bucket) throw new Error(`Missing results for ${variant}`);
-      const rotateTrace = summarizeSamples(
-        bucket.rotateSamples,
-        bucket.rotateTrialMedians,
-      );
-      const orbitCompleteTrace = summarizeSamples(
-        bucket.orbitSamples,
-        bucket.orbitTrialMedians,
-      );
+      const rotateTrace = summarizeSamples(bucket.rotateSamples, bucket.rotateTrialMedians);
+      const orbitCompleteTrace = summarizeSamples(bucket.orbitSamples, bucket.orbitTrialMedians);
       return {
         variant,
         label: VARIANT_LABELS[variant],
@@ -302,15 +257,14 @@ async function runFromUi(): Promise<void> {
         orbitCompleteTrace,
         ratiosVsOptimized: {
           rotateTrace: rotateTrace.medianMs / optimizedRotate.medianMs,
-          orbitCompleteTrace:
-            orbitCompleteTrace.medianMs / optimizedOrbit.medianMs,
+          orbitCompleteTrace: orbitCompleteTrace.medianMs / optimizedOrbit.medianMs,
         },
       } satisfies VariantSummary;
     });
 
     const output: BrowserOutput = {
       generatedAt: new Date().toISOString(),
-      note: "Manual in-browser rendering benchmark. Non-optimized variants are source-backed old paths from perf commits: pre-822e411 per-trace Line2 updates, pre-6e22a89/f227be2 geometry bounds recomputation, and pre-2995c65/34189c5 camera frames that update all layers.",
+      note: "Manual in-browser rendering benchmark. Non-optimized variants cover source-backed old paths and naive Three.js baselines: pre-822e411 per-trace Line2 updates, pre-6e22a89/f227be2 geometry bounds/frustum culling, naive Line2 line-distance recomputation, pre-2995c65/34189c5 camera frames that update all layers, and a single-Scene renderer baseline.",
       parameters: options,
       metadata,
       summaries,
@@ -322,24 +276,9 @@ async function runFromUi(): Promise<void> {
     const json = `${JSON.stringify(output, null, 2)}\n`;
     getElement<HTMLTextAreaElement>("bench-md").value = markdown;
     getElement<HTMLTextAreaElement>("bench-tex").value = latex;
-    setDownload(
-      "bench-download-json",
-      `render-rotation-${timestamp}.json`,
-      json,
-      "application/json",
-    );
-    setDownload(
-      "bench-download-md",
-      `render-rotation-${timestamp}.md`,
-      markdown,
-      "text/markdown",
-    );
-    setDownload(
-      "bench-download-tex",
-      `render-rotation-${timestamp}.tex`,
-      latex,
-      "application/x-tex",
-    );
+    setDownload("bench-download-json", `render-rotation-${timestamp}.json`, json, "application/json");
+    setDownload("bench-download-md", `render-rotation-${timestamp}.md`, markdown, "text/markdown");
+    setDownload("bench-download-tex", `render-rotation-${timestamp}.tex`, latex, "application/x-tex");
     log("Done. Use the download links above to save JSON/Markdown/LaTeX.");
   } finally {
     runButton.disabled = false;
@@ -355,89 +294,57 @@ async function runOneTrial(
   orbit: BenchResult;
 }> {
   const iframe = document.createElement("iframe");
-  iframe.width = String(options.viewport.width);
-  iframe.height = String(options.viewport.height);
-  iframe.style.width = `${options.viewport.width}px`;
-  iframe.style.height = `${options.viewport.height}px`;
-  getElement<HTMLDivElement>("bench-frame-wrap").replaceChildren(iframe);
-  iframe.src = buildWorkerUrl(options, variant);
-  const api = await waitForWorkerApi(iframe);
-  const metadata = api.describeScene();
-  log(
-    `  constraints=${metadata.constraints}, rotationSteps=${metadata.rotationSteps}, totalTracePoints=${metadata.totalTracePoints}`,
-  );
-  const rotate = await api.run({
-    scenario: "rotate-trace",
-    reps: options.rotationReps,
-  });
-  const orbit = await api.run({
-    scenario: "orbit-complete-trace",
-    reps: options.orbitReps,
-  });
-  iframe.remove();
-  return { metadata, rotate, orbit };
+  let api: RenderRotationBenchApi | null = null;
+  try {
+    iframe.width = String(options.viewport.width);
+    iframe.height = String(options.viewport.height);
+    iframe.style.width = `${options.viewport.width}px`;
+    iframe.style.height = `${options.viewport.height}px`;
+    getElement<HTMLDivElement>("bench-frame-wrap").replaceChildren(iframe);
+    iframe.src = buildWorkerUrl(options, variant);
+    api = await waitForWorkerApi(iframe);
+    const metadata = api.describeScene();
+    log(`  constraints=${metadata.constraints}, rotationSteps=${metadata.rotationSteps}, totalTracePoints=${metadata.totalTracePoints}`);
+    const rotate = await api.run({
+      scenario: "rotate-trace",
+      reps: options.rotationReps,
+    });
+    const orbit = await api.run({
+      scenario: "orbit-complete-trace",
+      reps: options.orbitReps,
+    });
+    return { metadata, rotate, orbit };
+  } finally {
+    if (api) {
+      await api.cleanup().catch((error) => log(`  cleanup warning: ${error instanceof Error ? error.message : String(error)}`));
+    }
+    iframe.src = "about:blank";
+    iframe.remove();
+    await releaseMemoryTurn();
+  }
 }
 
 function readLauncherOptions(): LauncherOptions {
-  const variants = Array.from(
-    getElement<HTMLDivElement>(
-      "bench-variants",
-    ).querySelectorAll<HTMLInputElement>("input[type=checkbox]:checked"),
-  ).map((input) => parseVariant(input.value));
+  const variants = Array.from(getElement<HTMLDivElement>("bench-variants").querySelectorAll<HTMLInputElement>("input[type=checkbox]:checked")).map((input) => parseVariant(input.value));
   const uniqueVariants = Array.from(new Set(variants));
-  if (!uniqueVariants.includes("optimized"))
-    uniqueVariants.unshift("optimized");
+  if (!uniqueVariants.includes("optimized")) uniqueVariants.unshift("optimized");
   return {
     shape: getElement<HTMLInputElement>("bench-shape").value.trim() || "square",
-    maxit: Math.max(
-      1,
-      Math.floor(Number(getElement<HTMLInputElement>("bench-maxit").value)),
-    ),
-    angleStep: Math.max(
-      1e-6,
-      Number(getElement<HTMLInputElement>("bench-angle-step").value),
-    ),
-    sweepFraction: Math.min(
-      1,
-      Math.max(
-        1e-6,
-        Number(getElement<HTMLInputElement>("bench-sweep-fraction").value),
-      ),
-    ),
-    trials: Math.max(
-      1,
-      Math.floor(Number(getElement<HTMLInputElement>("bench-trials").value)),
-    ),
-    rotationReps: Math.max(
-      1,
-      Math.floor(
-        Number(getElement<HTMLInputElement>("bench-rotation-reps").value),
-      ),
-    ),
-    orbitReps: Math.max(
-      1,
-      Math.floor(
-        Number(getElement<HTMLInputElement>("bench-orbit-reps").value),
-      ),
-    ),
+    maxit: Math.max(1, Math.floor(Number(getElement<HTMLInputElement>("bench-maxit").value))),
+    angleStep: Math.max(1e-6, Number(getElement<HTMLInputElement>("bench-angle-step").value)),
+    sweepFraction: Math.min(1, Math.max(1e-6, Number(getElement<HTMLInputElement>("bench-sweep-fraction").value))),
+    trials: Math.max(1, Math.floor(Number(getElement<HTMLInputElement>("bench-trials").value))),
+    rotationReps: Math.max(1, Math.floor(Number(getElement<HTMLInputElement>("bench-rotation-reps").value))),
+    orbitReps: Math.max(1, Math.floor(Number(getElement<HTMLInputElement>("bench-orbit-reps").value))),
     viewport: {
-      width: Math.max(
-        1,
-        Math.floor(Number(getElement<HTMLInputElement>("bench-vw").value)),
-      ),
-      height: Math.max(
-        1,
-        Math.floor(Number(getElement<HTMLInputElement>("bench-vh").value)),
-      ),
+      width: Math.max(1, Math.floor(Number(getElement<HTMLInputElement>("bench-vw").value))),
+      height: Math.max(1, Math.floor(Number(getElement<HTMLInputElement>("bench-vh").value))),
     },
     variants: uniqueVariants,
   };
 }
 
-function buildWorkerUrl(
-  options: LauncherOptions,
-  variant: BenchVariant,
-): string {
+function buildWorkerUrl(options: LauncherOptions, variant: BenchVariant): string {
   const params = new URLSearchParams({
     worker: "1",
     variant,
@@ -449,9 +356,7 @@ function buildWorkerUrl(
   return `${window.location.pathname}?${params.toString()}`;
 }
 
-async function waitForWorkerApi(
-  iframe: HTMLIFrameElement,
-): Promise<RenderRotationBenchApi> {
+async function waitForWorkerApi(iframe: HTMLIFrameElement): Promise<RenderRotationBenchApi> {
   const start = performance.now();
   while (performance.now() - start < 10 * 60 * 1000) {
     const api = (
@@ -472,19 +377,8 @@ async function runWorker(params: URLSearchParams): Promise<void> {
   const variant = parseVariant(params.get("variant"));
   const shapeName = params.get("shape") ?? "square";
   const maxit = Math.max(1, Math.floor(Number(params.get("maxit") ?? "1000")));
-  const angleStep = Math.max(
-    1e-6,
-    Number(params.get("angleStep") ?? params.get("angle-step") ?? "0.001"),
-  );
-  const sweepFraction = Math.min(
-    1,
-    Math.max(
-      1e-6,
-      Number(
-        params.get("sweepFraction") ?? params.get("sweep-fraction") ?? "0.25",
-      ),
-    ),
-  );
+  const angleStep = Math.max(1e-6, Number(params.get("angleStep") ?? params.get("angle-step") ?? "0.001"));
+  const sweepFraction = Math.min(1, Math.max(1e-6, Number(params.get("sweepFraction") ?? params.get("sweep-fraction") ?? "0.25")));
 
   window.__LPVIZ_RENDER_BENCH_CONFIG__ = buildConfig(variant);
 
@@ -498,31 +392,17 @@ async function runWorker(params: URLSearchParams): Promise<void> {
   const polytope = deriveRegionFromPoints(vertices, "closed");
   const lines: Lines = polytope.lines;
   const rotationSteps = Math.ceil((2 * Math.PI * sweepFraction) / angleStep);
-  const rotationFrames = buildRotationFrames(
-    lines,
-    rotationSteps,
-    angleStep,
-    maxit,
-  );
+  const rotationFrames = buildRotationFrames(lines, rotationSteps, angleStep, maxit);
   const fullTraceBuffer: State["traceBuffer"] = rotationFrames.map((frame) => ({
     path: frame.path,
     objectiveVector: frame.objectiveVector,
   }));
-  const totalTracePoints = rotationFrames.reduce(
-    (sum, frame) => sum + frame.path.length,
-    0,
-  );
+  const totalTracePoints = rotationFrames.reduce((sum, frame) => sum + frame.path.length, 0);
   const orbitAngles = buildOrbitAngles(180);
 
-  const { viewport, bridge } = await mountBenchViewport(root);
-  seedBaseScene(
-    rotationFrames,
-    vertices,
-    polytope,
-    rotationSteps,
-    maxit,
-    angleStep,
-  );
+  const { viewport, bridge, destroy } = await mountBenchViewport(root);
+  let disposed = false;
+  seedBaseScene(rotationFrames, vertices, polytope, rotationSteps, maxit, angleStep);
   viewport.updateDimensions();
   viewport.setSidebarWidth(0);
   viewport.setControlsBlocked(true);
@@ -551,16 +431,9 @@ async function runWorker(params: URLSearchParams): Promise<void> {
       };
     },
     async run({ scenario, reps }) {
+      if (disposed) throw new Error("Benchmark worker has already been cleaned up");
       if (scenario === "draw-complete-trace") {
-        seedCompletedRotation(
-          rotationFrames,
-          fullTraceBuffer,
-          vertices,
-          polytope,
-          rotationSteps,
-          maxit,
-          angleStep,
-        );
+        seedCompletedRotation(rotationFrames, fullTraceBuffer, vertices, polytope, rotationSteps, maxit, angleStep);
         await drawAndWait(bridge);
         return { variant, scenario, reps: 1, samples: [getMetrics(bridge)] };
       }
@@ -570,22 +443,9 @@ async function runWorker(params: URLSearchParams): Promise<void> {
         const samples: FrameMetrics[] = [];
         const startIndex = Math.max(0, rotationFrames.length - sampleCount);
         const tracePrefix = fullTraceBuffer.slice(0, startIndex);
-        seedRotationStart(
-          rotationFrames,
-          tracePrefix,
-          Math.max(0, startIndex - 1),
-          vertices,
-          polytope,
-          rotationSteps,
-          maxit,
-          angleStep,
-        );
+        seedRotationStart(rotationFrames, tracePrefix, Math.max(0, startIndex - 1), vertices, polytope, rotationSteps, maxit, angleStep);
         await drawAndWait(bridge);
-        for (
-          let frameIndex = startIndex;
-          frameIndex < rotationFrames.length;
-          frameIndex++
-        ) {
+        for (let frameIndex = startIndex; frameIndex < rotationFrames.length; frameIndex++) {
           tracePrefix.push(fullTraceBuffer[frameIndex]!);
           setRotationFrame(rotationFrames, frameIndex, tracePrefix);
           await drawAndWait(bridge);
@@ -594,15 +454,7 @@ async function runWorker(params: URLSearchParams): Promise<void> {
         return { variant, scenario, reps: samples.length, samples };
       }
 
-      seedCompletedRotation(
-        rotationFrames,
-        fullTraceBuffer,
-        vertices,
-        polytope,
-        rotationSteps,
-        maxit,
-        angleStep,
-      );
+      seedCompletedRotation(rotationFrames, fullTraceBuffer, vertices, polytope, rotationSteps, maxit, angleStep);
       await drawAndWait(bridge);
       const sampleCount = Math.min(orbitAngles.length, reps ?? 60);
       const samples: FrameMetrics[] = [];
@@ -613,17 +465,53 @@ async function runWorker(params: URLSearchParams): Promise<void> {
       }
       return { variant, scenario, reps: samples.length, samples };
     },
+    async cleanup() {
+      if (disposed) return;
+      disposed = true;
+      window.__LPVIZ_RENDER_BENCH__ = undefined;
+      setState(
+        {
+          vertices: [],
+          interiorPoint: null,
+          polytope: null,
+          objectiveVector: null,
+          currentObjective: null,
+          iteratePath: [],
+          originalIteratePath: [],
+          iteratePhases: [],
+          originalIteratePhases: [],
+          iterateRestartIndices: [],
+          originalIterateRestartIndices: [],
+          traceBuffer: [],
+          maxTraceCount: 0,
+          animationIntervalId: null,
+        },
+        {
+          viewportDirty: {
+            grid: true,
+            polytope: true,
+            constraints: true,
+            objective: true,
+            trace: true,
+            iterate: true,
+          },
+        },
+      );
+      rotationFrames.length = 0;
+      fullTraceBuffer.length = 0;
+      orbitAngles.length = 0;
+      vertices.length = 0;
+      lines.length = 0;
+      viewport.destroy();
+      destroy();
+      root.replaceChildren();
+      await releaseMemoryTurn();
+    },
   };
 }
 
 function parseVariant(value: string | null): BenchVariant {
-  if (
-    value === "old-trace-line-pool" ||
-    value === "old-bounds-recompute" ||
-    value === "old-orbit-layer-updates" ||
-    value === "old-single-scene"
-  )
-    return value;
+  if (value === "old-trace-line-pool" || value === "old-bounds-recompute" || value === "old-line-distances" || value === "old-orbit-layer-updates" || value === "old-single-scene") return value;
   return "optimized";
 }
 
@@ -632,14 +520,14 @@ function buildConfig(nextVariant: BenchVariant): RenderBenchConfig {
     return { legacyTraceLinePool: true };
   }
   if (nextVariant === "old-bounds-recompute") return { legacyBounds: true };
+  if (nextVariant === "old-line-distances") return { computeLineDistances: true };
   if (nextVariant === "old-orbit-layer-updates") return { forceAllDirty: true };
   if (nextVariant === "old-single-scene") return { singleScene: true };
   return {};
 }
 
 function buildShape(name: string): Vertices {
-  if (name !== "square")
-    throw new Error(`Unsupported render benchmark shape: ${name}`);
+  if (name !== "square") throw new Error(`Unsupported render benchmark shape: ${name}`);
   return [
     [-5, -5],
     [5, -5],
@@ -648,63 +536,48 @@ function buildShape(name: string): Vertices {
   ];
 }
 
-function buildRotationFrames(
-  benchmarkLines: Lines,
-  steps: number,
-  angleStep: number,
-  maxit: number,
-): RotationFrame[] {
+function buildRotationFrames(benchmarkLines: Lines, steps: number, angleStep: number, maxit: number): RotationFrame[] {
   const frames: RotationFrame[] = [];
   for (let step = 0; step < steps; step++) {
     const theta = step * angleStep;
     const objectiveVector = { x: Math.cos(theta), y: Math.sin(theta) };
-    const result = pdhgEq(
-      benchmarkLines,
-      new Float64Array([objectiveVector.x, objectiveVector.y]),
-      {
-        maxit,
-        eta: 0.25,
-        tau: 0.25,
-        tol: 1e-4,
-        verbose: false,
-        halpern: false,
-        colorByBasis: false,
-      },
-    );
+    const result = pdhgEq(benchmarkLines, new Float64Array([objectiveVector.x, objectiveVector.y]), {
+      maxit,
+      eta: 0.25,
+      tau: 0.25,
+      tol: 1e-4,
+      verbose: false,
+      halpern: false,
+      colorByBasis: false,
+    });
     const path = result.iterations.map((xy, index) => {
-      const objectiveValue =
-        objectiveVector.x * xy[0]! + objectiveVector.y * xy[1]!;
-      return new Float64Array([
-        xy[0]!,
-        xy[1]!,
-        objectiveValue + 500 * (result.eps[index] ?? 0),
-      ]);
+      const objectiveValue = objectiveVector.x * xy[0]! + objectiveVector.y * xy[1]!;
+      return new Float64Array([xy[0]!, xy[1]!, objectiveValue + 500 * (result.eps[index] ?? 0)]);
     });
     frames.push({ objectiveVector, path });
   }
   return frames;
 }
 
-async function mountBenchViewport(
-  parent: HTMLElement,
-): Promise<{ viewport: ViewportRuntime; bridge: ViewportBridge }> {
+async function mountBenchViewport(parent: HTMLElement): Promise<{ viewport: ViewportRuntime; bridge: ViewportBridge; destroy: () => void }> {
   return await new Promise((resolve, reject) => {
-    mountCanvasGL(parent, (bridge) => {
+    let destroyCanvas: (() => void) | null = null;
+    const mounted = mountCanvasGL(parent, (bridge) => {
       void createViewportRuntime({ viewportBridge: bridge })
-        .then((viewport) => resolve({ viewport, bridge }))
+        .then((viewport) =>
+          resolve({
+            viewport,
+            bridge,
+            destroy: () => destroyCanvas?.(),
+          }),
+        )
         .catch(reject);
     });
+    destroyCanvas = () => mounted.destroy();
   });
 }
 
-function seedBaseScene(
-  rotationFrames: RotationFrame[],
-  vertices: Vertices,
-  polytope: ReturnType<typeof deriveRegionFromPoints>,
-  rotationSteps: number,
-  maxit: number,
-  angleStep: number,
-): void {
+function seedBaseScene(rotationFrames: RotationFrame[], vertices: Vertices, polytope: ReturnType<typeof deriveRegionFromPoints>, rotationSteps: number, maxit: number, angleStep: number): void {
   const firstObjective = rotationFrames[0]?.objectiveVector ?? { x: 1, y: 0 };
   setState(
     {
@@ -768,33 +641,12 @@ function seedBaseScene(
   );
 }
 
-function seedRotationStart(
-  rotationFrames: RotationFrame[],
-  traceBuffer: State["traceBuffer"],
-  frameIndex: number,
-  vertices: Vertices,
-  polytope: ReturnType<typeof deriveRegionFromPoints>,
-  rotationSteps: number,
-  maxit: number,
-  angleStep: number,
-): void {
-  seedBaseScene(
-    rotationFrames,
-    vertices,
-    polytope,
-    rotationSteps,
-    maxit,
-    angleStep,
-  );
-  if (traceBuffer.length > 0 && rotationFrames[frameIndex])
-    setRotationFrame(rotationFrames, frameIndex, traceBuffer);
+function seedRotationStart(rotationFrames: RotationFrame[], traceBuffer: State["traceBuffer"], frameIndex: number, vertices: Vertices, polytope: ReturnType<typeof deriveRegionFromPoints>, rotationSteps: number, maxit: number, angleStep: number): void {
+  seedBaseScene(rotationFrames, vertices, polytope, rotationSteps, maxit, angleStep);
+  if (traceBuffer.length > 0 && rotationFrames[frameIndex]) setRotationFrame(rotationFrames, frameIndex, traceBuffer);
 }
 
-function setRotationFrame(
-  rotationFrames: RotationFrame[],
-  frameIndex: number,
-  traceBuffer: State["traceBuffer"],
-): void {
+function setRotationFrame(rotationFrames: RotationFrame[], frameIndex: number, traceBuffer: State["traceBuffer"]): void {
   const frame = rotationFrames[frameIndex];
   if (!frame) return;
   setState(
@@ -810,23 +662,8 @@ function setRotationFrame(
   );
 }
 
-function seedCompletedRotation(
-  rotationFrames: RotationFrame[],
-  fullTraceBuffer: State["traceBuffer"],
-  vertices: Vertices,
-  polytope: ReturnType<typeof deriveRegionFromPoints>,
-  rotationSteps: number,
-  maxit: number,
-  angleStep: number,
-): void {
-  seedBaseScene(
-    rotationFrames,
-    vertices,
-    polytope,
-    rotationSteps,
-    maxit,
-    angleStep,
-  );
+function seedCompletedRotation(rotationFrames: RotationFrame[], fullTraceBuffer: State["traceBuffer"], vertices: Vertices, polytope: ReturnType<typeof deriveRegionFromPoints>, rotationSteps: number, maxit: number, angleStep: number): void {
+  seedBaseScene(rotationFrames, vertices, polytope, rotationSteps, maxit, angleStep);
   setRotationFrame(rotationFrames, rotationFrames.length - 1, fullTraceBuffer);
 }
 
@@ -858,6 +695,11 @@ async function drawAndWait(bridge: ViewportBridge): Promise<void> {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
+async function releaseMemoryTurn(): Promise<void> {
+  (globalThis as typeof globalThis & { gc?: () => void }).gc?.();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+}
+
 function getMetrics(bridge: ViewportBridge): FrameMetrics {
   return (
     bridge.getLastFrameMetrics?.() ?? {
@@ -873,13 +715,11 @@ function getBrowserInfo(bridge: ViewportBridge): BenchMetadata["browser"] {
     userAgent: navigator.userAgent,
     platform: navigator.platform,
   };
-  if (navigator.hardwareConcurrency !== undefined)
-    info.hardwareConcurrency = navigator.hardwareConcurrency;
+  if (navigator.hardwareConcurrency !== undefined) info.hardwareConcurrency = navigator.hardwareConcurrency;
   const navigatorWithMemory = navigator as Navigator & {
     deviceMemory?: number;
   };
-  if (navigatorWithMemory.deviceMemory !== undefined)
-    info.deviceMemory = navigatorWithMemory.deviceMemory;
+  if (navigatorWithMemory.deviceMemory !== undefined) info.deviceMemory = navigatorWithMemory.deviceMemory;
   const webglInfo = bridge.getWebGLInfo?.();
   if (webglInfo?.vendor) info.webglVendor = webglInfo.vendor;
   if (webglInfo?.renderer) info.webglRenderer = webglInfo.renderer;
@@ -887,10 +727,7 @@ function getBrowserInfo(bridge: ViewportBridge): BenchMetadata["browser"] {
   return info;
 }
 
-function summarizeSamples(
-  samples: FrameMetrics[],
-  trialMedians: number[],
-): ScenarioSummary {
+function summarizeSamples(samples: FrameMetrics[], trialMedians: number[]): ScenarioSummary {
   return {
     medianMs: median(trialMedians),
     p05Ms: percentile(
@@ -915,63 +752,26 @@ function median(values: number[]): number {
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(
-    sorted.length - 1,
-    Math.max(0, Math.round((sorted.length - 1) * p)),
-  );
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
   return sorted[index]!;
 }
 
-function renderMarkdown(
-  metadata: BenchMetadata,
-  summaries: VariantSummary[],
-): string {
-  return [
-    "# Rendering rotation benchmark",
-    "",
-    `Shape: ${metadata.shape}; constraints: ${metadata.constraints}; maxit: ${metadata.maxit}; angle step: ${metadata.angleStep}; sweep fraction: ${metadata.sweepFraction}.`,
-    `Rotation steps: ${metadata.rotationSteps}; total trace points: ${metadata.totalTracePoints.toLocaleString()}.`,
-    "",
-    "| Variant | Traced Rotate Time (ms) | vs Opt. | 3D Camera Move Time (ms) | vs Opt. |",
-    "| --- | ---: | ---: | ---: | ---: |",
-    ...summaries.map(
-      (entry) =>
-        `| ${entry.label} | ${fmt(entry.rotateTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.rotateTrace)} | ${fmt(entry.orbitCompleteTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.orbitCompleteTrace)} |`,
-    ),
-    "",
-  ].join("\n");
+function renderMarkdown(metadata: BenchMetadata, summaries: VariantSummary[]): string {
+  return ["# Rendering rotation benchmark", "", `Shape: ${metadata.shape}; constraints: ${metadata.constraints}; maxit: ${metadata.maxit}; angle step: ${metadata.angleStep}; sweep fraction: ${metadata.sweepFraction}.`, `Rotation steps: ${metadata.rotationSteps}; total trace points: ${metadata.totalTracePoints.toLocaleString()}.`, "", "| Variant | Traced Rotate Time (ms) | vs Opt. | 3D Camera Move Time (ms) | vs Opt. |", "| --- | ---: | ---: | ---: | ---: |", ...summaries.map((entry) => `| ${entry.label} | ${fmt(entry.rotateTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.rotateTrace)} | ${fmt(entry.orbitCompleteTrace.medianMs)} | ${ratio(entry.ratiosVsOptimized.orbitCompleteTrace)} |`), ""].join("\n");
 }
 
-function renderLatex(
-  _metadata: BenchMetadata,
-  summaries: VariantSummary[],
-): string {
+function renderLatex(_metadata: BenchMetadata, summaries: VariantSummary[]): string {
   const byVariant = new Map(summaries.map((entry) => [entry.variant, entry]));
-  const ordered = [
-    "optimized",
-    "old-trace-line-pool",
-    "old-bounds-recompute",
-    "old-orbit-layer-updates",
-    "old-single-scene",
-  ] as const;
-  const rows = ordered
-    .map((variant) => byVariant.get(variant))
-    .filter((entry): entry is VariantSummary => Boolean(entry));
+  const ordered = ["optimized", "old-trace-line-pool", "old-bounds-recompute", "old-line-distances", "old-orbit-layer-updates", "old-single-scene"] as const;
+  const rows = ordered.map((variant) => byVariant.get(variant)).filter((entry): entry is VariantSummary => Boolean(entry));
   const optimized = rows[0];
   const rest = rows.slice(1);
-  const optimizedRow = optimized
-    ? `{Optimized} & {${latexMs(optimized.rotateTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.rotateTrace)}} & {${latexMs(optimized.orbitCompleteTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.orbitCompleteTrace)}} \\\\`
-    : "";
-  const ablationRows = rest
-    .map(
-      (entry) =>
-        `${entry.label} & ${latexMs(entry.rotateTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.rotateTrace)} & ${latexMs(entry.orbitCompleteTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.orbitCompleteTrace)} \\\\`,
-    )
-    .join("\n");
+  const optimizedRow = optimized ? `{Optimized} & {${latexMs(optimized.rotateTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.rotateTrace)}} & {${latexMs(optimized.orbitCompleteTrace.medianMs)}} & {${latexRatio(optimized.ratiosVsOptimized.orbitCompleteTrace)}} \\\\` : "";
+  const ablationRows = rest.map((entry) => `${entry.label} & ${latexMs(entry.rotateTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.rotateTrace)} & ${latexMs(entry.orbitCompleteTrace.medianMs)} & ${latexRatio(entry.ratiosVsOptimized.orbitCompleteTrace)} \\\\`).join("\n");
   return `\\begin{table}[t]
 \\color{red}% %%%%%%%%%%%TODO REMOVE
 \\centering
-\\caption{Rendering performance benchmark against real old slow paths found in perf commits: pre-822e411 trace line pool updates, pre-6e22a89/f227be2 geometry bounds recomputation, and pre-2995c65/34189c5 all-layer orbit updates. Workload: traced quarter-rotation using PDHG equality on a problem with 4 constraints, \\texttt{maxit}=1000, and angle step \\(0.001\\).}
+\\caption{Rendering performance benchmark against optimized render-loop paths and naive Three.js baselines: pre-822e411 trace line pool updates, pre-6e22a89/f227be2 geometry bounds/frustum culling, line-distance recomputation for dashed-line support, pre-2995c65/34189c5 all-layer orbit updates, and a single-Scene renderer. Workload: traced quarter-rotation using PDHG equality on a problem with 4 constraints, \\texttt{maxit}=1000, and angle step \\(0.001\\).}
 \\label{tab:renderperf}
 \\begin{tabular}{l@{\\hspace{0em}}rrrr}
 \\toprule
@@ -1011,12 +811,7 @@ function formatTimestamp(date: Date): string {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
-function setDownload(
-  id: string,
-  filename: string,
-  content: string,
-  type: string,
-): void {
+function setDownload(id: string, filename: string, content: string, type: string): void {
   const link = getElement<HTMLAnchorElement>(id);
   URL.revokeObjectURL(link.href);
   link.href = URL.createObjectURL(new Blob([content], { type }));
@@ -1024,11 +819,7 @@ function setDownload(
 }
 
 function clearDownloads(): void {
-  for (const id of [
-    "bench-download-json",
-    "bench-download-md",
-    "bench-download-tex",
-  ]) {
+  for (const id of ["bench-download-json", "bench-download-md", "bench-download-tex"]) {
     const link = getElement<HTMLAnchorElement>(id);
     if (link.href) URL.revokeObjectURL(link.href);
     link.removeAttribute("href");

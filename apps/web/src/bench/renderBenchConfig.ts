@@ -3,8 +3,10 @@ export type RenderBenchConfig = {
   singleScene?: boolean;
   /** Pre-822e411: keep one Line2 per trace and call setPositions on all of them. */
   legacyTraceLinePool?: boolean;
-  /** Pre-6e22a89/f227be2: allow Three.js to recompute bounds for hot geometries. */
+  /** Pre-6e22a89/f227be2: allow Three.js to recompute bounds for hot geometries and use frustum culling. */
   legacyBounds?: boolean;
+  /** Naive Three.js Line2/LineSegments2 dashed-line distance computation after line geometry updates. */
+  computeLineDistances?: boolean;
   /** Pre-2995c65/34189c5: update every layer on camera-only frames. */
   forceAllDirty?: boolean;
 };
@@ -28,4 +30,8 @@ export function isRenderBenchForceAllDirty(): boolean {
 
 export function isRenderBenchLegacyBounds(): boolean {
   return getRenderBenchConfig().legacyBounds === true;
+}
+
+export function isRenderBenchComputeLineDistances(): boolean {
+  return getRenderBenchConfig().computeLineDistances === true;
 }
