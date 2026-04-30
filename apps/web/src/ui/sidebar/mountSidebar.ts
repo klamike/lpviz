@@ -1,5 +1,5 @@
 import type { AppContext } from "@/app/appContext";
-import { getState, subscribe } from "@/features/core/store";
+import { getState, on } from "@/features/core/store";
 import { el } from "@/ui/dom";
 import { mountAnimationControlsPanel } from "@/ui/sidebar/mountAnimationControlsPanel";
 import { mountProblemPanel } from "@/ui/sidebar/mountProblemPanel";
@@ -80,16 +80,21 @@ export function mountSidebar(parent: HTMLElement, ctx: AppContext) {
   );
   ui.append(label, replay);
   children.push(mountSolverLogPanel(ui, ctx));
-  const unsub = subscribe((s) => {
-    replay.value = String(s.solverSettings.replaySpeed);
-  });
+  const controller = new AbortController();
+  on(
+    ["solverSettings"],
+    ({ solverSettings }) => {
+      replay.value = String(solverSettings.replaySpeed);
+    },
+    controller.signal,
+  );
   replay.value = String(getState().solverSettings.replaySpeed);
   return {
     updateWidth: (w: number) => {
       sidebar.style.width = `${w}px`;
     },
     destroy: () => {
-      unsub();
+      controller.abort();
       for (const c of children) c.destroy();
       header.remove();
     },

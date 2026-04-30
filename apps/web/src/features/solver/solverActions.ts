@@ -6,7 +6,7 @@ import {
   resetTraceState,
   setState,
   setTraceCapacity,
-  subscribe,
+  on,
   type SolverMode,
   type State,
 } from "@/features/core/store";
@@ -483,10 +483,15 @@ export function createSolverActions(
     cm.draw();
   };
   let wasNavigatingViewport = getState().isNavigatingViewport;
-  const unsub = subscribe((s) => {
-    if (wasNavigatingViewport && !s.isNavigatingViewport) flushDeferredRender();
-    wasNavigatingViewport = s.isNavigatingViewport;
-  });
+  const controller = new AbortController();
+  on(
+    ["isNavigatingViewport"],
+    ({ isNavigatingViewport }) => {
+      if (wasNavigatingViewport && !isNavigatingViewport) flushDeferredRender();
+      wasNavigatingViewport = isNavigatingViewport;
+    },
+    controller.signal,
+  );
   return {
     updateSolverSetting,
     setActiveSolverMode,
@@ -508,7 +513,7 @@ export function createSolverActions(
     hasUnboundedObjectiveDirection,
     destroy: () => {
       cancelRotationLoop();
-      unsub();
+      controller.abort();
     },
   };
 }

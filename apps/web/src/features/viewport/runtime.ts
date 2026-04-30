@@ -3,7 +3,8 @@ import {
   getDisplayedIterateZ,
   getState,
   setState,
-  subscribe,
+  on,
+  onMeta,
   type ViewportDirtyFlags,
 } from "@/features/core/store";
 import type { BoundingBox } from "@lpviz/math/geometry";
@@ -485,56 +486,62 @@ export async function createViewportRuntime({
     external2DViewportActive ? getExternal2DSnapshot() : managerSnapshot,
   );
 
-  const unsubscribeExternalOwnership = subscribe(() => {
-    const nextExternal2DViewportActive = shouldUseExternal2DViewport();
-    const nextExternal3DControlsActive = shouldUseExternal3DControls();
-    const external2DChanged =
-      nextExternal2DViewportActive !== external2DViewportActive;
-    const external3DChanged =
-      nextExternal3DControlsActive !== external3DControlsActive;
+  const externalOwnershipController = new AbortController();
+  on(
+    ["is3DMode", "isTransitioning3D"],
+    () => {
+      const nextExternal2DViewportActive = shouldUseExternal2DViewport();
+      const nextExternal3DControlsActive = shouldUseExternal3DControls();
+      const external2DChanged =
+        nextExternal2DViewportActive !== external2DViewportActive;
+      const external3DChanged =
+        nextExternal3DControlsActive !== external3DControlsActive;
 
-    if (!external2DChanged && !external3DChanged) {
-      return;
-    }
+      if (!external2DChanged && !external3DChanged) {
+        return;
+      }
 
-    syncExternal2DControls(nextExternal2DViewportActive);
+      syncExternal2DControls(nextExternal2DViewportActive);
 
-    if (external3DChanged) {
-      syncExternal3DControls(nextExternal3DControlsActive, {
-        syncFromSnapshot: nextExternal3DControlsActive,
-      });
-    }
+      if (external3DChanged) {
+        syncExternal3DControls(nextExternal3DControlsActive, {
+          syncFromSnapshot: nextExternal3DControlsActive,
+        });
+      }
 
-    external2DViewportActive = nextExternal2DViewportActive;
+      external2DViewportActive = nextExternal2DViewportActive;
 
-    if (externalTransitionSnapshotActive) {
-      return;
-    }
+      if (externalTransitionSnapshotActive) {
+        return;
+      }
 
-    if (external2DViewportActive) {
-      managerSnapshot = getExternal2DSnapshot();
-      setViewport2DControlsConfig(
-        {
-          sidebarWidth: currentSidebarWidth,
-          fallbackSnapshot: managerSnapshot,
-        },
-        { emit: false },
-      );
-      syncExternal2DControls(true);
+      if (external2DViewportActive) {
+        managerSnapshot = getExternal2DSnapshot();
+        setViewport2DControlsConfig(
+          {
+            sidebarWidth: currentSidebarWidth,
+            fallbackSnapshot: managerSnapshot,
+          },
+          { emit: false },
+        );
+        syncExternal2DControls(true);
+        publishSnapshot(managerSnapshot);
+        return;
+      }
+
       publishSnapshot(managerSnapshot);
-      return;
-    }
+    },
+    externalOwnershipController.signal,
+  );
 
-    publishSnapshot(managerSnapshot);
-  });
-
-  const unsubscribeViewportDirty = subscribe((_snapshot, meta) => {
+  const viewportDirtyController = new AbortController();
+  onMeta((meta) => {
     const viewportDirty = meta?.viewportDirty;
     if (!viewportDirty || Object.keys(viewportDirty).length === 0) {
       return;
     }
     viewportBridge.invalidate({ viewportDirty });
-  });
+  }, viewportDirtyController.signal);
 
   return {
     draw: () => {
@@ -915,8 +922,8 @@ export async function createViewportRuntime({
       resetViewport2DControlsConfig();
       resetViewport3DControlsConfig();
       resetViewportTransitionConfig();
-      unsubscribeExternalOwnership();
-      unsubscribeViewportDirty();
+      externalOwnershipController.abort();
+      viewportDirtyController.abort();
       resetViewportRenderSnapshot();
     },
   };

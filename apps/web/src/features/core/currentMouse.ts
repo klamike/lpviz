@@ -14,3 +14,8 @@ export function setCurrentMouse(next: PointXY | null) {
   value = next;
   listeners.forEach((listener) => listener());
 }
+
+export function subscribeCurrentMouse(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}

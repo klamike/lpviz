@@ -1,6 +1,5 @@
 import type { AppContext } from "@/app/appContext";
-import { selectCanvasControlsUiState } from "@/features/core/selectors";
-import { getState, subscribe } from "@/features/core/store";
+import { getState, on } from "@/features/core/store";
 import { createViewportRuntime } from "@/features/viewport/runtime";
 import { attachCanvasInteractions } from "@/ui/canvas/canvasInteractions";
 import { mountCanvasGL } from "@/ui/canvas/mountCanvasGL";
@@ -89,22 +88,23 @@ export function mountCanvasStage(
   });
   main.append(handle);
   function render() {
-    const ui = selectCanvasControlsUiState(getState());
-    toggle3d.className = ui.is3DMode ? "button-active" : "";
-    toggle3d.textContent = ui.toggle3DLabel;
-    zs.value = String(ui.zScale);
-    zv.textContent = ui.zScale.toFixed(2);
-    zc.className = ui.is3DMode ? "" : "is-hidden";
+    const { is3DMode, zScale } = getState();
+    toggle3d.className = is3DMode ? "button-active" : "";
+    toggle3d.textContent = is3DMode ? "2D" : "3D";
+    zs.value = String(zScale);
+    zv.textContent = zScale.toFixed(2);
+    zc.className = is3DMode ? "" : "is-hidden";
     const sw = ctx.getSidebarWidth();
     handle.style.left = `${sw}px`;
     gallery.update();
   }
   render();
-  const unsub = subscribe(render);
+  const controller = new AbortController();
+  on(["is3DMode", "zScale"], render, controller.signal);
   return {
     updateLayout: render,
     destroy: () => {
-      unsub();
+      controller.abort();
       detachInteractions?.();
       ctx.getCanvasManager()?.destroy();
       gl.destroy();

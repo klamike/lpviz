@@ -1,5 +1,5 @@
 import type { AppContext } from "@/app/appContext";
-import { getState, subscribe, type State } from "@/features/core/store";
+import { getState, on, type State } from "@/features/core/store";
 import { el } from "@/ui/dom";
 
 function usageTips(): HTMLDivElement {
@@ -146,10 +146,23 @@ export function mountSolverLogPanel(parent: HTMLElement, ctx: AppContext) {
     }
   }
   render(getState());
-  const unsub = subscribe(render);
+  const controller = new AbortController();
+  on(
+    [
+      "resultDisplayMode",
+      "resultBlocks",
+      "resultVirtualHeader",
+      "resultVirtualFooter",
+      "resultVirtualShowEmpty",
+      "resultVirtualRows",
+      "resultMaxLineChars",
+    ],
+    () => render(getState()),
+    controller.signal,
+  );
   return {
     destroy: () => {
-      unsub();
+      controller.abort();
       frame.remove();
     },
   };

@@ -1,13 +1,15 @@
 import type { AppContext } from "@/app/appContext";
-import { selectSolverControlsUiState } from "@/features/core/selectors";
 import {
+  computeDrawingPhase,
   getState,
-  subscribe,
+  on,
   type SolverMode,
   type SolverSettings,
   type State,
 } from "@/features/core/store";
 import { el } from "@/ui/dom";
+import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 
 const MAXIT_LOG_MIN = 0,
   MAXIT_LOG_MAX = 5,
@@ -23,6 +25,11 @@ const fmt = (value: number) => new Intl.NumberFormat("en-US").format(value);
 
 type MaxitSettingKey = Extract<keyof SolverSettings, "maxitIPM" | "maxitPDHG">;
 type SettingsSync = (state: State) => void;
+
+type SolverButtonUiState = {
+  active: boolean;
+  disabled: boolean;
+};
 
 function range(
   id: string,
@@ -312,25 +319,75 @@ export function mountSolverControlsPanel(parent: HTMLElement, ctx: AppContext) {
     };
   }
 
-  function render(s: State) {
-    const ui = selectSolverControlsUiState(s);
-    for (const mode of ["ipm", "pdhg", "simplex", "central"] as SolverMode[]) {
-      const b = buttons.get(mode)!;
-      b.className = ui.buttons[mode].active ? "button-active" : "";
-      b.disabled = ui.buttons[mode].disabled;
+  function getSolverButtonUiState(
+    state: State,
+    mode: SolverMode,
+  ): SolverButtonUiState {
+    const hasComputedLines = hasPolytopeLines(state.polytope);
+    const readyForSolvers =
+      computeDrawingPhase(state) === "ready_for_solvers" &&
+      hasComputedLines &&
+      state.objectiveVector !== null;
+
+    return {
+      active: state.solverMode === mode,
+      disabled: !readyForSolvers || !isSolverSelectable(state, mode),
+    };
+  }
+
+  function isSolverSelectable(state: State, mode: SolverMode): boolean {
+    if (!hasPolytopeLines(state.polytope)) return false;
+    if (
+      state.polytope.kind !== "bounded" &&
+      state.polytope.kind !== "unbounded"
+    ) {
+      return false;
     }
-    if (renderedMode !== ui.activeMode) {
-      renderedMode = ui.activeMode;
-      syncSettings = buildSettings(ui.activeMode, s.solverSettings);
+    if (
+      mode !== "central" ||
+      !state.objectiveVector ||
+      state.polytope.kind !== "unbounded"
+    ) {
+      return true;
+    }
+    return !isObjectiveDirectionUnbounded(state.polytope.lines, [
+      state.objectiveVector.x,
+      state.objectiveVector.y,
+    ]);
+  }
+
+  function render(s: State) {
+    for (const mode of ["ipm", "pdhg", "simplex", "central"] as SolverMode[]) {
+      const ui = getSolverButtonUiState(s, mode);
+      const b = buttons.get(mode)!;
+      b.className = ui.active ? "button-active" : "";
+      b.disabled = ui.disabled;
+    }
+    if (renderedMode !== s.solverMode) {
+      renderedMode = s.solverMode;
+      syncSettings = buildSettings(s.solverMode, s.solverSettings);
     }
     syncSettings(s);
   }
 
   render(getState());
-  const unsub = subscribe(render);
+  const controller = new AbortController();
+  on(
+    [
+      "solverMode",
+      "solverSettings",
+      "polytope",
+      "vertices",
+      "completionMode",
+      "objectiveVector",
+      "currentObjective",
+    ],
+    () => render(getState()),
+    controller.signal,
+  );
   return {
     destroy: () => {
-      unsub();
+      controller.abort();
       root.remove();
     },
   };

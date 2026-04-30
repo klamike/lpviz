@@ -1,7 +1,7 @@
 import type { AppContext } from "@/app/appContext";
-import { selectAnimationControlsUiState } from "@/features/core/selectors";
-import { getState, subscribe, type State } from "@/features/core/store";
+import { getState, on, type State } from "@/features/core/store";
 import { el } from "@/ui/dom";
+import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 
 export function mountAnimationControlsPanel(
   parent: HTMLElement,
@@ -91,22 +91,42 @@ export function mountAnimationControlsPanel(
   );
   root.append(rot);
   function render(s: State) {
-    const ui = selectAnimationControlsUiState(s);
-    animate.disabled = ui.animateDisabled;
-    start.disabled = ui.startRotateDisabled;
-    stop.disabled = ui.stopRotateDisabled;
-    rot.className = ui.rotateObjectiveMode
+    const hasComputedLines = hasPolytopeLines(s.polytope);
+    const hasSolution = (s.originalIteratePath?.length ?? 0) > 0;
+    const hasObjective = s.objectiveVector !== null;
+    const isRotating = s.rotateObjectiveMode;
+    const isAnimating = s.animationIntervalId !== null && !isRotating;
+
+    animate.disabled =
+      !hasComputedLines || !hasSolution || isAnimating || isRotating;
+    start.disabled =
+      !hasComputedLines || !hasObjective || isAnimating || isRotating;
+    stop.disabled = !isRotating;
+    rot.className = isRotating
       ? "objective-rotation is-block"
       : "objective-rotation is-hidden";
-    trace.checked = ui.traceEnabled;
+    trace.checked = s.traceEnabled;
     angle.value = String(s.solverSettings.objectiveAngleStep);
     speed.value = String(s.solverSettings.objectiveRotationSpeed);
   }
   render(getState());
-  const unsub = subscribe(render);
+  const controller = new AbortController();
+  on(
+    [
+      "polytope",
+      "originalIteratePath",
+      "objectiveVector",
+      "rotateObjectiveMode",
+      "animationIntervalId",
+      "traceEnabled",
+      "solverSettings",
+    ],
+    () => render(getState()),
+    controller.signal,
+  );
   return {
     destroy: () => {
-      unsub();
+      controller.abort();
       root.remove();
     },
   };

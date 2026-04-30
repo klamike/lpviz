@@ -1,4 +1,4 @@
-import { getState, type SolverMode } from "@/features/core/store";
+import { getSnapshot, getState, type SolverMode } from "@/features/core/store";
 import {
   compactSharedAppState,
   type ShareSettings,
@@ -18,7 +18,7 @@ export function createShareService(getSolverControls: () => SolverControl[]) {
   };
   const share = () => {
     const { vertices, completionMode, objectiveVector, solverMode, zScale } =
-      getState();
+      getSnapshot();
     const payload = compactSharedAppState({
       vertices,
       completionMode,

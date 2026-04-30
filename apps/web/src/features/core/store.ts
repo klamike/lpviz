@@ -211,80 +211,152 @@ const initialState: State = {
   isNavigatingViewport: false,
 };
 
-type StoreApi<T, Meta = unknown> = {
-  getState: () => T;
-  getInitialState: () => T;
-  setState: (
-    partial: Partial<T> | ((state: T) => T | Partial<T>),
-    replace?: boolean,
-    meta?: Meta,
-  ) => void;
-  subscribe: (listener: (state: T, meta?: Meta) => void) => () => void;
-};
+type Listener = () => void;
 
-function createStore<T, Meta = unknown>(
-  initializer: (
-    set: StoreApi<T, Meta>["setState"],
-    get: StoreApi<T, Meta>["getState"],
-    api: StoreApi<T, Meta>,
-  ) => T,
-): StoreApi<T, Meta> {
-  const listeners = new Set<(state: T, meta?: Meta) => void>();
-  let state: T;
+type StateValues<K extends keyof State> = { [P in K]: State[P] };
+type MetaListener = (meta?: StateChangeMeta) => void;
 
-  const setState: StoreApi<T, Meta>["setState"] = (
-    partial,
-    replace = false,
-    meta,
-  ) => {
-    const nextState =
-      typeof partial === "function"
-        ? (partial as (state: T) => T | Partial<T>)(state)
-        : partial;
+class LpvizStore {
+  private values: State;
+  private listeners = new Map<keyof State, Listener[]>();
+  private metaListeners: MetaListener[] = [];
+  private pending: Listener[] = [];
 
-    const resolvedState =
-      replace || typeof nextState !== "object" || nextState === null
-        ? (nextState as T)
-        : { ...state, ...nextState };
+  constructor(initialValues: State) {
+    this.values = initialValues;
+  }
 
-    if (!Object.is(resolvedState, state)) {
-      state = resolvedState;
-      listeners.forEach((listener) => listener(state, meta));
+  getState(): State {
+    return this.values;
+  }
+
+  getSnapshot(): State {
+    return { ...this.values };
+  }
+
+  patch(partial: Partial<State>, meta?: StateChangeMeta): void {
+    const changedKeys: (keyof State)[] = [];
+    let nextValues: State | null = null;
+
+    for (const rawKey in partial) {
+      const key = rawKey as keyof State;
+      const value = partial[key];
+      if (Object.is(this.values[key], value)) continue;
+      nextValues ??= { ...this.values };
+      (nextValues as Record<keyof State, State[keyof State]>)[key] =
+        value as State[keyof State];
+      changedKeys.push(key);
     }
-  };
 
-  const getState = () => state;
-  const getInitialState = () => initialState;
-  const subscribe = (listener: (state: T) => void) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  };
+    const hasMeta = meta !== undefined;
+    if (!nextValues && !hasMeta) return;
 
-  const api: StoreApi<T, Meta> = {
-    setState,
-    getState,
-    getInitialState,
-    subscribe,
-  };
-  const initialState = (state = initializer(setState, getState, api));
+    if (nextValues) {
+      this.values = nextValues;
+      for (const key of changedKeys) {
+        const ls = this.listeners.get(key);
+        if (!ls) continue;
+        for (let i = 0; i < ls.length; i++) ls[i]!();
+      }
+      this.flush();
+    }
 
-  return api;
+    if (hasMeta) {
+      const listeners = this.metaListeners.slice();
+      for (let i = 0; i < listeners.length; i++) listeners[i]!(meta);
+    }
+  }
+
+  on<K extends keyof State>(
+    keys: readonly K[],
+    fn: (values: StateValues<K>) => void,
+    signal: AbortSignal,
+  ): void {
+    if (signal.aborted) return;
+
+    let scheduled = false;
+    const flush = () => {
+      scheduled = false;
+      const snap = {} as StateValues<K>;
+      for (const key of keys) snap[key] = this.values[key];
+      fn(snap);
+    };
+    const handler = () => {
+      if (scheduled) return;
+      scheduled = true;
+      this.pending.push(flush);
+    };
+
+    for (const key of keys) {
+      const ls = this.listeners.get(key);
+      if (ls) ls.push(handler);
+      else this.listeners.set(key, [handler]);
+    }
+
+    signal.addEventListener(
+      "abort",
+      () => {
+        for (const key of keys) {
+          const ls = this.listeners.get(key);
+          if (!ls) continue;
+          const index = ls.indexOf(handler);
+          if (index >= 0) ls.splice(index, 1);
+          if (ls.length === 0) this.listeners.delete(key);
+        }
+      },
+      { once: true },
+    );
+  }
+
+  onMeta(fn: MetaListener, signal: AbortSignal): void {
+    if (signal.aborted) return;
+    this.metaListeners.push(fn);
+    signal.addEventListener(
+      "abort",
+      () => {
+        const index = this.metaListeners.indexOf(fn);
+        if (index >= 0) this.metaListeners.splice(index, 1);
+      },
+      { once: true },
+    );
+  }
+
+  private flush(): void {
+    while (this.pending.length > 0) {
+      const pending = this.pending;
+      this.pending = [];
+      for (let i = 0; i < pending.length; i++) pending[i]!();
+    }
+  }
 }
 
-const lpvizStore = createStore<State, StateChangeMeta>(() => initialState);
+const lpvizStore = new LpvizStore(initialState);
 
 export function getState(): State {
   return lpvizStore.getState();
 }
 
-export function setState(patch: Partial<State>, _meta?: StateChangeMeta): void {
-  lpvizStore.setState(patch, false, _meta);
+export function getSnapshot(): State {
+  return lpvizStore.getSnapshot();
 }
 
-export function subscribe(
-  listener: (snapshot: State, meta?: StateChangeMeta) => void,
-): () => void {
-  return lpvizStore.subscribe(listener);
+export function setState(patch: Partial<State>, meta?: StateChangeMeta): void {
+  lpvizStore.patch(patch, meta);
+}
+
+export function on<K extends keyof State>(
+  keys: readonly K[],
+  fn: (values: StateValues<K>) => void,
+  signal: AbortSignal,
+): void {
+  lpvizStore.on(keys, fn, signal);
+}
+
+export function onMeta(
+  fn: (meta?: StateChangeMeta) => void,
+  signal: AbortSignal,
+): void {
+  lpvizStore.onMeta(fn, signal);
 }
 
 export function computeDrawingPhase(state: State): DrawingPhase {
