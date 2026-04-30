@@ -1,4 +1,8 @@
 import {
+  getRenderBenchConfig,
+  isRenderBenchForceAllDirty,
+} from "@/bench/renderBenchConfig";
+import {
   getCurrentMouse,
   subscribeCurrentMouse,
 } from "@/features/core/currentMouse";
@@ -10,6 +14,12 @@ import { LayerHost } from "./LayerHost";
 import type { SceneContext } from "./SceneContext";
 
 type Size = { width: number; height: number; dpr: number };
+
+export type FrameMetrics = {
+  totalMs: number;
+  layerUpdateMs: number;
+  renderMs: number;
+};
 
 const RENDER_PASSES = [
   "background",
@@ -37,6 +47,8 @@ export class SceneManager {
   readonly renderer: WebGLRenderer;
   readonly layerHost = new LayerHost();
 
+  private readonly renderBenchConfig = getRenderBenchConfig();
+  private readonly combinedScene = new Scene();
   private camera: Camera | null = null;
   private dirty = true;
   private layersDirty: "all" | ViewportDirtyFlags | null = "all";
@@ -45,6 +57,12 @@ export class SceneManager {
   private unsubscribeCurrentMouse: (() => void) | null = null;
   private disposed = false;
   private ticks = new Set<(ctx: SceneContext) => void>();
+  private pendingFrameResolvers: Array<() => void> = [];
+  private lastFrameMetrics: FrameMetrics = {
+    totalMs: 0,
+    layerUpdateMs: 0,
+    renderMs: 0,
+  };
 
   private _size: Size = { width: 0, height: 0, dpr: 1 };
   private sizeListeners = new Set<(size: Size) => void>();
@@ -151,22 +169,37 @@ export class SceneManager {
     }
     this.dirty = false;
 
+    const frameStart = performance.now();
     for (const tick of this.ticks) {
       tick(this.ctx);
     }
 
-    if (this.layersDirty) {
+    let layerUpdateMs = 0;
+    if (this.layersDirty || isRenderBenchForceAllDirty()) {
       const layersDirty = this.layersDirty;
       this.layersDirty = null;
+      const layerStart = performance.now();
       this.layerHost.update(
         this.ctx,
-        layersDirty === "all" ? undefined : layersDirty,
+        layersDirty === "all" || !layersDirty ? undefined : layersDirty,
       );
+      layerUpdateMs = performance.now() - layerStart;
     }
 
+    let renderMs = 0;
     if (this.camera) {
+      const renderStart = performance.now();
       this.renderScenes(this.camera);
+      renderMs = performance.now() - renderStart;
     }
+    this.lastFrameMetrics = {
+      totalMs: performance.now() - frameStart,
+      layerUpdateMs,
+      renderMs,
+    };
+
+    const resolvers = this.pendingFrameResolvers.splice(0);
+    for (const resolve of resolvers) resolve();
 
     if (this.dirty) {
       this.scheduleFrame();
@@ -212,10 +245,16 @@ export class SceneManager {
     this.layerHost.add(layer);
     if (layer.renderObjects) {
       for (const { object3D, pass } of layer.renderObjects) {
-        this.scenes[pass].add(object3D);
+        (this.renderBenchConfig.singleScene
+          ? this.combinedScene
+          : this.scenes[pass]
+        ).add(object3D);
       }
     } else {
-      this.scenes[layer.renderPass ?? "foreground"].add(layer.object3D);
+      (this.renderBenchConfig.singleScene
+        ? this.combinedScene
+        : this.scenes[layer.renderPass ?? "foreground"]
+      ).add(layer.object3D);
     }
     this.invalidate();
   }
@@ -224,12 +263,32 @@ export class SceneManager {
     this.layerHost.remove(layer);
     if (layer.renderObjects) {
       for (const { object3D, pass } of layer.renderObjects) {
-        this.scenes[pass].remove(object3D);
+        (this.renderBenchConfig.singleScene
+          ? this.combinedScene
+          : this.scenes[pass]
+        ).remove(object3D);
       }
     } else {
-      this.scenes[layer.renderPass ?? "foreground"].remove(layer.object3D);
+      (this.renderBenchConfig.singleScene
+        ? this.combinedScene
+        : this.scenes[layer.renderPass ?? "foreground"]
+      ).remove(layer.object3D);
     }
     this.invalidate();
+  }
+
+  drawAndWait(): Promise<void> {
+    if (this.disposed) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      this.pendingFrameResolvers.push(resolve);
+      this.invalidate({ layers: false });
+    });
+  }
+
+  getLastFrameMetrics(): FrameMetrics {
+    return { ...this.lastFrameMetrics };
   }
 
   addTick(fn: (ctx: SceneContext) => void): void {
@@ -250,6 +309,8 @@ export class SceneManager {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
+    const resolvers = this.pendingFrameResolvers.splice(0);
+    for (const resolve of resolvers) resolve();
 
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
@@ -257,7 +318,7 @@ export class SceneManager {
     this.unsubscribeCurrentMouse = null;
 
     this.layerHost.dispose();
-    for (const scene of Object.values(this.scenes)) {
+    for (const scene of [this.combinedScene, ...Object.values(this.scenes)]) {
       for (const child of [...scene.children]) {
         scene.remove(child);
       }
@@ -269,6 +330,16 @@ export class SceneManager {
   private renderScenes(camera: Camera): void {
     this.renderer.clear();
     this.renderer.autoClear = false;
+    if (this.renderBenchConfig.singleScene) {
+      if (
+        this.combinedScene.children.length > 0 &&
+        !this.combinedScene.children.every(isHidden)
+      ) {
+        this.renderer.render(this.combinedScene, camera);
+      }
+      this.renderer.autoClear = true;
+      return;
+    }
     for (const pass of RENDER_PASSES) {
       const scene = this.scenes[pass];
       if (scene.children.length === 0 || scene.children.every(isHidden)) {

@@ -54,10 +54,26 @@ export function mountCanvasGL(
     getCanvasElement: () => canvas,
     getCanvasRect: () => canvas.getBoundingClientRect(),
     invalidate: (options) => mgr.invalidate(options),
+    drawAndWait: () => mgr.drawAndWait(),
+    getLastFrameMetrics: () => mgr.getLastFrameMetrics(),
+    getWebGLInfo: () => {
+      const gl = mgr.renderer.getContext();
+      const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+      return {
+        vendor: debugInfo
+          ? String(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL))
+          : String(gl.getParameter(gl.VENDOR)),
+        renderer: debugInfo
+          ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
+          : String(gl.getParameter(gl.RENDERER)),
+        version: String(gl.getParameter(gl.VERSION)),
+      };
+    },
   });
   mgr.start();
   return {
     canvas,
+    sceneManager: mgr,
     destroy: () => {
       for (const l of layers) {
         mgr.removeLayer(l);

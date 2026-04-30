@@ -5,6 +5,17 @@ export type ViewportBridge = {
     layers?: boolean;
     viewportDirty?: ViewportDirtyFlags;
   }) => void;
+  drawAndWait?: () => Promise<void>;
+  getLastFrameMetrics?: () => {
+    totalMs: number;
+    layerUpdateMs: number;
+    renderMs: number;
+  };
+  getWebGLInfo?: () => {
+    vendor?: string;
+    renderer?: string;
+    version?: string;
+  };
 };
 
 export type ViewportDirtyFlags = Partial<{

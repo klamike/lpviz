@@ -47,7 +47,11 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, "dist"),
     rollupOptions: {
-      input: [resolve(__dirname, "index.html"), ...docHtmlInputs],
+      input: [
+        resolve(__dirname, "index.html"),
+        resolve(__dirname, "render-rotation-bench.html"),
+        ...docHtmlInputs,
+      ],
     },
     chunkSizeWarningLimit: 1000,
     emptyOutDir: false,

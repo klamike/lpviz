@@ -8,7 +8,7 @@ import {
   type ViewportDirtyFlags,
 } from "@/features/core/store";
 import type { BoundingBox } from "@lpviz/math/geometry";
-import type { PointXY } from "@lpviz/math/types";
+import type { PointXY, PointXYZ } from "@lpviz/math/types";
 import {
   buildViewport2DSnapshot,
   fitViewport2DToBounds,
@@ -148,6 +148,7 @@ export type ViewportApi = {
     zBounds?: ViewportZBounds,
   ) => void;
   resetView: () => void;
+  set3DViewAngle: (viewAngle: PointXYZ) => void;
   setControlsBlocked: (blocked: boolean) => void;
   set2DPanEnabled: (enabled: boolean) => void;
   toLogicalCoords: (x: number, y: number) => PointXY;
@@ -722,6 +723,29 @@ export async function createViewportRuntime({
       }
 
       return;
+    },
+    set3DViewAngle: (viewAngle) => {
+      setState({ viewAngle: { ...viewAngle } }, { viewportDirty: {} });
+      if (!shouldUseExternal3DControls()) {
+        return;
+      }
+      const dx =
+        managerSnapshot.perspective.position.x - managerSnapshot.target.x;
+      const dy =
+        managerSnapshot.perspective.position.y - managerSnapshot.target.y;
+      const dz =
+        managerSnapshot.perspective.position.z - managerSnapshot.target.z;
+      const distance =
+        Math.hypot(dx, dy, dz) ||
+        getDefaultPerspectiveDistance3D(managerSnapshot, getViewportRect());
+      applyExternalPerspectivePose(
+        buildPerspectivePoseFromViewAngle(
+          viewAngle,
+          distance,
+          managerSnapshot.target,
+        ),
+        { syncControls: true },
+      );
     },
     setControlsBlocked: (blocked) => {
       externalControlsBlocked = blocked;

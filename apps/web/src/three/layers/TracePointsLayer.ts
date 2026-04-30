@@ -1,10 +1,20 @@
+import {
+  getRenderBenchConfig,
+  isRenderBenchLegacyBounds,
+} from "@/bench/renderBenchConfig";
 import type { State } from "@/features/core/store";
 import {
   computeIterateZ,
   MAX_TRACE_POINT_SPRITES,
 } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
-import { BufferAttribute, Group, Points, PointsMaterial } from "three";
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Group,
+  Points,
+  PointsMaterial,
+} from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
@@ -109,8 +119,15 @@ export class TracePointsLayer implements Layer {
   readonly invalidationKeys = ["trace"] as const;
   private pts: Points;
   private prev: PrevState | null = null;
+  private readonly benchConfig = getRenderBenchConfig();
 
   constructor() {
+    const group = new Group();
+    this.object3D = group;
+    this.pts = this.makePoints();
+  }
+
+  private makePoints(): Points {
     const mat = new PointsMaterial({
       color: TRACE_COLOR,
       size: TRACE_POINT_PIXEL_SIZE,
@@ -121,13 +138,14 @@ export class TracePointsLayer implements Layer {
       alphaMap: SHARED_CIRCLE_TEXTURE,
       alphaTest: 0.2,
     });
-    const pts = new Points(makePointsGeo(), mat);
+    const pts = new Points(
+      isRenderBenchLegacyBounds() ? new BufferGeometry() : makePointsGeo(),
+      mat,
+    );
     pts.renderOrder = TRACE_POINTS_RENDER_ORDER;
     pts.frustumCulled = false;
-    const group = new Group();
-    group.add(pts);
-    this.object3D = group;
-    this.pts = pts;
+    this.object3D.add(pts);
+    return pts;
   }
 
   update(ctx: SceneContext): void {
@@ -137,6 +155,7 @@ export class TracePointsLayer implements Layer {
 
     const p = this.prev;
     if (
+      !this.benchConfig.forceAllDirty &&
       p &&
       p.traceEnabled === raw.traceEnabled &&
       p.traceBuffer === raw.traceBuffer &&
@@ -161,6 +180,10 @@ export class TracePointsLayer implements Layer {
         "position",
         new BufferAttribute(positions, 3),
       );
+      if (this.benchConfig.legacyBounds) {
+        this.pts.geometry.computeBoundingBox();
+        this.pts.geometry.computeBoundingSphere();
+      }
     }
   }
 

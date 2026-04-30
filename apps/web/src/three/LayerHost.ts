@@ -1,6 +1,7 @@
+import { isRenderBenchForceAllDirty } from "@/bench/renderBenchConfig";
+import type { ViewportDirtyFlags } from "@/features/core/store";
 import type { Layer } from "./Layer";
 import type { SceneContext } from "./SceneContext";
-import type { ViewportDirtyFlags } from "@/features/core/store";
 
 export class LayerHost {
   private layers: Layer[] = [];
@@ -17,8 +18,13 @@ export class LayerHost {
   }
 
   update(ctx: SceneContext, dirty?: ViewportDirtyFlags): void {
+    const forceAllDirty = isRenderBenchForceAllDirty();
     for (const layer of this.layers) {
-      if (dirty && layer.invalidationKeys?.every((key) => !dirty[key])) {
+      if (
+        !forceAllDirty &&
+        dirty &&
+        layer.invalidationKeys?.every((key) => !dirty[key])
+      ) {
         continue;
       }
       layer.update(ctx);

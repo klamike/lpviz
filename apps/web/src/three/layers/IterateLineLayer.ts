@@ -1,3 +1,7 @@
+import {
+  isRenderBenchForceAllDirty,
+  isRenderBenchLegacyBounds,
+} from "@/bench/renderBenchConfig";
 import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { Group } from "three";
@@ -126,7 +130,9 @@ function buildIterateSegments(
 
 function makeLine2(group: Group): Line2 {
   const geo = new LineGeometry();
-  applyHugeBounds(geo);
+  if (!isRenderBenchLegacyBounds()) {
+    applyHugeBounds(geo);
+  }
   const ln = new Line2(
     geo,
     getSharedLineMaterial({
@@ -172,6 +178,7 @@ export class IterateLineLayer implements Layer {
 
     const p = this.prev;
     if (
+      !isRenderBenchForceAllDirty() &&
       p &&
       p.iteratePath === raw.iteratePath &&
       p.iteratePhases === raw.iteratePhases &&
@@ -226,6 +233,9 @@ export class IterateLineLayer implements Layer {
       const ln = this.pool[i]!;
       const geo = ln.geometry as LineGeometry;
       geo.setPositions(seg.positions);
+      if (!isRenderBenchLegacyBounds()) {
+        applyHugeBounds(geo);
+      }
       delete (geo as any)._maxInstanceCount;
       ln.material = getSharedLineMaterial({
         color: seg.color,

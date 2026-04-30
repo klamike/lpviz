@@ -1,6 +1,10 @@
+import {
+  isRenderBenchForceAllDirty,
+  isRenderBenchLegacyBounds,
+} from "@/bench/renderBenchConfig";
 import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
-import { BufferAttribute, Points, PointsMaterial } from "three";
+import { BufferAttribute, BufferGeometry, Points, PointsMaterial } from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
 import { PHASE_COLORS_LINEAR } from "../helpers/phaseColors";
 import { RENDER_ORDER } from "../helpers/renderOrder";
@@ -31,6 +35,7 @@ export class IteratePointsLayer implements Layer {
   private matPlain: PointsMaterial;
   private matColored: PointsMaterial;
   private prev: PrevState | null = null;
+  private readonly legacyBounds = isRenderBenchLegacyBounds();
 
   constructor() {
     const shared = {
@@ -52,7 +57,10 @@ export class IteratePointsLayer implements Layer {
       color: "#ffffff",
       vertexColors: true,
     });
-    const pts = new Points(makePointsGeo(), this.matPlain);
+    const pts = new Points(
+      this.legacyBounds ? new BufferGeometry() : makePointsGeo(),
+      this.matPlain,
+    );
     pts.renderOrder = ITERATE_POINTS_RENDER_ORDER;
     pts.frustumCulled = false;
     pts.visible = false;
@@ -65,6 +73,7 @@ export class IteratePointsLayer implements Layer {
 
     const p = this.prev;
     if (
+      !isRenderBenchForceAllDirty() &&
       p &&
       p.iteratePath === raw.iteratePath &&
       p.iteratePhases === raw.iteratePhases &&
@@ -132,6 +141,10 @@ export class IteratePointsLayer implements Layer {
       "position",
       new BufferAttribute(positions, 3),
     );
+    if (this.legacyBounds) {
+      this.object3D.geometry.computeBoundingBox();
+      this.object3D.geometry.computeBoundingSphere();
+    }
     if (colors) {
       this.object3D.geometry.setAttribute(
         "color",
