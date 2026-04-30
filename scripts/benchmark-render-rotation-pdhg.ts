@@ -78,10 +78,10 @@ const selectedVariants = parseVariants(getArgValue("variants", "optimized,old-tr
 
 const VARIANT_LABELS: Record<BenchVariant, string> = {
   optimized: "Optimized",
-  "old-trace-line-pool": "Old trace Line2 pool",
+  "old-trace-line-pool": "Unbatched trace geometry",
   "old-bounds-recompute": "Naive bounds/frustum culling",
   "old-line-distances": "Naive line distances",
-  "old-orbit-layer-updates": "Old orbit layer updates",
+  "old-orbit-layer-updates": "All-layer updates",
   "old-single-scene": "Naive single scene",
 };
 
@@ -369,7 +369,7 @@ function renderLatex(_metadata: BenchMetadata, summaries: VariantSummary[]) {
   return `\\begin{table}[t]
 \\color{red}% %%%%%%%%%%%TODO REMOVE
 \\centering
-\\caption{Rendering performance benchmark against optimized render-loop paths and naive Three.js baselines: pre-822e411 trace line pool updates, pre-6e22a89/f227be2 geometry bounds/frustum culling, line-distance recomputation for dashed-line support, pre-2995c65/34189c5 all-layer orbit updates, and a single-Scene renderer. Workload: traced quarter-rotation using PDHG equality on a problem with 4 constraints, \\texttt{maxit}=1000, and angle step \\(0.001\\).}
+\\caption{Rendering latency for traced objective rotation and 3D camera movement in the PDHG stress-test case.}
 \\label{tab:renderperf}
 \\begin{tabular}{l@{\\hspace{0em}}rrrr}
 \\toprule
