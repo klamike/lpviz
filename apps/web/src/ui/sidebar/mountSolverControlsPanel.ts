@@ -22,6 +22,8 @@ const sliderValueToMaxit = (value: string) =>
 const fmt = (value: number) => new Intl.NumberFormat("en-US").format(value);
 
 type MaxitSettingKey = Extract<keyof SolverSettings, "maxitIPM" | "maxitPDHG">;
+type SettingsSync = (state: State) => void;
+
 function range(
   id: string,
   min: string,
@@ -47,12 +49,15 @@ function labeled(
   id: string,
   control: HTMLElement,
   value?: HTMLElement,
+  includeBreak = false,
 ) {
-  const wrap = el("div");
+  const fragment = document.createDocumentFragment();
   const label = el("label", { attrs: { for: id } });
-  label.append(text, value ?? el("span"));
-  wrap.append(label, control);
-  return wrap;
+  label.append(text);
+  if (value) label.append(" ", value);
+  fragment.append(label, control);
+  if (includeBreak) fragment.append(el("br"));
+  return fragment;
 }
 
 export function mountSolverControlsPanel(parent: HTMLElement, ctx: AppContext) {
@@ -71,14 +76,23 @@ export function mountSolverControlsPanel(parent: HTMLElement, ctx: AppContext) {
   mkButton("pdhg", "PDHG");
   mkButton("simplex", "Simplex");
   mkButton("central", "Central Path", "iteratePathButton");
+
   const settings = el("div");
   root.append(settings);
+
+  let renderedMode: SolverMode | null = null;
+  let syncSettings: SettingsSync = () => {};
+
+  function setInputValue(input: HTMLInputElement, value: string) {
+    if (document.activeElement !== input) input.value = value;
+  }
+
   function renderMaxit(
     id: string,
     value: number,
     key: MaxitSettingKey,
     mode: SolverMode,
-  ) {
+  ): { element: HTMLElement; sync: (settings: SolverSettings) => void } {
     const span = el("span", { text: fmt(value) });
     const input = range(
       id,
@@ -86,52 +100,69 @@ export function mountSolverControlsPanel(parent: HTMLElement, ctx: AppContext) {
       String(MAXIT_LOG_MAX),
       String(MAXIT_LOG_STEP),
       (v) => {
-        ctx.actions.updateSolverSetting(key, sliderValueToMaxit(v));
+        const maxit = sliderValueToMaxit(v);
+        span.textContent = fmt(maxit);
+        ctx.actions.updateSolverSetting(key, maxit);
         ctx.actions.recomputeIfModeActive(mode);
       },
     );
+    input.classList.add("log-slider");
     input.value = String(maxitToSliderValue(value));
     const wrap = el("div", { className: "log-slider-control" });
     const label = el("label", {
       attrs: { for: id },
       text: "Maximum iterations:",
     });
-    label.append(span);
+    label.append(" ", span);
     wrap.append(
       label,
       input,
-      el("div", { className: "log-slider-scale" }, [
-        el("span", { text: "1" }),
-        el("span", { text: "10" }),
-        el("span", { text: "100" }),
-        el("span", { text: "1k" }),
-        el("span", { text: "10k" }),
-        el("span", { text: "100k" }),
-      ]),
+      el(
+        "div",
+        { className: "log-slider-scale", attrs: { "aria-hidden": "true" } },
+        [
+          el("span", { text: "1" }),
+          el("span", { text: "10" }),
+          el("span", { text: "100" }),
+          el("span", { text: "1k" }),
+          el("span", { text: "10k" }),
+          el("span", { text: "100k" }),
+        ],
+      ),
     );
-    return wrap;
+    return {
+      element: wrap,
+      sync: (st) => {
+        span.textContent = fmt(st[key]);
+        setInputValue(input, String(maxitToSliderValue(st[key])));
+      },
+    };
   }
-  function render(s: State) {
-    const ui = selectSolverControlsUiState(s);
-    for (const mode of ["ipm", "pdhg", "simplex", "central"] as SolverMode[]) {
-      const b = buttons.get(mode)!;
-      b.className = ui.buttons[mode].active ? "button-active" : "";
-      b.disabled = ui.buttons[mode].disabled;
-    }
+
+  function buildSettings(mode: SolverMode, st: SolverSettings): SettingsSync {
     settings.replaceChildren();
     const sec = el("div", { className: "settings-section is-block" });
     settings.append(sec);
-    const st = s.solverSettings;
-    if (ui.activeMode === "ipm") {
+
+    if (mode === "ipm") {
       const v1 = el("span", { text: st.alphaMax.toFixed(3) });
       const a = range("alphaMaxSlider", "0.001", "1", "0.001", (v) => {
-        ctx.actions.updateSolverSetting("alphaMax", parseFloat(v));
+        const next = parseFloat(v);
+        v1.textContent = next.toFixed(3);
+        ctx.actions.updateSolverSetting("alphaMax", next);
         ctx.actions.recomputeIfModeActive("ipm");
       });
       a.value = String(st.alphaMax);
       sec.append(
-        labeled("αmax (maximum step size ratio):", "alphaMaxSlider", a, v1),
+        labeled(
+          "αmax (maximum step size ratio):",
+          "alphaMaxSlider",
+          a,
+          v1,
+          true,
+        ),
       );
+
       const v2 = el("span", { text: st.correctorThreshold.toFixed(3) });
       const c = range(
         "correctorThresholdSlider",
@@ -139,52 +170,89 @@ export function mountSolverControlsPanel(parent: HTMLElement, ctx: AppContext) {
         "0.999",
         "0.001",
         (v) => {
-          ctx.actions.updateSolverSetting("correctorThreshold", parseFloat(v));
+          const next = parseFloat(v);
+          v2.textContent = next.toFixed(3);
+          ctx.actions.updateSolverSetting("correctorThreshold", next);
           ctx.actions.recomputeIfModeActive("ipm");
         },
       );
       c.value = String(st.correctorThreshold);
-      sec.append(
-        labeled("Corrector threshold:", "correctorThresholdSlider", c, v2),
-        renderMaxit("maxitSliderIPM", st.maxitIPM, "maxitIPM", "ipm"),
+      const maxit = renderMaxit(
+        "maxitSliderIPM",
+        st.maxitIPM,
+        "maxitIPM",
+        "ipm",
       );
+      sec.append(
+        labeled(
+          "Corrector threshold:",
+          "correctorThresholdSlider",
+          c,
+          v2,
+          true,
+        ),
+        maxit.element,
+      );
+      return (s) => {
+        const next = s.solverSettings;
+        v1.textContent = next.alphaMax.toFixed(3);
+        setInputValue(a, String(next.alphaMax));
+        v2.textContent = next.correctorThreshold.toFixed(3);
+        setInputValue(c, String(next.correctorThreshold));
+        maxit.sync(next);
+      };
     }
-    if (ui.activeMode === "pdhg") {
+
+    if (mode === "pdhg") {
+      const etaValue = el("span", { text: st.pdhgEta.toFixed(3) });
       const eta = range("pdhgEtaSlider", "0.001", "0.750", "0.001", (v) => {
-        ctx.actions.updateSolverSetting("pdhgEta", parseFloat(v));
+        const next = parseFloat(v);
+        etaValue.textContent = next.toFixed(3);
+        ctx.actions.updateSolverSetting("pdhgEta", next);
         ctx.actions.recomputeIfModeActive("pdhg");
       });
       eta.value = String(st.pdhgEta);
+
+      const tauValue = el("span", { text: st.pdhgTau.toFixed(3) });
+      const tau = range("pdhgTauSlider", "0.001", "0.750", "0.001", (v) => {
+        const next = parseFloat(v);
+        tauValue.textContent = next.toFixed(3);
+        ctx.actions.updateSolverSetting("pdhgTau", next);
+        ctx.actions.recomputeIfModeActive("pdhg");
+      });
+      tau.value = String(st.pdhgTau);
+      const maxit = renderMaxit(
+        "maxitSliderPDHG",
+        st.maxitPDHG,
+        "maxitPDHG",
+        "pdhg",
+      );
+
       sec.append(
         labeled(
           "η (primal step size factor):",
           "pdhgEtaSlider",
           eta,
-          el("span", { text: st.pdhgEta.toFixed(3) }),
+          etaValue,
+          true,
         ),
-      );
-      const tau = range("pdhgTauSlider", "0.001", "0.750", "0.001", (v) => {
-        ctx.actions.updateSolverSetting("pdhgTau", parseFloat(v));
-        ctx.actions.recomputeIfModeActive("pdhg");
-      });
-      tau.value = String(st.pdhgTau);
-      sec.append(
         labeled(
           "τ (dual step size factor):",
           "pdhgTauSlider",
           tau,
-          el("span", { text: st.pdhgTau.toFixed(3) }),
+          tauValue,
+          true,
         ),
-        renderMaxit("maxitSliderPDHG", st.maxitPDHG, "maxitPDHG", "pdhg"),
+        maxit.element,
       );
       const row = el("div", { className: "settings-checkbox-row" });
-      (
+      const checkboxes = (
         [
           ["pdhgIneqMode", "Inequality mode"],
           ["pdhgHalpernMode", "Halpern"],
           ["pdhgColorByBasis", "Color by basis"],
         ] as const
-      ).forEach(([key, label]) => {
+      ).map(([key, label]) => {
         const cb = checkbox(key, (v) => {
           ctx.actions.updateSolverSetting(key, v);
           ctx.actions.recomputeIfModeActive("pdhg");
@@ -193,25 +261,71 @@ export function mountSolverControlsPanel(parent: HTMLElement, ctx: AppContext) {
         row.append(
           el("label", { attrs: { for: key }, text: label + " " }, [cb]),
         );
+        return [key, cb] as const;
       });
       sec.append(row);
+      return (s) => {
+        const next = s.solverSettings;
+        etaValue.textContent = next.pdhgEta.toFixed(3);
+        setInputValue(eta, String(next.pdhgEta));
+        tauValue.textContent = next.pdhgTau.toFixed(3);
+        setInputValue(tau, String(next.pdhgTau));
+        maxit.sync(next);
+        for (const [key, cb] of checkboxes) cb.checked = next[key];
+      };
     }
-    if (ui.activeMode === "central") {
-      const n = range("centralPathIterSlider", "2", "100", "1", (v) => {
-        ctx.actions.updateSolverSetting("centralPathIter", parseInt(v, 10));
-        ctx.actions.recomputeIfModeActive("central");
+
+    if (mode === "simplex") {
+      const dual = checkbox("simplexDualMode", (v) => {
+        ctx.actions.updateSolverSetting("simplexDualMode", v);
+        ctx.actions.recomputeIfModeActive("simplex");
       });
-      n.value = String(st.centralPathIter);
+      dual.checked = st.simplexDualMode;
       sec.append(
-        labeled(
-          " N (number of steps): ",
-          "centralPathIterSlider",
-          n,
-          el("span", { text: String(st.centralPathIter) }),
-        ),
+        el("div", { className: "settings-checkbox-row" }, [
+          el(
+            "label",
+            { attrs: { for: "simplexDualMode" }, text: "Dual simplex mode " },
+            [dual],
+          ),
+        ]),
       );
+      return (s) => {
+        dual.checked = s.solverSettings.simplexDualMode;
+      };
     }
+
+    const nValue = el("span", { text: String(st.centralPathIter) });
+    const n = range("centralPathIterSlider", "2", "100", "1", (v) => {
+      const next = parseInt(v, 10);
+      nValue.textContent = String(next);
+      ctx.actions.updateSolverSetting("centralPathIter", next);
+      ctx.actions.recomputeIfModeActive("central");
+    });
+    n.value = String(st.centralPathIter);
+    sec.append(
+      labeled("N (number of steps):", "centralPathIterSlider", n, nValue),
+    );
+    return (s) => {
+      nValue.textContent = String(s.solverSettings.centralPathIter);
+      setInputValue(n, String(s.solverSettings.centralPathIter));
+    };
   }
+
+  function render(s: State) {
+    const ui = selectSolverControlsUiState(s);
+    for (const mode of ["ipm", "pdhg", "simplex", "central"] as SolverMode[]) {
+      const b = buttons.get(mode)!;
+      b.className = ui.buttons[mode].active ? "button-active" : "";
+      b.disabled = ui.buttons[mode].disabled;
+    }
+    if (renderedMode !== ui.activeMode) {
+      renderedMode = ui.activeMode;
+      syncSettings = buildSettings(ui.activeMode, s.solverSettings);
+    }
+    syncSettings(s);
+  }
+
   render(getState());
   const unsub = subscribe(render);
   return {
