@@ -1037,14 +1037,47 @@ input[type="range"]:not(#zScaleSlider):active::-ms-thumb {
 }
 
 .controlPanel .log-slider-scale {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 1em;
   margin-top: -2px;
   margin-bottom: 10px;
   color: #555;
   font-family: "JuliaMono", monospace;
   font-size: 0.7rem;
   line-height: 1;
+}
+
+.controlPanel .log-slider-scale span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.controlPanel .log-slider-scale span:nth-child(1) {
+  left: 0;
+  transform: none;
+}
+
+.controlPanel .log-slider-scale span:nth-child(2) {
+  left: 20%;
+}
+
+.controlPanel .log-slider-scale span:nth-child(3) {
+  left: 40%;
+}
+
+.controlPanel .log-slider-scale span:nth-child(4) {
+  left: 60%;
+}
+
+.controlPanel .log-slider-scale span:nth-child(5) {
+  left: 80%;
+}
+
+.controlPanel .log-slider-scale span:nth-child(6) {
+  right: 0;
+  transform: none;
 }
 
 .controlPanel .settings-checkbox-row {
