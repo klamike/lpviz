@@ -2,7 +2,7 @@ import type { ViewportDirtyFlags } from "@/features/core/store";
 import type { Object3D } from "three";
 import type { SceneContext } from "./SceneContext";
 
-export type LayerInvalidationKey = keyof ViewportDirtyFlags;
+type LayerInvalidationKey = keyof ViewportDirtyFlags;
 export type RenderPassName =
   | "background"
   | "transparent"

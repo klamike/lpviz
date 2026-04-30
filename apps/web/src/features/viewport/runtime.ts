@@ -130,7 +130,7 @@ function getSnapshotViewportDirtyFlags(
   return {};
 }
 
-export type ViewportZBounds = {
+type ViewportZBounds = {
   minZ: number;
   maxZ: number;
 };
