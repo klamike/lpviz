@@ -43,8 +43,27 @@ export function attachCanvasInteractions({
   handleUndoRedo: HandleUndoRedo;
 }): () => void {
   let pendingDragHistory: HistoryEntry | null = null;
+  let lastTap: {
+    time: number;
+    clientX: number;
+    clientY: number;
+  } | null = null;
+  let activeTouchStart: {
+    clientX: number;
+    clientY: number;
+    moved: boolean;
+  } | null = null;
+  let activePenStart: {
+    pointerId: number;
+    clientX: number;
+    clientY: number;
+    moved: boolean;
+  } | null = null;
+  let suppressClickUntil = 0;
   const canvas = canvasManager.getCanvasElement();
   const cleanupHandlers: Array<() => void> = [];
+  const DOUBLE_TAP_MS = 350;
+  const DOUBLE_TAP_RADIUS_PX = 28;
 
   const bindEvent = (
     target: EventTarget,
@@ -387,7 +406,9 @@ export function attachCanvasInteractions({
     cleanupDragState();
   };
 
-  const handlePointerRelease = (event: MouseEvent | TouchEvent) => {
+  const handlePointerRelease = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+  ) => {
     if (getState().isTransitioning3D) return;
 
     const interactionBeforeEnd = getState();
@@ -398,7 +419,9 @@ export function attachCanvasInteractions({
     }
   };
 
-  const stopBlockedPointerEvent = (event: MouseEvent | TouchEvent) => {
+  const stopBlockedPointerEvent = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+  ) => {
     if (getState().editorInteraction.kind === "idle") return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -407,7 +430,7 @@ export function attachCanvasInteractions({
   const handlePointerStart = (
     clientX: number,
     clientY: number,
-    event: MouseEvent | TouchEvent,
+    event: MouseEvent | TouchEvent | PointerEvent,
   ) => {
     if (getState().isTransitioning3D) return;
     const handled = handleDragStart(clientX, clientY);
@@ -420,7 +443,7 @@ export function attachCanvasInteractions({
   const handlePointerMove = (
     clientX: number,
     clientY: number,
-    event: MouseEvent | TouchEvent,
+    event: MouseEvent | TouchEvent | PointerEvent,
   ) => {
     const state = getState();
     if (
@@ -433,7 +456,9 @@ export function attachCanvasInteractions({
     stopBlockedPointerEvent(event);
   };
 
-  const handleWindowPointerEnd = (event: MouseEvent | TouchEvent) => {
+  const handleWindowPointerEnd = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+  ) => {
     if (event.target === canvas) return;
     if (getState().editorInteraction.kind === "idle") return;
     handlePointerRelease(event);
@@ -525,14 +550,10 @@ export function attachCanvasInteractions({
     );
   };
 
-  const handleDoubleClick = (event: MouseEvent) => {
+  const handleDoubleClickAt = (clientX: number, clientY: number) => {
     if (shouldIgnoreEditEvent()) return;
 
-    const logicalMouse = getLogicalFromClient(
-      canvasManager,
-      event.clientX,
-      event.clientY,
-    );
+    const logicalMouse = getLogicalFromClient(canvasManager, clientX, clientY);
     const state = getState();
     const {
       geometry: { vertices: displayVertices, mode: displayMode },
@@ -585,9 +606,36 @@ export function attachCanvasInteractions({
     }
   };
 
+  const handleDoubleClick = (event: MouseEvent) => {
+    handleDoubleClickAt(event.clientX, event.clientY);
+  };
+
+  const registerTap = (clientX: number, clientY: number) => {
+    const now = performance.now();
+    if (
+      lastTap &&
+      now - lastTap.time <= DOUBLE_TAP_MS &&
+      Math.hypot(clientX - lastTap.clientX, clientY - lastTap.clientY) <=
+        DOUBLE_TAP_RADIUS_PX
+    ) {
+      lastTap = null;
+      suppressClickUntil = now + DOUBLE_TAP_MS;
+      handleDoubleClickAt(clientX, clientY);
+      return true;
+    }
+
+    lastTap = { time: now, clientX, clientY };
+    return false;
+  };
+
   const handleClick = (event: MouseEvent) => {
     const initialState = getState();
     if (shouldIgnoreEditEvent()) return;
+    if (performance.now() < suppressClickUntil) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
 
     if (initialState.lastCompletedInteraction !== "none") {
       setState({ lastCompletedInteraction: "none" });
@@ -666,10 +714,90 @@ export function attachCanvasInteractions({
   );
   bindEvent(
     canvas,
+    "pointerdown",
+    (event: PointerEvent) => {
+      if (
+        event.pointerType !== "pen" ||
+        !event.isPrimary ||
+        event.button !== 0
+      ) {
+        return;
+      }
+      activePenStart = {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        moved: false,
+      };
+      handlePointerStart(event.clientX, event.clientY, event);
+    },
+    { capture: true },
+  );
+  bindEvent(
+    canvas,
+    "pointermove",
+    (event: PointerEvent) => {
+      if (
+        event.pointerType !== "pen" ||
+        !activePenStart ||
+        activePenStart.pointerId !== event.pointerId
+      ) {
+        return;
+      }
+      activePenStart.moved =
+        activePenStart.moved ||
+        Math.hypot(
+          event.clientX - activePenStart.clientX,
+          event.clientY - activePenStart.clientY,
+        ) > DOUBLE_TAP_RADIUS_PX;
+      handlePointerMove(event.clientX, event.clientY, event);
+    },
+    { capture: true },
+  );
+  bindEvent(
+    canvas,
+    "pointerup",
+    (event: PointerEvent) => {
+      if (
+        event.pointerType !== "pen" ||
+        !activePenStart ||
+        activePenStart.pointerId !== event.pointerId
+      ) {
+        return;
+      }
+      const started = activePenStart;
+      const interactionBeforeEnd = getState().editorInteraction;
+      handlePointerRelease(event);
+      activePenStart = null;
+      if (started.moved || interactionBeforeEnd.kind === "dragging") return;
+      if (registerTap(event.clientX, event.clientY)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    },
+    { capture: true },
+  );
+  bindEvent(
+    canvas,
+    "pointercancel",
+    (event: PointerEvent) => {
+      if (activePenStart?.pointerId === event.pointerId) {
+        activePenStart = null;
+      }
+    },
+    { capture: true },
+  );
+  bindEvent(
+    canvas,
     "touchstart",
     (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       const touch = event.touches[0];
+      activeTouchStart = {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        moved: false,
+      };
       handlePointerStart(touch.clientX, touch.clientY, event);
     },
     { passive: false, capture: true },
@@ -680,6 +808,14 @@ export function attachCanvasInteractions({
     (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       const touch = event.touches[0];
+      if (activeTouchStart) {
+        activeTouchStart.moved =
+          activeTouchStart.moved ||
+          Math.hypot(
+            touch.clientX - activeTouchStart.clientX,
+            touch.clientY - activeTouchStart.clientY,
+          ) > DOUBLE_TAP_RADIUS_PX;
+      }
       handlePointerMove(touch.clientX, touch.clientY, event);
     },
     { passive: false, capture: true },
@@ -687,7 +823,19 @@ export function attachCanvasInteractions({
   bindEvent(
     canvas,
     "touchend",
-    (event: TouchEvent) => handlePointerRelease(event),
+    (event: TouchEvent) => {
+      const touch = event.changedTouches[0];
+      const started = activeTouchStart;
+      const interactionBeforeEnd = getState().editorInteraction;
+      handlePointerRelease(event);
+      activeTouchStart = null;
+      if (!touch || !started || started.moved) return;
+      if (interactionBeforeEnd.kind === "dragging") return;
+      if (registerTap(touch.clientX, touch.clientY)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    },
     { passive: false, capture: true },
   );
   bindEvent(

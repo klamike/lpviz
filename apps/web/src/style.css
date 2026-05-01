@@ -299,6 +299,7 @@ body {
   width: 5px;
   height: 100%;
   cursor: ew-resize;
+  touch-action: none;
   z-index: 20;
   background: rgba(0, 0, 0, 0.1);
 }

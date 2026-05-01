@@ -95,15 +95,14 @@ export class ControlsController {
   }
 
   private setup2DListeners(canvas: HTMLCanvasElement): void {
+    let activePointerPanId: number | null = null;
+
+    const startPan = (clientX: number, clientY: number) =>
+      startViewport2DPan(clientX, clientY, canvas.getBoundingClientRect());
+
     const handleMouseDown = (event: MouseEvent) => {
       if (event.button !== 0) return;
-      if (
-        !startViewport2DPan(
-          event.clientX,
-          event.clientY,
-          canvas.getBoundingClientRect(),
-        )
-      ) {
+      if (!startPan(event.clientX, event.clientY)) {
         return;
       }
       canvas.focus();
@@ -119,17 +118,36 @@ export class ControlsController {
       if (!stopViewport2DPan()) return;
       event.preventDefault();
     };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" || !event.isPrimary) return;
+      if (event.button !== 0 || !startPan(event.clientX, event.clientY)) {
+        return;
+      }
+      activePointerPanId = event.pointerId;
+      canvas.setPointerCapture(event.pointerId);
+      canvas.focus();
+      event.preventDefault();
+    };
+    const handlePointerMove = (event: PointerEvent) => {
+      if (activePointerPanId !== event.pointerId || !isViewport2DPanActive()) {
+        return;
+      }
+      updateViewport2DPan(event.clientX, event.clientY);
+      event.preventDefault();
+    };
+    const handlePointerUp = (event: PointerEvent) => {
+      if (activePointerPanId !== event.pointerId) return;
+      activePointerPanId = null;
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+      if (!stopViewport2DPan()) return;
+      event.preventDefault();
+    };
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       const touch = event.touches[0];
-      if (
-        !touch ||
-        !startViewport2DPan(
-          touch.clientX,
-          touch.clientY,
-          canvas.getBoundingClientRect(),
-        )
-      ) {
+      if (!touch || !startPan(touch.clientX, touch.clientY)) {
         return;
       }
       canvas.focus();
@@ -176,6 +194,10 @@ export class ControlsController {
     };
 
     canvas.addEventListener("mousedown", handleMouseDown);
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointermove", handlePointerMove);
+    canvas.addEventListener("pointerup", handlePointerUp);
+    canvas.addEventListener("pointercancel", handlePointerUp);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
@@ -188,6 +210,10 @@ export class ControlsController {
 
     this.cleanup2D = () => {
       canvas.removeEventListener("mousedown", handleMouseDown);
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+      canvas.removeEventListener("pointerup", handlePointerUp);
+      canvas.removeEventListener("pointercancel", handlePointerUp);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
       canvas.removeEventListener("touchstart", handleTouchStart);
@@ -195,6 +221,7 @@ export class ControlsController {
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("touchcancel", handleTouchCancel);
       canvas.removeEventListener("wheel", handleWheel);
+      activePointerPanId = null;
     };
   }
 
@@ -247,6 +274,7 @@ export class ControlsController {
     const panBasisUp = new Vector3();
     const moveDelta = new Vector3();
     const moveTarget = new Vector3();
+    let active3DPointerId: number | null = null;
 
     const getOrbitState = () => {
       const offset = orbitOffset.subVectors(
@@ -315,15 +343,18 @@ export class ControlsController {
       emitPose(target);
     };
 
-    const handlePointerDown = (event: MouseEvent) => {
+    const start3DDrag = (
+      kind: Active3DDrag["kind"],
+      clientX: number,
+      clientY: number,
+    ) => {
       if (!canUse3DControls()) return;
-      if (event.button !== 0 && event.button !== 2) return;
       const orbit = getOrbitState();
       const panBasis = getPanBasis(orbit.distance);
       this.active3DDrag = {
-        kind: event.button === 0 ? "pan" : "rotate",
-        startClientX: event.clientX,
-        startClientY: event.clientY,
+        kind,
+        startClientX: clientX,
+        startClientY: clientY,
         startTarget: this.controlsTarget.clone(),
         startPosition: perspectiveCamera.position.clone(),
         startDistance: orbit.distance,
@@ -334,9 +365,19 @@ export class ControlsController {
         unitsPerPixel: panBasis.unitsPerPixel,
       };
       canvas.focus();
+      this.controlsConfig.onStart?.();
+    };
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (event.button !== 0 && event.button !== 2) return;
+      start3DDrag(
+        event.button === 0 ? "pan" : "rotate",
+        event.clientX,
+        event.clientY,
+      );
+      if (!this.active3DDrag) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      this.controlsConfig.onStart?.();
     };
 
     const handlePointerMove = (event: MouseEvent) => {
@@ -348,6 +389,36 @@ export class ControlsController {
 
     const handlePointerUp = (event: MouseEvent) => {
       if (!this.active3DDrag) return;
+      this.active3DDrag = null;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.controlsConfig.onEnd?.();
+    };
+
+    const handleTouchPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" || !event.isPrimary) return;
+      if (event.button !== 0) return;
+      start3DDrag("pan", event.clientX, event.clientY);
+      if (!this.active3DDrag) return;
+      active3DPointerId = event.pointerId;
+      canvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    const handleTouchPointerMove = (event: PointerEvent) => {
+      if (active3DPointerId !== event.pointerId || !this.active3DDrag) return;
+      apply3DMove(event.clientX, event.clientY);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    const handleTouchPointerUp = (event: PointerEvent) => {
+      if (active3DPointerId !== event.pointerId || !this.active3DDrag) return;
+      active3DPointerId = null;
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
       this.active3DDrag = null;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -442,6 +513,10 @@ export class ControlsController {
     };
 
     canvas.addEventListener("mousedown", handlePointerDown);
+    canvas.addEventListener("pointerdown", handleTouchPointerDown);
+    canvas.addEventListener("pointermove", handleTouchPointerMove);
+    canvas.addEventListener("pointerup", handleTouchPointerUp);
+    canvas.addEventListener("pointercancel", handleTouchPointerUp);
     window.addEventListener("mousemove", handlePointerMove);
     window.addEventListener("mouseup", handlePointerUp);
     canvas.addEventListener("wheel", handleWheel3D, { passive: false });
@@ -449,11 +524,16 @@ export class ControlsController {
 
     this.cleanup3D = () => {
       canvas.removeEventListener("mousedown", handlePointerDown);
+      canvas.removeEventListener("pointerdown", handleTouchPointerDown);
+      canvas.removeEventListener("pointermove", handleTouchPointerMove);
+      canvas.removeEventListener("pointerup", handleTouchPointerUp);
+      canvas.removeEventListener("pointercancel", handleTouchPointerUp);
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
       canvas.removeEventListener("wheel", handleWheel3D);
       canvas.removeEventListener("contextmenu", handleContextMenu);
       this.active3DDrag = null;
+      active3DPointerId = null;
     };
   }
 

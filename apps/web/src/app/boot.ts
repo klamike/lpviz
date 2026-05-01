@@ -130,24 +130,29 @@ export function boot(root: HTMLElement) {
 
   const sidebar = mountSidebar(root, ctx);
 
-  const onResizeStart = () => {
-    const move = (event: MouseEvent) => {
-      sidebarWidth = Math.max(
-        260,
-        Math.min(window.innerWidth - 240, event.clientX),
-      );
+  const onResizeStart = (startEvent: PointerEvent) => {
+    const applyWidth = (clientX: number) => {
+      sidebarWidth = Math.max(260, Math.min(window.innerWidth - 240, clientX));
       ctx.setSidebarWidthValue(sidebarWidth);
       sidebar.updateWidth(sidebarWidth);
       viewport.setSidebarWidth(sidebarWidth);
       stage.updateLayout();
     };
+    applyWidth(startEvent.clientX);
+
+    const move = (event: PointerEvent) => {
+      if (event.pointerId !== startEvent.pointerId) return;
+      applyWidth(event.clientX);
+    };
     const up = () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       viewport.syncViewportLayout(sidebarWidth);
     };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   const stage = mountCanvasStage(root, ctx, onResizeStart);

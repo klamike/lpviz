@@ -9,7 +9,7 @@ import { el } from "@/ui/dom";
 export function mountCanvasStage(
   parent: HTMLElement,
   ctx: AppContext,
-  onResizeStart: () => void,
+  onResizeStart: (event: PointerEvent) => void,
 ) {
   const main = el("main", { className: "canvas-stage" });
   const viewport = el("div", { className: "canvas-stage__viewport" });
@@ -82,9 +82,11 @@ export function mountCanvasStage(
   zoom.append(reset, fit, toggle3d, share, zc);
   main.append(zoom);
   const handle = el("div", { id: "sidebarHandle" });
-  handle.addEventListener("mousedown", (e) => {
+  handle.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary || e.button !== 0) return;
     e.preventDefault();
-    onResizeStart();
+    handle.setPointerCapture(e.pointerId);
+    onResizeStart(e);
   });
   main.append(handle);
   function render() {
