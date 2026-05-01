@@ -55,7 +55,7 @@ export function mountProblemGallery(parent: HTMLElement, ctx: AppContext) {
     items.append(b);
   }
   const render = () => {
-    const sw = ctx.getSidebarWidth();
+    const sw = ctx.getViewportSidebarWidth();
     root.className = `problem-gallery ${expanded ? "is-expanded" : ""}`.trim();
     root.style.left = `calc(${sw}px + (100vw - ${sw}px) / 2)`;
     root.style.setProperty(

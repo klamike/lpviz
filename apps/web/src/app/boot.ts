@@ -10,15 +10,18 @@ import { createSolverActions } from "@/features/solver/solverActions";
 import type { ViewportRuntime } from "@/features/viewport/runtime";
 import { createViewportActions } from "@/features/viewport/viewportActions";
 import { mountCanvasStage } from "@/ui/canvas/mountCanvasStage";
-import { mountSmallScreenOverlay } from "@/ui/overlays/mountSmallScreenOverlay";
 import { mountSidebar } from "@/ui/sidebar/mountSidebar";
 
 const DEFAULT_SIDEBAR_WIDTH = 450;
+const MOBILE_LAYOUT_QUERY = "(max-width: 700px) and (orientation: portrait)";
 
 export function boot(root: HTMLElement) {
   root.replaceChildren();
 
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
+  let mobileSidebarHeight = Math.round(window.innerHeight * 0.42);
+  const mobileQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
+  let mobileLayout = mobileQuery.matches;
   let canvasManager: ViewportRuntime | null = null;
   let urlApplied = false;
   let solverHandleProblemChange = () => {};
@@ -36,6 +39,17 @@ export function boot(root: HTMLElement) {
   const share = createShareService(() => solver.solverControls);
 
   solverHandleProblemChange = solver.handleProblemChange;
+
+  const getViewportSidebarWidth = () => (mobileLayout ? 0 : sidebarWidth);
+  const applyLayoutMode = () => {
+    mobileLayout = mobileQuery.matches;
+    root.classList.toggle("mobile-layout", mobileLayout);
+    root.style.setProperty(
+      "--mobile-sidebar-height",
+      `${mobileSidebarHeight}px`,
+    );
+  };
+  applyLayoutMode();
 
   const setCanvasManager = (runtime: ViewportRuntime | null) => {
     canvasManager = runtime;
@@ -121,6 +135,8 @@ export function boot(root: HTMLElement) {
     setCanvasManager,
 
     getSidebarWidth: () => sidebarWidth,
+    getViewportSidebarWidth,
+    isMobileLayout: () => mobileLayout,
     setSidebarWidthValue: (w) => {
       sidebarWidth = w;
     },
@@ -131,11 +147,42 @@ export function boot(root: HTMLElement) {
   const sidebar = mountSidebar(root, ctx);
 
   const onResizeStart = (startEvent: PointerEvent) => {
+    if (mobileLayout) {
+      const applyHeight = (clientY: number) => {
+        mobileSidebarHeight = Math.max(
+          180,
+          Math.min(window.innerHeight * 0.72, window.innerHeight - clientY),
+        );
+        root.style.setProperty(
+          "--mobile-sidebar-height",
+          `${mobileSidebarHeight}px`,
+        );
+        viewport.setSidebarWidth(0);
+        stage.updateLayout();
+      };
+      applyHeight(startEvent.clientY);
+
+      const move = (event: PointerEvent) => {
+        if (event.pointerId !== startEvent.pointerId) return;
+        applyHeight(event.clientY);
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        viewport.syncViewportLayout(0);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
+      return;
+    }
+
     const applyWidth = (clientX: number) => {
       sidebarWidth = Math.max(260, Math.min(window.innerWidth - 240, clientX));
       ctx.setSidebarWidthValue(sidebarWidth);
       sidebar.updateWidth(sidebarWidth);
-      viewport.setSidebarWidth(sidebarWidth);
+      viewport.setSidebarWidth(getViewportSidebarWidth());
       stage.updateLayout();
     };
     applyWidth(startEvent.clientX);
@@ -148,7 +195,7 @@ export function boot(root: HTMLElement) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
-      viewport.syncViewportLayout(sidebarWidth);
+      viewport.syncViewportLayout(getViewportSidebarWidth());
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -156,15 +203,23 @@ export function boot(root: HTMLElement) {
   };
 
   const stage = mountCanvasStage(root, ctx, onResizeStart);
-  const overlay = mountSmallScreenOverlay(root);
 
-  const onResize = () => viewport.syncViewportLayout(sidebarWidth);
+  const onResize = () => {
+    mobileSidebarHeight = Math.min(
+      mobileSidebarHeight,
+      window.innerHeight * 0.72,
+    );
+    applyLayoutMode();
+    viewport.syncViewportLayout(getViewportSidebarWidth());
+    stage.updateLayout();
+  };
   window.addEventListener("resize", onResize);
+  mobileQuery.addEventListener("change", onResize);
 
   return {
     destroy: () => {
       window.removeEventListener("resize", onResize);
-      overlay.destroy();
+      mobileQuery.removeEventListener("change", onResize);
       stage.destroy();
       sidebar.destroy();
       solver.destroy();

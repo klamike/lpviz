@@ -70,26 +70,6 @@ body {
 }
 
 /* ================================
-    Overlay: Small Screen
-    ================================ */
-.small-screen-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.9);
-  color: #fff;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 20px;
-  font-size: 1.2rem;
-}
-
-/* ================================
     Problem Gallery
     ================================ */
 .problem-gallery {
@@ -676,6 +656,162 @@ body {
   border-radius: 4px;
   transition: background 0.2s ease;
   outline: none;
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  body {
+    font-size: 0.88rem;
+    overflow: hidden;
+  }
+
+  .canvas-stage__viewport {
+    bottom: var(--mobile-sidebar-height, 42dvh);
+  }
+
+  .problem-gallery {
+    top: env(safe-area-inset-top, 0);
+  }
+
+  .problem-gallery.is-expanded {
+    width: min(var(--problem-gallery-expanded-width), calc(100vw - 24px));
+    height: 88px;
+  }
+
+  .problem-gallery__items {
+    height: 88px;
+    padding: 6px;
+    padding-top: 20px;
+    gap: 6px;
+  }
+
+  .problem-gallery__item {
+    grid-template-rows: 32px 12px;
+    flex-basis: 76px;
+    width: 76px;
+    height: 58px;
+    padding: 3px 5px;
+    font-size: 0.62rem;
+  }
+
+  .problem-gallery__thumb {
+    width: 48px;
+    height: 32px;
+  }
+
+  #sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100vw !important;
+    height: var(--mobile-sidebar-height, 42dvh);
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0));
+    border-right: 0;
+    border-top: 1px solid #bbb;
+    box-shadow: 0 -8px 18px rgba(0, 0, 0, 0.12);
+    text-align: center;
+  }
+
+  #sidebarContent .header {
+    display: none;
+  }
+
+  #uiContainer {
+    gap: 8px;
+  }
+
+  #terminal-container2 {
+    display: none;
+  }
+
+  #terminal-container {
+    display: block;
+    flex: 0 0 120px;
+    min-height: 120px;
+    max-height: 120px;
+    margin-top: 8px;
+    margin-bottom: 0;
+  }
+
+  #result {
+    height: 100%;
+    padding: 6px 8px;
+  }
+
+  #usageTips {
+    font-size: 0.64rem;
+  }
+
+  .controlPanel {
+    padding: 10px;
+    margin: 8px 0;
+    text-align: center;
+  }
+
+  .controlPanel .settings-section {
+    margin-top: 1em;
+    text-align: center;
+  }
+
+  #sidebar h2 {
+    margin: 6px 0 4px;
+    font-size: 1rem;
+  }
+
+  #sidebar button,
+  #zoomControls button {
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  #sidebarHandle {
+    top: auto;
+    bottom: var(--mobile-sidebar-height, 42dvh);
+    left: 0 !important;
+    width: 100vw;
+    height: 12px;
+    cursor: ns-resize;
+    background: rgba(0, 0, 0, 0.14);
+  }
+
+  #sidebarHandle::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: calc(50% - 22px);
+    width: 44px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.32);
+  }
+
+  #zoomControls {
+    top: calc(8px + env(safe-area-inset-top, 0));
+    right: 8px;
+    gap: 6px;
+  }
+
+  #zoomControls button {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 6px;
+  }
+
+  #zoomControls button svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  #zScaleSliderContainer {
+    margin-top: 4px;
+    padding: 4px;
+  }
+
+  #zScaleSlider {
+    height: 64px;
+  }
 }
 
 #zScaleSlider::-webkit-slider-runnable-track {

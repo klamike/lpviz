@@ -16,6 +16,8 @@ export type AppContext = {
   getCanvasManager: () => ViewportRuntime | null;
   setCanvasManager: (runtime: ViewportRuntime | null) => void;
   getSidebarWidth: () => number;
+  getViewportSidebarWidth: () => number;
+  isMobileLayout: () => boolean;
   setSidebarWidthValue: (width: number) => void;
   disposers: Array<() => void>;
 };

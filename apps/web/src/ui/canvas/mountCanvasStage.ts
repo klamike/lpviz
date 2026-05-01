@@ -29,7 +29,9 @@ export function mountCanvasStage(
             sendPolytope: ctx.services.polytope.send,
             handleUndoRedo: ctx.services.history.handleUndoRedo,
           });
-          ctx.services.viewport.syncViewportLayout(ctx.getSidebarWidth());
+          ctx.services.viewport.syncViewportLayout(
+            ctx.getViewportSidebarWidth(),
+          );
           runtime.draw();
         })
         .catch((e) => console.error("Failed to initialize viewport", e));
@@ -97,7 +99,7 @@ export function mountCanvasStage(
     zv.textContent = zScale.toFixed(2);
     zc.className = is3DMode ? "" : "is-hidden";
     const sw = ctx.getSidebarWidth();
-    handle.style.left = `${sw}px`;
+    handle.style.left = ctx.isMobileLayout() ? "0" : `${sw}px`;
     gallery.update();
   }
   render();
