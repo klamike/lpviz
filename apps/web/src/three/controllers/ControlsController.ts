@@ -275,6 +275,7 @@ export class ControlsController {
     const moveDelta = new Vector3();
     const moveTarget = new Vector3();
     let active3DPointerId: number | null = null;
+    let activeTwoFingerOrbit = false;
 
     const getOrbitState = () => {
       const offset = orbitOffset.subVectors(
@@ -368,6 +369,29 @@ export class ControlsController {
       this.controlsConfig.onStart?.();
     };
 
+    const getTouchCenter = (touches: TouchList) => ({
+      x: (touches[0]!.clientX + touches[1]!.clientX) / 2,
+      y: (touches[0]!.clientY + touches[1]!.clientY) / 2,
+    });
+
+    const stop3DDrag = () => {
+      if (!this.active3DDrag) return false;
+      this.active3DDrag = null;
+      activeTwoFingerOrbit = false;
+      this.controlsConfig.onEnd?.();
+      return true;
+    };
+
+    const clearActive3DPointer = () => {
+      if (
+        active3DPointerId !== null &&
+        canvas.hasPointerCapture(active3DPointerId)
+      ) {
+        canvas.releasePointerCapture(active3DPointerId);
+      }
+      active3DPointerId = null;
+    };
+
     const handlePointerDown = (event: MouseEvent) => {
       if (event.button !== 0 && event.button !== 2) return;
       start3DDrag(
@@ -388,14 +412,39 @@ export class ControlsController {
     };
 
     const handlePointerUp = (event: MouseEvent) => {
-      if (!this.active3DDrag) return;
-      this.active3DDrag = null;
+      if (!stop3DDrag()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      this.controlsConfig.onEnd?.();
+    };
+
+    const handleTouchStart3D = (event: TouchEvent) => {
+      if (event.touches.length !== 2) return;
+      clearActive3DPointer();
+      const center = getTouchCenter(event.touches);
+      start3DDrag("rotate", center.x, center.y);
+      if (!this.active3DDrag) return;
+      activeTwoFingerOrbit = true;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    const handleTouchMove3D = (event: TouchEvent) => {
+      if (!activeTwoFingerOrbit || event.touches.length !== 2) return;
+      const center = getTouchCenter(event.touches);
+      apply3DMove(center.x, center.y);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    const handleTouchEnd3D = (event: TouchEvent) => {
+      if (!activeTwoFingerOrbit || event.touches.length >= 2) return;
+      if (!stop3DDrag()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
     };
 
     const handleTouchPointerDown = (event: PointerEvent) => {
+      if (activeTwoFingerOrbit) return;
       if (event.pointerType === "mouse" || !event.isPrimary) return;
       if (event.button !== 0) return;
       start3DDrag("pan", event.clientX, event.clientY);
@@ -407,6 +456,7 @@ export class ControlsController {
     };
 
     const handleTouchPointerMove = (event: PointerEvent) => {
+      if (activeTwoFingerOrbit) return;
       if (active3DPointerId !== event.pointerId || !this.active3DDrag) return;
       apply3DMove(event.clientX, event.clientY);
       event.preventDefault();
@@ -414,11 +464,9 @@ export class ControlsController {
     };
 
     const handleTouchPointerUp = (event: PointerEvent) => {
+      if (activeTwoFingerOrbit) return;
       if (active3DPointerId !== event.pointerId || !this.active3DDrag) return;
-      active3DPointerId = null;
-      if (canvas.hasPointerCapture(event.pointerId)) {
-        canvas.releasePointerCapture(event.pointerId);
-      }
+      clearActive3DPointer();
       this.active3DDrag = null;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -517,6 +565,16 @@ export class ControlsController {
     canvas.addEventListener("pointermove", handleTouchPointerMove);
     canvas.addEventListener("pointerup", handleTouchPointerUp);
     canvas.addEventListener("pointercancel", handleTouchPointerUp);
+    canvas.addEventListener("touchstart", handleTouchStart3D, {
+      passive: false,
+    });
+    window.addEventListener("touchmove", handleTouchMove3D, {
+      passive: false,
+    });
+    window.addEventListener("touchend", handleTouchEnd3D, { passive: false });
+    window.addEventListener("touchcancel", handleTouchEnd3D, {
+      passive: false,
+    });
     window.addEventListener("mousemove", handlePointerMove);
     window.addEventListener("mouseup", handlePointerUp);
     canvas.addEventListener("wheel", handleWheel3D, { passive: false });
@@ -528,12 +586,17 @@ export class ControlsController {
       canvas.removeEventListener("pointermove", handleTouchPointerMove);
       canvas.removeEventListener("pointerup", handleTouchPointerUp);
       canvas.removeEventListener("pointercancel", handleTouchPointerUp);
+      canvas.removeEventListener("touchstart", handleTouchStart3D);
+      window.removeEventListener("touchmove", handleTouchMove3D);
+      window.removeEventListener("touchend", handleTouchEnd3D);
+      window.removeEventListener("touchcancel", handleTouchEnd3D);
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
       canvas.removeEventListener("wheel", handleWheel3D);
       canvas.removeEventListener("contextmenu", handleContextMenu);
       this.active3DDrag = null;
-      active3DPointerId = null;
+      clearActive3DPointer();
+      activeTwoFingerOrbit = false;
     };
   }
 
