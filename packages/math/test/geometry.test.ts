@@ -1,0 +1,178 @@
+import { describe, expect, test } from "bun:test";
+import {
+  VRep,
+  centroid,
+  classifyRegion,
+  expandDegenerateBounds,
+  hasOpenBoundaryClosure,
+  isConvexChain,
+  verticesFromLines,
+} from "../src/geometry";
+import type { Lines, Vertices } from "../src/types";
+
+describe("VRep.isConvex", () => {
+  test("tolerates floating-point noise from a vertex dragged onto an edge", () => {
+    const nearCollinear = [
+      { x: 0, y: 0 },
+      { x: 1, y: 1e-15 },
+      { x: 2, y: 0 },
+      { x: 2, y: 2 },
+      { x: 0, y: 2 },
+    ];
+    expect(VRep.fromPoints(nearCollinear).isConvex()).toBe(true);
+  });
+
+  test("rejects a genuinely dented polygon", () => {
+    const dent = [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 1, y: 0.5 },
+      { x: 2, y: 2 },
+      { x: 0, y: 2 },
+    ];
+    expect(VRep.fromPoints(dent).isConvex()).toBe(false);
+  });
+
+  test("rejects a 180-degree spike", () => {
+    const spike = [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    expect(VRep.fromPoints(spike).isConvex()).toBe(false);
+  });
+});
+
+describe("isConvexChain", () => {
+  test("rejects a chain doubling back on itself", () => {
+    expect(
+      isConvexChain([
+        { x: 0, y: 0 },
+        { x: 2, y: 0 },
+        { x: 1, y: 0 },
+      ]),
+    ).toBe(false);
+  });
+
+  test("accepts straight continuation and duplicate points", () => {
+    expect(
+      isConvexChain([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 0 },
+      ]),
+    ).toBe(true);
+    expect(
+      isConvexChain([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ]),
+    ).toBe(true);
+  });
+});
+
+// unit-normalized lines for the square [0,4] x [0,4]
+const SQUARE_LINES: Lines = [
+  [0, -1, 0],
+  [1, 0, 4],
+  [0, 1, 4],
+  [-1, 0, 0],
+];
+
+describe("verticesFromLines", () => {
+  test("returns full-precision vertices", () => {
+    const third: Lines = [
+      [0, -1, 0],
+      [Math.SQRT1_2, Math.SQRT1_2, Math.SQRT1_2],
+      [-1, 0, 0],
+    ];
+    const verts = verticesFromLines(third);
+    expect(verts.length).toBe(3);
+    const hasExact = verts.some(
+      ([x, y]) => Math.abs(x - 0) < 1e-9 && Math.abs(y - 1) < 1e-9,
+    );
+    expect(hasExact).toBe(true);
+  });
+
+  test("does not collapse a sliver thinner than 0.005 into duplicates", () => {
+    // x in [0, 0.004], y in [0, 1]
+    const sliver: Lines = [
+      [0, -1, 0],
+      [1, 0, 0.004],
+      [0, 1, 1],
+      [-1, 0, 0],
+    ];
+    const verts = verticesFromLines(sliver);
+    expect(verts.length).toBe(4);
+    const center = centroid(verts);
+    const strictlyFeasible = sliver.every(
+      ([A, B, C]) => A * center[0]! + B * center[1]! < C,
+    );
+    expect(strictlyFeasible).toBe(true);
+  });
+});
+
+describe("classifyRegion", () => {
+  test("classifies a closed square as bounded", () => {
+    expect(classifyRegion(SQUARE_LINES, verticesFromLines(SQUARE_LINES), true)).toBe(
+      "bounded",
+    );
+  });
+
+  test("does not call a receding region with 3 vertices bounded", () => {
+    // x >= 0, y >= 0, x + y >= 1, y <= 2: three vertices, recedes along +x
+    const s = Math.SQRT1_2;
+    const open: Lines = [
+      [-1, 0, 0],
+      [0, -1, 0],
+      [-s, -s, -s],
+      [0, 1, 2],
+    ];
+    expect(classifyRegion(open, verticesFromLines(open), true)).toBe(
+      "unbounded",
+    );
+  });
+});
+
+describe("hasOpenBoundaryClosure", () => {
+  test("detects the start ray crossing the terminal segment", () => {
+    // pure ray-vs-segment geometry; empty lines disable the constraint fallback
+    const chain: Vertices = [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [-3, 1],
+      [-3, -1],
+    ];
+    expect(hasOpenBoundaryClosure(chain, [])).toBe(true);
+    expect(hasOpenBoundaryClosure([...chain].reverse(), [])).toBe(true);
+  });
+
+  test("an open L stays open", () => {
+    const chain: Vertices = [
+      [0, 0],
+      [2, 0],
+      [2, 2],
+    ];
+    expect(hasOpenBoundaryClosure(chain, [])).toBe(false);
+  });
+});
+
+describe("expandDegenerateBounds", () => {
+  test("expands a point and a segment, keeps real bounds", () => {
+    const pt = expandDegenerateBounds({ minX: 7, maxX: 7, minY: -3, maxY: -3 });
+    expect(pt.maxX - pt.minX).toBe(1);
+    expect(pt.maxY - pt.minY).toBe(1);
+    expect((pt.minX + pt.maxX) / 2).toBe(7);
+
+    const seg = expandDegenerateBounds({ minX: 2, maxX: 2, minY: -5, maxY: 5 });
+    expect(seg.maxX - seg.minX).toBe(1);
+    expect(seg.maxY - seg.minY).toBe(10);
+
+    const real = { minX: -10, maxX: 10, minY: -8, maxY: 8 };
+    expect(expandDegenerateBounds(real)).toEqual(real);
+  });
+});
