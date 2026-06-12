@@ -103,7 +103,9 @@ function buildIterateSegments(
           positions,
         });
       }
-      segStart = i - 1;
+      // the closing slice already drew the transition edge (i-1 -> i), so the
+      // next segment only needs to share point i for connectivity
+      segStart = i;
       segPhase = currentPhase;
     }
   }

@@ -119,7 +119,9 @@ type PrevState = {
 
 export class ConstraintHighlightLayer implements Layer {
   readonly object3D: Group;
-  readonly invalidationKeys = ["constraints"] as const;
+  // "grid" fires on zoom/resize/pan, which move the visible bounds this
+  // layer clips against; the prev-state check below keeps updates cheap.
+  readonly invalidationKeys = ["constraints", "grid"] as const;
   private cGeo: LineSegmentsGeometry;
   private cSegs: LineSegments2;
   private prev: PrevState | null = null;

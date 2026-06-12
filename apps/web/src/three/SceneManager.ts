@@ -91,9 +91,13 @@ export class SceneManager {
     });
     this.resizeObserver.observe(canvas);
 
+    const manager = this;
     this.ctx = {
       scene: this.scene,
-      size: this._size,
+      // live getter: setSize replaces the _size object on every resize
+      get size() {
+        return manager._size;
+      },
       getSnapshot: getViewportRenderSnapshot,
       getFullSnapshot: getViewportRenderSnapshot,
       getState,

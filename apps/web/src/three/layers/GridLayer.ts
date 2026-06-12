@@ -86,19 +86,23 @@ export class GridLayer implements Layer {
   readonly invalidationKeys = ["grid"] as const;
   private gridGeo: BufferGeometry;
   private axisGeo: BufferGeometry;
+  private gridMat: LineBasicMaterial;
+  private axisMat: LineBasicMaterial;
   private prevBounds: GridBounds | null = null;
 
   constructor() {
     const gGeo = new BufferGeometry();
     const aGeo = new BufferGeometry();
-    const gridLines = new LineSegments(
-      gGeo,
-      new LineBasicMaterial({ color: GRID_COLOR, depthWrite: false }),
-    );
-    const axisLines = new LineSegments(
-      aGeo,
-      new LineBasicMaterial({ color: AXIS_COLOR, depthWrite: false }),
-    );
+    const gMat = new LineBasicMaterial({
+      color: GRID_COLOR,
+      depthWrite: false,
+    });
+    const aMat = new LineBasicMaterial({
+      color: AXIS_COLOR,
+      depthWrite: false,
+    });
+    const gridLines = new LineSegments(gGeo, gMat);
+    const axisLines = new LineSegments(aGeo, aMat);
     gridLines.renderOrder = RENDER_ORDER.grid;
     axisLines.renderOrder = RENDER_ORDER.axis;
     gridLines.frustumCulled = false;
@@ -108,6 +112,8 @@ export class GridLayer implements Layer {
     this.object3D = g;
     this.gridGeo = gGeo;
     this.axisGeo = aGeo;
+    this.gridMat = gMat;
+    this.axisMat = aMat;
   }
 
   update(ctx: SceneContext): void {
@@ -135,5 +141,7 @@ export class GridLayer implements Layer {
   dispose(): void {
     this.gridGeo.dispose();
     this.axisGeo.dispose();
+    this.gridMat.dispose();
+    this.axisMat.dispose();
   }
 }
