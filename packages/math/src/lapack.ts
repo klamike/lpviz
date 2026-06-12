@@ -20,7 +20,7 @@ export function solveDenseSystem(
       }
     }
 
-    if (pivotValue <= 1e-12) {
+    if (!(pivotValue > 1e-12)) {
       throw new Error("Singular linear system");
     }
 
@@ -59,6 +59,12 @@ export function solveDenseSystem(
       sum -= lu[row * size + col]! * out[col]!;
     }
     out[row] = sum / lu[row * size + row]!;
+  }
+
+  for (let row = 0; row < size; row++) {
+    if (!Number.isFinite(out[row]!)) {
+      throw new Error("Singular linear system");
+    }
   }
 
   return out;
