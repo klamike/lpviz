@@ -285,6 +285,9 @@ function pdhgStandardForm(
       bNorm,
       cNorm,
     );
+    if (!Number.isFinite(epsilonK)) {
+      break;
+    }
   }
 
   const solveTime = performance.now() - startTime;
