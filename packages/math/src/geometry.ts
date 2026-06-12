@@ -19,7 +19,13 @@ export function isConvexChain(
     const p1 = points[i + 1];
     const p2 = points[i + 2];
     const cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
-    if (Math.abs(cross) <= tol) continue;
+    if (Math.abs(cross) <= tol) {
+      // a 180-degree reversal also has zero cross product; reject it
+      const dot =
+        (p1.x - p0.x) * (p2.x - p1.x) + (p1.y - p0.y) * (p2.y - p1.y);
+      if (dot < -tol) return false;
+      continue;
+    }
     if (prevCross === 0) {
       prevCross = cross;
       continue;
@@ -113,6 +119,11 @@ export class VRep {
       if (Math.abs(cross) > tol) {
         if (prevCross === 0) prevCross = cross;
         else if (Math.sign(cross) !== Math.sign(prevCross)) return false;
+      } else {
+        // a 180-degree reversal also has zero cross product; reject it
+        const dot =
+          (p1.x - p0.x) * (p2.x - p1.x) + (p1.y - p0.y) * (p2.y - p1.y);
+        if (dot < -tol) return false;
       }
     }
     return true;
