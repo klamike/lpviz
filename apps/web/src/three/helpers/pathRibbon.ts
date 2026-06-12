@@ -104,6 +104,9 @@ void main() {
 }
 `;
 
+// linearToOutputTexel comes from three's standard fragment prefix and is
+// compiled per render target: identity into the linear trace cache, sRGB
+// encode onto the canvas — matching the built-in materials exactly.
 const FRAGMENT_SHADER = /* glsl */ `
 uniform vec3 color;
 uniform float opacity;
@@ -111,7 +114,7 @@ in vec3 vColor;
 out vec4 outColor;
 
 void main() {
-  outColor = vec4(color * vColor, opacity);
+  outColor = linearToOutputTexel(vec4(color * vColor, opacity));
 }
 `;
 
@@ -166,10 +169,9 @@ export class PathRibbon {
   private baseColor: Color;
 
   constructor(style: PathRibbonStyle) {
-    // built-in materials encode their linear working-space color back to sRGB
-    // at the end of the fragment shader; mirror that so the ribbon color
-    // matches the rest of the palette exactly
-    const color = new Color(style.color).convertLinearToSRGB();
+    // linear working-space color, like the built-in materials; output
+    // encoding happens in the fragment shader via linearToOutputTexel
+    const color = new Color(style.color);
     this.baseColor = color.clone();
     this.material = new ShaderMaterial({
       glslVersion: GLSL3,
@@ -202,7 +204,7 @@ export class PathRibbon {
     this.material.depthWrite = enabled;
   }
 
-  // points: per-point [x, y, z]; colors: optional per-point sRGB RGBA bytes.
+  // points: per-point [x, y, z]; colors: optional per-point linear RGBA bytes.
   // Writes fresh path/color textures (build-once per path — callers reuse
   // ribbons only when the path itself is replaced).
   setPath(

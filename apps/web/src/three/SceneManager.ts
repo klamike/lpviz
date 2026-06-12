@@ -8,6 +8,7 @@ import { Camera, Scene, WebGLRenderer } from "three";
 import type { Layer, RenderPassName } from "./Layer";
 import { LayerHost } from "./LayerHost";
 import type { SceneContext } from "./SceneContext";
+import { TraceCache } from "./TraceCache";
 
 type Size = { width: number; height: number; dpr: number };
 
@@ -36,6 +37,7 @@ export class SceneManager {
   readonly scene = this.scenes.foreground;
   readonly renderer: WebGLRenderer;
   readonly layerHost = new LayerHost();
+  private traceCache = new TraceCache();
 
   private camera: Camera | null = null;
   private dirty = true;
@@ -188,8 +190,12 @@ export class SceneManager {
             ...options.viewportDirty,
           };
         }
+        if (options.viewportDirty.trace || options.viewportDirty.iterate) {
+          this.traceCache.markContentDirty();
+        }
       } else {
         this.layersDirty = "all";
+        this.traceCache.markContentDirty();
       }
     }
     if (!this.dirty) {
@@ -261,6 +267,7 @@ export class SceneManager {
     this.unsubscribeCurrentMouse = null;
 
     this.layerHost.dispose();
+    this.traceCache.dispose();
     for (const scene of Object.values(this.scenes)) {
       for (const child of [...scene.children]) {
         scene.remove(child);
@@ -273,7 +280,23 @@ export class SceneManager {
   private renderScenes(camera: Camera): void {
     this.renderer.clear();
     this.renderer.autoClear = false;
+    // in 2D the heavy trace/iterate passes composite from a world-anchored
+    // cache so camera motion doesn't re-render them (see TraceCache)
+    const traceQuadScene = this.traceCache.prepare(
+      this.renderer,
+      this.scenes.traceLines,
+      this.scenes.trace,
+    );
     for (const pass of RENDER_PASSES) {
+      if (traceQuadScene && pass === "trace") {
+        continue;
+      }
+      if (traceQuadScene && pass === "traceLines") {
+        if (!traceQuadScene.children.every(isHidden)) {
+          this.renderer.render(traceQuadScene, camera);
+        }
+        continue;
+      }
       const scene = this.scenes[pass];
       if (scene.children.length === 0 || scene.children.every(isHidden)) {
         continue;

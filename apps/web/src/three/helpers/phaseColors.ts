@@ -20,11 +20,10 @@ export const PHASE_COLORS_LINEAR: ReadonlyArray<
   return [c.r, c.g, c.b] as const;
 });
 
-// raw sRGB bytes, for shaders that write to the framebuffer without the
-// built-in materials' linear-to-sRGB output conversion (see pathRibbon.ts)
+// linear working-space bytes for per-point color textures (see pathRibbon.ts)
 export const PHASE_COLORS_BYTES: ReadonlyArray<
   readonly [number, number, number]
-> = PHASE_COLORS.map((hex) => {
-  const v = parseInt(hex.slice(1), 16);
-  return [(v >> 16) & 255, (v >> 8) & 255, v & 255] as const;
-});
+> = PHASE_COLORS_LINEAR.map(
+  ([r, g, b]) =>
+    [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)] as const,
+);

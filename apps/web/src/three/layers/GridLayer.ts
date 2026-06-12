@@ -52,7 +52,7 @@ void main() {
   float alpha = max(gridLine, axisLine);
   if (alpha <= 0.001) discard;
   vec3 color = mix(gridColor, axisColor, axisLine / alpha);
-  outColor = vec4(color, alpha);
+  outColor = linearToOutputTexel(vec4(color, alpha));
 }
 `;
 
@@ -70,8 +70,8 @@ export class GridLayer implements Layer {
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
       uniforms: {
-        gridColor: { value: new Color(GRID_COLOR).convertLinearToSRGB() },
-        axisColor: { value: new Color(AXIS_COLOR).convertLinearToSRGB() },
+        gridColor: { value: new Color(GRID_COLOR) },
+        axisColor: { value: new Color(AXIS_COLOR) },
       },
       transparent: true,
       depthWrite: false,
