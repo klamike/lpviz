@@ -304,10 +304,10 @@ export function buildResetViewport3DView(
     getViewportVisibleCenterCanvasPoint(rect, sidebarWidth),
     0,
   );
-  const desiredCenter = {
-    x: -(sidebarWidth / 2) / Math.max(EPS, snapshot.gridSpacing),
-    y: 0,
-  };
+  // Match the 2D default view, whose visible center shows the world origin
+  // (the sidebar offset is already accounted for by projecting the visible
+  // center below).
+  const desiredCenter = { x: 0, y: 0 };
   const target = visibleCenter
     ? {
         x: DEFAULT_TARGET.x + desiredCenter.x - visibleCenter.x,
@@ -438,17 +438,28 @@ export function buildViewport3DSnapshot(
   };
 }
 
-export function isDefault3DView(snapshot: ViewportRenderSnapshot) {
+export function isDefault3DView(
+  snapshot: ViewportRenderSnapshot,
+  sidebarWidth = 0,
+  rect?: ViewportRect,
+) {
   if (snapshot.mode !== "3d") {
     return false;
   }
 
+  // Compare against the target a reset would produce: with a sidebar the
+  // reset target is offset so the world origin sits at the visible center.
+  const resetView = buildResetViewport3DView(
+    snapshot,
+    sidebarWidth,
+    rect ?? getViewportSize(snapshot),
+  );
   const viewAngle = getViewAngleFromSnapshot3D(snapshot);
   return (
     approxEqual(snapshot.scaleFactor, 1) &&
-    approxEqual(snapshot.target.x, 0) &&
-    approxEqual(snapshot.target.y, 0) &&
-    approxEqual(snapshot.target.z, 0) &&
+    approxEqual(snapshot.target.x, resetView.target.x) &&
+    approxEqual(snapshot.target.y, resetView.target.y) &&
+    approxEqual(snapshot.target.z, resetView.target.z) &&
     approxEqual(viewAngle.x, DEFAULT_VIEW_ANGLE.x, 1e-2) &&
     approxEqual(viewAngle.y, DEFAULT_VIEW_ANGLE.y, 1e-2) &&
     approxEqual(viewAngle.z, DEFAULT_VIEW_ANGLE.z, 1e-2)

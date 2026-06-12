@@ -620,7 +620,11 @@ export async function createViewportRuntime({
       }
 
       if (!getState().isTransitioning3D) {
-        return isDefault3DView(managerSnapshot);
+        return isDefault3DView(
+          managerSnapshot,
+          currentSidebarWidth,
+          getViewportRect(),
+        );
       }
 
       return false;
