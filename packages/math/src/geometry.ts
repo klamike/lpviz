@@ -383,20 +383,14 @@ export function verticesFromLines(lines: Lines, tol = 1e-6): Vertices {
   });
 
   if (unique.length <= 2) {
-    return unique.map(([x, y]) => [
-      parseFloat(x.toFixed(2)),
-      parseFloat(y.toFixed(2)),
-    ]);
+    return unique.map(([x, y]) => [x, y]);
   }
 
   const center = centroid(unique);
   return unique
     .map(([x, y]) => ({
       angle: Math.atan2(y - center[1], x - center[0]),
-      point: [parseFloat(x.toFixed(2)), parseFloat(y.toFixed(2))] as [
-        number,
-        number,
-      ],
+      point: [x, y] as [number, number],
     }))
     .sort((a, b) => a.angle - b.angle)
     .map(({ point }) => point);
