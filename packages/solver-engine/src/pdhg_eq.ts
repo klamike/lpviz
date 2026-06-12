@@ -132,6 +132,8 @@ function pdhgStandardForm(
 
   const { rows: m, cols: n } = A;
   const slackOffset = n - m;
+  // x is split as x = x^+ - x^- with xk = [x^+; x^-; s]
+  const nOrig = slackOffset / 2;
   const bNorm = infinityNorm(b);
   const cNorm = infinityNorm(c);
 
@@ -199,8 +201,8 @@ function pdhgStandardForm(
       kind: "pdhg" as const,
       iteration: k,
       restart: false,
-      x: xk[0] ?? 0,
-      y: -(yk[0] ?? 0),
+      x: (xk[0] ?? 0) - (xk[nOrig] ?? 0),
+      y: nOrig >= 2 ? (xk[1] ?? 0) - (xk[nOrig + 1] ?? 0) : 0,
       objective: pObj,
       infeasibility: pFeas,
       epsilon: epsilonK,
