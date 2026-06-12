@@ -38,9 +38,12 @@ export function setPathRibbonResolution(width: number, height: number): void {
 
 const VERTEX_SHADER = /* glsl */ `
 uniform sampler2D pathTex;
+uniform sampler2D colorTex;
+uniform float useVertexColor;
 uniform int pointCount;
 uniform vec2 resolution;
 uniform float linewidth;
+out vec3 vColor;
 
 vec3 fetchPoint(int i) {
   i = clamp(i, 0, pointCount - 1);
@@ -50,6 +53,12 @@ vec3 fetchPoint(int i) {
 void main() {
   int i = gl_VertexID >> 1;
   float side = ((gl_VertexID & 1) == 0) ? 1.0 : -1.0;
+
+  ivec2 texel = ivec2(
+    clamp(i, 0, pointCount - 1) & ${TEX_WIDTH_MASK},
+    clamp(i, 0, pointCount - 1) >> ${TEX_WIDTH_SHIFT}
+  );
+  vColor = mix(vec3(1.0), texelFetch(colorTex, texel, 0).rgb, useVertexColor);
 
   mat4 mvp = projectionMatrix * modelViewMatrix;
   vec4 clipCur = mvp * vec4(fetchPoint(i), 1.0);
@@ -98,10 +107,11 @@ void main() {
 const FRAGMENT_SHADER = /* glsl */ `
 uniform vec3 color;
 uniform float opacity;
+in vec3 vColor;
 out vec4 outColor;
 
 void main() {
-  outColor = vec4(color, opacity);
+  outColor = vec4(color * vColor, opacity);
 }
 `;
 
@@ -136,30 +146,46 @@ export type PathRibbonStyle = {
   linewidth: number;
 };
 
+const WHITE = new Color(1, 1, 1);
+
+// bound when a ribbon has no per-point colors, keeping a single program
+const dummyColorTexture = new DataTexture(
+  new Uint8Array([255, 255, 255, 255]),
+  1,
+  1,
+  RGBAFormat,
+);
+dummyColorTexture.needsUpdate = true;
+
 export class PathRibbon {
   readonly mesh: Mesh;
   private material: ShaderMaterial;
   private geometry: BufferGeometry;
   private texture: DataTexture | null = null;
+  private colorTexture: DataTexture | null = null;
+  private baseColor: Color;
 
   constructor(style: PathRibbonStyle) {
     // built-in materials encode their linear working-space color back to sRGB
     // at the end of the fragment shader; mirror that so the ribbon color
     // matches the rest of the palette exactly
     const color = new Color(style.color).convertLinearToSRGB();
+    this.baseColor = color.clone();
     this.material = new ShaderMaterial({
       glslVersion: GLSL3,
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
       uniforms: {
         pathTex: { value: null },
+        colorTex: { value: dummyColorTexture },
+        useVertexColor: { value: 0 },
         pointCount: { value: 0 },
         resolution: { value: sharedResolution },
         linewidth: { value: style.linewidth },
         color: { value: color },
         opacity: { value: style.opacity },
       },
-      transparent: true,
+      transparent: style.opacity < 1,
       depthTest: false,
       depthWrite: false,
       side: DoubleSide,
@@ -176,9 +202,14 @@ export class PathRibbon {
     this.material.depthWrite = enabled;
   }
 
-  // points: per-point [x, y, z]; writes a fresh path texture (build-once per
-  // path — callers reuse ribbons only when the path itself is replaced)
-  setPath(points: Float32Array, pointCount: number): void {
+  // points: per-point [x, y, z]; colors: optional per-point sRGB RGBA bytes.
+  // Writes fresh path/color textures (build-once per path — callers reuse
+  // ribbons only when the path itself is replaced).
+  setPath(
+    points: Float32Array,
+    pointCount: number,
+    colors?: Uint8Array | null,
+  ): void {
     this.texture?.dispose();
     const rows = Math.max(1, Math.ceil(pointCount / TEX_WIDTH));
     const data = new Float32Array(TEX_WIDTH * rows * 4);
@@ -203,12 +234,41 @@ export class PathRibbon {
 
     this.material.uniforms.pathTex!.value = texture;
     this.material.uniforms.pointCount!.value = pointCount;
+
+    this.colorTexture?.dispose();
+    this.colorTexture = null;
+    // with per-point colors the uniform must not tint them
+    (this.material.uniforms.color!.value as Color).copy(
+      colors ? WHITE : this.baseColor,
+    );
+    if (colors) {
+      const colorData = new Uint8Array(TEX_WIDTH * rows * 4);
+      colorData.set(colors.subarray(0, pointCount * 4));
+      const colorTexture = new DataTexture(
+        colorData,
+        TEX_WIDTH,
+        rows,
+        RGBAFormat,
+      );
+      colorTexture.minFilter = NearestFilter;
+      colorTexture.magFilter = NearestFilter;
+      colorTexture.generateMipmaps = false;
+      colorTexture.needsUpdate = true;
+      this.colorTexture = colorTexture;
+      this.material.uniforms.colorTex!.value = colorTexture;
+      this.material.uniforms.useVertexColor!.value = 1;
+    } else {
+      this.material.uniforms.colorTex!.value = dummyColorTexture;
+      this.material.uniforms.useVertexColor!.value = 0;
+    }
+
     this.geometry.setIndex(ensureSharedIndex(pointCount));
     this.geometry.setDrawRange(0, Math.max(0, pointCount - 1) * 6);
   }
 
   dispose(): void {
     this.texture?.dispose();
+    this.colorTexture?.dispose();
     this.material.dispose();
     this.geometry.dispose();
   }

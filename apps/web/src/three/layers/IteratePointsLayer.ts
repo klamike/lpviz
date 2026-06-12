@@ -17,11 +17,7 @@ type PrevState = {
   iteratePath: State["iteratePath"];
   iteratePhases: State["iteratePhases"];
   iterateObjectiveVector: PointXY | null;
-  zScale: number;
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
   mode: string;
-  transitionZMultiplier: number;
 };
 
 export class IteratePointsLayer implements Layer {
@@ -62,6 +58,10 @@ export class IteratePointsLayer implements Layer {
   update(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
+    // raw z is baked into the buffer; zScale and the transition flattening
+    // apply through scale.z so neither forces a rebuild (z is ignored by the
+    // 2D orthographic projection)
+    this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
 
     const p = this.prev;
     if (
@@ -69,11 +69,7 @@ export class IteratePointsLayer implements Layer {
       p.iteratePath === raw.iteratePath &&
       p.iteratePhases === raw.iteratePhases &&
       p.iterateObjectiveVector === raw.iterateObjectiveVector &&
-      p.zScale === raw.zScale &&
-      p.is3DMode === raw.is3DMode &&
-      p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode &&
-      p.transitionZMultiplier === snap.transitionZMultiplier
+      p.mode === snap.mode
     ) {
       return;
     }
@@ -81,11 +77,7 @@ export class IteratePointsLayer implements Layer {
       iteratePath: raw.iteratePath,
       iteratePhases: raw.iteratePhases,
       iterateObjectiveVector: raw.iterateObjectiveVector,
-      zScale: raw.zScale,
-      is3DMode: raw.is3DMode,
-      isTransitioning3D: raw.isTransitioning3D,
       mode: snap.mode,
-      transitionZMultiplier: snap.transitionZMultiplier,
     };
 
     if (
@@ -96,7 +88,6 @@ export class IteratePointsLayer implements Layer {
       return;
     }
 
-    const is3D = snap.mode === "3d";
     const hasPhases =
       raw.iteratePhases.length === raw.iteratePath.length &&
       raw.iteratePhases.length > 0;
@@ -110,11 +101,7 @@ export class IteratePointsLayer implements Layer {
       const entry = raw.iteratePath[i]!;
       positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
-      positions[i * 3 + 2] = is3D
-        ? ((computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) /
-            100) *
-          snap.transitionZMultiplier
-        : 0;
+      positions[i * 3 + 2] = computeIterateZ(entry, raw.iterateObjectiveVector);
 
       if (colors) {
         const phase = raw.iteratePhases[i]!;
