@@ -46,8 +46,12 @@ void main() {
 
 // Rendering translucent strokes onto a transparent black target yields
 // premultiplied alpha, so the composite uses (ONE, ONE_MINUS_SRC_ALPHA).
-// The cache holds linear values (three renders into targets in linear);
-// linearToOutputTexel applies the canvas's sRGB encode exactly once here.
+// The cache holds linear values (three renders into targets in linear). The
+// sRGB encode must apply to the straight (un-premultiplied) color — direct
+// rendering computes encode(c)*a + (1-a)*dst, and encode(a*c) != a*encode(c)
+// for the nonlinear transfer curve; encoding premultiplied values washed
+// every translucent stroke brighter. Un-premultiply, encode, re-premultiply:
+// single strokes and same-color stacks then match direct rendering exactly.
 const QUAD_FRAGMENT_SHADER = /* glsl */ `
 uniform sampler2D map;
 in vec2 vUv;
@@ -55,7 +59,9 @@ out vec4 outColor;
 
 void main() {
   vec4 texel = texture(map, vUv);
-  outColor = vec4(linearToOutputTexel(vec4(texel.rgb, 1.0)).rgb, texel.a);
+  vec3 straight = texel.a > 1e-4 ? texel.rgb / texel.a : vec3(0.0);
+  vec3 encoded = linearToOutputTexel(vec4(straight, 1.0)).rgb;
+  outColor = vec4(encoded * texel.a, texel.a);
 }
 `;
 
