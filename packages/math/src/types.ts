@@ -9,8 +9,8 @@ export interface PointXYZ {
   z: number;
 }
 
-type Vec2 = number[];
-type Vec3 = number[];
+type Vec2 = [number, number];
+type Vec3 = [number, number, number];
 export type VecM = Float64Array;
 export type VecN = Float64Array;
 export type VecNs = Float64Array[];
