@@ -186,7 +186,7 @@ export function pdhgIneq(
 
   if (verbose) console.log(header);
 
-  while (k <= maxit && epsilonK > tol) {
+  while (k <= maxit) {
     iterates.push(xk.slice());
     if (colorByBasis) {
       phases.push(computeIneqBasisPhase(yk));
@@ -210,6 +210,11 @@ export function pdhgIneq(
     };
     if (verbose) console.log(row);
     rows.push(row);
+    eps.push(epsilonK);
+
+    if (epsilonK <= tol || k === maxit) {
+      break;
+    }
 
     // y_{k+1} = [y_k + τ(Ax_k - b)]_+
     for (let i = 0; i < m; i++) {
@@ -224,8 +229,6 @@ export function pdhgIneq(
     for (let i = 0; i < n; i++) {
       nextX[i] = xk[i]! - eta * (c[i]! + atYScratch[i]!);
     }
-
-    eps.push(epsilonK);
 
     if (halpern) {
       const fixedPointError = computeFixedPointError(xk, nextX, yk, nextY);
@@ -283,6 +286,9 @@ export function pdhgIneq(
       bNorm,
       cNorm,
     );
+    if (!Number.isFinite(epsilonK)) {
+      break;
+    }
   }
 
   const solveTime = performance.now() - startTime;
