@@ -1,4 +1,12 @@
 import type { ResultTextBlock } from "@/features/solver/types";
+
+// Result rows materialize (format) lazily on access so a 100k-iteration solve
+// doesn't pay for formatting rows that are never scrolled into view. Plain
+// arrays satisfy this shape, which keeps empty-state assignments simple.
+export type VirtualRowBlocks = {
+  length: number;
+  at(index: number): ResultTextBlock | undefined;
+};
 import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math/types";
 import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "@lpviz/viewport/defaults";
@@ -110,7 +118,7 @@ export type State = {
   resultVirtualHeader: string | null;
   resultVirtualFooter: string | null;
   resultVirtualShowEmpty: boolean;
-  resultVirtualRows: ResultTextBlock[];
+  resultVirtualRows: VirtualRowBlocks;
   resultMaxLineChars: number;
 
   objectiveVector: PointXY | null;

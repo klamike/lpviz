@@ -100,12 +100,23 @@ export function mountSolverLogPanel(parent: HTMLElement, ctx: AppContext) {
     passive: true,
   });
   result.addEventListener("pointerleave", clearHoverState);
+  // The horizontal padding is static CSS; reading computed style per render
+  // (interleaved with the DOM writes below) forced a layout pass per solve
+  // result and per rotation step.
+  let cachedPadding: number | null = null;
+  let lastFitKey = "";
   function fit(s: State) {
     if (s.resultMaxLineChars > 0) {
-      const containerStyle = window.getComputedStyle(result);
-      const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
-      const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
-      const effectiveWidth = result.clientWidth - paddingLeft - paddingRight;
+      if (cachedPadding === null) {
+        const containerStyle = window.getComputedStyle(result);
+        cachedPadding =
+          (parseFloat(containerStyle.paddingLeft) || 0) +
+          (parseFloat(containerStyle.paddingRight) || 0);
+      }
+      const effectiveWidth = result.clientWidth - cachedPadding;
+      const fitKey = `${s.resultMaxLineChars}|${effectiveWidth}`;
+      if (fitKey === lastFitKey) return;
+      lastFitKey = fitKey;
       if (effectiveWidth > 0) {
         const baseSize = 18;
         const targetWidth = Math.max(1, effectiveWidth - 10);
@@ -116,15 +127,17 @@ export function mountSolverLogPanel(parent: HTMLElement, ctx: AppContext) {
         result.style.setProperty("--virtual-font-size", `${fontSize}px`);
       }
     } else {
+      lastFitKey = "";
       result.style.fontSize = "";
       result.style.removeProperty("--virtual-font-size");
     }
   }
   function render(s: State) {
+    // fit() reads layout (clientWidth); keep it ahead of the DOM writes below
+    fit(s);
     result.className = s.resultDisplayMode === "virtual" ? "virtualized" : "";
     result.replaceChildren();
     currentHoveredRow = null;
-    fit(s);
     if (s.resultDisplayMode === "usage") {
       result.append(usageTips());
       return;
@@ -153,34 +166,6 @@ export function mountSolverLogPanel(parent: HTMLElement, ctx: AppContext) {
         }),
       );
       const sc = el("div", { className: "iterate-scroll" });
-      if (s.resultVirtualShowEmpty)
-        sc.append(
-          el("div", {
-            className: "iterate-item-nohover",
-            text: "No iterations available.",
-          }),
-        );
-      else {
-        const rows = el("div", { className: "iterate-rows" });
-        for (const row of s.resultVirtualRows)
-          rows.append(
-            el("div", {
-              className: row.className,
-              text: row.text,
-              attrs:
-                row.index !== undefined
-                  ? { "data-index": String(row.index) }
-                  : {},
-            }),
-          );
-        sc.append(
-          el("div", { className: "iterate-virtual-wrapper" }, [
-            el("div"),
-            rows,
-            el("div"),
-          ]),
-        );
-      }
       result.append(
         sc,
         el("div", {
@@ -188,8 +173,97 @@ export function mountSolverLogPanel(parent: HTMLElement, ctx: AppContext) {
           text: s.resultVirtualFooter ?? "",
         }),
       );
+      if (s.resultVirtualShowEmpty)
+        sc.append(
+          el("div", {
+            className: "iterate-item-nohover",
+            text: "No iterations available.",
+          }),
+        );
+      else mountVirtualRows(sc, s.resultVirtualRows);
     }
     scheduleHoverSync();
+  }
+
+  // Windowed rendering: only the rows near the viewport get DOM nodes, with
+  // spacer divs holding the scroll height. Materializing every row (100k at
+  // max solver settings) costs seconds of main-thread time per render.
+  const VIRTUAL_OVERSCAN_ROWS = 20;
+  function mountVirtualRows(
+    sc: HTMLElement,
+    blocks: State["resultVirtualRows"],
+  ) {
+    const topSpacer = el("div");
+    const rowsEl = el("div", { className: "iterate-rows" });
+    const bottomSpacer = el("div");
+    sc.append(
+      el("div", { className: "iterate-virtual-wrapper" }, [
+        topSpacer,
+        rowsEl,
+        bottomSpacer,
+      ]),
+    );
+    if (blocks.length === 0) return;
+
+    let rowHeight = 0;
+    let windowStart = -1;
+    let windowEnd = -1;
+    const fillWindow = () => {
+      if (rowHeight <= 0) {
+        const first = blocks.at(0)!;
+        const probe = el("div", {
+          className: first.className,
+          text: first.text,
+        });
+        rowsEl.append(probe);
+        rowHeight = probe.offsetHeight || 18;
+        probe.remove();
+      }
+      const viewHeight = sc.clientHeight || result.clientHeight || 600;
+      const start = Math.max(
+        0,
+        Math.floor(sc.scrollTop / rowHeight) - VIRTUAL_OVERSCAN_ROWS,
+      );
+      const end = Math.min(
+        blocks.length,
+        Math.ceil((sc.scrollTop + viewHeight) / rowHeight) +
+          VIRTUAL_OVERSCAN_ROWS,
+      );
+      if (start === windowStart && end === windowEnd) return;
+      windowStart = start;
+      windowEnd = end;
+      topSpacer.style.height = `${start * rowHeight}px`;
+      bottomSpacer.style.height = `${(blocks.length - end) * rowHeight}px`;
+      const fragment = document.createDocumentFragment();
+      for (let i = start; i < end; i++) {
+        const row = blocks.at(i)!;
+        fragment.append(
+          el("div", {
+            className: row.className,
+            text: row.text,
+            attrs:
+              row.index !== undefined
+                ? { "data-index": String(row.index) }
+                : {},
+          }),
+        );
+      }
+      rowsEl.replaceChildren(fragment);
+    };
+
+    let scrollRafId: number | null = null;
+    sc.addEventListener(
+      "scroll",
+      () => {
+        if (scrollRafId !== null) return;
+        scrollRafId = requestAnimationFrame(() => {
+          scrollRafId = null;
+          fillWindow();
+        });
+      },
+      { passive: true },
+    );
+    fillWindow();
   }
   render(getState());
   const controller = new AbortController();

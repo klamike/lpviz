@@ -125,6 +125,16 @@ export function createSolverActions(
       const rowsForLayout = limitVirtualRows
         ? payload.rows.slice(0, ROTATE_ROW_LIMIT)
         : payload.rows;
+      // Rows are fixed-width; sampling three avoids formatting all of them
+      // (100k at max settings) just to measure the widest line.
+      const sampleRows =
+        rowsForLayout.length > 0
+          ? [
+              rowsForLayout[0]!,
+              rowsForLayout[rowsForLayout.length >> 1]!,
+              rowsForLayout[rowsForLayout.length - 1]!,
+            ]
+          : [];
       setState(
         {
           resultDisplayMode: "virtual",
@@ -132,11 +142,19 @@ export function createSolverActions(
           resultVirtualHeader: payload.header || "",
           resultVirtualFooter: payload.footer ?? null,
           resultVirtualShowEmpty: rowsForLayout.length === 0,
-          resultVirtualRows: rowsForLayout.map(createVirtualBlock),
+          resultVirtualRows: {
+            length: rowsForLayout.length,
+            at: (index: number) => {
+              const row = rowsForLayout[index];
+              return row === undefined
+                ? undefined
+                : createVirtualBlock(row, index);
+            },
+          },
           resultMaxLineChars: getMaxLineChars([
             payload.header || "",
             ...(payload.footer ? [payload.footer] : []),
-            ...rowsForLayout.map((r) => formatVirtualResultRow(r)),
+            ...sampleRows.map((r) => formatVirtualResultRow(r)),
           ]),
           highlightIteratePathIndex: null,
         },
