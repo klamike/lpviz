@@ -37,7 +37,9 @@ export class SceneManager {
   readonly scene = this.scenes.foreground;
   readonly renderer: WebGLRenderer;
   readonly layerHost = new LayerHost();
-  private traceCache = new TraceCache();
+  private traceCache = new TraceCache(() =>
+    this.invalidate({ layers: false }),
+  );
 
   private camera: Camera | null = null;
   private dirty = true;
@@ -190,9 +192,8 @@ export class SceneManager {
             ...options.viewportDirty,
           };
         }
-        if (options.viewportDirty.trace || options.viewportDirty.iterate) {
-          this.traceCache.markContentDirty();
-        }
+        // trace appends/evictions are detected by TraceCache itself via the
+        // chunk sequence numbers, so trace/iterate dirt needs no cache flush
       } else {
         this.layersDirty = "all";
         this.traceCache.markContentDirty();
@@ -280,17 +281,14 @@ export class SceneManager {
   private renderScenes(camera: Camera): void {
     this.renderer.clear();
     this.renderer.autoClear = false;
-    // in 2D the heavy trace/iterate passes composite from a world-anchored
-    // cache so camera motion doesn't re-render them (see TraceCache)
+    // in 2D the heavy trace-lines pass composites from a world-anchored
+    // accumulation cache so neither camera motion nor a trace append
+    // re-renders the already-baked chunks (see TraceCache)
     const traceQuadScene = this.traceCache.prepare(
       this.renderer,
       this.scenes.traceLines,
-      this.scenes.trace,
     );
     for (const pass of RENDER_PASSES) {
-      if (traceQuadScene && pass === "trace") {
-        continue;
-      }
       if (traceQuadScene && pass === "traceLines") {
         if (!traceQuadScene.children.every(isHidden)) {
           this.renderer.render(traceQuadScene, camera);

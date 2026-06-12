@@ -52,6 +52,9 @@ export class TraceLineLayer implements Layer {
   private pool: PathRibbon[] = [];
   private assigned = new Map<TraceEntry, PathRibbon>();
   private prev: PrevState | null = null;
+  // monotonic append sequence stamped on each ribbon mesh; TraceCache keys
+  // its incremental accumulation on it (see TraceCache.ts)
+  private nextSeq = 0;
 
   constructor() {
     this.object3D = new Group();
@@ -122,6 +125,7 @@ export class TraceLineLayer implements Layer {
       const ribbon = freed.pop() ?? this.makeRibbon();
       ribbon.setPath(buildEntryPoints(entry), entry.path.length);
       ribbon.setDepth(is3D);
+      ribbon.mesh.userData.traceSeq = this.nextSeq++;
       ribbon.mesh.visible = true;
       this.assigned.set(entry, ribbon);
     }

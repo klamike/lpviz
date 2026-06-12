@@ -36,6 +36,17 @@ export function setPathRibbonResolution(width: number, height: number): void {
   sharedResolution.set(width, height);
 }
 
+// Shared by reference across every ribbon material. The trace cache flips it
+// on while baking ribbons into its render target so they write sRGB-encoded
+// values there (three forces linearToOutputTexel to identity for render
+// targets): blending and MSAA resolve then happen in the same encoded space
+// as direct canvas rendering, making cached and directly drawn strokes
+// pixel-identical.
+const sharedCacheEncode = { value: 0 };
+export function setPathRibbonCacheEncode(enabled: boolean): void {
+  sharedCacheEncode.value = enabled ? 1 : 0;
+}
+
 const VERTEX_SHADER = /* glsl */ `
 uniform sampler2D pathTex;
 uniform sampler2D colorTex;
@@ -105,16 +116,21 @@ void main() {
 `;
 
 // linearToOutputTexel comes from three's standard fragment prefix and is
-// compiled per render target: identity into the linear trace cache, sRGB
-// encode onto the canvas — matching the built-in materials exactly.
+// compiled per render target (sRGB encode onto the canvas, identity into
+// render targets). cacheEncode forces the sRGB encode when baking into the
+// trace cache — sRGBTransferOETF is the exact function linearToOutputTexel
+// aliases for the canvas, so cached strokes blend and resolve in the same
+// encoded space as directly drawn ones.
 const FRAGMENT_SHADER = /* glsl */ `
 uniform vec3 color;
 uniform float opacity;
+uniform float cacheEncode;
 in vec3 vColor;
 out vec4 outColor;
 
 void main() {
-  outColor = linearToOutputTexel(vec4(color * vColor, opacity));
+  vec4 c = vec4(color * vColor, opacity);
+  outColor = cacheEncode > 0.5 ? sRGBTransferOETF(c) : linearToOutputTexel(c);
 }
 `;
 
@@ -183,6 +199,7 @@ export class PathRibbon {
         useVertexColor: { value: 0 },
         pointCount: { value: 0 },
         resolution: { value: sharedResolution },
+        cacheEncode: sharedCacheEncode,
         linewidth: { value: style.linewidth },
         color: { value: color },
         opacity: { value: style.opacity },
