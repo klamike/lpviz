@@ -222,59 +222,66 @@ export class PathRibbon {
   }
 
   // points: per-point [x, y, z]; colors: optional per-point linear RGBA bytes.
-  // Writes fresh path/color textures (build-once per path — callers reuse
-  // ribbons only when the path itself is replaced).
+  // Path/color textures are reused in place when large enough (grow-only):
+  // solver steps replace paths dozens of times per second, and allocating a
+  // texture per step churns both the GC and the GL driver.
   setPath(
     points: Float32Array,
     pointCount: number,
     colors?: Uint8Array | null,
   ): void {
-    this.texture?.dispose();
     const rows = Math.max(1, Math.ceil(pointCount / TEX_WIDTH));
-    const data = new Float32Array(TEX_WIDTH * rows * 4);
+    if (!this.texture || (this.texture.image.height as number) < rows) {
+      this.texture?.dispose();
+      this.texture = new DataTexture(
+        new Float32Array(TEX_WIDTH * rows * 4),
+        TEX_WIDTH,
+        rows,
+        RGBAFormat,
+        FloatType,
+      );
+      this.texture.minFilter = NearestFilter;
+      this.texture.magFilter = NearestFilter;
+      this.texture.generateMipmaps = false;
+    }
+    const data = this.texture.image.data as Float32Array;
     for (let i = 0; i < pointCount; i++) {
       data[i * 4] = points[i * 3]!;
       data[i * 4 + 1] = points[i * 3 + 1]!;
       data[i * 4 + 2] = points[i * 3 + 2]!;
       data[i * 4 + 3] = 1;
     }
-    const texture = new DataTexture(
-      data,
-      TEX_WIDTH,
-      rows,
-      RGBAFormat,
-      FloatType,
-    );
-    texture.minFilter = NearestFilter;
-    texture.magFilter = NearestFilter;
-    texture.generateMipmaps = false;
-    texture.needsUpdate = true;
-    this.texture = texture;
+    // stale texels beyond pointCount are never fetched (indices clamp)
+    this.texture.needsUpdate = true;
 
-    this.material.uniforms.pathTex!.value = texture;
+    this.material.uniforms.pathTex!.value = this.texture;
     this.material.uniforms.pointCount!.value = pointCount;
 
-    this.colorTexture?.dispose();
-    this.colorTexture = null;
     // with per-point colors the uniform must not tint them
     (this.material.uniforms.color!.value as Color).copy(
       colors ? WHITE : this.baseColor,
     );
     if (colors) {
-      const colorData = new Uint8Array(TEX_WIDTH * rows * 4);
-      colorData.set(colors.subarray(0, pointCount * 4));
-      const colorTexture = new DataTexture(
-        colorData,
-        TEX_WIDTH,
-        rows,
-        RGBAFormat,
+      if (
+        !this.colorTexture ||
+        (this.colorTexture.image.height as number) < rows
+      ) {
+        this.colorTexture?.dispose();
+        this.colorTexture = new DataTexture(
+          new Uint8Array(TEX_WIDTH * rows * 4),
+          TEX_WIDTH,
+          rows,
+          RGBAFormat,
+        );
+        this.colorTexture.minFilter = NearestFilter;
+        this.colorTexture.magFilter = NearestFilter;
+        this.colorTexture.generateMipmaps = false;
+      }
+      (this.colorTexture.image.data as Uint8Array).set(
+        colors.subarray(0, pointCount * 4),
       );
-      colorTexture.minFilter = NearestFilter;
-      colorTexture.magFilter = NearestFilter;
-      colorTexture.generateMipmaps = false;
-      colorTexture.needsUpdate = true;
-      this.colorTexture = colorTexture;
-      this.material.uniforms.colorTex!.value = colorTexture;
+      this.colorTexture.needsUpdate = true;
+      this.material.uniforms.colorTex!.value = this.colorTexture;
       this.material.uniforms.useVertexColor!.value = 1;
     } else {
       this.material.uniforms.colorTex!.value = dummyColorTexture;

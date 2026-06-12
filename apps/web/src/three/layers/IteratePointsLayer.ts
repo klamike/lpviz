@@ -1,6 +1,6 @@
 import { computeIterateZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
-import { BufferAttribute, Points, PointsMaterial } from "three";
+import { BufferAttribute, DynamicDrawUsage, Points, PointsMaterial } from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
 import { PHASE_COLORS_LINEAR } from "../helpers/phaseColors";
 import { RENDER_ORDER } from "../helpers/renderOrder";
@@ -92,12 +92,31 @@ export class IteratePointsLayer implements Layer {
       raw.iteratePhases.length === raw.iteratePath.length &&
       raw.iteratePhases.length > 0;
 
-    const positions = new Float32Array(raw.iteratePath.length * 3);
-    const colors = hasPhases
-      ? new Float32Array(raw.iteratePath.length * 3)
-      : null;
+    // grow-only attributes updated in place: rotation replaces the path
+    // dozens of times per second, and allocating buffers per step churns
+    // the GC and the GL driver (visible as periodic frame spikes)
+    const count = raw.iteratePath.length;
+    const geometry = this.object3D.geometry;
+    let posAttr = geometry.getAttribute("position") as
+      | BufferAttribute
+      | undefined;
+    if (!posAttr || posAttr.count < count) {
+      posAttr = new BufferAttribute(new Float32Array(count * 3), 3);
+      posAttr.setUsage(DynamicDrawUsage);
+      geometry.setAttribute("position", posAttr);
+    }
+    let colorAttr = geometry.getAttribute("color") as
+      | BufferAttribute
+      | undefined;
+    if (hasPhases && (!colorAttr || colorAttr.count < count)) {
+      colorAttr = new BufferAttribute(new Float32Array(count * 3), 3);
+      colorAttr.setUsage(DynamicDrawUsage);
+      geometry.setAttribute("color", colorAttr);
+    }
+    const positions = posAttr.array as Float32Array;
+    const colors = hasPhases ? (colorAttr!.array as Float32Array) : null;
 
-    for (let i = 0; i < raw.iteratePath.length; i++) {
+    for (let i = 0; i < count; i++) {
       const entry = raw.iteratePath[i]!;
       positions[i * 3] = entry[0]!;
       positions[i * 3 + 1] = entry[1]!;
@@ -111,23 +130,15 @@ export class IteratePointsLayer implements Layer {
         colors[i * 3 + 2] = rgb[2];
       }
     }
-
-    // free the old GL buffers before the attributes are replaced
-    this.object3D.geometry.dispose();
-    this.object3D.geometry.setAttribute(
-      "position",
-      new BufferAttribute(positions, 3),
-    );
-    if (colors) {
-      this.object3D.geometry.setAttribute(
-        "color",
-        new BufferAttribute(colors, 3),
-      );
+    posAttr.needsUpdate = true;
+    if (hasPhases) {
+      colorAttr!.needsUpdate = true;
       this.object3D.material = this.matColored;
     } else {
-      this.object3D.geometry.deleteAttribute("color");
+      if (colorAttr) geometry.deleteAttribute("color");
       this.object3D.material = this.matPlain;
     }
+    geometry.setDrawRange(0, count);
     this.object3D.visible = true;
   }
 

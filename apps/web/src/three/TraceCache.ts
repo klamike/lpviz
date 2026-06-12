@@ -73,6 +73,12 @@ const EVICTION_QUIET_MS = 500;
 // mid-gesture stroke-width drift allowed before a rebuild re-crisps anyway
 const ZOOM_REBUILD_RATIO = 1.25;
 const VIEW_SETTLE_MS = 160;
+// fast pans can escape the margin every couple of frames; mid-gesture the
+// rebuilds are rate limited (the world-anchored quads keep compositing, so
+// only the freshly exposed strip lacks trace history until the next rebuild)
+// and each rebuilt rect leads the pan direction to make escapes rarer
+const PAN_REBUILD_INTERVAL_MS = 120;
+const PAN_LEAD_FRAMES = 12;
 
 const QUAD_VERTEX_SHADER = /* glsl */ `
 out vec2 vUv;
@@ -153,6 +159,9 @@ export class TraceCache {
   private lastSeenCenterX = NaN;
   private lastSeenCenterY = NaN;
   private lastViewChangeAt = -Infinity;
+  private lastRebuildAt = -Infinity;
+  private panVelocityX = 0;
+  private panVelocityY = 0;
   private degraded = false;
   private settleTimer: ReturnType<typeof setTimeout> | null = null;
   private liveMeshes: Mesh[] = [];
@@ -248,12 +257,29 @@ export class TraceCache {
       centerX !== this.lastSeenCenterX ||
       centerY !== this.lastSeenCenterY
     ) {
+      // smoothed per-frame pan velocity, used to lead rebuilt rects
+      this.panVelocityX =
+        0.6 * this.panVelocityX +
+        0.4 *
+          (Number.isNaN(this.lastSeenCenterX)
+            ? 0
+            : centerX - this.lastSeenCenterX);
+      this.panVelocityY =
+        0.6 * this.panVelocityY +
+        0.4 *
+          (Number.isNaN(this.lastSeenCenterY)
+            ? 0
+            : centerY - this.lastSeenCenterY);
       this.lastViewChangeAt = now;
       this.lastSeenUnitsPerPixel = unitsPerPixel;
       this.lastSeenCenterX = centerX;
       this.lastSeenCenterY = centerY;
     }
     const viewMoving = now - this.lastViewChangeAt < VIEW_SETTLE_MS;
+    if (!viewMoving) {
+      this.panVelocityX = 0;
+      this.panVelocityY = 0;
+    }
     const zoomRatio =
       this.cachedUnitsPerPixel > 0
         ? this.cachedUnitsPerPixel / unitsPerPixel
@@ -263,6 +289,16 @@ export class TraceCache {
       viewMoving &&
       zoomRatio < ZOOM_REBUILD_RATIO &&
       zoomRatio > 1 / ZOOM_REBUILD_RATIO;
+    const panDeferred =
+      !panContained &&
+      viewMoving &&
+      now - this.lastRebuildAt < PAN_REBUILD_INTERVAL_MS &&
+      this.renderTarget !== null &&
+      !this.fullRebuildNeeded &&
+      pixelWidth === this.cachedPixelWidth &&
+      pixelHeight === this.cachedPixelHeight &&
+      (unitsPerPixel === this.cachedUnitsPerPixel || zoomDeferred) &&
+      minSeq <= this.bakeStart;
 
     let trailingDirty = false;
     if (
@@ -271,9 +307,9 @@ export class TraceCache {
       (unitsPerPixel !== this.cachedUnitsPerPixel && !zoomDeferred) ||
       pixelWidth !== this.cachedPixelWidth ||
       pixelHeight !== this.cachedPixelHeight ||
-      !panContained ||
+      (!panContained && !panDeferred) ||
       minSeq > this.bakeStart ||
-      (this.degraded && !viewMoving)
+      (this.degraded && !viewMoving && !evicting)
     ) {
       // under active eviction, leave the oldest chunks out of the bake so
       // the next evictions don't each force another full rebuild
@@ -282,6 +318,20 @@ export class TraceCache {
         : 0;
       this.bakeStart = minSeq + headroom;
       this.bakedEnd = maxSeq + 1;
+      // lead the pan direction so a sustained drag escapes the margin less
+      // often; capped so the visible rect stays inside the rebuilt rect
+      const slackX = ((pixelWidth / dpr) * unitsPerPixel) / 2 - halfVisibleWidth;
+      const slackY =
+        ((pixelHeight / dpr) * unitsPerPixel) / 2 - halfVisibleHeight;
+      const clampLead = (lead: number, slack: number) =>
+        Math.max(-slack * 0.8, Math.min(slack * 0.8, lead));
+      const leadX = viewMoving
+        ? clampLead(this.panVelocityX * PAN_LEAD_FRAMES, slackX)
+        : 0;
+      const leadY = viewMoving
+        ? clampLead(this.panVelocityY * PAN_LEAD_FRAMES, slackY)
+        : 0;
+      this.lastRebuildAt = now;
       this.recache(
         renderer,
         traceLinesScene,
@@ -292,10 +342,10 @@ export class TraceCache {
           dpr,
           pixelWidth,
           pixelHeight,
-          centerX,
-          centerY,
+          centerX: centerX + leadX,
+          centerY: centerY + leadY,
         },
-        viewMoving,
+        viewMoving || evicting,
       );
       trailingDirty = true;
     } else {
@@ -327,7 +377,10 @@ export class TraceCache {
     }
 
     if (
-      (zoomDeferred || this.degraded || this.bakeStart > minSeq) &&
+      (zoomDeferred ||
+        panDeferred ||
+        this.degraded ||
+        this.bakeStart > minSeq) &&
       this.settleTimer === null &&
       this.requestFrame
     ) {
@@ -414,10 +467,14 @@ export class TraceCache {
       this.trailingTarget.height !== this.cachedPixelHeight
     ) {
       this.trailingTarget?.dispose();
+      // single-sample: this target re-renders on every eviction (the most
+      // frequent cache operation during rotation), the MSAA clear/resolve
+      // there dominated steady-state cost on slower GL stacks, and the
+      // aliasing on the oldest translucent chunks is not discernible
       this.trailingTarget = new WebGLRenderTarget(
         this.cachedPixelWidth,
         this.cachedPixelHeight,
-        { samples: CACHE_SAMPLES, depthBuffer: false, stencilBuffer: false },
+        { samples: 0, depthBuffer: false, stencilBuffer: false },
       );
       this.trailingMaterial.uniforms.map!.value = this.trailingTarget.texture;
     }
@@ -446,12 +503,14 @@ export class TraceCache {
     renderer: WebGLRenderer,
     traceLinesScene: Scene,
     view: ViewParams,
-    viewMoving: boolean,
+    degrade: boolean,
   ): void {
-    // rebuilds while the view is moving skip multisampling: the MSAA fill
-    // and resolve are what makes a full rebuild blow the frame budget, and
-    // aliasing is invisible mid-motion. One crisp rebuild follows on settle.
-    const samples = viewMoving ? 0 : CACHE_SAMPLES;
+    // rebuilds while the view is moving or evictions are streaming (sustained
+    // rotation at trace capacity) skip multisampling: the MSAA fill and
+    // resolve are what makes a full rebuild blow the frame budget, and
+    // aliasing is not discernible while the content or camera is churning.
+    // One crisp rebuild follows once everything settles.
+    const samples = degrade ? 0 : CACHE_SAMPLES;
     if (
       !this.renderTarget ||
       this.renderTarget.width !== view.pixelWidth ||
