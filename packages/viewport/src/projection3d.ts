@@ -153,10 +153,12 @@ export function toCanvasCoords3D(
       ? Float64Array.of(point.x, point.y)
       : Float64Array.of(point.x, point.y, z);
   const zValue = zValueForPoint ? zValueForPoint(entry) : (z ?? 0);
+  // Render layers flatten z by transitionZMultiplier during the 2D/3D
+  // transition; match them so screen positions agree with drawn geometry.
   return projectWorldPosition3D(snapshot, rect, {
     x: point.x,
     y: point.y,
-    z: (zValue * zScale) / 100,
+    z: ((zValue * zScale) / 100) * snapshot.transitionZMultiplier,
   });
 }
 
