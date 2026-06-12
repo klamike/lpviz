@@ -101,7 +101,7 @@ export class VRep {
     };
   }
 
-  isConvex(): boolean {
+  isConvex(tol = 1e-9): boolean {
     if (this.points.length < 3) return true;
     let prevCross = 0;
     for (let i = 0, n = this.points.length; i < n; i++) {
@@ -110,7 +110,7 @@ export class VRep {
       const p2 = this.points[(i + 2) % n];
       const cross =
         (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
-      if (cross !== 0) {
+      if (Math.abs(cross) > tol) {
         if (prevCross === 0) prevCross = cross;
         else if (Math.sign(cross) !== Math.sign(prevCross)) return false;
       }
