@@ -1,6 +1,7 @@
 import { Box3, type BufferGeometry, Sphere, Vector3 } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { setPathRibbonResolution } from "./pathRibbon";
 
 type LineMaterialKey = {
   color: string | number;
@@ -41,6 +42,7 @@ export function tickSharedLineMaterialResolutions(w: number, h: number): void {
   _lastW = w;
   _lastH = h;
   materialCache.forEach((mat) => mat.resolution.set(w, h));
+  setPathRibbonResolution(w, h);
 }
 
 // ─── Bounding volume helpers ──────────────────────────────────────────────────

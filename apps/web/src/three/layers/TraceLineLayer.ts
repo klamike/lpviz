@@ -1,79 +1,33 @@
 import type { State } from "@/features/core/store";
 import { computeIterateZ } from "@/features/core/store";
-import {
-  BufferAttribute,
-  BufferGeometry,
-  Group,
-  Line,
-  LineBasicMaterial,
-} from "three";
+import { Group } from "three";
+import { PathRibbon } from "../helpers/pathRibbon";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import { applyHugeBounds } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_OPACITY = 0.4;
-const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
-
-// Native GL line strips instead of fat-line instancing: a trace at high maxit
-// holds millions of segments across its chunks, and instanced fat-line quads
-// made both rotation and camera movement GPU-bound at that scale. Strips draw
-// every iterate (full fidelity) at 2 vertices per point with a trivial
-// shader. GL strips are a fixed 1 device pixel wide, so each chunk is drawn
-// BRUSH_OFFSETS_PX.length times at sub-pixel screen offsets (applied as
-// world-space translations on per-pass groups, rescaled with the zoom level)
-// to read as a ~2 CSS px stroke; the per-pass opacity is solved so the fully
-// overlapped core matches TRACE_OPACITY.
-// Three passes spaced 120 degrees apart on a 0.75px circle: for any line
-// orientation the offsets project onto the line normal with at least ~1.1px
-// of spread, so strokes read ~2px wide in every direction at 3x (not 5x)
-// the single-strip cost.
-const BRUSH_OFFSETS_PX: ReadonlyArray<readonly [number, number]> = [
-  [0.75, 0],
-  [-0.375, 0.6495],
-  [-0.375, -0.6495],
-];
-const TRACE_PASS_OPACITY =
-  1 - (1 - TRACE_OPACITY) ** (1 / BRUSH_OFFSETS_PX.length);
-
-const traceMaterials = {
-  flat: new LineBasicMaterial({
-    color: TRACE_COLOR,
-    transparent: true,
-    opacity: TRACE_PASS_OPACITY,
-    depthTest: false,
-    depthWrite: false,
-  }),
-  depth: new LineBasicMaterial({
-    color: TRACE_COLOR,
-    transparent: true,
-    opacity: TRACE_PASS_OPACITY,
-    depthTest: true,
-    depthWrite: true,
-  }),
-};
+const TRACE_LINE_THICKNESS = 2;
 
 type TraceEntry = State["traceBuffer"][number];
 
-// One geometry rendered once per brush pass
-type Stroke = {
-  geometry: BufferGeometry;
-  lines: Line[];
-};
+let pointScratch = new Float32Array(0);
 
-function buildEntryPositions(entry: TraceEntry): Float32Array {
+function buildEntryPoints(entry: TraceEntry): Float32Array {
   const path = entry.path;
-  const positions = new Float32Array(path.length * 3);
+  if (pointScratch.length < path.length * 3) {
+    pointScratch = new Float32Array(path.length * 3);
+  }
   for (let i = 0; i < path.length; i++) {
     const point = path[i]!;
     const base = i * 3;
-    positions[base] = point[0]!;
-    positions[base + 1] = point[1]!;
-    positions[base + 2] = computeIterateZ(point, entry.objectiveVector);
+    pointScratch[base] = point[0]!;
+    pointScratch[base + 1] = point[1]!;
+    pointScratch[base + 2] = computeIterateZ(point, entry.objectiveVector);
   }
-  return positions;
+  return pointScratch;
 }
 
 type PrevState = {
@@ -84,76 +38,41 @@ type PrevState = {
   mode: string;
 };
 
+// Trace paths render as screen-space ribbons (see pathRibbon.ts): the same
+// 2px fat-line styling as the rest of the app without Line2's quad-per-
+// segment cost, which is unaffordable at millions of sub-pixel segments.
 // Each trace entry is immutable once appended, so it gets its own pooled
-// stroke whose geometry is built and uploaded exactly once — a rotation step
-// costs one chunk upload instead of re-concatenating and re-uploading the
-// entire history, and previously drawn curves can never shift between frames.
+// ribbon whose path texture is built and uploaded exactly once — a rotation
+// step costs one chunk upload, every iterate is drawn (no sampling), and
+// previously drawn curves can never shift between frames.
 export class TraceLineLayer implements Layer {
   readonly object3D: Group;
   readonly renderPass = "traceLines" as const;
-  // "grid" fires on zoom/resize, which changes units-per-pixel and therefore
-  // the world-space size of the sub-pixel brush offsets
-  readonly invalidationKeys = ["trace", "grid"] as const;
-  private passGroups: Group[] = [];
-  private pool: Stroke[] = [];
-  private assigned = new Map<TraceEntry, Stroke>();
+  readonly invalidationKeys = ["trace"] as const;
+  private pool: PathRibbon[] = [];
+  private assigned = new Map<TraceEntry, PathRibbon>();
   private prev: PrevState | null = null;
-  private prevUnitsPerPixel = 0;
 
   constructor() {
     this.object3D = new Group();
-    for (let i = 0; i < BRUSH_OFFSETS_PX.length; i++) {
-      const group = new Group();
-      this.object3D.add(group);
-      this.passGroups.push(group);
-    }
   }
 
-  private makeStroke(): Stroke {
-    const geometry = new BufferGeometry();
-    applyHugeBounds(geometry);
-    const lines: Line[] = [];
-    for (const group of this.passGroups) {
-      const line = new Line(geometry, traceMaterials.flat);
-      line.renderOrder = TRACE_RENDER_ORDER;
-      line.frustumCulled = false;
-      line.visible = false;
-      group.add(line);
-      lines.push(line);
-    }
-    const stroke = { geometry, lines };
-    this.pool.push(stroke);
-    return stroke;
-  }
-
-  private setStroke(
-    stroke: Stroke,
-    material: LineBasicMaterial,
-    visible: boolean,
-  ) {
-    for (const line of stroke.lines) {
-      line.material = material;
-      line.visible = visible;
-    }
+  private makeRibbon(): PathRibbon {
+    const ribbon = new PathRibbon({
+      color: TRACE_COLOR,
+      opacity: TRACE_OPACITY,
+      linewidth: TRACE_LINE_THICKNESS,
+    });
+    ribbon.mesh.renderOrder = RENDER_ORDER.traceLine;
+    this.object3D.add(ribbon.mesh);
+    this.pool.push(ribbon);
+    return ribbon;
   }
 
   update(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
     this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
-
-    const unitsPerPixel = snap.unitsPerPixel;
-    if (unitsPerPixel !== this.prevUnitsPerPixel) {
-      this.prevUnitsPerPixel = unitsPerPixel;
-      for (let i = 0; i < this.passGroups.length; i++) {
-        const [dx, dy] = BRUSH_OFFSETS_PX[i]!;
-        this.passGroups[i]!.position.set(
-          dx * unitsPerPixel,
-          dy * unitsPerPixel,
-          0,
-        );
-      }
-    }
 
     const p = this.prev;
     if (
@@ -184,46 +103,39 @@ export class TraceLineLayer implements Layer {
       return;
     }
 
-    // Recycle strokes whose entries were evicted from the buffer
+    // Recycle ribbons whose entries were evicted from the buffer
     const live = new Set<TraceEntry>(raw.traceBuffer);
-    const freed: Stroke[] = [];
-    for (const [entry, stroke] of this.assigned) {
+    const freed: PathRibbon[] = [];
+    for (const [entry, ribbon] of this.assigned) {
       if (!live.has(entry)) {
         this.assigned.delete(entry);
-        this.setStroke(stroke, traceMaterials.flat, false);
-        freed.push(stroke);
+        ribbon.mesh.visible = false;
+        freed.push(ribbon);
       }
     }
 
-    // Build geometry only for entries that don't have one yet
-    const material =
-      snap.mode === "3d" ? traceMaterials.depth : traceMaterials.flat;
+    // Build the path texture only for entries that don't have one yet
+    const is3D = snap.mode === "3d";
     for (const entry of raw.traceBuffer) {
       if (this.assigned.has(entry)) continue;
       if (entry.path.length < 2) continue;
-      const stroke = freed.pop() ?? this.makeStroke();
-      // free the old GL buffer before the attribute is replaced
-      stroke.geometry.dispose();
-      stroke.geometry.setAttribute(
-        "position",
-        new BufferAttribute(buildEntryPositions(entry), 3),
-      );
-      this.setStroke(stroke, material, true);
-      this.assigned.set(entry, stroke);
+      const ribbon = freed.pop() ?? this.makeRibbon();
+      ribbon.setPath(buildEntryPoints(entry), entry.path.length);
+      ribbon.setDepth(is3D);
+      ribbon.mesh.visible = true;
+      this.assigned.set(entry, ribbon);
     }
-    for (const stroke of freed) this.setStroke(stroke, material, false);
+    for (const ribbon of freed) ribbon.mesh.visible = false;
 
     if (modeChanged) {
-      for (const stroke of this.assigned.values()) {
-        this.setStroke(stroke, material, true);
-      }
+      for (const ribbon of this.assigned.values()) ribbon.setDepth(is3D);
     }
 
     this.object3D.visible = this.assigned.size > 0;
   }
 
   dispose(): void {
-    for (const stroke of this.pool) stroke.geometry.dispose();
+    for (const ribbon of this.pool) ribbon.dispose();
     this.pool = [];
     this.assigned.clear();
   }
