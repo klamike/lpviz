@@ -1,147 +1,105 @@
 import {
-  BufferAttribute,
-  BufferGeometry,
-  Group,
-  LineBasicMaterial,
-  LineSegments,
+  Color,
+  DoubleSide,
+  GLSL3,
+  Mesh,
+  PlaneGeometry,
+  ShaderMaterial,
 } from "three";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 
-const GRID_MARGIN_PX = 100;
-const GRID_OVERDRAW_UNITS = 5;
-const GRID_3D_EXTENT = 200;
 const GRID_COLOR = "#e0e0e0";
 const AXIS_COLOR = "#707070";
 
-type GridBounds = { minX: number; maxX: number; minY: number; maxY: number };
+// Fragment-shader grid on a single static quad: unit lines and axes are
+// computed per pixel from world coordinates, so pan/zoom/orbit and 2D/3D
+// transitions never rebuild any geometry (the old line-segment grid
+// re-tessellated on every zoom frame, up to ~16k segments in 3D). Lines are
+// one device pixel with derivative-based coverage, which also fades the grid
+// out naturally instead of aliasing when it gets denser than the pixel grid.
+//
+// The quad is kept modest (fp32 varyings wobble at deep zoom when vertex
+// coordinates are huge) and recentered onto the integer-snapped camera
+// target when the view wanders; integer shifts leave fract() untouched.
+const GRID_HALF_EXTENT = 8192;
+const RECENTER_THRESHOLD = 2048;
 
-function setLineSegmentsPositions(
-  geo: BufferGeometry,
-  positions: Float32Array,
-) {
-  // free the old GL buffers before the attribute is replaced
-  geo.dispose();
-  geo.setAttribute("position", new BufferAttribute(positions, 3));
+const VERTEX_SHADER = /* glsl */ `
+out vec2 vWorld;
+
+void main() {
+  vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+  vWorld = worldPosition.xy;
+  gl_Position = projectionMatrix * viewMatrix * worldPosition;
 }
+`;
 
-function buildGridPositions({ minX, maxX, minY, maxY }: GridBounds) {
-  const xLineCount = maxX - minX + 1;
-  const yLineCount = maxY - minY + 1;
-  const positions = new Float32Array((xLineCount + yLineCount) * 6);
-  let offset = 0;
+const FRAGMENT_SHADER = /* glsl */ `
+uniform vec3 gridColor;
+uniform vec3 axisColor;
+in vec2 vWorld;
+out vec4 outColor;
 
-  for (let x = minX; x <= maxX; x++) {
-    positions[offset++] = x;
-    positions[offset++] = minY;
-    positions[offset++] = 0;
-    positions[offset++] = x;
-    positions[offset++] = maxY;
-    positions[offset++] = 0;
-  }
-
-  for (let y = minY; y <= maxY; y++) {
-    positions[offset++] = minX;
-    positions[offset++] = y;
-    positions[offset++] = 0;
-    positions[offset++] = maxX;
-    positions[offset++] = y;
-    positions[offset++] = 0;
-  }
-
-  return positions;
+void main() {
+  vec2 fw = fwidth(vWorld);
+  // pixel distance to the nearest integer grid line on each axis
+  vec2 toGrid = abs(fract(vWorld + 0.5) - 0.5) / fw;
+  float gridLine = 1.0 - min(min(toGrid.x, toGrid.y), 1.0);
+  vec2 toAxis = abs(vWorld) / fw;
+  float axisLine = 1.0 - min(min(toAxis.x, toAxis.y), 1.0);
+  float alpha = max(gridLine, axisLine);
+  if (alpha <= 0.001) discard;
+  vec3 color = mix(gridColor, axisColor, axisLine / alpha);
+  outColor = vec4(color, alpha);
 }
-
-function getGridBounds(snap: ReturnType<SceneContext["getSnapshot"]>) {
-  if (snap.mode !== "2d") {
-    const extent = Math.ceil(
-      Math.max(GRID_3D_EXTENT, GRID_3D_EXTENT / snap.scaleFactor),
-    );
-    return { minX: -extent, maxX: extent, minY: -extent, maxY: extent };
-  }
-
-  const halfWidth = (snap.orthographic.right - snap.orthographic.left) / 2;
-  const halfHeight = (snap.orthographic.top - snap.orthographic.bottom) / 2;
-  const marginUnits = GRID_MARGIN_PX * snap.unitsPerPixel;
-  return {
-    minX: Math.floor(
-      snap.target.x - halfWidth - marginUnits - GRID_OVERDRAW_UNITS,
-    ),
-    maxX: Math.ceil(
-      snap.target.x + halfWidth + marginUnits + GRID_OVERDRAW_UNITS,
-    ),
-    minY: Math.floor(
-      snap.target.y - halfHeight - marginUnits - GRID_OVERDRAW_UNITS,
-    ),
-    maxY: Math.ceil(
-      snap.target.y + halfHeight + marginUnits + GRID_OVERDRAW_UNITS,
-    ),
-  };
-}
+`;
 
 export class GridLayer implements Layer {
-  readonly object3D: Group;
+  readonly object3D: Mesh;
   readonly renderPass = "background" as const;
   readonly invalidationKeys = ["grid"] as const;
-  private gridGeo: BufferGeometry;
-  private axisGeo: BufferGeometry;
-  private gridMat: LineBasicMaterial;
-  private axisMat: LineBasicMaterial;
-  private prevBounds: GridBounds | null = null;
+  private material: ShaderMaterial;
+  private centerX = 0;
+  private centerY = 0;
 
   constructor() {
-    const gGeo = new BufferGeometry();
-    const aGeo = new BufferGeometry();
-    const gMat = new LineBasicMaterial({
-      color: GRID_COLOR,
+    this.material = new ShaderMaterial({
+      glslVersion: GLSL3,
+      vertexShader: VERTEX_SHADER,
+      fragmentShader: FRAGMENT_SHADER,
+      uniforms: {
+        gridColor: { value: new Color(GRID_COLOR).convertLinearToSRGB() },
+        axisColor: { value: new Color(AXIS_COLOR).convertLinearToSRGB() },
+      },
+      transparent: true,
       depthWrite: false,
+      side: DoubleSide,
     });
-    const aMat = new LineBasicMaterial({
-      color: AXIS_COLOR,
-      depthWrite: false,
-    });
-    const gridLines = new LineSegments(gGeo, gMat);
-    const axisLines = new LineSegments(aGeo, aMat);
-    gridLines.renderOrder = RENDER_ORDER.grid;
-    axisLines.renderOrder = RENDER_ORDER.axis;
-    gridLines.frustumCulled = false;
-    axisLines.frustumCulled = false;
-    const g = new Group();
-    g.add(gridLines, axisLines);
-    this.object3D = g;
-    this.gridGeo = gGeo;
-    this.axisGeo = aGeo;
-    this.gridMat = gMat;
-    this.axisMat = aMat;
+    const mesh = new Mesh(
+      new PlaneGeometry(GRID_HALF_EXTENT * 2, GRID_HALF_EXTENT * 2),
+      this.material,
+    );
+    mesh.renderOrder = RENDER_ORDER.grid;
+    mesh.frustumCulled = false;
+    this.object3D = mesh;
   }
 
   update(ctx: SceneContext): void {
-    const bounds = getGridBounds(ctx.getSnapshot());
-    const prev = this.prevBounds;
+    const target = ctx.getSnapshot().target;
     if (
-      prev &&
-      prev.minX === bounds.minX &&
-      prev.maxX === bounds.maxX &&
-      prev.minY === bounds.minY &&
-      prev.maxY === bounds.maxY
+      Math.abs(target.x - this.centerX) > RECENTER_THRESHOLD ||
+      Math.abs(target.y - this.centerY) > RECENTER_THRESHOLD
     ) {
-      return;
+      this.centerX = Math.round(target.x);
+      this.centerY = Math.round(target.y);
+      this.object3D.position.set(this.centerX, this.centerY, 0);
     }
-    this.prevBounds = bounds;
-
-    const { minX, maxX, minY, maxY } = bounds;
-    setLineSegmentsPositions(this.gridGeo, buildGridPositions(bounds));
-    setLineSegmentsPositions(
-      this.axisGeo,
-      new Float32Array([0, minY, 0, 0, maxY, 0, minX, 0, 0, maxX, 0, 0]),
-    );
   }
 
   dispose(): void {
-    this.gridGeo.dispose();
-    this.axisGeo.dispose();
-    this.gridMat.dispose();
-    this.axisMat.dispose();
+    this.object3D.geometry.dispose();
+    this.material.dispose();
   }
 }
