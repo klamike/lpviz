@@ -325,6 +325,26 @@ export function findStrictFeasiblePoint(
   return null;
 }
 
+function hasNontrivialRecessionDirection(lines: Lines, tol = 1e-6): boolean {
+  // The recession cone {d : A·d <= 0} of a 2D region is nontrivial iff some
+  // direction perpendicular to a constraint normal satisfies every constraint
+  // (any extreme ray of the cone lies on the boundary of some half-plane).
+  for (const [A, B] of lines) {
+    const norm = Math.hypot(A, B);
+    if (norm <= tol) continue;
+    const candidates: Array<[number, number]> = [
+      [-B / norm, A / norm],
+      [B / norm, -A / norm],
+    ];
+    for (const [dx, dy] of candidates) {
+      if (lines.every(([A2, B2]) => A2 * dx + B2 * dy <= tol)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function classifyRegion(
   lines: Lines,
   vertices: Vertices,
@@ -335,7 +355,9 @@ export function classifyRegion(
   }
 
   if (vertices.length >= 3) {
-    return "bounded";
+    // 3+ vertices alone do not imply boundedness: the region can still
+    // recede along a direction in its recession cone.
+    return hasNontrivialRecessionDirection(lines) ? "unbounded" : "bounded";
   }
 
   const feasiblePoint = findFeasiblePoint(lines);
