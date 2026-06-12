@@ -21,25 +21,47 @@ const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
 // holds millions of segments across its chunks, and instanced fat-line quads
 // made both rotation and camera movement GPU-bound at that scale. Strips draw
 // every iterate (full fidelity) at 2 vertices per point with a trivial
-// shader; the trade is the fixed 1px line width.
+// shader. GL strips are a fixed 1 device pixel wide, so each chunk is drawn
+// BRUSH_OFFSETS_PX.length times at sub-pixel screen offsets (applied as
+// world-space translations on per-pass groups, rescaled with the zoom level)
+// to read as a ~2 CSS px stroke; the per-pass opacity is solved so the fully
+// overlapped core matches TRACE_OPACITY.
+// Three passes spaced 120 degrees apart on a 0.75px circle: for any line
+// orientation the offsets project onto the line normal with at least ~1.1px
+// of spread, so strokes read ~2px wide in every direction at 3x (not 5x)
+// the single-strip cost.
+const BRUSH_OFFSETS_PX: ReadonlyArray<readonly [number, number]> = [
+  [0.75, 0],
+  [-0.375, 0.6495],
+  [-0.375, -0.6495],
+];
+const TRACE_PASS_OPACITY =
+  1 - (1 - TRACE_OPACITY) ** (1 / BRUSH_OFFSETS_PX.length);
+
 const traceMaterials = {
   flat: new LineBasicMaterial({
     color: TRACE_COLOR,
     transparent: true,
-    opacity: TRACE_OPACITY,
+    opacity: TRACE_PASS_OPACITY,
     depthTest: false,
     depthWrite: false,
   }),
   depth: new LineBasicMaterial({
     color: TRACE_COLOR,
     transparent: true,
-    opacity: TRACE_OPACITY,
+    opacity: TRACE_PASS_OPACITY,
     depthTest: true,
     depthWrite: true,
   }),
 };
 
 type TraceEntry = State["traceBuffer"][number];
+
+// One geometry rendered once per brush pass
+type Stroke = {
+  geometry: BufferGeometry;
+  lines: Line[];
+};
 
 function buildEntryPositions(entry: TraceEntry): Float32Array {
   const path = entry.path;
@@ -63,38 +85,75 @@ type PrevState = {
 };
 
 // Each trace entry is immutable once appended, so it gets its own pooled
-// line strip whose geometry is built and uploaded exactly once — a rotation
-// step costs one chunk upload instead of re-concatenating and re-uploading
-// the entire history, and previously drawn curves can never shift between
-// frames.
+// stroke whose geometry is built and uploaded exactly once — a rotation step
+// costs one chunk upload instead of re-concatenating and re-uploading the
+// entire history, and previously drawn curves can never shift between frames.
 export class TraceLineLayer implements Layer {
   readonly object3D: Group;
   readonly renderPass = "traceLines" as const;
-  readonly invalidationKeys = ["trace"] as const;
-  private pool: Line[] = [];
-  private assigned = new Map<TraceEntry, Line>();
+  // "grid" fires on zoom/resize, which changes units-per-pixel and therefore
+  // the world-space size of the sub-pixel brush offsets
+  readonly invalidationKeys = ["trace", "grid"] as const;
+  private passGroups: Group[] = [];
+  private pool: Stroke[] = [];
+  private assigned = new Map<TraceEntry, Stroke>();
   private prev: PrevState | null = null;
+  private prevUnitsPerPixel = 0;
 
   constructor() {
     this.object3D = new Group();
+    for (let i = 0; i < BRUSH_OFFSETS_PX.length; i++) {
+      const group = new Group();
+      this.object3D.add(group);
+      this.passGroups.push(group);
+    }
   }
 
-  private makeLine(): Line {
+  private makeStroke(): Stroke {
     const geometry = new BufferGeometry();
     applyHugeBounds(geometry);
-    const line = new Line(geometry, traceMaterials.flat);
-    line.renderOrder = TRACE_RENDER_ORDER;
-    line.frustumCulled = false;
-    line.visible = false;
-    this.object3D.add(line);
-    this.pool.push(line);
-    return line;
+    const lines: Line[] = [];
+    for (const group of this.passGroups) {
+      const line = new Line(geometry, traceMaterials.flat);
+      line.renderOrder = TRACE_RENDER_ORDER;
+      line.frustumCulled = false;
+      line.visible = false;
+      group.add(line);
+      lines.push(line);
+    }
+    const stroke = { geometry, lines };
+    this.pool.push(stroke);
+    return stroke;
+  }
+
+  private setStroke(
+    stroke: Stroke,
+    material: LineBasicMaterial,
+    visible: boolean,
+  ) {
+    for (const line of stroke.lines) {
+      line.material = material;
+      line.visible = visible;
+    }
   }
 
   update(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
     this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
+
+    const unitsPerPixel = snap.unitsPerPixel;
+    if (unitsPerPixel !== this.prevUnitsPerPixel) {
+      this.prevUnitsPerPixel = unitsPerPixel;
+      for (let i = 0; i < this.passGroups.length; i++) {
+        const [dx, dy] = BRUSH_OFFSETS_PX[i]!;
+        this.passGroups[i]!.position.set(
+          dx * unitsPerPixel,
+          dy * unitsPerPixel,
+          0,
+        );
+      }
+    }
 
     const p = this.prev;
     if (
@@ -125,14 +184,14 @@ export class TraceLineLayer implements Layer {
       return;
     }
 
-    // Recycle lines whose entries were evicted from the buffer
+    // Recycle strokes whose entries were evicted from the buffer
     const live = new Set<TraceEntry>(raw.traceBuffer);
-    const freed: Line[] = [];
-    for (const [entry, line] of this.assigned) {
+    const freed: Stroke[] = [];
+    for (const [entry, stroke] of this.assigned) {
       if (!live.has(entry)) {
         this.assigned.delete(entry);
-        line.visible = false;
-        freed.push(line);
+        this.setStroke(stroke, traceMaterials.flat, false);
+        freed.push(stroke);
       }
     }
 
@@ -142,28 +201,29 @@ export class TraceLineLayer implements Layer {
     for (const entry of raw.traceBuffer) {
       if (this.assigned.has(entry)) continue;
       if (entry.path.length < 2) continue;
-      const line = freed.pop() ?? this.makeLine();
+      const stroke = freed.pop() ?? this.makeStroke();
       // free the old GL buffer before the attribute is replaced
-      line.geometry.dispose();
-      line.geometry.setAttribute(
+      stroke.geometry.dispose();
+      stroke.geometry.setAttribute(
         "position",
         new BufferAttribute(buildEntryPositions(entry), 3),
       );
-      line.material = material;
-      line.visible = true;
-      this.assigned.set(entry, line);
+      this.setStroke(stroke, material, true);
+      this.assigned.set(entry, stroke);
     }
-    for (const line of freed) line.visible = false;
+    for (const stroke of freed) this.setStroke(stroke, material, false);
 
     if (modeChanged) {
-      for (const line of this.assigned.values()) line.material = material;
+      for (const stroke of this.assigned.values()) {
+        this.setStroke(stroke, material, true);
+      }
     }
 
     this.object3D.visible = this.assigned.size > 0;
   }
 
   dispose(): void {
-    for (const line of this.pool) line.geometry.dispose();
+    for (const stroke of this.pool) stroke.geometry.dispose();
     this.pool = [];
     this.assigned.clear();
   }
