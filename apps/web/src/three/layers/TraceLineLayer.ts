@@ -1,80 +1,57 @@
 import type { State } from "@/features/core/store";
 import { computeIterateZ } from "@/features/core/store";
-import { Group } from "three";
-import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
-import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Group,
+  Line,
+  LineBasicMaterial,
+} from "three";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import {
-  applyHugeBounds,
-  getSharedLineMaterial,
-  replaceLinePositions,
-} from "../helpers/sharedLineMaterials";
+import { applyHugeBounds } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_OPACITY = 0.4;
 const TRACE_RENDER_ORDER = RENDER_ORDER.traceLine;
-const TRACE_LINE_THICKNESS = 2;
 
-const getTraceMat = (is3D: boolean) =>
-  getSharedLineMaterial({
+// Native GL line strips instead of fat-line instancing: a trace at high maxit
+// holds millions of segments across its chunks, and instanced fat-line quads
+// made both rotation and camera movement GPU-bound at that scale. Strips draw
+// every iterate (full fidelity) at 2 vertices per point with a trivial
+// shader; the trade is the fixed 1px line width.
+const traceMaterials = {
+  flat: new LineBasicMaterial({
     color: TRACE_COLOR,
-    linewidth: TRACE_LINE_THICKNESS,
-    depthTest: is3D,
-    depthWrite: is3D,
+    transparent: true,
     opacity: TRACE_OPACITY,
-  });
+    depthTest: false,
+    depthWrite: false,
+  }),
+  depth: new LineBasicMaterial({
+    color: TRACE_COLOR,
+    transparent: true,
+    opacity: TRACE_OPACITY,
+    depthTest: true,
+    depthWrite: true,
+  }),
+};
 
-// Total cap on rendered trace segments: it bounds both the per-update build
-// and upload (the whole buffer is rebuilt whenever an entry is appended) and
-// the per-frame draw cost while the camera moves — fat-line instances are
-// what made orbiting crawl with large traces.
-const MAX_TRACE_LINE_SEGMENTS = 32768;
+type TraceEntry = State["traceBuffer"][number];
 
-let traceScratch = new Float32Array(0);
-
-function buildAllTraceLineSegments(raw: State) {
-  let totalPoints = 0;
-  for (const entry of raw.traceBuffer) {
-    if (entry.path.length >= 2) totalPoints += entry.path.length;
+function buildEntryPositions(entry: TraceEntry): Float32Array {
+  const path = entry.path;
+  const positions = new Float32Array(path.length * 3);
+  for (let i = 0; i < path.length; i++) {
+    const point = path[i]!;
+    const base = i * 3;
+    positions[base] = point[0]!;
+    positions[base + 1] = point[1]!;
+    positions[base + 2] = computeIterateZ(point, entry.objectiveVector);
   }
-  if (totalPoints === 0) return traceScratch.subarray(0, 0);
-
-  // Sample each path down so the summed segment count stays within budget;
-  // connecting consecutive sampled points keeps every curve continuous.
-  const scale = Math.min(1, MAX_TRACE_LINE_SEGMENTS / totalPoints);
-  const maxSegments =
-    Math.min(totalPoints, MAX_TRACE_LINE_SEGMENTS) +
-    2 * raw.traceBuffer.length;
-  if (traceScratch.length < maxSegments * 6) {
-    traceScratch = new Float32Array(maxSegments * 6);
-  }
-
-  let offset = 0;
-  for (const entry of raw.traceBuffer) {
-    const path = entry.path;
-    if (path.length < 2) continue;
-    const lastIndex = path.length - 1;
-    const samples = Math.max(2, Math.round(path.length * scale));
-    let prev = path[0]!;
-    let prevZ = computeIterateZ(prev, entry.objectiveVector);
-    for (let i = 1; i < samples; i++) {
-      const point = path[Math.round((i * lastIndex) / (samples - 1))]!;
-      const z = computeIterateZ(point, entry.objectiveVector);
-      traceScratch[offset] = prev[0]!;
-      traceScratch[offset + 1] = prev[1]!;
-      traceScratch[offset + 2] = prevZ;
-      traceScratch[offset + 3] = point[0]!;
-      traceScratch[offset + 4] = point[1]!;
-      traceScratch[offset + 5] = z;
-      offset += 6;
-      prev = point;
-      prevZ = z;
-    }
-  }
-  return traceScratch.subarray(0, offset);
+  return positions;
 }
 
 type PrevState = {
@@ -85,26 +62,33 @@ type PrevState = {
   mode: string;
 };
 
+// Each trace entry is immutable once appended, so it gets its own pooled
+// line strip whose geometry is built and uploaded exactly once — a rotation
+// step costs one chunk upload instead of re-concatenating and re-uploading
+// the entire history, and previously drawn curves can never shift between
+// frames.
 export class TraceLineLayer implements Layer {
   readonly object3D: Group;
   readonly renderPass = "traceLines" as const;
   readonly invalidationKeys = ["trace"] as const;
-  private geometry: LineSegmentsGeometry;
-  private line: LineSegments2;
+  private pool: Line[] = [];
+  private assigned = new Map<TraceEntry, Line>();
   private prev: PrevState | null = null;
 
   constructor() {
-    const geometry = new LineSegmentsGeometry();
+    this.object3D = new Group();
+  }
+
+  private makeLine(): Line {
+    const geometry = new BufferGeometry();
     applyHugeBounds(geometry);
-    const line = new LineSegments2(geometry, getTraceMat(false));
+    const line = new Line(geometry, traceMaterials.flat);
     line.renderOrder = TRACE_RENDER_ORDER;
     line.frustumCulled = false;
-    line.computeLineDistances = () => line;
     line.visible = false;
-    this.object3D = new Group();
     this.object3D.add(line);
-    this.geometry = geometry;
-    this.line = line;
+    this.pool.push(line);
+    return line;
   }
 
   update(ctx: SceneContext): void {
@@ -123,6 +107,7 @@ export class TraceLineLayer implements Layer {
     ) {
       return;
     }
+    const modeChanged = !p || p.mode !== snap.mode;
     this.prev = {
       traceEnabled: raw.traceEnabled,
       traceBuffer: raw.traceBuffer,
@@ -137,24 +122,49 @@ export class TraceLineLayer implements Layer {
       shouldRenderSnapshotMode(snap.mode, raw);
     if (!shouldShow) {
       this.object3D.visible = false;
-      this.line.visible = false;
       return;
     }
 
-    const segments = buildAllTraceLineSegments(raw);
-    if (segments.length === 0) {
-      this.object3D.visible = false;
-      this.line.visible = false;
-      return;
+    // Recycle lines whose entries were evicted from the buffer
+    const live = new Set<TraceEntry>(raw.traceBuffer);
+    const freed: Line[] = [];
+    for (const [entry, line] of this.assigned) {
+      if (!live.has(entry)) {
+        this.assigned.delete(entry);
+        line.visible = false;
+        freed.push(line);
+      }
     }
 
-    replaceLinePositions(this.geometry, segments);
-    this.line.material = getTraceMat(snap.mode === "3d");
-    this.line.visible = true;
-    this.object3D.visible = true;
+    // Build geometry only for entries that don't have one yet
+    const material =
+      snap.mode === "3d" ? traceMaterials.depth : traceMaterials.flat;
+    for (const entry of raw.traceBuffer) {
+      if (this.assigned.has(entry)) continue;
+      if (entry.path.length < 2) continue;
+      const line = freed.pop() ?? this.makeLine();
+      // free the old GL buffer before the attribute is replaced
+      line.geometry.dispose();
+      line.geometry.setAttribute(
+        "position",
+        new BufferAttribute(buildEntryPositions(entry), 3),
+      );
+      line.material = material;
+      line.visible = true;
+      this.assigned.set(entry, line);
+    }
+    for (const line of freed) line.visible = false;
+
+    if (modeChanged) {
+      for (const line of this.assigned.values()) line.material = material;
+    }
+
+    this.object3D.visible = this.assigned.size > 0;
   }
 
   dispose(): void {
-    this.geometry.dispose();
+    for (const line of this.pool) line.geometry.dispose();
+    this.pool = [];
+    this.assigned.clear();
   }
 }

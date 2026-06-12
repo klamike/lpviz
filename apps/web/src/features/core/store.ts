@@ -492,39 +492,15 @@ function snapshotObjectiveVector(objectiveVector: PointXY | null) {
 }
 
 
-// Cap on the total number of points retained across all trace entries: a full
-// rotation at high maxit would otherwise hold maxTraceCount complete path
-// copies (hundreds of MB) that every trace render and redraw must traverse.
-const MAX_TOTAL_TRACE_POINTS = 1 << 17;
-const MIN_TRACE_ENTRY_POINTS = 16;
-const MAX_TRACE_ENTRY_POINTS = 2048;
-
-function decimateTracePath(path: Float64Array[], maxTraceCount: number) {
-  const maxPoints = Math.min(
-    MAX_TRACE_ENTRY_POINTS,
-    Math.max(
-      MIN_TRACE_ENTRY_POINTS,
-      Math.floor(MAX_TOTAL_TRACE_POINTS / Math.max(1, maxTraceCount)),
-    ),
-  );
-  if (path.length <= maxPoints) return path;
-  const sampled: Float64Array[] = new Array(maxPoints);
-  const lastIndex = path.length - 1;
-  for (let i = 0; i < maxPoints; i++) {
-    // copy: entries are views into the solve's packed result buffer, and a
-    // retained view would pin the entire multi-MB buffer per trace entry
-    sampled[i] = path[Math.round((i * lastIndex) / (maxPoints - 1))]!.slice();
-  }
-  return sampled;
-}
-
 function appendedTraceBuffer(
   state: State,
   iteratesArray: Float64Array[],
   objectiveSnapshot: PointXY | null,
 ): TraceEntry[] {
+  // Shares the path entries (they are immutable once created); a trace entry
+  // therefore retains exactly the solve's packed result data and nothing more.
   const entry: TraceEntry = {
-    path: decimateTracePath(iteratesArray, state.maxTraceCount),
+    path: iteratesArray,
     objectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };
   const raw = [...state.traceBuffer, entry];
