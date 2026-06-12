@@ -146,6 +146,10 @@ export function boot(root: HTMLElement) {
 
   const sidebar = mountSidebar(root, ctx);
 
+  // tracks the window listeners of an in-progress sidebar resize so destroy()
+  // can remove them if teardown happens mid-drag
+  let activeResizeCleanup: (() => void) | null = null;
+
   const onResizeStart = (startEvent: PointerEvent) => {
     if (mobileLayout) {
       const applyHeight = (clientY: number) => {
@@ -166,12 +170,18 @@ export function boot(root: HTMLElement) {
         if (event.pointerId !== startEvent.pointerId) return;
         applyHeight(event.clientY);
       };
-      const up = () => {
+      const stop = () => {
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
         window.removeEventListener("pointercancel", up);
+        activeResizeCleanup = null;
+      };
+      const up = (event: PointerEvent) => {
+        if (event.pointerId !== startEvent.pointerId) return;
+        stop();
         viewport.syncViewportLayout(0);
       };
+      activeResizeCleanup = stop;
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", up);
       window.addEventListener("pointercancel", up);
@@ -191,12 +201,18 @@ export function boot(root: HTMLElement) {
       if (event.pointerId !== startEvent.pointerId) return;
       applyWidth(event.clientX);
     };
-    const up = () => {
+    const stop = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      activeResizeCleanup = null;
+    };
+    const up = (event: PointerEvent) => {
+      if (event.pointerId !== startEvent.pointerId) return;
+      stop();
       viewport.syncViewportLayout(getViewportSidebarWidth());
     };
+    activeResizeCleanup = stop;
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
@@ -218,6 +234,7 @@ export function boot(root: HTMLElement) {
 
   return {
     destroy: () => {
+      activeResizeCleanup?.();
       window.removeEventListener("resize", onResize);
       mobileQuery.removeEventListener("change", onResize);
       stage.destroy();

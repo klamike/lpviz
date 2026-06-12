@@ -211,7 +211,9 @@ export function getEditorTransition(
               completionMode: "closed",
               interiorPoint: polytope.centroidPoint(),
             },
-            saveToHistory: false,
+            // closing is its own undoable step, like finish-open; otherwise
+            // undo jumps back past the close AND the last-placed vertex
+            saveToHistory: true,
           };
         }
 
@@ -223,7 +225,7 @@ export function getEditorTransition(
               completionMode: "closed",
               interiorPoint: { x: action.point.x, y: action.point.y },
             },
-            saveToHistory: false,
+            saveToHistory: true,
           };
         }
       }

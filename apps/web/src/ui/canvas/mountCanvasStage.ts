@@ -16,12 +16,20 @@ export function mountCanvasStage(
   main.append(viewport);
   parent.append(main);
   let detachInteractions: (() => void) | null = null;
+  let destroyed = false;
   const gl = mountCanvasGL(
     viewport,
     (bridge) => {
       bridge.getCanvasElement().focus();
       void createViewportRuntime({ viewportBridge: bridge })
         .then((runtime) => {
+          if (destroyed) {
+            // the stage was torn down while the runtime was initializing;
+            // registering it now would resurrect a destroyed canvas manager
+            // and leak the window listeners attachCanvasInteractions installs
+            runtime.destroy();
+            return;
+          }
           ctx.setCanvasManager(runtime);
           detachInteractions = attachCanvasInteractions({
             canvasManager: runtime,
@@ -108,6 +116,7 @@ export function mountCanvasStage(
   return {
     updateLayout: render,
     destroy: () => {
+      destroyed = true;
       controller.abort();
       detachInteractions?.();
       ctx.getCanvasManager()?.destroy();

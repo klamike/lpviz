@@ -661,15 +661,33 @@ export function attachCanvasInteractions({
     }
   };
 
+  const isTextEntryTarget = (target: EventTarget | null) =>
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT");
+
   const handleKeyDown = (event: KeyboardEvent) => {
+    // this is a window-level capture handler; typing in form fields must not
+    // trigger canvas shortcuts (or block native text-editing undo)
+    if (isTextEntryTarget(event.target)) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       handleUndoRedo(event.shiftKey);
     }
     if (event.key === "Enter") {
+      // let a focused button or link activate natively
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("button, a, [role='button']")
+      ) {
+        return;
+      }
       event.preventDefault();
       finishOpenRegion();
     }
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.key.toLowerCase() === "s") {
       const { snapToGrid } = getState();
       setState({ snapToGrid: !snapToGrid });
@@ -729,6 +747,14 @@ export function attachCanvasInteractions({
         clientY: event.clientY,
         moved: false,
       };
+      // Without capture, lifting the pen outside the canvas delivers
+      // pointerup elsewhere (and preventDefault suppresses the compat
+      // mouseup fallback), leaving the editor stuck in "dragging".
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch {
+        // pointer may already be gone
+      }
       handlePointerStart(event.clientX, event.clientY, event);
     },
     { capture: true },
@@ -782,6 +808,9 @@ export function attachCanvasInteractions({
     "pointercancel",
     (event: PointerEvent) => {
       if (activePenStart?.pointerId === event.pointerId) {
+        // end the drag like pointerup would, or the editor stays "dragging"
+        // with the viewport controls blocked
+        handlePointerRelease(event);
         activePenStart = null;
       }
     },
