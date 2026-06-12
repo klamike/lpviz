@@ -21,7 +21,8 @@ const maxitToSliderValue = (value: number) =>
   );
 const sliderValueToMaxit = (value: string) =>
   Math.max(1, Math.round(10 ** parseFloat(value)));
-const fmt = (value: number) => new Intl.NumberFormat("en-US").format(value);
+const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
+const fmt = (value: number) => NUMBER_FORMAT.format(value);
 
 type MaxitSettingKey = Extract<keyof SolverSettings, "maxitIPM" | "maxitPDHG">;
 type SettingsSync = (state: State) => void;

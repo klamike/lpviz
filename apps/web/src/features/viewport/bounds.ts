@@ -1,5 +1,4 @@
 import { getDisplayedIterateZ } from "@/features/core/store";
-import { VRep } from "@lpviz/math/geometry";
 import type { PointXY } from "@lpviz/math/types";
 
 type TraceEntry = {
@@ -19,6 +18,10 @@ type ZoomFitInputs = {
   objectiveHidden: boolean;
 };
 
+// Accumulates min/max in a single pass with no intermediate arrays: the old
+// per-point {x, y} objects plus Math.min(...spread) over every iterate both
+// allocated heavily and, above ~125k z values (V8's argument limit), threw a
+// RangeError that broke zoom-to-fit outright at high solver iteration counts.
 export function collectZoomFitBounds({
   vertices,
   iteratePath,
@@ -30,61 +33,67 @@ export function collectZoomFitBounds({
   currentObjective,
   objectiveHidden,
 }: ZoomFitInputs) {
-  const points: PointXY[] = [];
-  const zValues: number[] = [];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  let hasZ = false;
+  let valid = true;
+  let count = 0;
 
-  const appendPath = (
-    path: Float64Array[],
-    objectiveOverride?: PointXY | null,
-  ) => {
-    path.forEach((entry) => {
-      points.push({ x: entry[0], y: entry[1] });
-      zValues.push(getDisplayedIterateZ(entry, objectiveOverride));
-    });
+  const addPoint = (x: number, y: number) => {
+    count++;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      valid = false;
+      return;
+    }
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
   };
 
-  points.push(...vertices);
+  const addPath = (
+    path: Float64Array[],
+    objectiveOverride: PointXY | null,
+  ) => {
+    for (const entry of path) {
+      addPoint(entry[0]!, entry[1]!);
+      const z = getDisplayedIterateZ(entry, objectiveOverride);
+      hasZ = true;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+  };
+
+  for (const vertex of vertices) {
+    if (!vertex) {
+      valid = false;
+      break;
+    }
+    addPoint(vertex.x, vertex.y);
+  }
   // use the objective each path was solved under, as the render layers do —
   // the current objectiveVector can differ mid-drag or after a solver error
-  appendPath(iteratePath, iterateObjectiveVector);
-  appendPath(originalIteratePath, originalIterateObjectiveVector);
-  traceBuffer.forEach((traceEntry) =>
-    appendPath(traceEntry.path, traceEntry.objectiveVector),
-  );
+  addPath(iteratePath, iterateObjectiveVector);
+  addPath(originalIteratePath, originalIterateObjectiveVector);
+  for (const traceEntry of traceBuffer) {
+    addPath(traceEntry.path, traceEntry.objectiveVector);
+  }
 
   if (!objectiveHidden) {
-    if (objectiveVector) {
-      points.push({ x: objectiveVector.x, y: objectiveVector.y });
-    }
-    if (currentObjective) {
-      points.push({ x: currentObjective.x, y: currentObjective.y });
-    }
+    if (objectiveVector) addPoint(objectiveVector.x, objectiveVector.y);
+    if (currentObjective) addPoint(currentObjective.x, currentObjective.y);
   }
 
-  if (!VRep.isValid(points)) {
+  if (!valid || count === 0) {
     return null;
-  }
-
-  let minX = points[0].x;
-  let maxX = points[0].x;
-  let minY = points[0].y;
-  let maxY = points[0].y;
-
-  for (let i = 1; i < points.length; i++) {
-    const point = points[i];
-    minX = Math.min(minX, point.x);
-    maxX = Math.max(maxX, point.x);
-    minY = Math.min(minY, point.y);
-    maxY = Math.max(maxY, point.y);
   }
 
   return {
     bounds: { minX, maxX, minY, maxY },
-    zBounds: zValues.length
-      ? {
-          minZ: Math.min(...zValues),
-          maxZ: Math.max(...zValues),
-        }
-      : undefined,
+    zBounds: hasZ ? { minZ, maxZ } : undefined,
   };
 }

@@ -28,6 +28,19 @@ export function mountProblemPanel(parent: HTMLElement, ctx: AppContext) {
   const subjectTo = el("div", { id: "subjectTo", text: "subject to" });
   const inequalities = el("div", { id: "inequalities" });
   topResult.append(nullState, maximize, objective, subjectTo, inequalities);
+  // delegated hover handlers: rows are rebuilt on every polytope change, so
+  // per-row listeners would be re-created each time
+  inequalities.addEventListener("mouseover", (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      ".inequality-item",
+    );
+    if (row?.dataset.index !== undefined) {
+      ctx.actions.setConstraintHighlight(Number(row.dataset.index));
+    }
+  });
+  inequalities.addEventListener("mouseleave", () =>
+    ctx.actions.setConstraintHighlight(null),
+  );
   frame.append(
     topResult,
     el("div", { id: "terminal-window" }),
@@ -56,6 +69,21 @@ export function mountProblemPanel(parent: HTMLElement, ctx: AppContext) {
         ? "is-block"
         : "is-hidden";
 
+    // objective-only updates (every rotation step) must not rebuild the
+    // constraint rows; rebuild only when their source actually changed
+    const itemsKey: unknown[] = [
+      state.polytope?.inequalities,
+      state.completionMode,
+      state.inequalitiesMessage,
+    ];
+    if (
+      lastItemsKey &&
+      itemsKey.every((value, i) => Object.is(value, lastItemsKey![i]))
+    ) {
+      return;
+    }
+    lastItemsKey = itemsKey;
+
     clear(inequalities);
     if (state.inequalitiesMessage !== null) {
       inequalities.textContent = state.inequalitiesMessage;
@@ -70,16 +98,16 @@ export function mountProblemPanel(parent: HTMLElement, ctx: AppContext) {
           )
         : state.polytope.inequalities;
     items.forEach((text, index) => {
-      const row = el("div", { className: "inequality-item", text });
-      row.addEventListener("mouseenter", () =>
-        ctx.actions.setConstraintHighlight(index),
+      inequalities.append(
+        el("div", {
+          className: "inequality-item",
+          text,
+          attrs: { "data-index": String(index) },
+        }),
       );
-      row.addEventListener("mouseleave", () =>
-        ctx.actions.setConstraintHighlight(null),
-      );
-      inequalities.append(row);
     });
   }
+  let lastItemsKey: unknown[] | null = null;
   render(getState());
   const controller = new AbortController();
   on(
