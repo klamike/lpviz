@@ -80,6 +80,10 @@ export function createSolverActions(
   let rotationLastFrameTime: number | null = null;
   let rotationElapsedMs = 0;
   let rotationComputeInFlight = false;
+  // Bumped by cancelRotationLoop so a solve started in an earlier rotation
+  // session cannot clear the in-flight flag of the current one from its
+  // finally block (which would let the RAF loop start overlapping solves).
+  let rotationSession = 0;
   let objectiveRotationDirection: 1 | -1 = 1;
   let iterateHoverActive = false;
   let lastVirtualResult: VirtualResultPayload | null = null;
@@ -206,6 +210,7 @@ export function createSolverActions(
     requestGeneration++;
   };
   const cancelRotationLoop = () => {
+    rotationSession++;
     if (rotationRafId !== null) cancelAnimationFrame(rotationRafId);
     rotationRafId = null;
     rotationLastFrameTime = null;
@@ -299,6 +304,7 @@ export function createSolverActions(
     const state = getState();
     if (!state.rotateObjectiveMode || rotationComputeInFlight) return;
     rotationComputeInFlight = true;
+    const session = rotationSession;
     const rotationStep = computeObjectiveRotationStep({
       objectiveVector: state.objectiveVector ?? { x: 1, y: 0 },
       angleStep: Math.max(
@@ -320,8 +326,10 @@ export function createSolverActions(
     try {
       await computePath();
     } finally {
-      rotationComputeInFlight = false;
-      if (getState().rotateObjectiveMode) ensureRotationLoop();
+      if (session === rotationSession) {
+        rotationComputeInFlight = false;
+        if (getState().rotateObjectiveMode) ensureRotationLoop();
+      }
     }
   };
   const setRotationActive = (active: boolean) => {
@@ -513,6 +521,9 @@ export function createSolverActions(
     hasUnboundedObjectiveDirection,
     destroy: () => {
       cancelRotationLoop();
+      // stop any active replay; its interval would otherwise keep mutating
+      // the store and drawing on the destroyed viewport runtime
+      prepareAnimationInterval();
       controller.abort();
     },
   };

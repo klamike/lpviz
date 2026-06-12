@@ -33,12 +33,22 @@ worker.addEventListener(
   },
 );
 
-worker.addEventListener("error", (event) => {
-  const reason = event.error ?? event.message ?? event;
+function rejectAll(reason: unknown) {
   pending.forEach(({ reject }) => reject(reason));
   pending.clear();
   requestQueue.forEach(({ reject }) => reject(reason));
   requestQueue.length = 0;
+}
+
+worker.addEventListener("error", (event) => {
+  rejectAll(event.error ?? event.message ?? event);
+});
+
+// A reply that fails structured deserialization would otherwise leave its
+// pending entry stranded forever; once pending fills up, dispatch stops and
+// all solving is dead until reload.
+worker.addEventListener("messageerror", () => {
+  rejectAll(new Error("Solver worker reply could not be deserialized"));
 });
 
 function scheduleDispatch() {

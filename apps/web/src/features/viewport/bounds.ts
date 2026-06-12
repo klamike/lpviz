@@ -11,6 +11,8 @@ type ZoomFitInputs = {
   vertices: PointXY[];
   iteratePath: Float64Array[];
   originalIteratePath: Float64Array[];
+  iterateObjectiveVector: PointXY | null;
+  originalIterateObjectiveVector: PointXY | null;
   traceBuffer: TraceEntry[];
   objectiveVector: PointXY | null;
   currentObjective: PointXY | null;
@@ -21,6 +23,8 @@ export function collectZoomFitBounds({
   vertices,
   iteratePath,
   originalIteratePath,
+  iterateObjectiveVector,
+  originalIterateObjectiveVector,
   traceBuffer,
   objectiveVector,
   currentObjective,
@@ -40,8 +44,10 @@ export function collectZoomFitBounds({
   };
 
   points.push(...vertices);
-  appendPath(iteratePath);
-  appendPath(originalIteratePath);
+  // use the objective each path was solved under, as the render layers do —
+  // the current objectiveVector can differ mid-drag or after a solver error
+  appendPath(iteratePath, iterateObjectiveVector);
+  appendPath(originalIteratePath, originalIterateObjectiveVector);
   traceBuffer.forEach((traceEntry) =>
     appendPath(traceEntry.path, traceEntry.objectiveVector),
   );
