@@ -8,6 +8,7 @@ import { Camera, Scene, WebGLRenderer } from "three";
 import type { Layer, RenderPassName } from "./Layer";
 import { LayerHost } from "./LayerHost";
 import type { SceneContext } from "./SceneContext";
+import { Trace3DCompositor } from "./Trace3DCompositor";
 import { TraceCache } from "./TraceCache";
 
 type Size = { width: number; height: number; dpr: number };
@@ -38,6 +39,9 @@ export class SceneManager {
   readonly renderer: WebGLRenderer;
   readonly layerHost = new LayerHost();
   private traceCache = new TraceCache(() =>
+    this.invalidate({ layers: false }),
+  );
+  private trace3D = new Trace3DCompositor(() =>
     this.invalidate({ layers: false }),
   );
 
@@ -269,6 +273,7 @@ export class SceneManager {
 
     this.layerHost.dispose();
     this.traceCache.dispose();
+    this.trace3D.dispose();
     for (const scene of Object.values(this.scenes)) {
       for (const child of [...scene.children]) {
         scene.remove(child);
@@ -288,11 +293,27 @@ export class SceneManager {
       this.renderer,
       this.scenes.traceLines,
     );
+    // while the 3D view is in motion the chunks composite from a single-
+    // sample offscreen render instead of hitting the MSAA canvas directly
+    // (see Trace3DCompositor)
+    const trace3DScene =
+      traceQuadScene === null &&
+      this.scenes.traceLines.children.length > 0 &&
+      !this.scenes.traceLines.children.every(isHidden)
+        ? this.trace3D.prepare(this.renderer, camera, this.scenes.traceLines, [
+            this.scenes.transparent,
+            this.scenes.foreground,
+          ])
+        : null;
     for (const pass of RENDER_PASSES) {
       if (traceQuadScene && pass === "traceLines") {
         if (!traceQuadScene.children.every(isHidden)) {
           this.renderer.render(traceQuadScene, camera);
         }
+        continue;
+      }
+      if (trace3DScene && pass === "traceLines") {
+        this.renderer.render(trace3DScene, this.trace3D.camera);
         continue;
       }
       const scene = this.scenes[pass];
