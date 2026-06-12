@@ -511,7 +511,9 @@ function decimateTracePath(path: Float64Array[], maxTraceCount: number) {
   const sampled: Float64Array[] = new Array(maxPoints);
   const lastIndex = path.length - 1;
   for (let i = 0; i < maxPoints; i++) {
-    sampled[i] = path[Math.round((i * lastIndex) / (maxPoints - 1))]!;
+    // copy: entries are views into the solve's packed result buffer, and a
+    // retained view would pin the entire multi-MB buffer per trace entry
+    sampled[i] = path[Math.round((i * lastIndex) / (maxPoints - 1))]!.slice();
   }
   return sampled;
 }
