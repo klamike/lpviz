@@ -1,4 +1,4 @@
-import type { BoundingBox } from "@lpviz/math/geometry";
+import { type BoundingBox, expandDegenerateBounds } from "@lpviz/math/geometry";
 import type { PointXY } from "@lpviz/math/types";
 import type { ViewportRenderSnapshot } from "./types";
 
@@ -181,14 +181,13 @@ export function fitViewport2DToBounds(
   sidebarWidth: number,
   rect: ViewportRect,
   fallbackSnapshot: ViewportRenderSnapshot,
-  bounds: BoundingBox,
+  rawBounds: BoundingBox,
   padding = 50,
 ): Viewport2DState {
+  // Point or axis-aligned content still deserves a recenter and zoom
+  const bounds = expandDegenerateBounds(rawBounds);
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  if (width <= 0 || height <= 0) {
-    return state;
-  }
 
   const viewportSize = getViewportSize(fallbackSnapshot, rect);
   const availWidth = Math.max(

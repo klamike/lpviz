@@ -1,6 +1,6 @@
 import { Euler, PerspectiveCamera, Vector3 } from "three";
 
-import type { BoundingBox } from "@lpviz/math/geometry";
+import { type BoundingBox, expandDegenerateBounds } from "@lpviz/math/geometry";
 import type { PointXYZ } from "@lpviz/math/types";
 import { DEFAULT_VIEW_ANGLE } from "./defaults";
 import {
@@ -328,16 +328,12 @@ export function fitViewport3DToBounds(
   snapshot: ViewportRenderSnapshot,
   rect: ViewportRect,
   sidebarWidth: number,
-  bounds: BoundingBox,
+  rawBounds: BoundingBox,
   padding = 50,
   zBounds?: ViewportZBounds,
 ): Viewport3DViewState | null {
-  const width = bounds.maxX - bounds.minX;
-  const height = bounds.maxY - bounds.minY;
-  if (width <= 0 || height <= 0) {
-    return null;
-  }
-
+  // Point or axis-aligned content still deserves a recenter and zoom
+  const bounds = expandDegenerateBounds(rawBounds);
   const viewAngle = getViewAngleFromSnapshot3D(snapshot);
   const fitTarget = {
     x: (bounds.minX + bounds.maxX) / 2,

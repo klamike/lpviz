@@ -7,6 +7,24 @@ export interface BoundingBox {
   maxY: number;
 }
 
+export function expandDegenerateBounds(
+  bounds: BoundingBox,
+  minExtent = 1,
+): BoundingBox {
+  let { minX, maxX, minY, maxY } = bounds;
+  if (maxX - minX < minExtent) {
+    const centerX = (minX + maxX) / 2;
+    minX = centerX - minExtent / 2;
+    maxX = centerX + minExtent / 2;
+  }
+  if (maxY - minY < minExtent) {
+    const centerY = (minY + maxY) / 2;
+    minY = centerY - minExtent / 2;
+    maxY = centerY + minExtent / 2;
+  }
+  return { minX, maxX, minY, maxY };
+}
+
 export function isConvexChain(
   points: ReadonlyArray<PointXY>,
   tol = 1e-9,
