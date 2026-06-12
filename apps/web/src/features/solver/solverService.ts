@@ -169,7 +169,8 @@ export function applyCentralPathResult(
     {
       iterations: result.iterations,
       header: result.logs[0] ?? "",
-      rows: result.logs.slice(1, -1),
+      // central-path logs carry no footer line (the footer below is synthesized)
+      rows: result.logs.slice(1),
       footer: `Traced central path in ${Math.round(result.tsolve * 1000)}ms`,
       updateTrace: false,
     },

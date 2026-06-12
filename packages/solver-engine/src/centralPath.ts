@@ -138,11 +138,11 @@ function performLineSearch(
 
     stepSize *= LINE_SEARCH_SHRINK_FACTOR;
     if (stepSize < MIN_STEP_SIZE) {
-      return stepSize;
+      return 0;
     }
   }
 
-  return stepSize;
+  return 0;
 }
 
 function centralPathXk(
@@ -182,6 +182,13 @@ function centralPathXk(
       return null;
     }
 
+    const gradientInfinityNorm = infinityNorm(gradient);
+    if (gradientInfinityNorm < epsilon) {
+      if (verbose)
+        console.log(`Converged in ${iteration} iterations with mu = ${mu}`);
+      return Float64Array.from(currentPoint);
+    }
+
     const stepSize = performLineSearch(
       A,
       b,
@@ -194,15 +201,13 @@ function centralPathXk(
       axScratch,
       slackScratch,
     );
+    if (stepSize === 0) {
+      if (verbose)
+        console.warn(`Line search failed to find a feasible step for mu = ${mu}`);
+      return null;
+    }
     for (let j = 0; j < currentPoint.length; j++) {
       currentPoint[j] += newtonStep[j]! * stepSize;
-    }
-
-    const gradientInfinityNorm = infinityNorm(gradient);
-    if (gradientInfinityNorm < epsilon) {
-      if (verbose)
-        console.log(`Converged in ${iteration} iterations with mu = ${mu}`);
-      return Float64Array.from(currentPoint);
     }
 
     if (verbose) {
