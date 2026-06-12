@@ -5,12 +5,7 @@ import {
   updateIteratePathsWithTrace,
 } from "@/features/core/store";
 import type { ResultTextBlock } from "@/features/solver/types";
-const fmtInt = (v: number, w: number) => String(v).padStart(w);
-const fmtStr = (v: string, w: number) => v.padStart(w);
-const fmtF = (v: number, w: number, d: number) =>
-  ((v >= 0 ? "+" : "") + v.toFixed(d)).padStart(w);
-const fmtE = (v: number, w: number, d: number, signed = true) =>
-  ((signed && v >= 0 ? "+" : "") + v.toExponential(d)).padStart(w);
+import { fmtE, fmtF, fmtInt, fmtStr } from "@lpviz/solver-engine/fmt";
 
 type VirtualResultRow =
   | string
