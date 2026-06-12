@@ -23,6 +23,7 @@ export type SharedAppState = {
   solverMode: SolverMode;
   settings: ShareSettings;
   zScale?: number;
+  is3DMode?: boolean;
 };
 
 const shareKeyMap = {
@@ -32,6 +33,7 @@ const shareKeyMap = {
   solverMode: "s",
   settings: "g",
   zScale: "l",
+  is3DMode: "b",
   x: "x",
   y: "y",
   alphaMax: "a",
@@ -86,22 +88,54 @@ export function expandSharedAppState<T>(value: T): T {
   return transformShareObject(value, expandedShareKeyMap);
 }
 
+// The shared payload is the only untrusted input path in the app: a crafted
+// link must not be able to push NaN or arbitrary values into the store.
+const COMPLETION_MODES: ReadonlySet<string> = new Set([
+  "draft",
+  "closed",
+  "open",
+]);
+const SOLVER_MODES: ReadonlySet<string> = new Set([
+  "central",
+  "ipm",
+  "simplex",
+  "pdhg",
+]);
+
+const isFinitePoint = (value: unknown): value is { x: number; y: number } =>
+  typeof value === "object" &&
+  value !== null &&
+  Number.isFinite((value as { x: unknown }).x) &&
+  Number.isFinite((value as { y: unknown }).y);
+
 export function buildSharedStatePatch(
   sharedState: SharedAppState,
 ): Partial<State> {
   const mappedVertices = Array.isArray(sharedState.vertices)
-    ? sharedState.vertices.map((vertex) => ({ x: vertex.x, y: vertex.y }))
+    ? sharedState.vertices
+        .filter(isFinitePoint)
+        .map((vertex) => ({ x: vertex.x, y: vertex.y }))
     : [];
+  const completionMode =
+    sharedState.completionMode !== undefined &&
+    COMPLETION_MODES.has(sharedState.completionMode)
+      ? sharedState.completionMode
+      : mappedVertices.length > 2
+        ? "closed"
+        : "draft";
+  const solverMode = SOLVER_MODES.has(sharedState.solverMode)
+    ? sharedState.solverMode
+    : "central";
 
   return {
     vertices: mappedVertices,
-    completionMode:
-      sharedState.completionMode ??
-      (mappedVertices.length > 2 ? "closed" : "draft"),
-    objectiveVector: sharedState.objective
+    completionMode,
+    objectiveVector: isFinitePoint(sharedState.objective)
       ? { x: sharedState.objective.x, y: sharedState.objective.y }
       : null,
-    solverMode: sharedState.solverMode,
-    ...(sharedState.zScale !== undefined ? { zScale: sharedState.zScale } : {}),
+    solverMode,
+    ...(Number.isFinite(sharedState.zScale)
+      ? { zScale: Math.max(0.01, Math.min(100, sharedState.zScale!)) }
+      : {}),
   };
 }

@@ -17,8 +17,14 @@ export function createShareService(getSolverControls: () => SolverControl[]) {
     };
   };
   const share = () => {
-    const { vertices, completionMode, objectiveVector, solverMode, zScale } =
-      getSnapshot();
+    const {
+      vertices,
+      completionMode,
+      objectiveVector,
+      solverMode,
+      zScale,
+      is3DMode,
+    } = getSnapshot();
     const payload = compactSharedAppState({
       vertices,
       completionMode,
@@ -26,6 +32,7 @@ export function createShareService(getSolverControls: () => SolverControl[]) {
       solverMode,
       settings: collectShareSettings(solverMode),
       zScale,
+      ...(is3DMode ? { is3DMode } : {}),
     });
     const crushed = JSONCrush.crush(JSON.stringify(payload));
     window.prompt(

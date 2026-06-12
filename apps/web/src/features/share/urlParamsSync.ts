@@ -62,6 +62,9 @@ export function applyUrlParamsOnce({
     const regionFinished = state.completionMode !== "draft";
     setActiveSolverMode(state.solverMode);
     if (regionFinished) sendPolytope();
+    if (sharedState.is3DMode === true && !state.is3DMode) {
+      canvasManager.start3DTransition(true);
+    }
     canvasManager.draw();
   };
   if (!params.has("s")) return;
@@ -69,7 +72,10 @@ export function applyUrlParamsOnce({
     const crushed = params.get("s") ?? "";
     const data = JSON.parse(JSONCrush.uncrush(crushed));
     if (data) applySharedState(expandSharedAppState(data) as SharedAppState);
-    history.replaceState(null, "", window.location.pathname);
+    // strip only the consumed param; keep any other query params and the hash
+    const url = new URL(window.location.href);
+    url.searchParams.delete("s");
+    history.replaceState(null, "", url);
   } catch (error) {
     console.error("Failed to load shared state", error);
   }
