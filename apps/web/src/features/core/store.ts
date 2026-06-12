@@ -483,16 +483,29 @@ function snapshotObjectiveVector(objectiveVector: PointXY | null) {
   return objectiveVector ? { ...objectiveVector } : null;
 }
 
-function copyIteratePath(iteratesArray: Float64Array[]) {
-  return iteratesArray.map((entry) => entry.slice());
-}
 
-function copyIteratePhases(phasesArray?: number[]) {
-  return phasesArray ? [...phasesArray] : [];
-}
+// Cap on the total number of points retained across all trace entries: a full
+// rotation at high maxit would otherwise hold maxTraceCount complete path
+// copies (hundreds of MB) that every trace render and redraw must traverse.
+const MAX_TOTAL_TRACE_POINTS = 1 << 17;
+const MIN_TRACE_ENTRY_POINTS = 16;
+const MAX_TRACE_ENTRY_POINTS = 2048;
 
-function copyRestartIndices(restartIndicesArray?: number[]) {
-  return restartIndicesArray ? [...restartIndicesArray] : [];
+function decimateTracePath(path: Float64Array[], maxTraceCount: number) {
+  const maxPoints = Math.min(
+    MAX_TRACE_ENTRY_POINTS,
+    Math.max(
+      MIN_TRACE_ENTRY_POINTS,
+      Math.floor(MAX_TOTAL_TRACE_POINTS / Math.max(1, maxTraceCount)),
+    ),
+  );
+  if (path.length <= maxPoints) return path;
+  const sampled: Float64Array[] = new Array(maxPoints);
+  const lastIndex = path.length - 1;
+  for (let i = 0; i < maxPoints; i++) {
+    sampled[i] = path[Math.round((i * lastIndex) / (maxPoints - 1))]!;
+  }
+  return sampled;
 }
 
 function appendedTraceBuffer(
@@ -501,7 +514,7 @@ function appendedTraceBuffer(
   objectiveSnapshot: PointXY | null,
 ): TraceEntry[] {
   const entry: TraceEntry = {
-    path: copyIteratePath(iteratesArray),
+    path: decimateTracePath(iteratesArray, state.maxTraceCount),
     objectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };
   const raw = [...state.traceBuffer, entry];
@@ -516,13 +529,17 @@ function buildIterateStatePatch(
   restartIndicesArray: number[] | undefined,
   objectiveSnapshot: PointXY | null,
 ): Partial<State> {
+  // Path entries and phase/restart arrays are never mutated after creation
+  // (replay re-references entries while growing a fresh iteratePath array),
+  // so the "original" fields can share them instead of deep-copying — at
+  // high maxit the copies cost milliseconds and megabytes per solve.
   return {
-    originalIteratePath: copyIteratePath(iteratesArray),
+    originalIteratePath: iteratesArray,
     iteratePath: iteratesArray,
     iteratePhases: phasesArray ?? [],
-    originalIteratePhases: copyIteratePhases(phasesArray),
+    originalIteratePhases: phasesArray ?? [],
     iterateRestartIndices: restartIndicesArray ?? [],
-    originalIterateRestartIndices: copyRestartIndices(restartIndicesArray),
+    originalIterateRestartIndices: restartIndicesArray ?? [],
     iterateObjectiveVector: objectiveSnapshot,
     originalIterateObjectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };

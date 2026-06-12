@@ -1,6 +1,5 @@
 import type { State } from "@/features/core/store";
 import { computeIterateZ } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
 import { Group } from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
@@ -28,49 +27,54 @@ const getTraceMat = (is3D: boolean) =>
     opacity: TRACE_OPACITY,
   });
 
-function buildTraceLinePositions(
-  path: Float64Array[],
-  objectiveVector: PointXY | null,
-) {
-  if (path.length < 2) return new Float32Array();
-  const positions = new Float32Array((path.length - 1) * 6);
-  for (let i = 0; i < path.length - 1; i++) {
-    const start = path[i]!;
-    const end = path[i + 1]!;
-    const base = i * 6;
-    positions[base] = start[0]!;
-    positions[base + 1] = start[1]!;
-    positions[base + 2] = computeIterateZ(start, objectiveVector);
-    positions[base + 3] = end[0]!;
-    positions[base + 4] = end[1]!;
-    positions[base + 5] = computeIterateZ(end, objectiveVector);
-  }
-  return positions;
-}
+// Total cap on rendered trace segments: it bounds both the per-update build
+// and upload (the whole buffer is rebuilt whenever an entry is appended) and
+// the per-frame draw cost while the camera moves — fat-line instances are
+// what made orbiting crawl with large traces.
+const MAX_TRACE_LINE_SEGMENTS = 32768;
 
-const traceLinePositionCache = new WeakMap<object, Float32Array>();
-
-function getCachedTraceLinePositions(entry: State["traceBuffer"][number]) {
-  let cached = traceLinePositionCache.get(entry);
-  if (cached) return cached;
-  const positions = buildTraceLinePositions(entry.path, entry.objectiveVector);
-  traceLinePositionCache.set(entry, positions);
-  return positions;
-}
+let traceScratch = new Float32Array(0);
 
 function buildAllTraceLineSegments(raw: State) {
-  const chunks = raw.traceBuffer
-    .map((entry) => getCachedTraceLinePositions(entry))
-    .filter((c) => c.length > 0);
-  if (chunks.length === 0) return new Float32Array();
-  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const out = new Float32Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.length;
+  let totalPoints = 0;
+  for (const entry of raw.traceBuffer) {
+    if (entry.path.length >= 2) totalPoints += entry.path.length;
   }
-  return out;
+  if (totalPoints === 0) return traceScratch.subarray(0, 0);
+
+  // Sample each path down so the summed segment count stays within budget;
+  // connecting consecutive sampled points keeps every curve continuous.
+  const scale = Math.min(1, MAX_TRACE_LINE_SEGMENTS / totalPoints);
+  const maxSegments =
+    Math.min(totalPoints, MAX_TRACE_LINE_SEGMENTS) +
+    2 * raw.traceBuffer.length;
+  if (traceScratch.length < maxSegments * 6) {
+    traceScratch = new Float32Array(maxSegments * 6);
+  }
+
+  let offset = 0;
+  for (const entry of raw.traceBuffer) {
+    const path = entry.path;
+    if (path.length < 2) continue;
+    const lastIndex = path.length - 1;
+    const samples = Math.max(2, Math.round(path.length * scale));
+    let prev = path[0]!;
+    let prevZ = computeIterateZ(prev, entry.objectiveVector);
+    for (let i = 1; i < samples; i++) {
+      const point = path[Math.round((i * lastIndex) / (samples - 1))]!;
+      const z = computeIterateZ(point, entry.objectiveVector);
+      traceScratch[offset] = prev[0]!;
+      traceScratch[offset + 1] = prev[1]!;
+      traceScratch[offset + 2] = prevZ;
+      traceScratch[offset + 3] = point[0]!;
+      traceScratch[offset + 4] = point[1]!;
+      traceScratch[offset + 5] = z;
+      offset += 6;
+      prev = point;
+      prevZ = z;
+    }
+  }
+  return traceScratch.subarray(0, offset);
 }
 
 type PrevState = {
