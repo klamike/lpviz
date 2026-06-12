@@ -25,12 +25,17 @@ export function deriveRegionFromPoints(
     const boundaryRays = buildOpenBoundaryRays(points);
     const feasiblePoint = findFeasiblePoint(lines);
     const hasClosure = hasOpenBoundaryClosure(points, lines);
+    // With no constraints the region is the whole plane, not infeasible
+    // (findFeasiblePoint returns null for an empty line set by design);
+    // mirror classifyRegion's handling of the closed case.
     const kind: PolytopeRepresentation["kind"] =
-      hasClosure && allVertices.length >= 3
-        ? "bounded"
-        : feasiblePoint
-          ? "unbounded"
-          : "empty";
+      lines.length === 0
+        ? "degenerate"
+        : hasClosure && allVertices.length >= 3
+          ? "bounded"
+          : feasiblePoint
+            ? "unbounded"
+            : "empty";
     const vertices = hasClosure && allVertices.length >= 3 ? allVertices : [];
 
     return {

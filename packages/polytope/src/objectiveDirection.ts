@@ -44,6 +44,9 @@ export function computeObjectiveRotationStep({
       nextDirection = allowedDirection;
       nextAngle = angle + angleStep * nextDirection;
     }
+    // When both directions lead into unbounded objective territory (the
+    // bounded cone is narrower than angleStep), keep rotating rather than
+    // stalling forever; the solver reports unboundedness for those frames.
   }
 
   return {
