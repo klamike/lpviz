@@ -64,7 +64,7 @@ export interface SimplexResult {
   phase1Iterations?: Float64Array[];
   logs: string[][];
   mode: "primal" | "dual";
-  status?: "optimal" | "unbounded" | "unavailable";
+  status?: "optimal" | "unbounded" | "infeasible" | "unavailable";
 }
 
 export interface PDHGResult {
@@ -258,17 +258,21 @@ function generateSimplexBlocks(
   const phase2Rows =
     phase2logs.length <= 1
       ? []
-      : status === "unbounded" || status === "unavailable"
+      : status === "unbounded" ||
+          status === "infeasible" ||
+          status === "unavailable"
         ? phase2logs.slice(1)
         : phase2logs.slice(1, -1);
   const phase2Footer =
     status === "unbounded"
       ? "Unbounded LP"
-      : status === "unavailable"
-        ? "Dual simplex unavailable"
-        : phase2logs.length > 1
-          ? phase2logs[phase2logs.length - 1]
-          : "";
+      : status === "infeasible"
+        ? "Infeasible LP"
+        : status === "unavailable"
+          ? "Dual simplex unavailable"
+          : phase2logs.length > 1
+            ? phase2logs[phase2logs.length - 1]
+            : "";
 
   const phase1Title = "Phase 1";
   const phase2Title = "Phase 2";

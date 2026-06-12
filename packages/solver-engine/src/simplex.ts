@@ -10,7 +10,7 @@ import { fmtE, fmtF, fmtInt } from "./fmt";
 
 const MAX_ITERATIONS = 100_000;
 
-type SimplexStatus = "optimal" | "unbounded" | "unavailable";
+type SimplexStatus = "optimal" | "unbounded" | "infeasible" | "unavailable";
 
 interface SimplexOptions {
   tol: number;
@@ -418,44 +418,15 @@ function simplexCore(
     basis[basisIndices[leaveIndexInBasis]!] = false;
   }
 
-  let finalBasis = basis.slice();
-  if (phase1) {
-    const artificialVarsStartIndex = 2 * nOrig + m;
-    let problemInfeasible = false;
-
-    for (let i = 0; i < m; i++) {
-      const artificialVariableIndex = artificialVarsStartIndex + i;
-      if (!finalBasis[artificialVariableIndex]) continue;
-      if (xTableau[artificialVariableIndex]! > tol) {
-        problemInfeasible = true;
-        break;
-      }
-    }
-
-    if (problemInfeasible) {
-      const message =
-        "Problem infeasible (Phase-1 optimum > 0, an artificial variable is basic with positive value)";
-      if (verbose) console.log(message);
-      logs.push(message);
-      if (Math.abs(objective) > tol) throw new Error(message);
-    }
-
-    finalBasis = finalBasis.slice(0, 2 * nOrig + m);
-    let currentBasicCount = countBasicVariables(finalBasis);
-    if (currentBasicCount < m) {
-      for (let j = 2 * nOrig; j < 2 * nOrig + m && currentBasicCount < m; j++) {
-        if (!finalBasis[j]) {
-          finalBasis[j] = true;
-          currentBasicCount++;
-        }
-      }
-    }
-
-    if (countBasicVariables(finalBasis) !== m) {
-      const message = `Phase 1 resulted in a basis for Phase 2 of size ${countBasicVariables(finalBasis)}, expected ${m}.`;
-      if (verbose) console.warn(message);
-      logs.push(message);
-    }
+  const finalBasis = basis.slice();
+  if (phase1 && objective < -tol) {
+    // The Phase-1 objective equals -(sum of artificial values), so a
+    // negative optimum means no feasible point exists.
+    const message =
+      "Problem infeasible (Phase-1 optimum is negative: no feasible point exists)";
+    if (verbose) console.log(message);
+    logs.push(message);
+    throw new Error(message);
   }
 
   const tail = `Phase ${phase1 ? 1 : 2} finished in ${iteration} iterations – basis ${basisString(finalBasis)}\n`;
@@ -507,7 +478,7 @@ function pivotOutArtificialVariables(
 
     if (replacement === -1) {
       throw new Error(
-        "Could not pivot artificial variables out of the dual Phase 1 basis.",
+        "Could not pivot artificial variables out of the Phase 1 basis.",
       );
     }
 
@@ -517,7 +488,7 @@ function pivotOutArtificialVariables(
 
   const phase2Basis = basis.slice(0, originalColumnCount);
   if (countBasicVariables(phase2Basis) !== bVec.length) {
-    throw new Error("Dual Phase 1 did not produce a valid Phase 2 basis.");
+    throw new Error("Phase 1 did not produce a valid Phase 2 basis.");
   }
   return phase2Basis;
 }
@@ -530,8 +501,37 @@ function solveDualMode(
   opts: Pick<SimplexOptions, "tol" | "verbose">,
 ) {
   const { tol, verbose } = opts;
-  const dualA = transposeMatrix(primalA);
-  const bDual = Float64Array.from(objective);
+  const dualAFull = transposeMatrix(primalA);
+  const bDualFull = Float64Array.from(objective);
+
+  // Rows of the dual system that are identically zero with a zero
+  // right-hand side are redundant (0 = 0); Phase 1 can never pivot their
+  // artificial variables out of the basis, so drop them up front.
+  const keptRows: number[] = [];
+  for (let row = 0; row < dualAFull.rows; row++) {
+    let allZero = true;
+    for (let col = 0; col < dualAFull.cols; col++) {
+      if (Math.abs(dualAFull.data[row * dualAFull.cols + col]!) > tol) {
+        allZero = false;
+        break;
+      }
+    }
+    if (!allZero || Math.abs(bDualFull[row]!) > tol) keptRows.push(row);
+  }
+  let dualA = dualAFull;
+  let bDual = bDualFull;
+  if (keptRows.length !== dualAFull.rows) {
+    dualA = createDenseMatrix(keptRows.length, dualAFull.cols);
+    for (let dstRow = 0; dstRow < keptRows.length; dstRow++) {
+      const srcOffset = keptRows[dstRow]! * dualAFull.cols;
+      for (let col = 0; col < dualAFull.cols; col++) {
+        dualA.data[dstRow * dualAFull.cols + col] =
+          dualAFull.data[srcOffset + col]!;
+      }
+    }
+    bDual = Float64Array.from(keptRows, (row) => bDualFull[row]!);
+  }
+
   const cDual = Float64Array.from(primalB, (value) => -value);
   const gamma = Float64Array.from(bDual, (value) => (value < 0 ? -1 : 1));
   const bPhase1 = Float64Array.from(
@@ -589,6 +589,18 @@ function solveDualMode(
     completionLabel: "Phase 2",
   });
 
+  // An unbounded dual means the primal LP being visualized is infeasible.
+  const status: SimplexStatus =
+    phase2.status === "unbounded" ? "infeasible" : phase2.status;
+  const phase2Logs =
+    phase2.status === "unbounded"
+      ? phase2.logs.map((log) =>
+          log === "LP is unbounded. No leaving variable found."
+            ? "Dual LP is unbounded: the LP is infeasible."
+            : log,
+        )
+      : phase2.logs;
+
   return {
     iterations: phase2.basisHistory.map((basisIndices) =>
       Float64Array.from(dualPointFromBasis(basisIndices)),
@@ -596,8 +608,8 @@ function solveDualMode(
     phase1Iterations: phase1.basisHistory.map((basisIndices) =>
       Float64Array.from(dualPointFromBasis(basisIndices)),
     ),
-    logs: [phase1.logs, phase2.logs],
-    status: phase2.status,
+    logs: [phase1.logs, phase2Logs],
+    status,
   };
 }
 
@@ -664,12 +676,20 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
     m,
   });
 
+  const phase2Basis = pivotOutArtificialVariables(
+    aPhase1,
+    bPhase1,
+    rawBasis1,
+    2 * n + m,
+    tol,
+  );
+
   if (verbose) console.log("Primal Simplex");
   const { iterations, logs, status } = simplexCore(
     cPhase2,
     aPhase2,
     b,
-    rawBasis1,
+    phase2Basis,
     {
       tol,
       verbose,
