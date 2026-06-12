@@ -65,13 +65,18 @@ function unpackIterations(packed: Float64Array, stride: number) {
 }
 
 function packRows(
-  rows: Array<{
-    x: number;
-    y: number;
-    objective: number;
-    infeasibility: number;
-    restart?: boolean;
-  }>,
+  rows: {
+    length: number;
+    at(index: number):
+      | {
+          x: number;
+          y: number;
+          objective: number;
+          infeasibility: number;
+          restart?: boolean;
+        }
+      | undefined;
+  },
   extraOf: (row: never) => number,
   withRestart: boolean,
 ): PackedRowsColumns {
@@ -85,7 +90,7 @@ function packRows(
     restart: withRestart ? new Uint8Array(count) : undefined,
   };
   for (let i = 0; i < count; i++) {
-    const row = rows[i]!;
+    const row = rows.at(i)!;
     cols.x[i] = row.x;
     cols.y[i] = row.y;
     cols.objective[i] = row.objective;
@@ -193,20 +198,10 @@ export function unpackSolverResponse(
   const entries = unpackIterations(wire.iterations, wire.stride);
   const { x, y, objective, infeasibility, extra, restart } = wire.rows;
 
+  // Row objects materialize lazily from the packed columns: only rows that
+  // actually render (a screenful) are ever built, instead of one object per
+  // iteration per solve.
   if (wire.solver === "pdhg") {
-    const rows = new Array(x.length);
-    for (let i = 0; i < x.length; i++) {
-      rows[i] = {
-        kind: "pdhg" as const,
-        iteration: i + 1,
-        restart: restart ? restart[i] === 1 : false,
-        x: x[i]!,
-        y: y[i]!,
-        objective: objective[i]!,
-        infeasibility: infeasibility[i]!,
-        epsilon: extra[i]!,
-      };
-    }
     return {
       id: wire.id,
       solver: "pdhg",
@@ -214,7 +209,22 @@ export function unpackSolverResponse(
       result: {
         iterations: entries,
         header: wire.header,
-        rows,
+        rows: {
+          length: x.length,
+          at: (index: number) =>
+            index >= 0 && index < x.length
+              ? {
+                  kind: "pdhg" as const,
+                  iteration: index + 1,
+                  restart: restart ? restart[index] === 1 : false,
+                  x: x[index]!,
+                  y: y[index]!,
+                  objective: objective[index]!,
+                  infeasibility: infeasibility[index]!,
+                  epsilon: extra[index]!,
+                }
+              : undefined,
+        },
         footer: wire.footer ?? "",
         phases: wire.phases,
         restartIndices: wire.restartIndices,
@@ -222,18 +232,6 @@ export function unpackSolverResponse(
     };
   }
 
-  const rows = new Array(x.length);
-  for (let i = 0; i < x.length; i++) {
-    rows[i] = {
-      kind: "ipm" as const,
-      iteration: i + 1,
-      x: x[i]!,
-      y: y[i]!,
-      objective: objective[i]!,
-      infeasibility: infeasibility[i]!,
-      mu: extra[i]!,
-    };
-  }
   return {
     id: wire.id,
     solver: "ipm",
@@ -243,7 +241,21 @@ export function unpackSolverResponse(
         solution: {
           x: entries,
           header: wire.header,
-          rows,
+          rows: {
+            length: x.length,
+            at: (index: number) =>
+              index >= 0 && index < x.length
+                ? {
+                    kind: "ipm" as const,
+                    iteration: index + 1,
+                    x: x[index]!,
+                    y: y[index]!,
+                    objective: objective[index]!,
+                    infeasibility: infeasibility[index]!,
+                    mu: extra[index]!,
+                  }
+                : undefined,
+          },
           footer: wire.footer,
         },
       },

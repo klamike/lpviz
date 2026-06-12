@@ -38,7 +38,7 @@ const getMaxLineChars = (lines: string[]) =>
     0,
   );
 const createVirtualBlock = (
-  row: VirtualResultPayload["rows"][number],
+  row: NonNullable<ReturnType<VirtualResultPayload["rows"]["at"]>>,
   index: number,
 ): ResultTextBlock => ({
   className: "iterate-item",
@@ -122,18 +122,15 @@ export function createSolverActions(
       options.limitVirtualRows ?? getState().rotateObjectiveMode;
     if (payload.type === "virtual") {
       lastVirtualResult = payload;
-      const rowsForLayout = limitVirtualRows
-        ? payload.rows.slice(0, ROTATE_ROW_LIMIT)
-        : payload.rows;
+      const rows = payload.rows;
+      const rowCount = limitVirtualRows
+        ? Math.min(ROTATE_ROW_LIMIT, rows.length)
+        : rows.length;
       // Rows are fixed-width; sampling three avoids formatting all of them
       // (100k at max settings) just to measure the widest line.
       const sampleRows =
-        rowsForLayout.length > 0
-          ? [
-              rowsForLayout[0]!,
-              rowsForLayout[rowsForLayout.length >> 1]!,
-              rowsForLayout[rowsForLayout.length - 1]!,
-            ]
+        rowCount > 0
+          ? [rows.at(0)!, rows.at(rowCount >> 1)!, rows.at(rowCount - 1)!]
           : [];
       setState(
         {
@@ -141,11 +138,12 @@ export function createSolverActions(
           resultBlocks: null,
           resultVirtualHeader: payload.header || "",
           resultVirtualFooter: payload.footer ?? null,
-          resultVirtualShowEmpty: rowsForLayout.length === 0,
+          resultVirtualShowEmpty: rowCount === 0,
           resultVirtualRows: {
-            length: rowsForLayout.length,
+            length: rowCount,
             at: (index: number) => {
-              const row = rowsForLayout[index];
+              if (index >= rowCount) return undefined;
+              const row = rows.at(index);
               return row === undefined
                 ? undefined
                 : createVirtualBlock(row, index);

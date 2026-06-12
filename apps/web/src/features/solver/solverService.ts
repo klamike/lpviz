@@ -29,10 +29,17 @@ type VirtualResultRow =
       epsilon: number;
     };
 
+// Rows materialize lazily through this view so that a 100k-iteration result
+// never pays for building row objects that are not scrolled into view.
+export type ResultRowsView<T = VirtualResultRow> = {
+  length: number;
+  at(index: number): T | undefined;
+};
+
 export interface VirtualResultPayload {
   type: "virtual";
   header: string;
-  rows: VirtualResultRow[];
+  rows: ResultRowsView;
   footer?: string;
 }
 
@@ -47,7 +54,7 @@ export interface IPMResult {
     solution: {
       x: Float64Array[];
       header: string;
-      rows: Extract<VirtualResultRow, { kind: "ipm" }>[];
+      rows: ResultRowsView<Extract<VirtualResultRow, { kind: "ipm" }>>;
       footer?: string;
       mu?: number[];
     };
@@ -65,7 +72,7 @@ export interface SimplexResult {
 export interface PDHGResult {
   iterations: Float64Array[];
   header: string;
-  rows: Extract<VirtualResultRow, { kind: "pdhg" }>[];
+  rows: ResultRowsView<Extract<VirtualResultRow, { kind: "pdhg" }>>;
   footer: string;
   eps?: number[];
   phases?: number[];
@@ -189,7 +196,7 @@ export function applyCentralPathResult(
 type CanonicalIterateResult = {
   iterations: Float64Array[];
   header: string;
-  rows: VirtualResultRow[];
+  rows: ResultRowsView;
   footer?: string;
   zFrom?: (xy: Float64Array, index: number) => number;
   updateTrace?: boolean;
@@ -318,7 +325,7 @@ function buildIteratePayload({
   footer,
 }: {
   header: string;
-  rows: VirtualResultRow[];
+  rows: ResultRowsView;
   footer?: string;
 }): VirtualResultPayload {
   return {
