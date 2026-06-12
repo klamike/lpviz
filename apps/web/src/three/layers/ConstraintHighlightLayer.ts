@@ -11,6 +11,7 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
   getSharedLineMaterial,
+  replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -206,8 +207,7 @@ export class ConstraintHighlightLayer implements Layer {
     }
 
     const [start, end] = clipped;
-    this.cGeo.setPositions([start.x, start.y, 0, end.x, end.y, 0]);
-    delete (this.cGeo as any)._maxInstanceCount;
+    replaceLinePositions(this.cGeo, [start.x, start.y, 0, end.x, end.y, 0]);
 
     this.cSegs.material = getConstraintMat(snap.mode === "3d");
     this.cSegs.visible = true;

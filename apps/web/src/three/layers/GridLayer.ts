@@ -21,6 +21,8 @@ function setLineSegmentsPositions(
   geo: BufferGeometry,
   positions: Float32Array,
 ) {
+  // free the old GL buffers before the attribute is replaced
+  geo.dispose();
   geo.setAttribute("position", new BufferAttribute(positions, 3));
 }
 

@@ -37,6 +37,8 @@ function buildVertexPositions(
 }
 
 function applyPositions(pts: Points, positions: Float32Array) {
+  // free the old GL buffers before the attribute is replaced
+  pts.geometry.dispose();
   pts.geometry.setAttribute("position", new BufferAttribute(positions, 3));
   pts.visible = positions.length > 0;
 }

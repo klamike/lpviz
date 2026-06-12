@@ -6,6 +6,7 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
   getSharedLineMaterial,
+  replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -81,7 +82,7 @@ export class PolytopeRubberBandLayer implements Layer {
     RUBBER_BAND_BUF[3] = mouse.x;
     RUBBER_BAND_BUF[4] = mouse.y;
     RUBBER_BAND_BUF[5] = 0;
-    this.geometry.setPositions(RUBBER_BAND_BUF);
+    replaceLinePositions(this.geometry, RUBBER_BAND_BUF);
     this.object3D.visible = true;
   }
 

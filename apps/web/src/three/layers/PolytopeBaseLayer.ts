@@ -18,6 +18,7 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
   getSharedLineMaterial,
+  replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
 import type { Layer, LayerRenderObject } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -235,8 +236,7 @@ function buildPolytopeGeometry(
 
 function applySegmentsGeometry(geo: LineSegmentsGeometry, segments: number[]) {
   if (segments.length < 6) return false;
-  geo.setPositions(segments);
-  delete (geo as any)._maxInstanceCount;
+  replaceLinePositions(geo, segments);
   return true;
 }
 

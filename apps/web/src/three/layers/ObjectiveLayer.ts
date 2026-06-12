@@ -10,6 +10,7 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
   getSharedLineMaterial,
+  replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -139,8 +140,7 @@ export class ObjectiveLayer implements Layer {
       positions.push(x1, y1, 0, x2, y2, 0);
     }
 
-    this.objGeo.setPositions(positions);
-    delete (this.objGeo as any)._maxInstanceCount;
+    replaceLinePositions(this.objGeo, positions);
 
     const isUnbounded =
       raw.polytope?.kind === "unbounded" &&

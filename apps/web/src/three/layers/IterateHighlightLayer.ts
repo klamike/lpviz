@@ -100,6 +100,8 @@ export class IterateHighlightLayer implements Layer {
         snap.transitionZMultiplier
       : 0;
 
+    // free the old GL buffers before the attributes are replaced
+    this.object3D.geometry.dispose();
     this.object3D.geometry.setAttribute(
       "position",
       new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3),

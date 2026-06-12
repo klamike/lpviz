@@ -157,6 +157,8 @@ export class TracePointsLayer implements Layer {
     const positions = buildAllTracePointPositions(raw, snap.mode);
     this.object3D.visible = positions.length > 0;
     if (positions.length > 0) {
+      // free the old GL buffers before the attribute is replaced
+      this.pts.geometry.dispose();
       this.pts.geometry.setAttribute(
         "position",
         new BufferAttribute(positions, 3),

@@ -9,6 +9,7 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
   getSharedLineMaterial,
+  replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -225,8 +226,7 @@ export class IterateLineLayer implements Layer {
       const seg = segments[i]!;
       const ln = this.pool[i]!;
       const geo = ln.geometry as LineGeometry;
-      geo.setPositions(seg.positions);
-      delete (geo as any)._maxInstanceCount;
+      replaceLinePositions(geo, seg.positions);
       ln.material = getSharedLineMaterial({
         color: seg.color,
         linewidth: ITERATE_LINE_THICKNESS,

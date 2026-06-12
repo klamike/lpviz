@@ -9,6 +9,7 @@ import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
   getSharedLineMaterial,
+  replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
 import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
@@ -143,8 +144,7 @@ export class TraceLineLayer implements Layer {
       return;
     }
 
-    this.geometry.setPositions(segments);
-    delete (this.geometry as any)._maxInstanceCount;
+    replaceLinePositions(this.geometry, segments);
     this.line.material = getTraceMat(snap.mode === "3d");
     this.line.visible = true;
     this.object3D.visible = true;

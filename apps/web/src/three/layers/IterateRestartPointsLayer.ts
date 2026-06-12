@@ -136,6 +136,8 @@ export class IterateRestartPointsLayer implements Layer {
       }
     }
 
+    // free the old GL buffers before the attributes are replaced
+    this.object3D.geometry.dispose();
     this.object3D.geometry.setAttribute(
       "position",
       new BufferAttribute(positions, 3),
@@ -147,6 +149,7 @@ export class IterateRestartPointsLayer implements Layer {
       );
       this.object3D.material = this.matColored;
     } else {
+      this.object3D.geometry.deleteAttribute("color");
       this.object3D.material = this.matPlain;
     }
     this.object3D.visible = true;
