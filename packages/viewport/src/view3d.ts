@@ -103,16 +103,22 @@ const getPerspectiveDistanceToFitBounds3D = (
     return getDefaultPerspectiveDistance3D(snapshot, rect);
   }
 
+  // The camera renders into the full viewport, so convert "fit the bounds
+  // inside the available sub-rectangle" into a required units-per-pixel at
+  // the target plane and derive the distance from the full-viewport FOV.
   const viewport = getViewportSize(snapshot, rect);
   const availWidth = Math.max(100, viewport.width - sidebarWidth - 2 * padding);
   const availHeight = Math.max(100, viewport.height - 2 * padding);
-  const verticalFov = snapshot.perspective.fov * (Math.PI / 180);
-  const horizontalFov =
-    2 * Math.atan(Math.tan(verticalFov / 2) * (availWidth / availHeight));
-  const distanceX = width / (2 * Math.tan(horizontalFov / 2));
-  const distanceY = height / (2 * Math.tan(verticalFov / 2));
+  const unitsPerPixel = Math.max(width / availWidth, height / availHeight);
 
-  return Math.max(MIN_PERSPECTIVE_DISTANCE, distanceX, distanceY);
+  return Math.max(
+    MIN_PERSPECTIVE_DISTANCE,
+    getPerspectiveDistanceForUnitsPerPixel(
+      snapshot,
+      unitsPerPixel,
+      viewport.height,
+    ),
+  );
 };
 
 const getPerspectiveDistanceToFitBox3D = (
@@ -128,35 +134,71 @@ const getPerspectiveDistanceToFitBox3D = (
   const availWidth = Math.max(100, viewport.width - sidebarWidth - 2 * padding);
   const availHeight = Math.max(100, viewport.height - 2 * padding);
   const verticalFov = snapshot.perspective.fov * (Math.PI / 180);
-  const horizontalFov =
-    2 * Math.atan(Math.tan(verticalFov / 2) * (availWidth / availHeight));
-  const tanHalfH = Math.tan(horizontalFov / 2);
-  const tanHalfV = Math.tan(verticalFov / 2);
+  const tanHalfFull = Math.max(EPS, Math.tan(verticalFov / 2));
+  // Pixels per unit of (offset / depth): px = offset / depth * K
+  const K = viewport.height / 2 / tanHalfFull;
 
   configureFitBasisFromViewAngle(viewAngle);
 
   const xs = [bounds.minX, bounds.maxX];
   const ys = [bounds.minY, bounds.maxY];
   const zs = [bounds.minZ, bounds.maxZ];
-  let requiredDistance = MIN_PERSPECTIVE_DISTANCE;
-
+  const corners: Array<{ forward: number; right: number; up: number }> = [];
   for (const x of xs) {
     for (const y of ys) {
       for (const z of zs) {
         fitRelative.set(x - target.x, y - target.y, z - target.z);
-        const forwardOffset = fitRelative.dot(fitForward);
-        const horizontalOffset = Math.abs(fitRelative.dot(fitRight));
-        const verticalOffset = Math.abs(fitRelative.dot(fitUp));
-        requiredDistance = Math.max(
-          requiredDistance,
-          forwardOffset + horizontalOffset / Math.max(EPS, tanHalfH),
-          forwardOffset + verticalOffset / Math.max(EPS, tanHalfV),
-        );
+        corners.push({
+          forward: fitRelative.dot(fitForward),
+          right: fitRelative.dot(fitRight),
+          up: Math.abs(fitRelative.dot(fitUp)),
+        });
       }
     }
   }
 
-  return requiredDistance;
+  // The caller aims the camera axis at a target shifted left so that the fit
+  // target lands on the visible center (sidebarWidth/2 pixels right of the
+  // canvas center, in pixels at the target depth). Corners closer to the
+  // camera therefore drift right by more than sidebarWidth/2 pixels, so the
+  // available box is asymmetric about the camera axis and depends on the
+  // distance itself. Each corner's projection moves monotonically toward the
+  // visible center (which is inside the box) as the distance grows, so
+  // feasibility is monotone in the distance and bisection finds the tight fit.
+  const rightLimitPx = availWidth / 2 + sidebarWidth / 2;
+  const leftLimitPx = availWidth / 2 - sidebarWidth / 2;
+  const verticalLimitPx = availHeight / 2;
+
+  const fitsAtDistance = (distance: number) => {
+    const axisShift = (sidebarWidth / 2) * (distance / K);
+    for (const corner of corners) {
+      const depth = distance - corner.forward;
+      if (depth <= EPS) return false;
+      const horizontalPx = ((corner.right + axisShift) * K) / depth;
+      if (horizontalPx > rightLimitPx || horizontalPx < -leftLimitPx)
+        return false;
+      if ((corner.up * K) / depth > verticalLimitPx) return false;
+    }
+    return true;
+  };
+
+  if (fitsAtDistance(MIN_PERSPECTIVE_DISTANCE)) {
+    return MIN_PERSPECTIVE_DISTANCE;
+  }
+  let hi = MIN_PERSPECTIVE_DISTANCE;
+  for (let i = 0; i < 60 && !fitsAtDistance(hi); i++) {
+    hi *= 2;
+  }
+  let lo = hi / 2;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    if (fitsAtDistance(mid)) {
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return hi;
 };
 
 const offsetTargetForVisibleViewport3D = (
