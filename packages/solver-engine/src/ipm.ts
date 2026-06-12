@@ -186,10 +186,11 @@ function ipmCore(
     muAff /= m;
 
     if (!(alphaP >= correctorThreshold && alphaD >= correctorThreshold)) {
-      const sigma = Math.max(
-        SIGMA_MIN,
-        Math.min(SIGMA_MAX, (muAff / mu) ** SIGMA_POWER),
-      );
+      // mu can reach exactly 0 when alphaMax = 1; (0/0)**p would be NaN
+      const sigma =
+        mu > 0
+          ? Math.max(SIGMA_MIN, Math.min(SIGMA_MAX, (muAff / mu) ** SIGMA_POWER))
+          : SIGMA_MIN;
       rhsCor.fill(0);
       for (let i = 0; i < m; i++) {
         rhsCor[m + n + i] = -(dsAff[i]! * dyAff[i]! - sigma * mu);
