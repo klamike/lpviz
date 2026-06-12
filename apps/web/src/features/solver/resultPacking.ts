@@ -1,0 +1,252 @@
+import type { VecN } from "@lpviz/math/types";
+import type {
+  SolverWorkerPayload,
+  SolverWorkerResponse,
+  SolverWorkerSuccessResponse,
+} from "./solverWorker";
+
+// Solver results at high maxit are tens of thousands of small Float64Arrays
+// plus as many row objects; structured-cloning that shape costs tens of
+// milliseconds of main-thread time per solve (per rotation step). Instead the
+// worker packs everything numeric into a few large typed arrays, transfers
+// their buffers (zero copy), and the client rebuilds the original result
+// shape from cheap subarray views. The display z (objective-dependent) is
+// baked into a third component here, on the worker, so the client never
+// needs the per-iterate mapping pass.
+
+type PackedRowsColumns = {
+  x: Float64Array;
+  y: Float64Array;
+  objective: Float64Array;
+  infeasibility: Float64Array;
+  // epsilon for pdhg rows, mu for ipm rows
+  extra: Float64Array;
+  restart?: Uint8Array;
+};
+
+export type PackedSolverWorkerResponse =
+  | (SolverWorkerResponse & { packed?: undefined })
+  | {
+      id: number;
+      success: true;
+      packed: true;
+      solver: "pdhg" | "ipm";
+      iterations: Float64Array;
+      stride: number;
+      rows: PackedRowsColumns;
+      header: string;
+      footer?: string;
+      phases?: number[];
+      restartIndices?: number[];
+    };
+
+function packIterations(
+  entries: Float64Array[],
+  zOf: (entry: Float64Array, index: number) => number,
+): Float64Array {
+  const packed = new Float64Array(entries.length * 3);
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]!;
+    const base = i * 3;
+    packed[base] = entry[0] ?? 0;
+    packed[base + 1] = entry[1] ?? 0;
+    packed[base + 2] = zOf(entry, i);
+  }
+  return packed;
+}
+
+function unpackIterations(packed: Float64Array, stride: number) {
+  const count = Math.floor(packed.length / stride);
+  const entries: Float64Array[] = new Array(count);
+  for (let i = 0; i < count; i++) {
+    entries[i] = packed.subarray(i * stride, i * stride + stride);
+  }
+  return entries;
+}
+
+function packRows(
+  rows: Array<{
+    x: number;
+    y: number;
+    objective: number;
+    infeasibility: number;
+    restart?: boolean;
+  }>,
+  extraOf: (row: never) => number,
+  withRestart: boolean,
+): PackedRowsColumns {
+  const count = rows.length;
+  const cols: PackedRowsColumns = {
+    x: new Float64Array(count),
+    y: new Float64Array(count),
+    objective: new Float64Array(count),
+    infeasibility: new Float64Array(count),
+    extra: new Float64Array(count),
+    restart: withRestart ? new Uint8Array(count) : undefined,
+  };
+  for (let i = 0; i < count; i++) {
+    const row = rows[i]!;
+    cols.x[i] = row.x;
+    cols.y[i] = row.y;
+    cols.objective[i] = row.objective;
+    cols.infeasibility[i] = row.infeasibility;
+    cols.extra[i] = extraOf(row as never);
+    if (cols.restart && row.restart) cols.restart[i] = 1;
+  }
+  return cols;
+}
+
+export function packSolverResponse(
+  response: SolverWorkerSuccessResponse,
+  request: SolverWorkerPayload,
+): { wire: PackedSolverWorkerResponse; transfer: ArrayBuffer[] } {
+  if (response.solver === "pdhg") {
+    const result = response.result;
+    const objective = request.objective as VecN;
+    const eps = result.eps;
+    const iterations = packIterations(
+      result.iterations,
+      (entry, index) =>
+        objective[0]! * entry[0]! +
+        objective[1]! * entry[1]! +
+        500 * (eps?.[index] ?? 0),
+    );
+    const rows = packRows(
+      result.rows,
+      (row: { epsilon: number }) => row.epsilon,
+      true,
+    );
+    const wire: PackedSolverWorkerResponse = {
+      id: response.id,
+      success: true,
+      packed: true,
+      solver: "pdhg",
+      iterations,
+      stride: 3,
+      rows,
+      header: result.header,
+      footer: result.footer,
+      phases: result.phases,
+      restartIndices: result.restartIndices,
+    };
+    return {
+      wire,
+      transfer: [
+        iterations.buffer,
+        rows.x.buffer,
+        rows.y.buffer,
+        rows.objective.buffer,
+        rows.infeasibility.buffer,
+        rows.extra.buffer,
+        ...(rows.restart ? [rows.restart.buffer] : []),
+      ] as ArrayBuffer[],
+    };
+  }
+
+  if (response.solver === "ipm") {
+    const sol = response.result.iterates.solution;
+    const objective = request.objective as VecN;
+    const mu = sol.mu;
+    const iterations = packIterations(
+      sol.x,
+      (entry, index) =>
+        objective[0]! * entry[0]! +
+        objective[1]! * entry[1]! +
+        (mu?.[index] ?? 0),
+    );
+    const rows = packRows(sol.rows, (row: { mu: number }) => row.mu, false);
+    const wire: PackedSolverWorkerResponse = {
+      id: response.id,
+      success: true,
+      packed: true,
+      solver: "ipm",
+      iterations,
+      stride: 3,
+      rows,
+      header: sol.header,
+      footer: sol.footer,
+    };
+    return {
+      wire,
+      transfer: [
+        iterations.buffer,
+        rows.x.buffer,
+        rows.y.buffer,
+        rows.objective.buffer,
+        rows.infeasibility.buffer,
+        rows.extra.buffer,
+      ] as ArrayBuffer[],
+    };
+  }
+
+  // simplex and central path results are small (few iterations / log strings)
+  return { wire: response, transfer: [] };
+}
+
+export function unpackSolverResponse(
+  wire: PackedSolverWorkerResponse,
+): SolverWorkerResponse {
+  if (!("packed" in wire) || !wire.packed) {
+    return wire;
+  }
+
+  const entries = unpackIterations(wire.iterations, wire.stride);
+  const { x, y, objective, infeasibility, extra, restart } = wire.rows;
+
+  if (wire.solver === "pdhg") {
+    const rows = new Array(x.length);
+    for (let i = 0; i < x.length; i++) {
+      rows[i] = {
+        kind: "pdhg" as const,
+        iteration: i + 1,
+        restart: restart ? restart[i] === 1 : false,
+        x: x[i]!,
+        y: y[i]!,
+        objective: objective[i]!,
+        infeasibility: infeasibility[i]!,
+        epsilon: extra[i]!,
+      };
+    }
+    return {
+      id: wire.id,
+      solver: "pdhg",
+      success: true,
+      result: {
+        iterations: entries,
+        header: wire.header,
+        rows,
+        footer: wire.footer ?? "",
+        phases: wire.phases,
+        restartIndices: wire.restartIndices,
+      },
+    };
+  }
+
+  const rows = new Array(x.length);
+  for (let i = 0; i < x.length; i++) {
+    rows[i] = {
+      kind: "ipm" as const,
+      iteration: i + 1,
+      x: x[i]!,
+      y: y[i]!,
+      objective: objective[i]!,
+      infeasibility: infeasibility[i]!,
+      mu: extra[i]!,
+    };
+  }
+  return {
+    id: wire.id,
+    solver: "ipm",
+    success: true,
+    result: {
+      iterates: {
+        solution: {
+          x: entries,
+          header: wire.header,
+          rows,
+          footer: wire.footer,
+        },
+      },
+    },
+  };
+}

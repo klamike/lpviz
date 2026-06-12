@@ -84,19 +84,23 @@ export function applyIPMResult(
 ) {
   const sol = result.iterates.solution;
   const { objectiveVector } = getState();
+  // worker-packed results arrive with the display z already baked in
+  const hasBakedZ = (sol.x[0]?.length ?? 0) >= 3;
   applyCanonicalIterateResult(
     {
       iterations: sol.x,
       header: sol.header,
       rows: sol.rows,
       footer: sol.footer,
-      zFrom: (xy, index) => {
-        const obj = objectiveVector
-          ? objectiveVector.x * xy[0] + objectiveVector.y * xy[1]
-          : 0;
-        const mu = sol.mu?.[index] ?? 0;
-        return obj + mu;
-      },
+      zFrom: hasBakedZ
+        ? undefined
+        : (xy, index) => {
+            const obj = objectiveVector
+              ? objectiveVector.x * xy[0] + objectiveVector.y * xy[1]
+              : 0;
+            const mu = sol.mu?.[index] ?? 0;
+            return obj + mu;
+          },
     },
     updateResult,
   );
@@ -137,6 +141,8 @@ export function applyPDHGResult(
 ) {
   const epsArray = result.eps;
   const [cx, cy] = getObjectiveVector();
+  // worker-packed results arrive with the display z already baked in
+  const hasBakedZ = (result.iterations[0]?.length ?? 0) >= 3;
   applyCanonicalIterateResult(
     {
       iterations: result.iterations,
@@ -145,12 +151,14 @@ export function applyPDHGResult(
       footer: result.footer,
       phases: result.phases,
       restartIndices: result.restartIndices,
-      zFrom: (xy, index) => {
-        const eps =
-          epsArray && epsArray[index] !== undefined ? epsArray[index]! : 0;
-        const pObj = cx * xy[0] + cy * xy[1];
-        return pObj + 500 * eps;
-      },
+      zFrom: hasBakedZ
+        ? undefined
+        : (xy, index) => {
+            const eps =
+              epsArray && epsArray[index] !== undefined ? epsArray[index]! : 0;
+            const pObj = cx * xy[0] + cy * xy[1];
+            return pObj + 500 * eps;
+          },
     },
     updateResult,
   );

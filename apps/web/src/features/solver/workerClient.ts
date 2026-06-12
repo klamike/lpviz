@@ -1,3 +1,7 @@
+import {
+  unpackSolverResponse,
+  type PackedSolverWorkerResponse,
+} from "./resultPacking";
 import type {
   SolverWorkerPayload,
   SolverWorkerResponse,
@@ -24,12 +28,12 @@ let nextRequestId = 0;
 
 worker.addEventListener(
   "message",
-  (event: MessageEvent<SolverWorkerResponse>) => {
+  (event: MessageEvent<PackedSolverWorkerResponse>) => {
     const entry = pending.get(event.data.id);
     if (!entry) return;
     pending.delete(event.data.id);
     scheduleDispatch();
-    entry.resolve(event.data);
+    entry.resolve(unpackSolverResponse(event.data));
   },
 );
 

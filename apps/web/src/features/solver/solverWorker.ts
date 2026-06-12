@@ -3,6 +3,7 @@ import { centralPath } from "@lpviz/solver-engine/centralPath";
 import { ipm } from "@lpviz/solver-engine/ipm";
 import { pdhg } from "@lpviz/solver-engine/pdhg";
 import { simplex } from "@lpviz/solver-engine/simplex";
+import { packSolverResponse } from "./resultPacking";
 
 import type {
   CentralPathResult,
@@ -240,7 +241,11 @@ ctx.addEventListener(
     if (!data) return;
 
     try {
-      ctx.postMessage(await executeSolver(data));
+      const { wire, transfer } = packSolverResponse(
+        await executeSolver(data),
+        data,
+      );
+      ctx.postMessage(wire, transfer);
     } catch (error) {
       ctx.postMessage({
         id: data.id,
