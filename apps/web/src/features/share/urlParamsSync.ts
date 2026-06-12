@@ -66,7 +66,7 @@ export function applyUrlParamsOnce({
   };
   if (!params.has("s")) return;
   try {
-    const crushed = decodeURIComponent(params.get("s") ?? "");
+    const crushed = params.get("s") ?? "";
     const data = JSON.parse(JSONCrush.uncrush(crushed));
     if (data) applySharedState(expandSharedAppState(data) as SharedAppState);
     history.replaceState(null, "", window.location.pathname);
