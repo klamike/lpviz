@@ -65,6 +65,19 @@ export function attachCanvasInteractions({
   const DOUBLE_TAP_MS = 350;
   const DOUBLE_TAP_RADIUS_PX = 28;
 
+  // pen and touch share the same "has this gesture drifted far enough to be a
+  // drag rather than a tap" test, latched onto the gesture's start record
+  const markIfMovedBeyondTap = (
+    start: { clientX: number; clientY: number; moved: boolean },
+    clientX: number,
+    clientY: number,
+  ) => {
+    start.moved =
+      start.moved ||
+      Math.hypot(clientX - start.clientX, clientY - start.clientY) >
+        DOUBLE_TAP_RADIUS_PX;
+  };
+
   const bindEvent = (
     target: EventTarget,
     eventName: string,
@@ -743,12 +756,7 @@ export function attachCanvasInteractions({
       ) {
         return;
       }
-      activePenStart.moved =
-        activePenStart.moved ||
-        Math.hypot(
-          event.clientX - activePenStart.clientX,
-          event.clientY - activePenStart.clientY,
-        ) > DOUBLE_TAP_RADIUS_PX;
+      markIfMovedBeyondTap(activePenStart, event.clientX, event.clientY);
       handlePointerMove(event.clientX, event.clientY, event);
     },
     { capture: true },
@@ -811,12 +819,7 @@ export function attachCanvasInteractions({
       if (event.touches.length !== 1) return;
       const touch = event.touches[0];
       if (activeTouchStart) {
-        activeTouchStart.moved =
-          activeTouchStart.moved ||
-          Math.hypot(
-            touch.clientX - activeTouchStart.clientX,
-            touch.clientY - activeTouchStart.clientY,
-          ) > DOUBLE_TAP_RADIUS_PX;
+        markIfMovedBeyondTap(activeTouchStart, touch.clientX, touch.clientY);
       }
       handlePointerMove(touch.clientX, touch.clientY, event);
     },
