@@ -21,17 +21,14 @@ import {
   type ResultRenderPayload,
   type VirtualResultPayload,
 } from "@/features/solver/solverService";
+import { createRotationController } from "@/features/solver/rotationController";
 import type { ResultTextBlock } from "@/features/solver/types";
 import { runSolverWorker } from "@/features/solver/workerClient";
 import type { ViewportApi } from "@/features/viewport/runtime";
-import {
-  computeObjectiveRotationStep,
-  isObjectiveDirectionUnbounded,
-} from "@lpviz/polytope/objectiveDirection";
+import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 
 const ROTATE_ROW_LIMIT = 20;
-const BASE_ROTATION_WAIT_MS = 30;
 type RenderOptions = { limitVirtualRows?: boolean };
 const getMaxLineChars = (lines: string[]) =>
   lines.reduce(
@@ -77,15 +74,6 @@ export function createSolverActions(
   getCanvasManager: () => ViewportApi | null,
 ): SolverActions {
   let requestGeneration = 0;
-  let rotationRafId: number | null = null;
-  let rotationLastFrameTime: number | null = null;
-  let rotationElapsedMs = 0;
-  let rotationComputeInFlight = false;
-  // Bumped by cancelRotationLoop so a solve started in an earlier rotation
-  // session cannot clear the in-flight flag of the current one from its
-  // finally block (which would let the RAF loop start overlapping solves).
-  let rotationSession = 0;
-  let objectiveRotationDirection: 1 | -1 = 1;
   let iterateHoverActive = false;
   let lastVirtualResult: VirtualResultPayload | null = null;
   let pendingRender: {
@@ -224,14 +212,6 @@ export function createSolverActions(
   const invalidatePendingSolveResults = () => {
     requestGeneration++;
   };
-  const cancelRotationLoop = () => {
-    rotationSession++;
-    if (rotationRafId !== null) cancelAnimationFrame(rotationRafId);
-    rotationRafId = null;
-    rotationLastFrameTime = null;
-    rotationElapsedMs = 0;
-    rotationComputeInFlight = false;
-  };
   const syncTraceCapacity = () => {
     const angleStep = Math.max(
       0.001,
@@ -289,73 +269,16 @@ export function createSolverActions(
     }
   };
 
-  const ensureRotationLoop = () => {
-    if (!getState().rotateObjectiveMode || rotationRafId !== null) return;
-    const tick = (timestamp: number) => {
-      rotationRafId = null;
-      if (!getState().rotateObjectiveMode) return;
-      if (rotationLastFrameTime === null) rotationLastFrameTime = timestamp;
-      else {
-        rotationElapsedMs += timestamp - rotationLastFrameTime;
-        rotationLastFrameTime = timestamp;
-      }
-      const intervalMs = Math.max(
-        1,
-        BASE_ROTATION_WAIT_MS /
-          Math.max(0.1, getState().solverSettings.objectiveRotationSpeed || 1),
-      );
-      if (!rotationComputeInFlight && rotationElapsedMs >= intervalMs) {
-        rotationElapsedMs = 0;
-        void computeAndRotate();
-      }
-      if (getState().rotateObjectiveMode)
-        rotationRafId = requestAnimationFrame(tick);
-    };
-    rotationRafId = requestAnimationFrame(tick);
-  };
-  const computeAndRotate = async () => {
-    const cm = getCanvasManager();
-    if (!cm) return;
-    const state = getState();
-    if (!state.rotateObjectiveMode || rotationComputeInFlight) return;
-    rotationComputeInFlight = true;
-    const session = rotationSession;
-    const rotationStep = computeObjectiveRotationStep({
-      objectiveVector: state.objectiveVector ?? { x: 1, y: 0 },
-      angleStep: Math.max(
-        0.001,
-        state.solverSettings.objectiveAngleStep || 0.001,
-      ),
-      rotationDirection: objectiveRotationDirection,
-      polytope: state.polytope,
-    });
-    objectiveRotationDirection = rotationStep.nextDirection;
-    setState(
-      {
-        objectiveVector: rotationStep.nextObjective,
-        highlightIteratePathIndex: null,
-      },
-    );
-    if (getState().traceEnabled) syncTraceCapacity();
-    try {
-      await computePath();
-    } finally {
-      if (session === rotationSession) {
-        rotationComputeInFlight = false;
-        if (getState().rotateObjectiveMode) ensureRotationLoop();
-      }
-    }
-  };
+  const rotation = createRotationController({
+    computePath,
+    syncTraceCapacity,
+    hasCanvas: () => getCanvasManager() !== null,
+  });
   const setRotationActive = (active: boolean) => {
     prepareAnimationInterval();
-    if (!active) cancelRotationLoop();
-    else {
-      rotationLastFrameTime = null;
-      rotationElapsedMs = 0;
-    }
-    setState(
-      { rotateObjectiveMode: active, highlightIteratePathIndex: null },
-    );
+    if (!active) rotation.cancel();
+    else rotation.resetTiming();
+    setState({ rotateObjectiveMode: active, highlightIteratePathIndex: null });
     if (!active) restoreFullVirtualResult();
   };
   const stopActiveMotion = () => {
@@ -364,14 +287,12 @@ export function createSolverActions(
     if (!wasRotating && s.animationIntervalId === null) return;
     invalidatePendingSolveResults();
     prepareAnimationInterval();
-    cancelRotationLoop();
-    setState(
-      {
-        rotateObjectiveMode: false,
-        highlightIteratePathIndex: null,
-        animationIntervalId: null,
-      },
-    );
+    rotation.cancel();
+    setState({
+      rotateObjectiveMode: false,
+      highlightIteratePathIndex: null,
+      animationIntervalId: null,
+    });
     if (wasRotating) restoreFullVirtualResult();
   };
   const handleProblemChange = () => {
@@ -391,9 +312,7 @@ export function createSolverActions(
       void computePath();
       return;
     }
-    void computePath().finally(() => {
-      if (getState().rotateObjectiveMode) ensureRotationLoop();
-    });
+    void computePath().finally(() => rotation.rearm());
   };
   const setTraceEnabled = (enabled: boolean) => {
     const cm = getCanvasManager();
@@ -407,16 +326,13 @@ export function createSolverActions(
   };
   const startRotation = () => {
     if (!getState().objectiveVector)
-      setState(
-        { objectiveVector: { x: 1, y: 0 } },
-      );
-    objectiveRotationDirection = 1;
+      setState({ objectiveVector: { x: 1, y: 0 } });
     if (getState().traceEnabled) {
       syncTraceCapacity();
       resetTraceState();
     }
     setRotationActive(true);
-    void computeAndRotate();
+    rotation.begin();
   };
   const startReplay = () => {
     const cm = getCanvasManager();
@@ -528,7 +444,7 @@ export function createSolverActions(
     getSolverControl,
     hasUnboundedObjectiveDirection,
     destroy: () => {
-      cancelRotationLoop();
+      rotation.cancel();
       // stop any active replay; its interval would otherwise keep mutating
       // the store and drawing on the destroyed viewport runtime
       prepareAnimationInterval();
