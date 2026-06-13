@@ -72,6 +72,24 @@ describe("isConvexChain", () => {
       ]),
     ).toBe(true);
   });
+
+  // Regression: an open region whose chain is a valid convex polyline but whose
+  // implied CLOSED polygon (wrap-around edge v[n-1]->v[0]) is nonconvex. Open
+  // regions must be validated as chains, not closed polygons — testing them as
+  // closed wrongly flagged this one nonconvex (red fill) when dragging an end
+  // ray past the closure point.
+  test("a convex open chain with a nonconvex closure is still a valid chain", () => {
+    const openChain = [
+      { x: -6.125, y: 10.1875 },
+      { x: -12.175, y: 8.1875 },
+      { x: -0.925, y: 14.6875 },
+      { x: 10.275, y: 9.8375 },
+    ];
+    expect(isConvexChain(openChain)).toBe(true);
+    // ...but as a closed polygon it is not convex, which is why the two tests
+    // must not be conflated
+    expect(VRep.fromPoints(openChain).isConvex()).toBe(false);
+  });
 });
 
 // unit-normalized lines for the square [0,4] x [0,4]

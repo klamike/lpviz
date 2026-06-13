@@ -1,5 +1,5 @@
 import type { State } from "@/features/core/store";
-import { type BoundingBox, VRep } from "@lpviz/math/geometry";
+import { type BoundingBox, isConvexChain, VRep } from "@lpviz/math/geometry";
 import type { Line, PointXY } from "@lpviz/math/types";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
 import {
@@ -170,7 +170,14 @@ function buildPolytopeGeometry(
       ? polytope.vertices.map(([x, y]) => ({ x, y }))
       : vertices;
   const isClosedRegion = completionMode === "closed" || hasDerived;
-  const isNonconvex = !VRep.fromPoints(displayVertices).isConvex();
+  // A closed region (or an open one promoted to its derived hull) is a cyclic
+  // polygon, so closed-polygon convexity applies. An un-promoted open region is
+  // a polyline — testing it as a closed polygon spuriously flags it nonconvex
+  // when the wrap-around edge v[n-1]->v[0] turns the other way, which is exactly
+  // the validity test computeEditorRegionForState uses (isConvexChain).
+  const isNonconvex = isClosedRegion
+    ? !VRep.fromPoints(displayVertices).isConvex()
+    : !isConvexChain(displayVertices);
 
   const bounds: BoundingBox =
     completionMode === "open" && !hasDerived && polytope?.kind === "unbounded"
