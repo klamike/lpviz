@@ -55,9 +55,32 @@ export type EditorInteractionState =
     }
   | { kind: "dragging"; target: DragTarget };
 
-interface TraceEntry {
-  path: Float64Array[];
+export interface TraceEntry {
+  // Flat, contiguous iterate data: element `i` is at [i*stride .. i*stride+stride).
+  // stride 3 = [x, y, bakedTotalZ] (packed pdhg/ipm), stride 2 = [x, y]
+  // (simplex / central path, z renders flat). Storing one array per chunk
+  // instead of one Float64Array view per iterate keeps the trace ring at a few
+  // dozen live objects rather than millions, which is what a major GC must mark.
+  points: Float64Array;
+  count: number;
+  stride: number;
   objectiveVector: PointXY | null;
+}
+
+// Notified with the trace entries dropped from the ring on each append /
+// capacity change / reset. The solver layer uses this to hand a packed entry's
+// (now GPU-resident) iterations buffer back to the worker pool; the store
+// itself stays unaware of buffer recycling. Entries here are already removed
+// from state, so their backing buffers have no remaining reader.
+type TraceEvictionListener = (evicted: TraceEntry[]) => void;
+let traceEvictionListener: TraceEvictionListener | null = null;
+export function setTraceEvictionListener(
+  fn: TraceEvictionListener | null,
+): void {
+  traceEvictionListener = fn;
+}
+function notifyTraceEvicted(evicted: TraceEntry[]): void {
+  if (evicted.length > 0) traceEvictionListener?.(evicted);
 }
 
 export type ViewportDirtyFlags = Partial<{
@@ -447,6 +470,21 @@ export function computeIterateZ(
   return totalValue - objectiveValue;
 }
 
+// computeIterateZ for a flat trace chunk: the iterate lives at `points[base..]`
+// with the given stride. Identical math to the per-view form above.
+export function computeFlatTraceZ(
+  points: Float64Array,
+  base: number,
+  stride: number,
+  objectiveVector: PointXY | null,
+): number {
+  const objectiveValue = objectiveVector
+    ? objectiveVector.x * points[base]! + objectiveVector.y * points[base + 1]!
+    : 0;
+  const totalValue = stride >= 3 ? points[base + 2]! : objectiveValue;
+  return totalValue - objectiveValue;
+}
+
 export function getDisplayedIterateZ(
   entry: Float64Array,
   objectiveOverride?: PointXY | null,
@@ -492,21 +530,65 @@ function snapshotObjectiveVector(objectiveVector: PointXY | null) {
 }
 
 
+const EMPTY_TRACE_POINTS = new Float64Array(0);
+
+// Collapse a solve's per-iterate Float64Array views into one flat chunk. Packed
+// pdhg/ipm results are already a contiguous stride-3 block in one transferred
+// buffer, so that buffer is exposed as a single view with no copy (and is later
+// handed back to the worker pool on eviction). Other solvers' iterates live in
+// independent buffers and are flattened once here.
+function buildTracePoints(iteratesArray: Float64Array[]): {
+  points: Float64Array;
+  count: number;
+  stride: number;
+} {
+  const count = iteratesArray.length;
+  if (count === 0) return { points: EMPTY_TRACE_POINTS, count: 0, stride: 3 };
+  const first = iteratesArray[0]!;
+  const stride = first.length >= 3 ? 3 : 2;
+  const last = iteratesArray[count - 1]!;
+  const F8 = Float64Array.BYTES_PER_ELEMENT;
+  if (
+    first.length === stride &&
+    first.byteOffset === 0 &&
+    first.buffer === last.buffer &&
+    last.byteOffset === (count - 1) * stride * F8
+  ) {
+    return {
+      points: new Float64Array(first.buffer, 0, count * stride),
+      count,
+      stride,
+    };
+  }
+  const points = new Float64Array(count * stride);
+  for (let i = 0; i < count; i++) {
+    const it = iteratesArray[i]!;
+    points[i * stride] = it[0] ?? 0;
+    points[i * stride + 1] = it[1] ?? 0;
+    if (stride >= 3) points[i * stride + 2] = it[2] ?? 0;
+  }
+  return { points, count, stride };
+}
+
 function appendedTraceBuffer(
   state: State,
   iteratesArray: Float64Array[],
   objectiveSnapshot: PointXY | null,
 ): TraceEntry[] {
-  // Shares the path entries (they are immutable once created); a trace entry
-  // therefore retains exactly the solve's packed result data and nothing more.
+  const built = buildTracePoints(iteratesArray);
   const entry: TraceEntry = {
-    path: iteratesArray,
+    points: built.points,
+    count: built.count,
+    stride: built.stride,
     objectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };
   const raw = [...state.traceBuffer, entry];
-  return raw.length > state.maxTraceCount
-    ? raw.slice(raw.length - state.maxTraceCount)
-    : raw;
+  const overflow = raw.length - state.maxTraceCount;
+  if (overflow > 0) {
+    notifyTraceEvicted(raw.slice(0, overflow));
+    return raw.slice(overflow);
+  }
+  return raw;
 }
 
 function buildIterateStatePatch(
@@ -532,19 +614,20 @@ function buildIterateStatePatch(
 }
 
 export function resetTraceState(): void {
-  if (getState().traceBuffer.length === 0) return;
+  const { traceBuffer } = getState();
+  if (traceBuffer.length === 0) return;
+  notifyTraceEvicted(traceBuffer);
   setState({ traceBuffer: [] }, { viewportDirty: { trace: true } });
 }
 
 export function setTraceCapacity(maxTraceCount: number): void {
   const { traceBuffer } = getState();
+  const overflow = traceBuffer.length - maxTraceCount;
+  if (overflow > 0) notifyTraceEvicted(traceBuffer.slice(0, overflow));
   setState(
     {
       maxTraceCount,
-      traceBuffer:
-        traceBuffer.length > maxTraceCount
-          ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
-          : traceBuffer,
+      traceBuffer: overflow > 0 ? traceBuffer.slice(overflow) : traceBuffer,
     },
     { viewportDirty: { trace: true } },
   );

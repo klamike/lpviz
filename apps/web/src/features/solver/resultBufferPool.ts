@@ -16,7 +16,11 @@
 // This module lives in the worker bundle; its free list is per-bundle, so the
 // (separate) main-thread copy is simply never exercised.
 
-const POOL_LIMIT = 24;
+// Steady-state rotation returns ~7 buffers per solve (6 row columns + the
+// iterations buffer, the latter lagged by the trace ring) and consumes the
+// same, so the free list stays near-empty between solves; the cap only backs
+// out transient build-ups and a few distinct sizes.
+const POOL_LIMIT = 32;
 const free: ArrayBuffer[] = [];
 
 export function recycleResultBuffers(buffers: ArrayBuffer[]): void {

@@ -45,7 +45,11 @@ function packIterations(
   entries: Float64Array[],
   zOf: (entry: Float64Array, index: number) => number,
 ): Float64Array {
-  const packed = new Float64Array(entries.length * 3);
+  // Drawn from the pool like the row columns. Unlike them this buffer is
+  // retained by the main thread's trace ring, but the ring hands it back on
+  // eviction (see setTraceEvictionListener) once it is GPU-resident, so it
+  // cycles through the pool the same way.
+  const packed = takeFloat64(entries.length * 3);
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i]!;
     const base = i * 3;

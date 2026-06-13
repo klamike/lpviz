@@ -1,3 +1,4 @@
+import { setTraceEvictionListener } from "@/features/core/store";
 import {
   unpackSolverResponse,
   type PackedSolverWorkerResponse,
@@ -72,15 +73,27 @@ function dropOverflow() {
   }
 }
 
-// Hand a superseded result's row-column buffers back to the worker pool for
-// reuse (see resultBufferPool.ts). The caller must guarantee nothing still
-// references them — transfer detaches them on this thread. Only the row
-// columns are ever passed here; the iterations buffer stays owned by the trace
-// ring. A no-op when there is nothing to recycle.
+// Hand drained result buffers back to the worker pool for reuse (see
+// resultBufferPool.ts). The caller must guarantee nothing still references
+// them — transfer detaches them on this thread. A no-op when empty.
 export function recycleSolverBuffers(buffers: ArrayBuffer[]): void {
   if (buffers.length === 0) return;
   worker.postMessage({ type: "recycle", buffers }, buffers);
 }
+
+// When the trace ring drops chunks, return each chunk's flat iterations buffer
+// to the pool. By eviction the chunk was long ago uploaded to its ribbon's GPU
+// texture — which is what every later render samples — so the CPU buffer has no
+// remaining reader. Packed chunks expose the original transferred buffer (the
+// valuable reuse); flattened simplex/central-path copies are returned too and
+// are equally fine for the worker to refill.
+setTraceEvictionListener((evicted) => {
+  for (const entry of evicted) {
+    if (entry.count >= 1) {
+      recycleSolverBuffers([entry.points.buffer as ArrayBuffer]);
+    }
+  }
+});
 
 export async function runSolverWorker(
   payload: SolverWorkerPayload,

@@ -76,21 +76,22 @@ describe("resultBufferPool", () => {
   });
 
   test("drops returns past the pool cap instead of growing unbounded", () => {
-    // Return many distinctly-sized buffers; only up to the cap are retained.
-    const sizes = Array.from({ length: 40 }, (_, i) => 4096 + i);
+    // Return far more buffers than the cap; only up to POOL_LIMIT are kept.
+    const POOL_LIMIT = 32;
+    const sizes = Array.from({ length: 64 }, (_, i) => 4096 + i);
     const buffers = sizes.map((n) => new ArrayBuffer(n));
     recycleResultBuffers(buffers);
     // Pull buffers of a size only these returns can satisfy and count reuses.
     let reused = 0;
     const seen = new Set<ArrayBuffer>();
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 64; i++) {
       const view = takeUint8(4096);
       if (buffers.includes(ab(view)) && !seen.has(ab(view))) {
         seen.add(ab(view));
         reused++;
       }
     }
-    expect(reused).toBeLessThanOrEqual(24); // POOL_LIMIT
+    expect(reused).toBeLessThanOrEqual(POOL_LIMIT);
     expect(reused).toBeGreaterThan(0);
   });
 });

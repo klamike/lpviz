@@ -1,9 +1,8 @@
 import type { State } from "@/features/core/store";
 import {
-  computeIterateZ,
+  computeFlatTraceZ,
   MAX_TRACE_POINT_SPRITES,
 } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
 import {
   BufferAttribute,
   DynamicDrawUsage,
@@ -22,17 +21,15 @@ const TRACE_COLOR = "#ffa500";
 const TRACE_POINT_PIXEL_SIZE = 6;
 const TRACE_POINTS_RENDER_ORDER = RENDER_ORDER.tracePoints;
 
-function buildTracePathPositions(
-  path: Float64Array[],
-  objectiveVector: PointXY | null,
-) {
-  if (path.length === 0) return new Float32Array();
-  const positions = new Float32Array(path.length * 3);
-  for (let i = 0; i < path.length; i++) {
-    const entry = path[i]!;
-    positions[i * 3] = entry[0]!;
-    positions[i * 3 + 1] = entry[1]!;
-    positions[i * 3 + 2] = computeIterateZ(entry, objectiveVector);
+function buildTracePathPositions(entry: State["traceBuffer"][number]) {
+  const { points, count, stride, objectiveVector } = entry;
+  if (count === 0) return new Float32Array();
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const base = i * stride;
+    positions[i * 3] = points[base]!;
+    positions[i * 3 + 1] = points[base + 1]!;
+    positions[i * 3 + 2] = computeFlatTraceZ(points, base, stride, objectiveVector);
   }
   return positions;
 }
@@ -70,7 +67,7 @@ const tracePointPositionCache = new WeakMap<object, Float32Array>();
 function getCachedTracePointPositions(entry: State["traceBuffer"][number]) {
   let cached = tracePointPositionCache.get(entry);
   if (cached) return cached;
-  const pathPos = buildTracePathPositions(entry.path, entry.objectiveVector);
+  const pathPos = buildTracePathPositions(entry);
   const sampled =
     pathPos.length === 0
       ? new Float32Array()

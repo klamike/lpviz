@@ -1,5 +1,5 @@
 import type { State } from "@/features/core/store";
-import { computeIterateZ } from "@/features/core/store";
+import { computeFlatTraceZ } from "@/features/core/store";
 import { Group } from "three";
 import { PathRibbon } from "../helpers/pathRibbon";
 import { RENDER_ORDER } from "../helpers/renderOrder";
@@ -16,16 +16,16 @@ type TraceEntry = State["traceBuffer"][number];
 let pointScratch = new Float32Array(0);
 
 function buildEntryPoints(entry: TraceEntry): Float32Array {
-  const path = entry.path;
-  if (pointScratch.length < path.length * 3) {
-    pointScratch = new Float32Array(path.length * 3);
+  const { points, count, stride, objectiveVector } = entry;
+  if (pointScratch.length < count * 3) {
+    pointScratch = new Float32Array(count * 3);
   }
-  for (let i = 0; i < path.length; i++) {
-    const point = path[i]!;
-    const base = i * 3;
-    pointScratch[base] = point[0]!;
-    pointScratch[base + 1] = point[1]!;
-    pointScratch[base + 2] = computeIterateZ(point, entry.objectiveVector);
+  for (let i = 0; i < count; i++) {
+    const base = i * stride;
+    const o = i * 3;
+    pointScratch[o] = points[base]!;
+    pointScratch[o + 1] = points[base + 1]!;
+    pointScratch[o + 2] = computeFlatTraceZ(points, base, stride, objectiveVector);
   }
   return pointScratch;
 }
@@ -121,9 +121,9 @@ export class TraceLineLayer implements Layer {
     const is3D = snap.mode === "3d";
     for (const entry of raw.traceBuffer) {
       if (this.assigned.has(entry)) continue;
-      if (entry.path.length < 2) continue;
+      if (entry.count < 2) continue;
       const ribbon = freed.pop() ?? this.makeRibbon();
-      ribbon.setPath(buildEntryPoints(entry), entry.path.length);
+      ribbon.setPath(buildEntryPoints(entry), entry.count);
       ribbon.setDepth(is3D);
       ribbon.mesh.userData.traceSeq = this.nextSeq++;
       ribbon.mesh.visible = true;

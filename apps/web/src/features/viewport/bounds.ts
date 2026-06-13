@@ -1,8 +1,10 @@
-import { getDisplayedIterateZ } from "@/features/core/store";
+import { computeFlatTraceZ, getDisplayedIterateZ } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 
 type TraceEntry = {
-  path: Float64Array[];
+  points: Float64Array;
+  count: number;
+  stride: number;
   objectiveVector: PointXY | null;
 };
 
@@ -80,7 +82,15 @@ export function collectZoomFitBounds({
   addPath(iteratePath, iterateObjectiveVector);
   addPath(originalIteratePath, originalIterateObjectiveVector);
   for (const traceEntry of traceBuffer) {
-    addPath(traceEntry.path, traceEntry.objectiveVector);
+    const { points, count, stride, objectiveVector } = traceEntry;
+    for (let i = 0; i < count; i++) {
+      const base = i * stride;
+      addPoint(points[base]!, points[base + 1]!);
+      const z = computeFlatTraceZ(points, base, stride, objectiveVector);
+      hasZ = true;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
   }
 
   if (!objectiveHidden) {
