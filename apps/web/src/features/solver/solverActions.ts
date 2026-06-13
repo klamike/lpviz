@@ -156,7 +156,6 @@ export function createSolverActions(
           ]),
           highlightIteratePathIndex: null,
         },
-        { viewportDirty: cm?.getIterateDirtyFlags() ?? {} },
       );
     } else {
       lastVirtualResult = null;
@@ -173,7 +172,6 @@ export function createSolverActions(
           ),
           highlightIteratePathIndex: null,
         },
-        { viewportDirty: cm?.getIterateDirtyFlags() ?? {} },
       );
     }
     cm?.draw();
@@ -336,7 +334,6 @@ export function createSolverActions(
         objectiveVector: rotationStep.nextObjective,
         highlightIteratePathIndex: null,
       },
-      { viewportDirty: cm.getObjectiveDirtyFlags() },
     );
     if (getState().traceEnabled) syncTraceCapacity();
     try {
@@ -349,7 +346,6 @@ export function createSolverActions(
     }
   };
   const setRotationActive = (active: boolean) => {
-    const cm = getCanvasManager();
     prepareAnimationInterval();
     if (!active) cancelRotationLoop();
     else {
@@ -358,7 +354,6 @@ export function createSolverActions(
     }
     setState(
       { rotateObjectiveMode: active, highlightIteratePathIndex: null },
-      { viewportDirty: cm?.getIterateDirtyFlags() ?? {} },
     );
     if (!active) restoreFullVirtualResult();
   };
@@ -369,14 +364,12 @@ export function createSolverActions(
     invalidatePendingSolveResults();
     prepareAnimationInterval();
     cancelRotationLoop();
-    const cm = getCanvasManager();
     setState(
       {
         rotateObjectiveMode: false,
         highlightIteratePathIndex: null,
         animationIntervalId: null,
       },
-      { viewportDirty: cm?.getIterateDirtyFlags() ?? {} },
     );
     if (wasRotating) restoreFullVirtualResult();
   };
@@ -405,7 +398,6 @@ export function createSolverActions(
     const cm = getCanvasManager();
     setState(
       { traceEnabled: enabled },
-      { viewportDirty: cm?.getTraceDirtyFlags() ?? {} },
     );
     if (!enabled) {
       resetTraceState();
@@ -413,11 +405,9 @@ export function createSolverActions(
     } else syncTraceCapacity();
   };
   const startRotation = () => {
-    const cm = getCanvasManager();
     if (!getState().objectiveVector)
       setState(
         { objectiveVector: { x: 1, y: 0 } },
-        { viewportDirty: cm?.getObjectiveDirtyFlags() ?? {} },
       );
     objectiveRotationDirection = 1;
     if (getState().traceEnabled) {
@@ -446,7 +436,6 @@ export function createSolverActions(
         highlightIteratePathIndex: null,
         animationIntervalId: null,
       },
-      { viewportDirty: cm.getIterateDirtyFlags() },
     );
     cm.draw();
     let i = 0;
@@ -469,7 +458,6 @@ export function createSolverActions(
             : {}),
           ...(!iterateHoverActive ? { highlightIteratePathIndex: i } : {}),
         },
-        { viewportDirty: cm.getIterateDirtyFlags() },
       );
       i++;
       cm.draw();
@@ -496,7 +484,6 @@ export function createSolverActions(
     if (!cm || getState().highlightIndex === index) return;
     setState(
       { highlightIndex: index },
-      { viewportDirty: cm.getConstraintDirtyFlags() },
     );
     cm.draw();
   };
@@ -507,7 +494,6 @@ export function createSolverActions(
     if (getState().highlightIteratePathIndex === index) return;
     setState(
       { highlightIteratePathIndex: index },
-      { viewportDirty: cm.getIterateDirtyFlags() },
     );
     cm.draw();
   };

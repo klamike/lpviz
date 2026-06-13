@@ -42,7 +42,7 @@ export function createViewportActions(
   const setZScale = (value: number) => {
     const cm = getCanvasManager();
     if (!cm) return;
-    setState({ zScale: value }, { viewportDirty: cm.getZScaleDirtyFlags() });
+    setState({ zScale: value }); // zScale derives polytope+objective+trace+iterate
     const { is3DMode, isTransitioning3D } = getState();
     if (is3DMode || isTransitioning3D) cm.draw();
   };

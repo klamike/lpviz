@@ -142,7 +142,6 @@ export function attachCanvasInteractions({
         highlightIndex: null,
         ...(options.extraPatch ?? {}),
       },
-      { viewportDirty: canvasManager.getPolytopeDirtyFlags() },
     );
     canvasManager.draw();
     sendPolytope();
@@ -171,7 +170,6 @@ export function attachCanvasInteractions({
       }
       setState(
         { objectiveVector: transition.objectiveVector },
-        { viewportDirty: canvasManager.getObjectiveDirtyFlags() },
       );
       sendPolytope();
       canvasManager.draw();
@@ -204,7 +202,6 @@ export function attachCanvasInteractions({
 
       setState(
         { vertices: updatedVertices.map(([x, y]) => ({ x, y })) },
-        { viewportDirty: canvasManager.getPolytopeDirtyFlags() },
       );
 
       setState(
@@ -236,7 +233,6 @@ export function attachCanvasInteractions({
             indices.has(i) ? { x: v.x + shiftX, y: v.y + shiftY } : v,
           ),
         },
-        { viewportDirty: canvasManager.getPolytopeDirtyFlags() },
       );
       setState(
         {
@@ -272,7 +268,6 @@ export function attachCanvasInteractions({
             i === pointIndex ? logicalCoords : v,
           ),
         },
-        { viewportDirty: canvasManager.getPolytopeDirtyFlags() },
       );
       sendPolytope();
       canvasManager.draw();
@@ -286,7 +281,6 @@ export function attachCanvasInteractions({
 
     setState(
       { objectiveVector: logicalCoords },
-      { viewportDirty: canvasManager.getObjectiveDirtyFlags() },
     );
     sendPolytope();
     canvasManager.draw();
@@ -305,7 +299,6 @@ export function attachCanvasInteractions({
     if (phase === "awaiting_objective" || phase === "objective_preview") {
       setState(
         { currentObjective: logicalCoords },
-        { viewportDirty: canvasManager.getObjectiveDirtyFlags() },
       );
       canvasManager.draw();
     }
@@ -512,7 +505,6 @@ export function attachCanvasInteractions({
     const clampedScale = Math.max(0.01, Math.min(100, effectiveScale));
     setState(
       { zScale: clampedScale },
-      { viewportDirty: canvasManager.getZScaleDirtyFlags() },
     );
     canvasManager.draw();
   };
@@ -696,7 +688,6 @@ export function attachCanvasInteractions({
       const { objectiveHidden } = getState();
       setState(
         { objectiveHidden: !objectiveHidden },
-        { viewportDirty: canvasManager.getObjectiveDirtyFlags() },
       );
       canvasManager.draw();
     }

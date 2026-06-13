@@ -27,9 +27,11 @@ const launcher = browserName === "chromium" ? chromium : firefox;
 const launchArgs =
   browserName === "chromium" ? ["--use-angle=metal"] : undefined;
 
-// Regression thresholds. p50 ~8ms (120fps) is the target; the >34ms count is the
-// "dropped frame" signal that must stay at zero.
-const THRESHOLDS = { framesOver34: 0, maxBlockMs: 40, p50Ms: 12 };
+// Regression thresholds. The meaningful, display-rate-independent signals are
+// the dropped-frame count (must stay 0) and main-thread block time; p50 just
+// tracks the display refresh (8.3ms at 120Hz, 16.7ms at 60Hz) so it is bounded
+// loosely to catch only a true 2x stall, not a 60Hz session.
+const THRESHOLDS = { framesOver34: 0, maxBlockMs: 40, p50Ms: 20 };
 
 const browser = await launcher.launch({ headless: false, args: launchArgs });
 const ctx = await browser.newContext({

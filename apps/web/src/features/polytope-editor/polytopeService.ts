@@ -1,6 +1,5 @@
 import { getState, setState } from "@/features/core/store";
 import { computeEditorRegionForState } from "@/features/polytope-editor/editorSession";
-import { getPolytopeViewportDirtyFlags } from "@/features/viewport/dirtyFlags";
 
 export type PolytopeService = { send: () => void };
 
@@ -17,7 +16,6 @@ export function createPolytopeService(
             inequalitiesMessage: "Nonconvex",
             highlightIndex: null,
           },
-          { viewportDirty: getPolytopeViewportDirtyFlags() },
         );
         getHandleProblemChange()();
         return;
@@ -30,7 +28,6 @@ export function createPolytopeService(
             completionMode: promotion.completionMode,
             interiorPoint: promotion.interiorPoint,
           },
-          { viewportDirty: getPolytopeViewportDirtyFlags() },
         );
       const result = regionResult.polytope;
       if (!result.inequalities) {
@@ -40,7 +37,6 @@ export function createPolytopeService(
             inequalitiesMessage: "No inequalities returned.",
             highlightIndex: null,
           },
-          { viewportDirty: getPolytopeViewportDirtyFlags() },
         );
         getHandleProblemChange()();
         return;
@@ -55,7 +51,6 @@ export function createPolytopeService(
             ? { highlightIndex: null }
             : {}),
         },
-        { viewportDirty: getPolytopeViewportDirtyFlags() },
       );
       getHandleProblemChange()();
     } catch (error) {
@@ -66,7 +61,6 @@ export function createPolytopeService(
           inequalitiesMessage: "Error computing inequalities.",
           highlightIndex: null,
         },
-        { viewportDirty: getPolytopeViewportDirtyFlags() },
       );
       getHandleProblemChange()();
     }

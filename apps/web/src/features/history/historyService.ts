@@ -4,7 +4,6 @@ import {
   type HistoryEntry,
   type State,
 } from "@/features/core/store";
-import { getPolytopeViewportDirtyFlags } from "@/features/viewport/dirtyFlags";
 
 type HistorySnapshotSource = Pick<
   State,
@@ -62,7 +61,6 @@ export function createHistoryService(onRestore: () => void): HistoryService {
             objectiveVector: stateToRestore.objectiveVector,
             completionMode: stateToRestore.completionMode,
           },
-      { viewportDirty: getPolytopeViewportDirtyFlags() },
     );
     onRestore();
   };

@@ -41,14 +41,7 @@ import {
   isDefault3DView,
 } from "@lpviz/viewport/view3d";
 import {
-  getConstraintViewportDirtyFlags,
-  getDraftPreviewViewportDirtyFlags,
-  getIterateViewportDirtyFlags,
-  getObjectiveViewportDirtyFlags,
-  getPolytopeViewportDirtyFlags,
-  getTraceViewportDirtyFlags,
   getViewportUnboundedClipBounds,
-  getZScaleViewportDirtyFlags,
   isViewport3DState,
 } from "./dirtyFlags";
 import {
@@ -157,13 +150,6 @@ export type ViewportApi = {
   start3DTransition: (targetMode: boolean) => void;
   getCanvasElement: () => HTMLCanvasElement;
   getCanvasRect: () => DOMRect;
-  getObjectiveDirtyFlags: () => ViewportDirtyFlags;
-  getPolytopeDirtyFlags: () => ViewportDirtyFlags;
-  getTraceDirtyFlags: () => ViewportDirtyFlags;
-  getIterateDirtyFlags: () => ViewportDirtyFlags;
-  getConstraintDirtyFlags: () => ViewportDirtyFlags;
-  getDraftPreviewDirtyFlags: () => ViewportDirtyFlags;
-  getZScaleDirtyFlags: () => ViewportDirtyFlags;
 };
 
 export type ViewportRuntime = ViewportApi & {
@@ -910,14 +896,6 @@ export async function createViewportRuntime({
     },
     getCanvasElement: () => viewportBridge.getCanvasElement(),
     getCanvasRect: () => getViewportRect() as DOMRect,
-    getObjectiveDirtyFlags: () =>
-      getObjectiveViewportDirtyFlags(isViewport3DState(getState())),
-    getPolytopeDirtyFlags: () => getPolytopeViewportDirtyFlags(),
-    getTraceDirtyFlags: () => getTraceViewportDirtyFlags(),
-    getIterateDirtyFlags: () => getIterateViewportDirtyFlags(),
-    getConstraintDirtyFlags: () => getConstraintViewportDirtyFlags(),
-    getDraftPreviewDirtyFlags: () => getDraftPreviewViewportDirtyFlags(),
-    getZScaleDirtyFlags: () => getZScaleViewportDirtyFlags(),
     destroy: () => {
       clearViewportNavigationTimeout();
       setViewportNavigationActive(false);
