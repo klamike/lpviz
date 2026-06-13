@@ -480,6 +480,32 @@ export async function createViewportRuntime({
     viewportBridge.invalidate({ viewportDirty });
   }, viewportDirtyController.signal);
 
+  // Shared tail of the layout-change handlers (updateDimensions /
+  // setSidebarWidth): once the external-2D case is handled by the caller, a
+  // layout change must re-derive and republish whichever non-2D snapshot is
+  // live — a transition frame, an external-3D rebuild, or the static manager
+  // snapshot fallback.
+  const republishAfterLayoutChange = () => {
+    if (externalTransitionSnapshotActive && activeTransitionPlan) {
+      const frame = buildViewportTransitionFrame(
+        activeTransitionPlan,
+        externalTransitionProgress,
+        getViewportRect(),
+      );
+      syncTransitionPlanarState(activeTransitionPlan, frame);
+      managerSnapshot = frame.snapshot;
+      publishSnapshot(frame.snapshot);
+      return;
+    }
+    if (external3DControlsActive) {
+      rebuildExternal3DSnapshot();
+      publish3DControlsConfig();
+      publishSnapshot(managerSnapshot);
+      return;
+    }
+    publishSnapshot(managerSnapshot);
+  };
+
   return {
     draw: () => {
       viewportBridge.invalidate({ layers: false });
@@ -498,24 +524,7 @@ export async function createViewportRuntime({
         publishSnapshot(managerSnapshot);
         return;
       }
-      if (externalTransitionSnapshotActive && activeTransitionPlan) {
-        const frame = buildViewportTransitionFrame(
-          activeTransitionPlan,
-          externalTransitionProgress,
-          getViewportRect(),
-        );
-        syncTransitionPlanarState(activeTransitionPlan, frame);
-        managerSnapshot = frame.snapshot;
-        publishSnapshot(frame.snapshot);
-        return;
-      }
-      if (external3DControlsActive) {
-        rebuildExternal3DSnapshot();
-        publish3DControlsConfig();
-        publishSnapshot(managerSnapshot);
-        return;
-      }
-      publishSnapshot(managerSnapshot);
+      republishAfterLayoutChange();
     },
     setSidebarWidth: (width) => {
       currentSidebarWidth = width;
@@ -526,24 +535,7 @@ export async function createViewportRuntime({
         publishSnapshot(getExternal2DSnapshot());
         return;
       }
-      if (externalTransitionSnapshotActive && activeTransitionPlan) {
-        const frame = buildViewportTransitionFrame(
-          activeTransitionPlan,
-          externalTransitionProgress,
-          getViewportRect(),
-        );
-        syncTransitionPlanarState(activeTransitionPlan, frame);
-        managerSnapshot = frame.snapshot;
-        publishSnapshot(frame.snapshot);
-        return;
-      }
-      if (external3DControlsActive) {
-        rebuildExternal3DSnapshot();
-        publish3DControlsConfig();
-        publishSnapshot(managerSnapshot);
-        return;
-      }
-      publishSnapshot(managerSnapshot);
+      republishAfterLayoutChange();
     },
     setNavigationFrameCallback: (callback) => {
       navigationFrameCallback = callback;
