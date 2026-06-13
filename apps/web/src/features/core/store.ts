@@ -90,6 +90,66 @@ type StateChangeMeta = {
   viewportDirty?: ViewportDirtyFlags;
 };
 
+// Which render layers a change to each store field repaints. patch() derives
+// `viewportDirty` from the changed fields automatically, so callers no longer
+// hand-pick flags (the scattered reverse-index of layer invalidationKeys that
+// was the main source of silent missed-repaint bugs). Derivation is additive —
+// it is unioned with any explicitly-passed flags and can only add, never drop —
+// and fields absent here (pure UI/solver-config state) repaint nothing.
+const POLYTOPE_DIRTY: ViewportDirtyFlags = {
+  polytope: true,
+  constraints: true,
+  objective: true,
+};
+const ITERATE_DIRTY: ViewportDirtyFlags = { iterate: true };
+const TRACE_DIRTY: ViewportDirtyFlags = { trace: true };
+// the objective marker is occluded by the polytope floor in 3D, so a moved
+// objective repaints the polytope too while in (or transitioning to) 3D
+const objectiveDirty = (s: State): ViewportDirtyFlags =>
+  s.is3DMode || s.isTransitioning3D
+    ? { polytope: true, objective: true }
+    : { objective: true };
+
+const FIELD_DIRTY: Partial<Record<keyof State, (s: State) => ViewportDirtyFlags>> =
+  {
+    vertices: () => POLYTOPE_DIRTY,
+    polytope: () => POLYTOPE_DIRTY,
+    completionMode: () => POLYTOPE_DIRTY,
+    interiorPoint: () => POLYTOPE_DIRTY,
+    objectiveVector: objectiveDirty,
+    currentObjective: objectiveDirty,
+    objectiveHidden: () => ({ objective: true }),
+    highlightIndex: () => ({ constraints: true }),
+    iteratePath: () => ITERATE_DIRTY,
+    iteratePhases: () => ITERATE_DIRTY,
+    iterateRestartIndices: () => ITERATE_DIRTY,
+    iterateObjectiveVector: () => ITERATE_DIRTY,
+    highlightIteratePathIndex: () => ITERATE_DIRTY,
+    traceBuffer: () => TRACE_DIRTY,
+    traceEnabled: () => TRACE_DIRTY,
+    // zScale rescales every world-anchored layer's height
+    zScale: () => ({
+      polytope: true,
+      objective: true,
+      trace: true,
+      iterate: true,
+    }),
+  };
+
+export function deriveViewportDirty(
+  state: State,
+  changedKeys: readonly (keyof State)[],
+): ViewportDirtyFlags | null {
+  let flags: ViewportDirtyFlags | null = null;
+  for (const key of changedKeys) {
+    const derive = FIELD_DIRTY[key];
+    if (!derive) continue;
+    // build a fresh object (never mutate the shared flag constants)
+    flags = Object.assign(flags ?? {}, derive(state));
+  }
+  return flags;
+}
+
 export type SolverSettings = {
   alphaMax: number;
   correctorThreshold: number;
@@ -273,9 +333,6 @@ class LpvizStore {
       changedKeys.push(key);
     }
 
-    const hasMeta = meta !== undefined;
-    if (!nextValues && !hasMeta) return;
-
     if (nextValues) {
       this.values = nextValues;
       for (const key of changedKeys) {
@@ -286,10 +343,21 @@ class LpvizStore {
       this.flush();
     }
 
-    if (hasMeta) {
-      const listeners = this.metaListeners.slice();
-      for (let i = 0; i < listeners.length; i++) listeners[i]!(meta);
+    // viewportDirty is the union of what the changed fields imply and anything
+    // the caller passed explicitly (see FIELD_DIRTY)
+    const derived = nextValues
+      ? deriveViewportDirty(this.values, changedKeys)
+      : null;
+    if (meta === undefined && derived === null) return;
+    let merged: StateChangeMeta = meta ?? {};
+    if (derived !== null) {
+      merged = {
+        ...merged,
+        viewportDirty: { ...merged.viewportDirty, ...derived },
+      };
     }
+    const listeners = this.metaListeners.slice();
+    for (let i = 0; i < listeners.length; i++) listeners[i]!(merged);
   }
 
   on<K extends keyof State>(
