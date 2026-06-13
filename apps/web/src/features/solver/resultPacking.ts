@@ -14,6 +14,15 @@ import type {
 // flat IteratePath and materializes row objects lazily on access. The display
 // z (objective-dependent) is baked into a third component here, on the worker,
 // so the client never needs the per-iterate mapping pass.
+//
+// The baked z is `objective·point + convergenceLift`: iterates sit at their
+// objective value and are lifted above the optimal surface by how far they are
+// from convergence, so the path visibly descends as it converges. The lift
+// uses each solver's natural convergence measure — PDHG's residual `eps`,
+// IPM's barrier `mu`. PDHG's residual is numerically tiny, so it is scaled to
+// share IPM's visual range; this factor is display tuning only and never feeds
+// back into the math.
+const PDHG_EPS_Z_LIFT = 500;
 
 type PackedRowsColumns = {
   x: Float64Array;
@@ -114,7 +123,7 @@ export function packSolverResponse(
       (entry, index) =>
         objective[0]! * entry[0]! +
         objective[1]! * entry[1]! +
-        500 * (eps?.[index] ?? 0),
+        PDHG_EPS_Z_LIFT * (eps?.[index] ?? 0),
     );
     const rows = packRows(
       result.rows,

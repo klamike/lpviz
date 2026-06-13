@@ -115,14 +115,34 @@ export async function createViewportRuntime({
   let currentSidebarWidth = 0;
   let navigationFrameCallback: (() => void) | null = null;
   let navigationIdleTimeoutId: number | null = null;
+  // Snapshot ownership model. At any instant exactly one source owns the render
+  // snapshot: the external 2D viewport controls, the external 3D orbit controls,
+  // or the transition animator. The store's is3DMode/isTransitioning3D describe
+  // the DESIRED mode; the `*Active` flags below describe which source is
+  // currently WIRED UP. The two intentionally diverge for the length of a
+  // transition: while isTransitioning3D is true both shouldUseExternal2D/3D()
+  // return false, so neither controls source is active, and
+  // externalTransitionSnapshotActive latches on instead so the animator owns the
+  // snapshot. Collapsing these into one "mode" enum would conflate desired vs.
+  // wired and lose that lag — see memory note viewport-ownership-consolidation.
+  //
+  // managerSnapshot is the snapshot the runtime itself owns (3D controls + the
+  // transition animator publish through it). It is an immutable VALUE: only the
+  // reference is ever reassigned (always to a freshly built snapshot); the
+  // object is never mutated, which is what makes publishSnapshot's prev/next
+  // diff meaningful.
   let managerSnapshot: ViewportRenderSnapshot = {
     ...DEFAULT_VIEWPORT_RENDER_SNAPSHOT,
   };
   let externalControlsBlocked = false;
   let external2DViewportActive = false;
   let external3DControlsActive = false;
+  // bumped to signal subscribers (3D controls bridge) to re-sync from config
   let external3DControlsSyncToken = 0;
   let externalTransitionRunId = 0;
+  // latch: while set, the transition animator owns the snapshot and the
+  // is3DMode/isTransitioning3D subscription must NOT activate either controls
+  // source (see the early return in the ownership listener)
   let externalTransitionSnapshotActive = false;
   let externalTransitionProgress = 0;
   let activeTransitionPlan: ViewportTransitionPlan | null = null;
@@ -448,6 +468,8 @@ export async function createViewportRuntime({
 
       external2DViewportActive = nextExternal2DViewportActive;
 
+      // the transition animator owns the snapshot until it completes; don't let
+      // a mode change mid-transition publish a competing controls snapshot
       if (externalTransitionSnapshotActive) {
         return;
       }
