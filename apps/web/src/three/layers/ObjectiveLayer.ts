@@ -1,4 +1,3 @@
-import type { State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
@@ -9,11 +8,11 @@ import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
-  getSharedLineMaterial,
+  lineDepthMaterial,
   replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
-import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { LayerBase } from "./base/LayerBase";
 
 const OBJECTIVE_COLOR = "#008000";
 const OBJECTIVE_UNBOUNDED_COLOR = "#ff0000";
@@ -24,13 +23,7 @@ const ARROW_HALF_ANGLE = Math.PI / 6;
 const OBJECTIVE_EPSILON = 1e-3;
 
 const getObjectiveMat = (color: string, is3D: boolean) =>
-  getSharedLineMaterial({
-    color,
-    linewidth: OBJECTIVE_LINE_THICKNESS,
-    depthTest: is3D,
-    depthWrite: is3D,
-    opacity: 1,
-  });
+  lineDepthMaterial(color, OBJECTIVE_LINE_THICKNESS, is3D);
 
 function buildArrowHeadSegments(
   tip: PointXY,
@@ -48,25 +41,14 @@ function buildArrowHeadSegments(
   });
 }
 
-type PrevState = {
-  objectiveHidden: boolean;
-  objectiveVector: PointXY | null;
-  currentObjective: PointXY | null;
-  completionMode: State["completionMode"];
-  polytope: State["polytope"];
-  isTransitioning3D: boolean;
-  mode: string;
-  unitsPerPixel: number;
-};
-
-export class ObjectiveLayer implements Layer {
+export class ObjectiveLayer extends LayerBase {
   readonly object3D: Group;
-  readonly invalidationKeys = ["objective"] as const;
+  override readonly invalidationKeys = ["objective"] as const;
   private objGeo: LineSegmentsGeometry;
   private objSegs: LineSegments2;
-  private prev: PrevState | null = null;
 
   constructor() {
+    super();
     const objGeo = new LineSegmentsGeometry();
     applyHugeBounds(objGeo);
     const objSegs = new LineSegments2(
@@ -83,34 +65,24 @@ export class ObjectiveLayer implements Layer {
     this.objSegs = objSegs;
   }
 
-  update(ctx: SceneContext): void {
+  protected dependencies(ctx: SceneContext): readonly unknown[] {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
+    return [
+      raw.objectiveHidden,
+      raw.objectiveVector,
+      raw.currentObjective,
+      raw.completionMode,
+      raw.polytope,
+      raw.isTransitioning3D,
+      snap.mode,
+      snap.unitsPerPixel,
+    ];
+  }
 
-    const p = this.prev;
-    if (
-      p &&
-      p.objectiveHidden === raw.objectiveHidden &&
-      p.objectiveVector === raw.objectiveVector &&
-      p.currentObjective === raw.currentObjective &&
-      p.completionMode === raw.completionMode &&
-      p.polytope === raw.polytope &&
-      p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode &&
-      p.unitsPerPixel === snap.unitsPerPixel
-    ) {
-      return;
-    }
-    this.prev = {
-      objectiveHidden: raw.objectiveHidden,
-      objectiveVector: raw.objectiveVector,
-      currentObjective: raw.currentObjective,
-      completionMode: raw.completionMode,
-      polytope: raw.polytope,
-      isTransitioning3D: raw.isTransitioning3D,
-      mode: snap.mode,
-      unitsPerPixel: snap.unitsPerPixel,
-    };
+  protected rebuild(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
     if (raw.objectiveHidden || !shouldRenderSnapshotMode(snap.mode, raw)) {
       this.objSegs.visible = false;

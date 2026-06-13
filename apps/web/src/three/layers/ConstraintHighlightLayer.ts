@@ -1,4 +1,3 @@
-import type { State } from "@/features/core/store";
 import { type BoundingBox } from "@lpviz/math/geometry";
 import type { Line, PointXY } from "@lpviz/math/types";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
@@ -10,11 +9,11 @@ import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
-  getSharedLineMaterial,
+  lineDepthMaterial,
   replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
-import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { LayerBase } from "./base/LayerBase";
 
 const CONSTRAINT_COLOR = "#ff0000";
 const CONSTRAINT_RENDER_ORDER = RENDER_ORDER.constraintLines;
@@ -25,13 +24,7 @@ const DEFAULT_3D_EXTENT = 5000;
 const EPS = 1e-10;
 
 const getConstraintMat = (is3D: boolean) =>
-  getSharedLineMaterial({
-    color: CONSTRAINT_COLOR,
-    linewidth: CONSTRAINT_LINE_THICKNESS,
-    depthTest: is3D,
-    depthWrite: is3D,
-    opacity: 1,
-  });
+  lineDepthMaterial(CONSTRAINT_COLOR, CONSTRAINT_LINE_THICKNESS, is3D);
 
 function getVisibleBounds(
   snap: ReturnType<SceneContext["getSnapshot"]>,
@@ -98,35 +91,16 @@ function clipLineToBounds(
   ];
 }
 
-type PrevState = {
-  completionMode: State["completionMode"];
-  highlightIndex: number | null;
-  polytope: State["polytope"];
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-  mode: string;
-  orthoLeft: number;
-  orthoRight: number;
-  orthoTop: number;
-  orthoBottom: number;
-  targetX: number;
-  targetY: number;
-  unitsPerPixel: number;
-  width: number;
-  height: number;
-  scaleFactor: number;
-};
-
-export class ConstraintHighlightLayer implements Layer {
+export class ConstraintHighlightLayer extends LayerBase {
   readonly object3D: Group;
   // "grid" fires on zoom/resize/pan, which move the visible bounds this
-  // layer clips against; the prev-state check below keeps updates cheap.
-  readonly invalidationKeys = ["constraints", "grid"] as const;
+  // layer clips against; the dependency check below keeps updates cheap.
+  override readonly invalidationKeys = ["constraints", "grid"] as const;
   private cGeo: LineSegmentsGeometry;
   private cSegs: LineSegments2;
-  private prev: PrevState | null = null;
 
   constructor() {
+    super();
     const cGeo = new LineSegmentsGeometry();
     applyHugeBounds(cGeo);
     const cSegs = new LineSegments2(cGeo, getConstraintMat(false));
@@ -140,50 +114,32 @@ export class ConstraintHighlightLayer implements Layer {
     this.cSegs = cSegs;
   }
 
-  update(ctx: SceneContext): void {
+  protected dependencies(ctx: SceneContext): readonly unknown[] {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
+    return [
+      raw.completionMode,
+      raw.highlightIndex,
+      raw.polytope,
+      raw.is3DMode,
+      raw.isTransitioning3D,
+      snap.mode,
+      snap.orthographic.left,
+      snap.orthographic.right,
+      snap.orthographic.top,
+      snap.orthographic.bottom,
+      snap.target.x,
+      snap.target.y,
+      snap.unitsPerPixel,
+      snap.width,
+      snap.height,
+      snap.scaleFactor,
+    ];
+  }
 
-    const p = this.prev;
-    if (
-      p &&
-      p.completionMode === raw.completionMode &&
-      p.highlightIndex === raw.highlightIndex &&
-      p.polytope === raw.polytope &&
-      p.is3DMode === raw.is3DMode &&
-      p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode &&
-      p.orthoLeft === snap.orthographic.left &&
-      p.orthoRight === snap.orthographic.right &&
-      p.orthoTop === snap.orthographic.top &&
-      p.orthoBottom === snap.orthographic.bottom &&
-      p.targetX === snap.target.x &&
-      p.targetY === snap.target.y &&
-      p.unitsPerPixel === snap.unitsPerPixel &&
-      p.width === snap.width &&
-      p.height === snap.height &&
-      p.scaleFactor === snap.scaleFactor
-    ) {
-      return;
-    }
-    this.prev = {
-      completionMode: raw.completionMode,
-      highlightIndex: raw.highlightIndex,
-      polytope: raw.polytope,
-      is3DMode: raw.is3DMode,
-      isTransitioning3D: raw.isTransitioning3D,
-      mode: snap.mode,
-      orthoLeft: snap.orthographic.left,
-      orthoRight: snap.orthographic.right,
-      orthoTop: snap.orthographic.top,
-      orthoBottom: snap.orthographic.bottom,
-      targetX: snap.target.x,
-      targetY: snap.target.y,
-      unitsPerPixel: snap.unitsPerPixel,
-      width: snap.width,
-      height: snap.height,
-      scaleFactor: snap.scaleFactor,
-    };
+  protected rebuild(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
 
     if (
       raw.completionMode === "draft" ||

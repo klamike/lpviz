@@ -17,11 +17,12 @@ import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import {
   applyHugeBounds,
-  getSharedLineMaterial,
+  lineDepthMaterial,
   replaceLinePositions,
 } from "../helpers/sharedLineMaterials";
-import type { Layer, LayerRenderObject } from "../Layer";
+import type { LayerRenderObject } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { LayerBase } from "./base/LayerBase";
 
 const POLYTOPE_FILL_COLOR = "#e6e6e6";
 const POLYTOPE_HIGHLIGHT_COLOR = "#ff0000";
@@ -33,13 +34,7 @@ const DEFAULT_UNBOUNDED_EXTENT = 5000;
 const EPS = 1e-10;
 
 const getPolytopeEdgeMat = (color: string, is3D: boolean) =>
-  getSharedLineMaterial({
-    color,
-    linewidth: POLY_LINE_THICKNESS,
-    depthTest: is3D,
-    depthWrite: is3D,
-    opacity: 1,
-  });
+  lineDepthMaterial(color, POLY_LINE_THICKNESS, is3D);
 
 function buildShapeFromVertices(vertices: ReadonlyArray<PointXY>) {
   const shape = new Shape();
@@ -240,28 +235,10 @@ function applySegmentsGeometry(geo: LineSegmentsGeometry, segments: number[]) {
   return true;
 }
 
-type PrevState = {
-  vertices: State["vertices"];
-  completionMode: State["completionMode"];
-  highlightIndex: State["highlightIndex"];
-  polytope: State["polytope"];
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-  orthoL: number;
-  orthoR: number;
-  orthoT: number;
-  orthoB: number;
-  unitsPerPixel: number;
-  targetX: number;
-  targetY: number;
-  mode: string;
-  transitionZMultiplier: number;
-};
-
-export class PolytopeBaseLayer implements Layer {
+export class PolytopeBaseLayer extends LayerBase {
   readonly object3D: Group;
   readonly renderObjects: readonly LayerRenderObject[];
-  readonly invalidationKeys = ["polytope"] as const;
+  override readonly invalidationKeys = ["polytope"] as const;
   private fillMesh: Mesh;
   private fillMatNormal: MeshBasicMaterial;
   private fillMatHighlight: MeshBasicMaterial;
@@ -269,10 +246,10 @@ export class PolytopeBaseLayer implements Layer {
   private normalEdges: LineSegments2;
   private highlightEdgesGeo: LineSegmentsGeometry;
   private highlightEdges: LineSegments2;
-  private prev: PrevState | null = null;
   private prevFillGeo: ShapeGeometry | null = null;
 
   constructor() {
+    super();
     const fMatN = new MeshBasicMaterial({
       color: POLYTOPE_FILL_COLOR,
       transparent: true,
@@ -338,57 +315,42 @@ export class PolytopeBaseLayer implements Layer {
     this.highlightEdges = hEdges;
   }
 
-  update(ctx: SceneContext): void {
+  protected dependencies(ctx: SceneContext): readonly unknown[] {
+    const raw = ctx.getState();
+    const snap = ctx.getSnapshot();
+    return [
+      raw.vertices,
+      raw.completionMode,
+      raw.highlightIndex,
+      raw.polytope,
+      raw.is3DMode,
+      raw.isTransitioning3D,
+      snap.mode,
+      snap.orthographic.left,
+      snap.orthographic.right,
+      snap.orthographic.top,
+      snap.orthographic.bottom,
+      snap.unitsPerPixel,
+      snap.target.x,
+      snap.target.y,
+      snap.transitionZMultiplier,
+    ];
+  }
+
+  protected rebuild(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
 
     const visible =
       raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
     this.object3D.visible = visible;
-    this.fillMesh.visible = visible && this.fillMesh.visible;
-    if (!visible) return;
+    if (!visible) {
+      this.fillMesh.visible = false;
+      return;
+    }
 
-    const p = this.prev;
     const is3D = snap.mode === "3d";
-    const changed =
-      !p ||
-      p.vertices !== raw.vertices ||
-      p.completionMode !== raw.completionMode ||
-      p.highlightIndex !== raw.highlightIndex ||
-      p.polytope !== raw.polytope ||
-      p.is3DMode !== raw.is3DMode ||
-      p.isTransitioning3D !== raw.isTransitioning3D ||
-      p.mode !== snap.mode ||
-      p.orthoL !== snap.orthographic.left ||
-      p.orthoR !== snap.orthographic.right ||
-      p.orthoT !== snap.orthographic.top ||
-      p.orthoB !== snap.orthographic.bottom ||
-      p.unitsPerPixel !== snap.unitsPerPixel ||
-      p.targetX !== snap.target.x ||
-      p.targetY !== snap.target.y ||
-      p.transitionZMultiplier !== snap.transitionZMultiplier;
-
     this.fillMesh.position.set(0, 0, 0);
-
-    if (!changed) return;
-
-    this.prev = {
-      vertices: raw.vertices,
-      completionMode: raw.completionMode,
-      highlightIndex: raw.highlightIndex,
-      polytope: raw.polytope,
-      is3DMode: raw.is3DMode,
-      isTransitioning3D: raw.isTransitioning3D,
-      mode: snap.mode,
-      orthoL: snap.orthographic.left,
-      orthoR: snap.orthographic.right,
-      orthoT: snap.orthographic.top,
-      orthoB: snap.orthographic.bottom,
-      unitsPerPixel: snap.unitsPerPixel,
-      targetX: snap.target.x,
-      targetY: snap.target.y,
-      transitionZMultiplier: snap.transitionZMultiplier,
-    };
 
     const result = buildPolytopeGeometry(raw, snap);
 

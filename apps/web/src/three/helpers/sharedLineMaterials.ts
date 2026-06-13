@@ -17,6 +17,24 @@ function makeKey(k: LineMaterialKey): string {
   return `${k.color}|${k.linewidth}|${k.depthTest}|${k.depthWrite}|${k.opacity}`;
 }
 
+// The depth-on-in-3D line material every polytope/objective/constraint layer
+// wants: 2D paints in draw order (no depth), 3D depth-tests so the floor
+// occludes correctly. Wraps the shared cache.
+export function lineDepthMaterial(
+  color: string | number,
+  linewidth: number,
+  is3D: boolean,
+  opacity = 1,
+): LineMaterial {
+  return getSharedLineMaterial({
+    color,
+    linewidth,
+    depthTest: is3D,
+    depthWrite: is3D,
+    opacity,
+  });
+}
+
 export function getSharedLineMaterial(opts: LineMaterialKey): LineMaterial {
   const key = makeKey(opts);
   let mat = materialCache.get(key);
