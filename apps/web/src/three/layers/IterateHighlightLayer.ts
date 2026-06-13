@@ -1,116 +1,25 @@
-import { computeFlatZ, type State } from "@/features/core/store";
-import type { PointXY } from "@lpviz/math/types";
-import { BufferAttribute, Points, PointsMaterial } from "three";
-import { makePointsGeo } from "../helpers/makePointsGeo";
+import type { State } from "@/features/core/store";
 import { RENDER_ORDER } from "../helpers/renderOrder";
-import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
 import { SHARED_CIRCLE_TEXTURE } from "../helpers/sharedTextures";
-import type { Layer } from "../Layer";
-import type { SceneContext } from "../SceneContext";
+import { SinglePointSpriteLayer } from "./base/SinglePointSpriteLayer";
 
-const ITERATE_HIGHLIGHT_COLOR = "#008000";
-const ITERATE_HIGHLIGHT_PIXEL_SIZE = 8 * 2;
-const ITERATE_HIGHLIGHT_RENDER_ORDER = RENDER_ORDER.iterateHighlight;
-
-type PrevState = {
-  iteratePath: State["iteratePath"];
-  highlightIteratePathIndex: State["highlightIteratePathIndex"];
-  iterateObjectiveVector: PointXY | null;
-  zScale: number;
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-  mode: string;
-  transitionZMultiplier: number;
-};
-
-export class IterateHighlightLayer implements Layer {
-  readonly object3D: Points;
-  readonly renderPass = "trace" as const;
-  readonly invalidationKeys = ["iterate"] as const;
-  private prev: PrevState | null = null;
-
+// Highlights the iterate the user is hovering in the solver log.
+export class IterateHighlightLayer extends SinglePointSpriteLayer {
   constructor() {
-    const mat = new PointsMaterial({
-      color: ITERATE_HIGHLIGHT_COLOR,
-      size: ITERATE_HIGHLIGHT_PIXEL_SIZE,
-      sizeAttenuation: false,
-      transparent: false,
-      depthTest: false,
-      depthWrite: false,
-      alphaMap: SHARED_CIRCLE_TEXTURE,
-      alphaTest: 0.2,
+    super({
+      color: "#008000",
+      pixelSize: 8 * 2,
+      texture: SHARED_CIRCLE_TEXTURE,
+      renderOrder: RENDER_ORDER.iterateHighlight,
+      renderPass: "trace",
     });
-    const p = new Points(makePointsGeo(), mat);
-    p.renderOrder = ITERATE_HIGHLIGHT_RENDER_ORDER;
-    p.frustumCulled = false;
-    p.visible = false;
-    this.object3D = p;
   }
 
-  update(ctx: SceneContext): void {
-    const raw = ctx.getState();
-    const snap = ctx.getSnapshot();
-
-    const p = this.prev;
-    if (
-      p &&
-      p.iteratePath === raw.iteratePath &&
-      p.highlightIteratePathIndex === raw.highlightIteratePathIndex &&
-      p.iterateObjectiveVector === raw.iterateObjectiveVector &&
-      p.zScale === raw.zScale &&
-      p.is3DMode === raw.is3DMode &&
-      p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode &&
-      p.transitionZMultiplier === snap.transitionZMultiplier
-    ) {
-      return;
-    }
-    this.prev = {
-      iteratePath: raw.iteratePath,
-      highlightIteratePathIndex: raw.highlightIteratePathIndex,
-      iterateObjectiveVector: raw.iterateObjectiveVector,
-      zScale: raw.zScale,
-      is3DMode: raw.is3DMode,
-      isTransitioning3D: raw.isTransitioning3D,
-      mode: snap.mode,
-      transitionZMultiplier: snap.transitionZMultiplier,
-    };
-
-    const index = raw.highlightIteratePathIndex;
-    const { points, count, stride } = raw.iteratePath;
-    if (
-      index === null ||
-      index < 0 ||
-      index >= count ||
-      !shouldRenderSnapshotMode(snap.mode, raw)
-    ) {
-      this.object3D.visible = false;
-      return;
-    }
-
-    const base = index * stride;
-    const is3D = snap.mode === "3d";
-    const z = is3D
-      ? ((computeFlatZ(points, base, stride, raw.iterateObjectiveVector) *
-          raw.zScale) /
-          100) *
-        snap.transitionZMultiplier
-      : 0;
-
-    // free the old GL buffers before the attributes are replaced
-    this.object3D.geometry.dispose();
-    this.object3D.geometry.setAttribute(
-      "position",
-      new BufferAttribute(
-        new Float32Array([points[base]!, points[base + 1]!, z]),
-        3,
-      ),
-    );
-    this.object3D.visible = true;
+  protected selectorDeps(raw: State): readonly unknown[] {
+    return [raw.highlightIteratePathIndex];
   }
 
-  dispose(): void {
-    (this.object3D.material as PointsMaterial).dispose();
-    this.object3D.geometry.dispose();
+  protected selectIndex(raw: State): number | null {
+    return raw.highlightIteratePathIndex;
   }
 }
