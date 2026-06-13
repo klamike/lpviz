@@ -209,14 +209,8 @@ export function mountSolverLogPanel(parent: HTMLElement, ctx: AppContext) {
     let windowStart = -1;
     let windowEnd = -1;
     const fillWindow = () => {
-      // A stale scroll RAF can outlive this window's data: once a newer result
-      // displaces it, the worker reclaims its row buffers (see
-      // recycleSolverBuffers) and rows can no longer materialize. Such a frame
-      // is already writing to an orphaned, off-document node, so bailing is
-      // invisible — it just avoids dereferencing a now-empty row.
       if (rowHeight <= 0) {
-        const first = blocks.at(0);
-        if (!first) return;
+        const first = blocks.at(0)!;
         const probe = el("div", {
           className: first.className,
           text: first.text,
@@ -242,8 +236,7 @@ export function mountSolverLogPanel(parent: HTMLElement, ctx: AppContext) {
       bottomSpacer.style.height = `${(blocks.length - end) * rowHeight}px`;
       const fragment = document.createDocumentFragment();
       for (let i = start; i < end; i++) {
-        const row = blocks.at(i);
-        if (!row) return;
+        const row = blocks.at(i)!;
         fragment.append(
           el("div", {
             className: row.className,

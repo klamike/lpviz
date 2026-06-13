@@ -77,22 +77,6 @@ export interface TraceEntry extends IteratePath {
   objectiveVector: PointXY | null;
 }
 
-// Notified with the trace entries dropped from the ring on each append /
-// capacity change / reset. The solver layer uses this to hand a packed entry's
-// (now GPU-resident) iterations buffer back to the worker pool; the store
-// itself stays unaware of buffer recycling. Entries here are already removed
-// from state, so their backing buffers have no remaining reader.
-type TraceEvictionListener = (evicted: TraceEntry[]) => void;
-let traceEvictionListener: TraceEvictionListener | null = null;
-export function setTraceEvictionListener(
-  fn: TraceEvictionListener | null,
-): void {
-  traceEvictionListener = fn;
-}
-function notifyTraceEvicted(evicted: TraceEntry[]): void {
-  if (evicted.length > 0) traceEvictionListener?.(evicted);
-}
-
 export type ViewportDirtyFlags = Partial<{
   grid: boolean;
   polytope: boolean;
@@ -586,12 +570,9 @@ function appendedTraceBuffer(
     objectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };
   const raw = [...state.traceBuffer, entry];
-  const overflow = raw.length - state.maxTraceCount;
-  if (overflow > 0) {
-    notifyTraceEvicted(raw.slice(0, overflow));
-    return raw.slice(overflow);
-  }
-  return raw;
+  return raw.length > state.maxTraceCount
+    ? raw.slice(raw.length - state.maxTraceCount)
+    : raw;
 }
 
 function buildIterateStatePatch(
@@ -616,20 +597,19 @@ function buildIterateStatePatch(
 }
 
 export function resetTraceState(): void {
-  const { traceBuffer } = getState();
-  if (traceBuffer.length === 0) return;
-  notifyTraceEvicted(traceBuffer);
+  if (getState().traceBuffer.length === 0) return;
   setState({ traceBuffer: [] }, { viewportDirty: { trace: true } });
 }
 
 export function setTraceCapacity(maxTraceCount: number): void {
   const { traceBuffer } = getState();
-  const overflow = traceBuffer.length - maxTraceCount;
-  if (overflow > 0) notifyTraceEvicted(traceBuffer.slice(0, overflow));
   setState(
     {
       maxTraceCount,
-      traceBuffer: overflow > 0 ? traceBuffer.slice(overflow) : traceBuffer,
+      traceBuffer:
+        traceBuffer.length > maxTraceCount
+          ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
+          : traceBuffer,
     },
     { viewportDirty: { trace: true } },
   );

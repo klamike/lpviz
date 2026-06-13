@@ -3,7 +3,6 @@ import { centralPath } from "@lpviz/solver-engine/centralPath";
 import { ipm } from "@lpviz/solver-engine/ipm";
 import { pdhg } from "@lpviz/solver-engine/pdhg";
 import { simplex } from "@lpviz/solver-engine/simplex";
-import { recycleResultBuffers } from "./resultBufferPool";
 import { packSolverResponse } from "./resultPacking";
 
 import type { IteratePath } from "@/features/core/store";
@@ -49,14 +48,6 @@ export type SolverWorkerPayload =
     };
 
 type SolverWorkerRequest = SolverWorkerPayload & { id: number };
-
-// Posted by the main thread to return drained result-column buffers for reuse.
-export type SolverWorkerRecycleMessage = {
-  type: "recycle";
-  buffers: ArrayBuffer[];
-};
-
-type SolverWorkerInbound = SolverWorkerRequest | SolverWorkerRecycleMessage;
 
 // What executeSolver emits on the worker: each iterate is one Float64Array, as
 // the solver engines produce them. packSolverResponse consumes this shape.
@@ -256,25 +247,19 @@ async function executeSolver(
 
 ctx.addEventListener(
   "message",
-  async (event: MessageEvent<SolverWorkerInbound>) => {
+  async (event: MessageEvent<SolverWorkerRequest>) => {
     const data = event.data;
     if (!data) return;
 
-    if ("type" in data && data.type === "recycle") {
-      recycleResultBuffers(data.buffers);
-      return;
-    }
-    const request = data as SolverWorkerRequest;
-
     try {
       const { wire, transfer } = packSolverResponse(
-        await executeSolver(request),
-        request,
+        await executeSolver(data),
+        data,
       );
       ctx.postMessage(wire, transfer);
     } catch (error) {
       ctx.postMessage({
-        id: request.id,
+        id: data.id,
         success: false,
         error: error instanceof Error ? error.message : String(error),
       });
