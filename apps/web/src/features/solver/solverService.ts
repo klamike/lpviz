@@ -34,6 +34,10 @@ type VirtualResultRow =
 export type ResultRowsView<T = VirtualResultRow> = {
   length: number;
   at(index: number): T | undefined;
+  // Present on worker-packed results: the ArrayBuffers backing the row columns,
+  // handed back to the worker pool once this result stops displaying (see
+  // recycleSolverBuffers). Absent for synthesized rows (simplex / central path).
+  recyclableBuffers?: ArrayBuffer[];
 };
 
 export interface VirtualResultPayload {

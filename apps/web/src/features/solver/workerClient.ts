@@ -72,6 +72,16 @@ function dropOverflow() {
   }
 }
 
+// Hand a superseded result's row-column buffers back to the worker pool for
+// reuse (see resultBufferPool.ts). The caller must guarantee nothing still
+// references them — transfer detaches them on this thread. Only the row
+// columns are ever passed here; the iterations buffer stays owned by the trace
+// ring. A no-op when there is nothing to recycle.
+export function recycleSolverBuffers(buffers: ArrayBuffer[]): void {
+  if (buffers.length === 0) return;
+  worker.postMessage({ type: "recycle", buffers }, buffers);
+}
+
 export async function runSolverWorker(
   payload: SolverWorkerPayload,
 ): Promise<SolverWorkerSuccessResponse> {

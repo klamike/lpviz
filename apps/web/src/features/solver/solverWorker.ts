@@ -3,6 +3,7 @@ import { centralPath } from "@lpviz/solver-engine/centralPath";
 import { ipm } from "@lpviz/solver-engine/ipm";
 import { pdhg } from "@lpviz/solver-engine/pdhg";
 import { simplex } from "@lpviz/solver-engine/simplex";
+import { recycleResultBuffers } from "./resultBufferPool";
 import { packSolverResponse } from "./resultPacking";
 
 import type {
@@ -47,6 +48,14 @@ export type SolverWorkerPayload =
     };
 
 type SolverWorkerRequest = SolverWorkerPayload & { id: number };
+
+// Posted by the main thread to return drained result-column buffers for reuse.
+export type SolverWorkerRecycleMessage = {
+  type: "recycle";
+  buffers: ArrayBuffer[];
+};
+
+type SolverWorkerInbound = SolverWorkerRequest | SolverWorkerRecycleMessage;
 
 export type SolverWorkerSuccessResponse =
   | {
@@ -236,19 +245,25 @@ async function executeSolver(
 
 ctx.addEventListener(
   "message",
-  async (event: MessageEvent<SolverWorkerRequest>) => {
+  async (event: MessageEvent<SolverWorkerInbound>) => {
     const data = event.data;
     if (!data) return;
 
+    if ("type" in data && data.type === "recycle") {
+      recycleResultBuffers(data.buffers);
+      return;
+    }
+    const request = data as SolverWorkerRequest;
+
     try {
       const { wire, transfer } = packSolverResponse(
-        await executeSolver(data),
-        data,
+        await executeSolver(request),
+        request,
       );
       ctx.postMessage(wire, transfer);
     } catch (error) {
       ctx.postMessage({
-        id: data.id,
+        id: request.id,
         success: false,
         error: error instanceof Error ? error.message : String(error),
       });

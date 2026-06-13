@@ -21,7 +21,10 @@ import {
   type VirtualResultPayload,
 } from "@/features/solver/solverService";
 import type { ResultTextBlock } from "@/features/solver/types";
-import { runSolverWorker } from "@/features/solver/workerClient";
+import {
+  recycleSolverBuffers,
+  runSolverWorker,
+} from "@/features/solver/workerClient";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import {
   computeObjectiveRotationStep,
@@ -87,6 +90,20 @@ export function createSolverActions(
   let objectiveRotationDirection: 1 | -1 = 1;
   let iterateHoverActive = false;
   let lastVirtualResult: VirtualResultPayload | null = null;
+  // The row-column buffers currently referenced by state.resultVirtualRows.
+  // Mirrors that state exactly: whenever the displayed virtual rows are
+  // replaced we hand the superseded buffers back to the solver worker's pool
+  // (see recycleSolverBuffers). Because this updates in lockstep with the
+  // store, a buffer is only ever returned once nothing on this thread reads it
+  // — superseded/skipped responses simply never become "displayed". The
+  // iterations buffer is never here (the trace ring owns it).
+  let displayedRowBuffers: ArrayBuffer[] | null = null;
+  const setDisplayedRowBuffers = (next: ArrayBuffer[] | null) => {
+    if (displayedRowBuffers && displayedRowBuffers !== next) {
+      recycleSolverBuffers(displayedRowBuffers);
+    }
+    displayedRowBuffers = next;
+  };
   let pendingRender: {
     payload: ResultRenderPayload;
     options: RenderOptions;
@@ -123,6 +140,7 @@ export function createSolverActions(
     if (payload.type === "virtual") {
       lastVirtualResult = payload;
       const rows = payload.rows;
+      setDisplayedRowBuffers(rows.recyclableBuffers ?? null);
       const rowCount = limitVirtualRows
         ? Math.min(ROTATE_ROW_LIMIT, rows.length)
         : rows.length;
@@ -160,6 +178,7 @@ export function createSolverActions(
       );
     } else {
       lastVirtualResult = null;
+      setDisplayedRowBuffers(null);
       setState(
         {
           resultDisplayMode: "blocks",
@@ -201,6 +220,7 @@ export function createSolverActions(
   const clearResultState = () => {
     lastVirtualResult = null;
     pendingRender = null;
+    setDisplayedRowBuffers(null);
     setState({
       resultDisplayMode: "usage",
       resultBlocks: null,

@@ -1,4 +1,5 @@
 import type { VecN } from "@lpviz/math/types";
+import { takeFloat64, takeUint8 } from "./resultBufferPool";
 import type {
   SolverWorkerPayload,
   SolverWorkerResponse,
@@ -81,13 +82,15 @@ function packRows(
   withRestart: boolean,
 ): PackedRowsColumns {
   const count = rows.length;
+  // Columns are drawn from the recycle pool (see resultBufferPool.ts); the
+  // main thread hands their buffers back once the result stops displaying.
   const cols: PackedRowsColumns = {
-    x: new Float64Array(count),
-    y: new Float64Array(count),
-    objective: new Float64Array(count),
-    infeasibility: new Float64Array(count),
-    extra: new Float64Array(count),
-    restart: withRestart ? new Uint8Array(count) : undefined,
+    x: takeFloat64(count),
+    y: takeFloat64(count),
+    objective: takeFloat64(count),
+    infeasibility: takeFloat64(count),
+    extra: takeFloat64(count),
+    restart: withRestart ? takeUint8(count) : undefined,
   };
   for (let i = 0; i < count; i++) {
     const row = rows.at(i)!;
@@ -198,6 +201,19 @@ export function unpackSolverResponse(
   const entries = unpackIterations(wire.iterations, wire.stride);
   const { x, y, objective, infeasibility, extra, restart } = wire.rows;
 
+  // The row columns are referenced only by the displayed virtual result; once
+  // it is superseded the main thread hands these buffers back to the worker
+  // pool (see recycleSolverBuffers / resultBufferPool.ts). The iterations
+  // buffer is deliberately excluded — the trace ring retains it.
+  const recyclableBuffers = [
+    x.buffer,
+    y.buffer,
+    objective.buffer,
+    infeasibility.buffer,
+    extra.buffer,
+    ...(restart ? [restart.buffer] : []),
+  ] as ArrayBuffer[];
+
   // Row objects materialize lazily from the packed columns: only rows that
   // actually render (a screenful) are ever built, instead of one object per
   // iteration per solve.
@@ -211,6 +227,7 @@ export function unpackSolverResponse(
         header: wire.header,
         rows: {
           length: x.length,
+          recyclableBuffers,
           at: (index: number) =>
             index >= 0 && index < x.length
               ? {
@@ -243,6 +260,7 @@ export function unpackSolverResponse(
           header: wire.header,
           rows: {
             length: x.length,
+            recyclableBuffers,
             at: (index: number) =>
               index >= 0 && index < x.length
                 ? {
