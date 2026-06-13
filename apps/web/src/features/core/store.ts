@@ -223,7 +223,6 @@ export type State = {
   originalIteratePath: IteratePath;
   originalIteratePhases: number[];
   iterateRestartIndices: number[];
-  originalIterateRestartIndices: number[];
   iterateObjectiveVector: PointXY | null;
   originalIterateObjectiveVector: PointXY | null;
 
@@ -279,7 +278,6 @@ const initialState: State = {
   originalIteratePath: EMPTY_ITERATE_PATH,
   originalIteratePhases: [],
   iterateRestartIndices: [],
-  originalIterateRestartIndices: [],
   iterateObjectiveVector: null,
   originalIterateObjectiveVector: null,
 
@@ -628,7 +626,6 @@ function buildIterateStatePatch(
     iteratePhases: phasesArray ?? [],
     originalIteratePhases: phasesArray ?? [],
     iterateRestartIndices: restartIndicesArray ?? [],
-    originalIterateRestartIndices: restartIndicesArray ?? [],
     iterateObjectiveVector: objectiveSnapshot,
     originalIterateObjectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };
