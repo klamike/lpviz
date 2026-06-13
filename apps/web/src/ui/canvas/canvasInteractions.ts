@@ -150,10 +150,9 @@ export function attachCanvasInteractions({
 
   const applyEditorTransition = (
     transition: ReturnType<typeof getEditorTransition>,
-    rejectMessage: string,
   ) => {
     if (transition.kind === "reject-nonconvex") {
-      alert(rejectMessage);
+      alert(transition.reason);
       return;
     }
 
@@ -469,9 +468,7 @@ export function attachCanvasInteractions({
     if (finishResult.kind === "noop") return;
 
     if (finishResult.kind === "reject-nonconvex") {
-      alert(
-        "This open region is nonconvex. Please adjust the vertices before pressing Enter.",
-      );
+      alert(finishResult.reason);
       return;
     }
 
@@ -536,10 +533,7 @@ export function attachCanvasInteractions({
       kind: "delete-vertex",
       deleteIndex,
     });
-    applyEditorTransition(
-      deletion,
-      "Deleting this vertex would make the region nonconvex.",
-    );
+    applyEditorTransition(deletion);
   };
 
   const handleDoubleClickAt = (clientX: number, clientY: number) => {
@@ -555,10 +549,7 @@ export function attachCanvasInteractions({
       point: logicalMouse,
     });
     if (hullRepair.kind !== "noop") {
-      applyEditorTransition(
-        hullRepair,
-        "Repairing this region would make it nonconvex.",
-      );
+      applyEditorTransition(hullRepair);
       return;
     }
 
@@ -574,10 +565,7 @@ export function attachCanvasInteractions({
         point: logicalMouse,
       });
       if (insertion.kind !== "noop") {
-        applyEditorTransition(
-          insertion,
-          "Inserting this point would make the region nonconvex.",
-        );
+        applyEditorTransition(insertion);
         return;
       }
     }
@@ -590,10 +578,7 @@ export function attachCanvasInteractions({
         point: { x: logicalMouse.x, y: logicalMouse.y },
       });
       if (insertion.kind !== "noop") {
-        applyEditorTransition(
-          insertion,
-          "Inserting this point would make the region nonconvex.",
-        );
+        applyEditorTransition(insertion);
       }
     }
   };
@@ -646,10 +631,7 @@ export function attachCanvasInteractions({
         event.clientX,
         event.clientY,
       );
-      applyEditorTransition(
-        getEditorTransition(state, { kind: "click", point }),
-        "Adding this vertex would make the polytope nonconvex. Please choose another point.",
-      );
+      applyEditorTransition(getEditorTransition(state, { kind: "click", point }));
     }
   };
 

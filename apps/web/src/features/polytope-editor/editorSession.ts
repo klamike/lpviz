@@ -30,7 +30,9 @@ type EditorEditResult = {
 
 type EditorTransition =
   | { kind: "noop" }
-  | { kind: "reject-nonconvex" }
+  // the action that produced the rejection knows why; the reason travels with
+  // the transition so callers don't each hardcode (and risk drifting) a message
+  | { kind: "reject-nonconvex"; reason: string }
   | {
       kind: "edit";
       result: EditorEditResult;
@@ -232,7 +234,11 @@ export function getEditorTransition(
 
       const tentative = [...state.vertices, action.point];
       if (tentative.length >= 3 && !VRep.fromPoints(tentative).isConvex()) {
-        return { kind: "reject-nonconvex" };
+        return {
+          kind: "reject-nonconvex",
+          reason:
+            "Adding this vertex would make the polytope nonconvex. Please choose another point.",
+        };
       }
 
       return {
@@ -251,7 +257,11 @@ export function getEditorTransition(
       }
 
       if (!isConvexChain(state.vertices)) {
-        return { kind: "reject-nonconvex" };
+        return {
+          kind: "reject-nonconvex",
+          reason:
+            "This open region is nonconvex. Please adjust the vertices before pressing Enter.",
+        };
       }
 
       return {
