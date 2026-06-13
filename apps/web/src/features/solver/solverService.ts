@@ -7,7 +7,28 @@ import {
   type IteratePath,
 } from "@/features/core/store";
 import type { ResultTextBlock } from "@/features/solver/types";
+import type { SolverWorkerSuccessResponse } from "@/features/solver/solverWorker";
 import { fmtE, fmtF, fmtInt, fmtStr } from "@lpviz/solver-engine/fmt";
+
+// Dispatch an unpacked worker result to the matching apply*Result. Replaces the
+// per-solver applyResult that each SolverControl used to carry (each of which
+// re-narrowed the response by solver — redundant, since the response already
+// discriminates on `solver`).
+export function applySolverResult(
+  response: SolverWorkerSuccessResponse,
+  updateResult: (payload: ResultRenderPayload) => void,
+): void {
+  switch (response.solver) {
+    case "ipm":
+      return applyIPMResult(response.result, updateResult);
+    case "pdhg":
+      return applyPDHGResult(response.result, updateResult);
+    case "simplex":
+      return applySimplexResult(response.result, updateResult);
+    case "central":
+      return applyCentralPathResult(response.result, updateResult);
+  }
+}
 
 type VirtualResultRow =
   | string

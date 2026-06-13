@@ -16,6 +16,7 @@ import {
   type SolverSettingUpdater,
 } from "@/features/solver/solverControls";
 import {
+  applySolverResult,
   formatVirtualResultRow,
   type ResultRenderPayload,
   type VirtualResultPayload,
@@ -271,7 +272,7 @@ export function createSolverActions(
     try {
       const response = await runSolverWorker(request);
       if (gen !== requestGeneration) return;
-      solverDefinition.applyResult(response, (payload) => render(payload));
+      applySolverResult(response, (payload) => render(payload));
       cm.draw();
     } catch (error) {
       if (gen !== requestGeneration) return;
