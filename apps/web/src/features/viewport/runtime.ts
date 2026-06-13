@@ -1,12 +1,10 @@
 import {
-  ALL_VIEWPORT_DIRTY,
   DEFAULT_VIEW_ANGLE,
   getDisplayedIterateZ,
   getState,
   setState,
   on,
   onMeta,
-  type ViewportDirtyFlags,
 } from "@/features/core/store";
 import type { BoundingBox } from "@lpviz/math/geometry";
 import type { PointXY } from "@lpviz/math/types";
@@ -45,6 +43,7 @@ import {
   getViewportUnboundedClipBounds,
   isViewport3DState,
 } from "./dirtyFlags";
+import { getSnapshotViewportDirtyFlags } from "./snapshotDirty";
 import {
   getViewport2DControlsConfig,
   getViewport2DControlsSnapshot,
@@ -74,47 +73,6 @@ import {
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 
-
-const getGridPanKey = (snapshot: ViewportRenderSnapshot) =>
-  snapshot.mode === "2d"
-    ? `${Math.round(snapshot.target.x)}:${Math.round(snapshot.target.y)}`
-    : "";
-
-function getSnapshotViewportDirtyFlags(
-  prev: ViewportRenderSnapshot,
-  next: ViewportRenderSnapshot,
-): ViewportDirtyFlags {
-  if (prev.mode !== next.mode) {
-    return ALL_VIEWPORT_DIRTY;
-  }
-
-  if (prev.transitionZMultiplier !== next.transitionZMultiplier) {
-    return TRANSITION_VIEWPORT_DIRTY_FLAGS;
-  }
-
-  const sizeChanged = prev.width !== next.width || prev.height !== next.height;
-  const zoomChanged =
-    prev.scaleFactor !== next.scaleFactor ||
-    prev.unitsPerPixel !== next.unitsPerPixel ||
-    prev.gridSpacing !== next.gridSpacing ||
-    prev.orthographic.left !== next.orthographic.left ||
-    prev.orthographic.right !== next.orthographic.right ||
-    prev.orthographic.top !== next.orthographic.top ||
-    prev.orthographic.bottom !== next.orthographic.bottom ||
-    prev.perspective.fov !== next.perspective.fov ||
-    prev.perspective.aspect !== next.perspective.aspect ||
-    prev.perspective.near !== next.perspective.near ||
-    prev.perspective.far !== next.perspective.far;
-  if (zoomChanged || sizeChanged) {
-    return { grid: true, objective: true };
-  }
-
-  if (getGridPanKey(prev) !== getGridPanKey(next)) {
-    return { grid: true };
-  }
-
-  return {};
-}
 
 type ViewportZBounds = {
   minZ: number;
