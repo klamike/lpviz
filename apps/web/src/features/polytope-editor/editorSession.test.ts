@@ -96,6 +96,9 @@ describe("getEditorTransition: click", () => {
       point: { x: -1, y: -1 },
     });
     expect(t.kind).toBe("reject-nonconvex");
+    // the reason now travels with the transition (callers no longer hardcode it)
+    if (t.kind === "reject-nonconvex")
+      expect(t.reason).toContain("nonconvex");
   });
 
   test("click while selecting objective picks the objective", () => {
@@ -159,6 +162,8 @@ describe("getEditorTransition: finish-open", () => {
       { kind: "finish-open" },
     );
     expect(t.kind).toBe("reject-nonconvex");
+    if (t.kind === "reject-nonconvex")
+      expect(t.reason).toContain("nonconvex");
   });
 });
 
