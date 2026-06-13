@@ -1,11 +1,11 @@
 import type { State } from "@/features/core/store";
-import { computeFlatZ } from "@/features/core/store";
 import { Group } from "three";
+import { writeFlatXYZ } from "../helpers/flatPositions";
 import { PathRibbon } from "../helpers/pathRibbon";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { LayerBase } from "./base/LayerBase";
 
 const TRACE_COLOR = "#ffa500";
 const TRACE_OPACITY = 0.4;
@@ -16,27 +16,18 @@ type TraceEntry = State["traceBuffer"][number];
 let pointScratch = new Float32Array(0);
 
 function buildEntryPoints(entry: TraceEntry): Float32Array {
-  const { points, count, stride, objectiveVector } = entry;
-  if (pointScratch.length < count * 3) {
-    pointScratch = new Float32Array(count * 3);
+  if (pointScratch.length < entry.count * 3) {
+    pointScratch = new Float32Array(entry.count * 3);
   }
-  for (let i = 0; i < count; i++) {
-    const base = i * stride;
-    const o = i * 3;
-    pointScratch[o] = points[base]!;
-    pointScratch[o + 1] = points[base + 1]!;
-    pointScratch[o + 2] = computeFlatZ(points, base, stride, objectiveVector);
-  }
+  writeFlatXYZ(
+    pointScratch,
+    entry.points,
+    entry.count,
+    entry.stride,
+    entry.objectiveVector,
+  );
   return pointScratch;
 }
-
-type PrevState = {
-  traceEnabled: boolean;
-  traceBuffer: State["traceBuffer"];
-  is3DMode: boolean;
-  isTransitioning3D: boolean;
-  mode: string;
-};
 
 // Trace paths render as screen-space ribbons (see pathRibbon.ts): the same
 // 2px fat-line styling as the rest of the app without Line2's quad-per-
@@ -45,18 +36,19 @@ type PrevState = {
 // ribbon whose path texture is built and uploaded exactly once — a rotation
 // step costs one chunk upload, every iterate is drawn (no sampling), and
 // previously drawn curves can never shift between frames.
-export class TraceLineLayer implements Layer {
+export class TraceLineLayer extends LayerBase {
   readonly object3D: Group;
-  readonly renderPass = "traceLines" as const;
-  readonly invalidationKeys = ["trace"] as const;
+  override readonly renderPass = "traceLines" as const;
+  override readonly invalidationKeys = ["trace"] as const;
   private pool: PathRibbon[] = [];
   private assigned = new Map<TraceEntry, PathRibbon>();
-  private prev: PrevState | null = null;
+  private lastMode: string | null = null;
   // monotonic append sequence stamped on each ribbon mesh; TraceCache keys
   // its incremental accumulation on it (see TraceCache.ts)
   private nextSeq = 0;
 
   constructor() {
+    super();
     this.object3D = new Group();
   }
 
@@ -72,30 +64,28 @@ export class TraceLineLayer implements Layer {
     return ribbon;
   }
 
-  update(ctx: SceneContext): void {
+  protected override everyFrame(ctx: SceneContext): void {
+    const raw = ctx.getState();
+    this.object3D.scale.z =
+      (raw.zScale / 100) * ctx.getSnapshot().transitionZMultiplier;
+  }
+
+  protected dependencies(ctx: SceneContext): readonly unknown[] {
+    const raw = ctx.getState();
+    return [
+      raw.traceEnabled,
+      raw.traceBuffer,
+      raw.is3DMode,
+      raw.isTransitioning3D,
+      ctx.getSnapshot().mode,
+    ];
+  }
+
+  protected rebuild(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
-    this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
-
-    const p = this.prev;
-    if (
-      p &&
-      p.traceEnabled === raw.traceEnabled &&
-      p.traceBuffer === raw.traceBuffer &&
-      p.is3DMode === raw.is3DMode &&
-      p.isTransitioning3D === raw.isTransitioning3D &&
-      p.mode === snap.mode
-    ) {
-      return;
-    }
-    const modeChanged = !p || p.mode !== snap.mode;
-    this.prev = {
-      traceEnabled: raw.traceEnabled,
-      traceBuffer: raw.traceBuffer,
-      is3DMode: raw.is3DMode,
-      isTransitioning3D: raw.isTransitioning3D,
-      mode: snap.mode,
-    };
+    const modeChanged = this.lastMode !== snap.mode;
+    this.lastMode = snap.mode;
 
     const shouldShow =
       raw.traceEnabled &&

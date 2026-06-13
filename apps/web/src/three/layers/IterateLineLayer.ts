@@ -1,16 +1,13 @@
-import {
-  computeFlatZ,
-  type IteratePath,
-  type State,
-} from "@/features/core/store";
+import { type IteratePath } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { Group } from "three";
+import { writeFlatXYZ } from "../helpers/flatPositions";
 import { PathRibbon } from "../helpers/pathRibbon";
 import { PHASE_COLORS_BYTES } from "../helpers/phaseColors";
 import { RENDER_ORDER } from "../helpers/renderOrder";
 import { shouldRenderSnapshotMode } from "../helpers/sceneVisibility";
-import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { LayerBase } from "./base/LayerBase";
 
 const ITERATE_LINE_COLOR = "#800080";
 const ITERATE_LINE_THICKNESS = 3;
@@ -22,19 +19,12 @@ function buildPositions(
   path: IteratePath,
   objectiveVector: PointXY | null,
 ): Float32Array {
-  const { points, count, stride } = path;
-  if (pointScratch.length < count * 3) {
-    pointScratch = new Float32Array(count * 3);
+  // raw z: zScale and the 2D/3D transition flattening are applied via
+  // object3D.scale.z, so neither rebuilds the path
+  if (pointScratch.length < path.count * 3) {
+    pointScratch = new Float32Array(path.count * 3);
   }
-  for (let i = 0; i < count; i++) {
-    const src = i * stride;
-    const base = i * 3;
-    pointScratch[base] = points[src]!;
-    pointScratch[base + 1] = points[src + 1]!;
-    // raw z: zScale and the 2D/3D transition flattening are applied via
-    // object3D.scale.z, so neither rebuilds the path
-    pointScratch[base + 2] = computeFlatZ(points, src, stride, objectiveVector);
-  }
+  writeFlatXYZ(pointScratch, path.points, path.count, path.stride, objectiveVector);
   return pointScratch;
 }
 
@@ -53,54 +43,43 @@ function buildPhaseColors(phases: number[]): Uint8Array {
   return colorScratch;
 }
 
-type PrevState = {
-  iteratePath: State["iteratePath"];
-  iteratePhases: State["iteratePhases"];
-  iterateObjectiveVector: PointXY | null;
-  mode: string;
-};
-
 // The iterate path renders as a screen-space ribbon (see pathRibbon.ts):
 // true fat-line styling without Line2's quad-per-segment cost, which made
 // every camera frame pay for up to maxit capped quads. Phase coloring rides
 // along as a per-point color texture, replacing the old one-Line2-per-phase-
 // segment pool (and its draw call per segment).
-export class IterateLineLayer implements Layer {
+export class IterateLineLayer extends LayerBase {
   readonly object3D: Group;
-  readonly renderPass = "trace" as const;
-  readonly invalidationKeys = ["iterate"] as const;
+  override readonly renderPass = "trace" as const;
+  override readonly invalidationKeys = ["iterate"] as const;
   private ribbon: PathRibbon | null = null;
-  private prev: PrevState | null = null;
 
   constructor() {
+    super();
     this.object3D = new Group();
   }
 
-  update(ctx: SceneContext): void {
+  protected override everyFrame(ctx: SceneContext): void {
     const raw = ctx.getState();
-    const snap = ctx.getSnapshot();
-    this.object3D.scale.z = (raw.zScale / 100) * snap.transitionZMultiplier;
+    this.object3D.scale.z =
+      (raw.zScale / 100) * ctx.getSnapshot().transitionZMultiplier;
+  }
 
-    const p = this.prev;
-    if (
-      p &&
-      p.iteratePath === raw.iteratePath &&
-      p.iteratePhases === raw.iteratePhases &&
-      p.iterateObjectiveVector === raw.iterateObjectiveVector &&
-      p.mode === snap.mode
-    ) {
-      return;
-    }
-    this.prev = {
-      iteratePath: raw.iteratePath,
-      iteratePhases: raw.iteratePhases,
-      iterateObjectiveVector: raw.iterateObjectiveVector,
-      mode: snap.mode,
-    };
+  protected dependencies(ctx: SceneContext): readonly unknown[] {
+    const raw = ctx.getState();
+    return [
+      raw.iteratePath,
+      raw.iteratePhases,
+      raw.iterateObjectiveVector,
+      ctx.getSnapshot().mode,
+    ];
+  }
 
+  protected rebuild(ctx: SceneContext): void {
+    const raw = ctx.getState();
     if (
       raw.iteratePath.count < 2 ||
-      !shouldRenderSnapshotMode(snap.mode, raw)
+      !shouldRenderSnapshotMode(ctx.getSnapshot().mode, raw)
     ) {
       this.object3D.visible = false;
       return;
