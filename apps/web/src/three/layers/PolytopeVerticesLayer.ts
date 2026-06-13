@@ -8,8 +8,8 @@ import {
   SHARED_CIRCLE_TEXTURE,
   SHARED_SQUARE_TEXTURE,
 } from "../helpers/sharedTextures";
-import type { Layer } from "../Layer";
 import type { SceneContext } from "../SceneContext";
+import { LayerBase } from "./base/LayerBase";
 
 const VERTEX_COLOR = "#ff0000";
 const OPEN_ANCHOR_COLOR = "#ff0000";
@@ -43,21 +43,15 @@ function applyPositions(pts: Points, positions: Float32Array) {
   pts.visible = positions.length > 0;
 }
 
-type PrevState = {
-  vertices: State["vertices"];
-  completionMode: State["completionMode"];
-  polytope: State["polytope"];
-};
-
-export class PolytopeVerticesLayer implements Layer {
+export class PolytopeVerticesLayer extends LayerBase {
   readonly object3D: Group;
-  readonly renderPass = "vertices" as const;
-  readonly invalidationKeys = ["polytope"] as const;
+  override readonly renderPass = "vertices" as const;
+  override readonly invalidationKeys = ["polytope"] as const;
   private circlePoints: Points;
   private squarePoints: Points;
-  private prev: PrevState | null = null;
 
   constructor() {
+    super();
     const circleMat = new PointsMaterial({
       color: VERTEX_COLOR,
       size: VERTEX_PIXEL_SIZE,
@@ -91,7 +85,17 @@ export class PolytopeVerticesLayer implements Layer {
     this.squarePoints = sPts;
   }
 
-  update(ctx: SceneContext): void {
+  protected dependencies(ctx: SceneContext): readonly unknown[] {
+    const raw = ctx.getState();
+    return [
+      raw.vertices,
+      raw.completionMode,
+      raw.polytope,
+      ctx.getSnapshot().mode,
+    ];
+  }
+
+  protected rebuild(ctx: SceneContext): void {
     const raw = ctx.getState();
     const snap = ctx.getSnapshot();
 
@@ -99,21 +103,6 @@ export class PolytopeVerticesLayer implements Layer {
       raw.vertices.length > 0 && shouldRenderSnapshotMode(snap.mode, raw);
     this.object3D.visible = visible;
     if (!visible) return;
-
-    const p = this.prev;
-    if (
-      p &&
-      p.vertices === raw.vertices &&
-      p.completionMode === raw.completionMode &&
-      p.polytope === raw.polytope
-    ) {
-      return;
-    }
-    this.prev = {
-      vertices: raw.vertices,
-      completionMode: raw.completionMode,
-      polytope: raw.polytope,
-    };
 
     const hasDerived =
       raw.completionMode === "open" &&
