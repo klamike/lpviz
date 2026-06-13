@@ -15,38 +15,13 @@ import {
   type SolverControl,
   type SolverSettingUpdater,
 } from "@/features/solver/solverControls";
-import {
-  applySolverResult,
-  formatVirtualResultRow,
-  type ResultRenderPayload,
-  type VirtualResultPayload,
-} from "@/features/solver/solverService";
+import { applySolverResult } from "@/features/solver/solverService";
 import { createRotationController } from "@/features/solver/rotationController";
-import type { ResultTextBlock } from "@/features/solver/types";
+import { createResultPresenter } from "@/features/solver/resultPresenter";
 import { runSolverWorker } from "@/features/solver/workerClient";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import { isObjectiveDirectionUnbounded } from "@lpviz/polytope/objectiveDirection";
 import { hasPolytopeLines } from "@lpviz/polytope/polytopeTypes";
-
-const ROTATE_ROW_LIMIT = 20;
-type RenderOptions = { limitVirtualRows?: boolean };
-const getMaxLineChars = (lines: string[]) =>
-  lines.reduce(
-    (m, line) => Math.max(m, ...line.split("\n").map((l) => l.length)),
-    0,
-  );
-const createVirtualBlock = (
-  row: NonNullable<ReturnType<VirtualResultPayload["rows"]["at"]>>,
-  index: number,
-): ResultTextBlock => ({
-  className: "iterate-item",
-  text: formatVirtualResultRow(row),
-  index,
-});
-const createResultBlock = (
-  className: ResultTextBlock["className"],
-  text: string,
-): ResultTextBlock => ({ className, text });
 
 export type SolverActions = {
   updateSolverSetting: SolverSettingUpdater;
@@ -75,11 +50,7 @@ export function createSolverActions(
 ): SolverActions {
   let requestGeneration = 0;
   let iterateHoverActive = false;
-  let lastVirtualResult: VirtualResultPayload | null = null;
-  let pendingRender: {
-    payload: ResultRenderPayload;
-    options: RenderOptions;
-  } | null = null;
+  const present = createResultPresenter({ getCanvasManager });
 
   const updateSolverSetting: SolverSettingUpdater = (key, value) =>
     setState({
@@ -102,112 +73,10 @@ export function createSolverActions(
   const getSolverControl = (mode: SolverMode) =>
     solverControls.find((c) => c.mode === mode);
 
-  const applyRender = (
-    payload: ResultRenderPayload,
-    options: RenderOptions = {},
-  ) => {
-    const cm = getCanvasManager();
-    const limitVirtualRows =
-      options.limitVirtualRows ?? getState().rotateObjectiveMode;
-    if (payload.type === "virtual") {
-      lastVirtualResult = payload;
-      const rows = payload.rows;
-      const rowCount = limitVirtualRows
-        ? Math.min(ROTATE_ROW_LIMIT, rows.length)
-        : rows.length;
-      // Rows are fixed-width; sampling three avoids formatting all of them
-      // (100k at max settings) just to measure the widest line.
-      const sampleRows =
-        rowCount > 0
-          ? [rows.at(0)!, rows.at(rowCount >> 1)!, rows.at(rowCount - 1)!]
-          : [];
-      setState(
-        {
-          resultDisplayMode: "virtual",
-          resultBlocks: null,
-          resultVirtualHeader: payload.header || "",
-          resultVirtualFooter: payload.footer ?? null,
-          resultVirtualShowEmpty: rowCount === 0,
-          resultVirtualRows: {
-            length: rowCount,
-            at: (index: number) => {
-              if (index >= rowCount) return undefined;
-              const row = rows.at(index);
-              return row === undefined
-                ? undefined
-                : createVirtualBlock(row, index);
-            },
-          },
-          resultMaxLineChars: getMaxLineChars([
-            payload.header || "",
-            ...(payload.footer ? [payload.footer] : []),
-            ...sampleRows.map((r) => formatVirtualResultRow(r)),
-          ]),
-          highlightIteratePathIndex: null,
-        },
-      );
-    } else {
-      lastVirtualResult = null;
-      setState(
-        {
-          resultDisplayMode: "blocks",
-          resultBlocks: payload.blocks,
-          resultVirtualHeader: null,
-          resultVirtualFooter: null,
-          resultVirtualShowEmpty: false,
-          resultVirtualRows: [],
-          resultMaxLineChars: getMaxLineChars(
-            payload.blocks.map((b) => b.text),
-          ),
-          highlightIteratePathIndex: null,
-        },
-      );
-    }
-    cm?.draw();
-  };
-  const render = (
-    payload: ResultRenderPayload,
-    options: RenderOptions = {},
-  ) => {
-    if (payload.type === "virtual") lastVirtualResult = payload;
-    else lastVirtualResult = null;
-    if (getState().isNavigatingViewport) {
-      pendingRender = { payload, options };
-      getCanvasManager()?.draw();
-      return;
-    }
-    pendingRender = null;
-    applyRender(payload, options);
-  };
-  const flushDeferredRender = () => {
-    if (!pendingRender || getState().isNavigatingViewport) return;
-    const p = pendingRender;
-    pendingRender = null;
-    applyRender(p.payload, p.options);
-  };
-  const clearResultState = () => {
-    lastVirtualResult = null;
-    pendingRender = null;
-    setState({
-      resultDisplayMode: "usage",
-      resultBlocks: null,
-      resultVirtualHeader: null,
-      resultVirtualFooter: null,
-      resultVirtualShowEmpty: false,
-      resultVirtualRows: [],
-      resultMaxLineChars: 0,
-      highlightIteratePathIndex: null,
-    });
-    getCanvasManager()?.draw();
-  };
-  const restoreFullVirtualResult = () => {
-    if (lastVirtualResult)
-      render(lastVirtualResult, { limitVirtualRows: false });
-  };
   const clearComputedState = () => {
     clearIterateState();
     resetTraceState();
-    clearResultState();
+    present.clearResult();
   };
   const invalidatePendingSolveResults = () => {
     requestGeneration++;
@@ -238,7 +107,7 @@ export function createSolverActions(
     const runBlock = solverDefinition.getRunBlock(state);
     if (runBlock) {
       invalidatePendingSolveResults();
-      render(runBlock);
+      present.render(runBlock);
       return;
     }
     const request = solverDefinition.buildRequest(state);
@@ -252,20 +121,13 @@ export function createSolverActions(
     try {
       const response = await runSolverWorker(request);
       if (gen !== requestGeneration) return;
-      applySolverResult(response, (payload) => render(payload));
+      applySolverResult(response, (payload) => present.render(payload));
       cm.draw();
     } catch (error) {
       if (gen !== requestGeneration) return;
-      render({
-        type: "blocks",
-        blocks: [
-          createResultBlock("iterate-header", "Solver error"),
-          createResultBlock(
-            "iterate-item-nohover",
-            error instanceof Error ? error.message : String(error),
-          ),
-        ],
-      });
+      present.renderError(
+        error instanceof Error ? error.message : String(error),
+      );
     }
   };
 
@@ -279,7 +141,7 @@ export function createSolverActions(
     if (!active) rotation.cancel();
     else rotation.resetTiming();
     setState({ rotateObjectiveMode: active, highlightIteratePathIndex: null });
-    if (!active) restoreFullVirtualResult();
+    if (!active) present.restoreFullVirtualResult();
   };
   const stopActiveMotion = () => {
     const s = getState();
@@ -293,7 +155,7 @@ export function createSolverActions(
       highlightIteratePathIndex: null,
       animationIntervalId: null,
     });
-    if (wasRotating) restoreFullVirtualResult();
+    if (wasRotating) present.restoreFullVirtualResult();
   };
   const handleProblemChange = () => {
     const s = getState();
@@ -419,7 +281,7 @@ export function createSolverActions(
   on(
     ["isNavigatingViewport"],
     ({ isNavigatingViewport }) => {
-      if (wasNavigatingViewport && !isNavigatingViewport) flushDeferredRender();
+      if (wasNavigatingViewport && !isNavigatingViewport) present.flushDeferred();
       wasNavigatingViewport = isNavigatingViewport;
     },
     controller.signal,
@@ -435,11 +297,11 @@ export function createSolverActions(
     invalidatePendingSolveResults,
     computePath,
     handleProblemChange,
-    flushDeferredRender,
+    flushDeferredRender: present.flushDeferred,
     clearComputedState,
     setConstraintHighlight,
     setIterateHighlight,
-    restoreFullVirtualResult,
+    restoreFullVirtualResult: present.restoreFullVirtualResult,
     solverControls,
     getSolverControl,
     hasUnboundedObjectiveDirection,
