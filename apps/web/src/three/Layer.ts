@@ -3,14 +3,19 @@ import type { Object3D } from "three";
 import type { SceneContext } from "./SceneContext";
 
 type LayerInvalidationKey = keyof ViewportDirtyFlags;
-export type RenderPassName =
-  | "background"
-  | "transparent"
-  | "foreground"
-  | "vertices"
-  | "traceLines"
-  | "trace"
-  | "overlay";
+
+// The render passes in painter's-algorithm order — the single source of truth
+// for both the pass names and the order SceneManager renders them in.
+export const RENDER_PASSES = [
+  "background",
+  "transparent",
+  "foreground",
+  "vertices",
+  "traceLines",
+  "trace",
+  "overlay",
+] as const;
+export type RenderPassName = (typeof RENDER_PASSES)[number];
 
 export type LayerRenderObject = {
   readonly object3D: Object3D;
