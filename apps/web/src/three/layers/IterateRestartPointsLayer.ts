@@ -1,4 +1,4 @@
-import { computeIterateZ, type State } from "@/features/core/store";
+import { computeFlatZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { BufferAttribute, Points, PointsMaterial } from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
@@ -96,8 +96,9 @@ export class IterateRestartPointsLayer implements Layer {
       return;
     }
 
+    const { points, count, stride } = raw.iteratePath;
     const visibleRestartIndices = raw.iterateRestartIndices.filter(
-      (idx) => idx >= 0 && idx < raw.iteratePath.length,
+      (idx) => idx >= 0 && idx < count,
     );
     if (visibleRestartIndices.length === 0) {
       this.object3D.visible = false;
@@ -106,8 +107,7 @@ export class IterateRestartPointsLayer implements Layer {
 
     const is3D = snap.mode === "3d";
     const hasPhases =
-      raw.iteratePhases.length === raw.iteratePath.length &&
-      raw.iteratePhases.length > 0;
+      raw.iteratePhases.length === count && raw.iteratePhases.length > 0;
 
     const positions = new Float32Array(visibleRestartIndices.length * 3);
     const colors = hasPhases
@@ -116,11 +116,12 @@ export class IterateRestartPointsLayer implements Layer {
 
     for (let i = 0; i < visibleRestartIndices.length; i++) {
       const restartIndex = visibleRestartIndices[i]!;
-      const entry = raw.iteratePath[restartIndex]!;
-      positions[i * 3] = entry[0]!;
-      positions[i * 3 + 1] = entry[1]!;
+      const base = restartIndex * stride;
+      positions[i * 3] = points[base]!;
+      positions[i * 3 + 1] = points[base + 1]!;
       positions[i * 3 + 2] = is3D
-        ? ((computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) /
+        ? ((computeFlatZ(points, base, stride, raw.iterateObjectiveVector) *
+            raw.zScale) /
             100) *
           snap.transitionZMultiplier
         : 0;

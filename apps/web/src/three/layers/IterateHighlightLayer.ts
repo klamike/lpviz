@@ -1,4 +1,4 @@
-import { computeIterateZ, type State } from "@/features/core/store";
+import { computeFlatZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { BufferAttribute, Points, PointsMaterial } from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
@@ -77,25 +77,22 @@ export class IterateHighlightLayer implements Layer {
     };
 
     const index = raw.highlightIteratePathIndex;
+    const { points, count, stride } = raw.iteratePath;
     if (
       index === null ||
       index < 0 ||
-      index >= raw.iteratePath.length ||
+      index >= count ||
       !shouldRenderSnapshotMode(snap.mode, raw)
     ) {
       this.object3D.visible = false;
       return;
     }
 
-    const entry = raw.iteratePath[index];
-    if (!entry) {
-      this.object3D.visible = false;
-      return;
-    }
-
+    const base = index * stride;
     const is3D = snap.mode === "3d";
     const z = is3D
-      ? ((computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) /
+      ? ((computeFlatZ(points, base, stride, raw.iterateObjectiveVector) *
+          raw.zScale) /
           100) *
         snap.transitionZMultiplier
       : 0;
@@ -104,7 +101,10 @@ export class IterateHighlightLayer implements Layer {
     this.object3D.geometry.dispose();
     this.object3D.geometry.setAttribute(
       "position",
-      new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3),
+      new BufferAttribute(
+        new Float32Array([points[base]!, points[base + 1]!, z]),
+        3,
+      ),
     );
     this.object3D.visible = true;
   }

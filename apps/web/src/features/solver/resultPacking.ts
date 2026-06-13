@@ -1,9 +1,10 @@
+import type { IteratePath } from "@/features/core/store";
 import type { VecN } from "@lpviz/math/types";
 import { takeFloat64, takeUint8 } from "./resultBufferPool";
 import type {
+  SolverEngineSuccessResponse,
   SolverWorkerPayload,
   SolverWorkerResponse,
-  SolverWorkerSuccessResponse,
 } from "./solverWorker";
 
 // Solver results at high maxit are tens of thousands of small Float64Arrays
@@ -60,13 +61,12 @@ function packIterations(
   return packed;
 }
 
-function unpackIterations(packed: Float64Array, stride: number) {
-  const count = Math.floor(packed.length / stride);
-  const entries: Float64Array[] = new Array(count);
-  for (let i = 0; i < count; i++) {
-    entries[i] = packed.subarray(i * stride, i * stride + stride);
-  }
-  return entries;
+// The packed iterations are already a flat stride-3 block (z baked) in one
+// transferred buffer, so the iterate path is that buffer verbatim — no
+// per-iterate views are materialized (their allocation, ~100k objects per solve
+// at high maxit, was the dominant main-thread GC cost during rotation).
+function unpackIteratePath(packed: Float64Array, stride: number): IteratePath {
+  return { points: packed, count: Math.floor(packed.length / stride), stride };
 }
 
 function packRows(
@@ -109,7 +109,7 @@ function packRows(
 }
 
 export function packSolverResponse(
-  response: SolverWorkerSuccessResponse,
+  response: SolverEngineSuccessResponse,
   request: SolverWorkerPayload,
 ): { wire: PackedSolverWorkerResponse; transfer: ArrayBuffer[] } {
   if (response.solver === "pdhg") {
@@ -202,7 +202,7 @@ export function unpackSolverResponse(
     return wire;
   }
 
-  const entries = unpackIterations(wire.iterations, wire.stride);
+  const iteratePath = unpackIteratePath(wire.iterations, wire.stride);
   const { x, y, objective, infeasibility, extra, restart } = wire.rows;
 
   // The row columns are referenced only by the displayed virtual result; once
@@ -227,7 +227,7 @@ export function unpackSolverResponse(
       solver: "pdhg",
       success: true,
       result: {
-        iterations: entries,
+        iterations: iteratePath,
         header: wire.header,
         rows: {
           length: x.length,
@@ -260,7 +260,7 @@ export function unpackSolverResponse(
     result: {
       iterates: {
         solution: {
-          x: entries,
+          x: iteratePath,
           header: wire.header,
           rows: {
             length: x.length,

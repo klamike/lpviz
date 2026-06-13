@@ -7,7 +7,7 @@ export type VirtualRowBlocks = {
   length: number;
   at(index: number): ResultTextBlock | undefined;
 };
-import type { Line, PointXY, PointXYZ, VecNs } from "@lpviz/math/types";
+import type { Line, PointXY, PointXYZ } from "@lpviz/math/types";
 import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "@lpviz/viewport/defaults";
 
@@ -55,15 +55,25 @@ export type EditorInteractionState =
     }
   | { kind: "dragging"; target: DragTarget };
 
-export interface TraceEntry {
-  // Flat, contiguous iterate data: element `i` is at [i*stride .. i*stride+stride).
-  // stride 3 = [x, y, bakedTotalZ] (packed pdhg/ipm), stride 2 = [x, y]
-  // (simplex / central path, z renders flat). Storing one array per chunk
-  // instead of one Float64Array view per iterate keeps the trace ring at a few
-  // dozen live objects rather than millions, which is what a major GC must mark.
+// Flat, contiguous iterate data: element `i` lives at [i*stride .. i*stride+stride).
+// stride 3 = [x, y, bakedTotalZ] (packed pdhg/ipm), stride 2 = [x, y] (simplex /
+// central path, z renders flat). One array per solve instead of one Float64Array
+// view per iterate keeps the iterate path and trace ring at a few dozen live
+// objects rather than millions — which is what a (SpiderMonkey) major GC must
+// mark, and was the source of the mid-rotation frame drops at high maxit.
+export interface IteratePath {
   points: Float64Array;
   count: number;
   stride: number;
+}
+
+export const EMPTY_ITERATE_PATH: IteratePath = {
+  points: new Float64Array(0),
+  count: 0,
+  stride: 3,
+};
+
+export interface TraceEntry extends IteratePath {
   objectiveVector: PointXY | null;
 }
 
@@ -150,12 +160,12 @@ export type State = {
 
   solverMode: SolverMode;
   solverSettings: SolverSettings;
-  iteratePath: VecNs;
+  iteratePath: IteratePath;
   iteratePhases: number[];
   highlightIteratePathIndex: number | null;
   rotateObjectiveMode: boolean;
   animationIntervalId: number | null;
-  originalIteratePath: VecNs;
+  originalIteratePath: IteratePath;
   originalIteratePhases: number[];
   iterateRestartIndices: number[];
   originalIterateRestartIndices: number[];
@@ -206,12 +216,12 @@ const initialState: State = {
 
   solverMode: "central",
   solverSettings: { ...DEFAULT_SOLVER_SETTINGS },
-  iteratePath: [],
+  iteratePath: EMPTY_ITERATE_PATH,
   iteratePhases: [],
   highlightIteratePathIndex: null,
   rotateObjectiveMode: false,
   animationIntervalId: null,
-  originalIteratePath: [],
+  originalIteratePath: EMPTY_ITERATE_PATH,
   originalIteratePhases: [],
   iterateRestartIndices: [],
   originalIterateRestartIndices: [],
@@ -418,14 +428,14 @@ export function prepareAnimationInterval(): void {
 }
 
 export function updateIteratePaths(
-  iteratesArray: Float64Array[],
+  path: IteratePath,
   phasesArray?: number[],
   restartIndicesArray?: number[],
 ): void {
   const { objectiveVector } = getState();
   setState(
     buildIterateStatePatch(
-      iteratesArray,
+      path,
       phasesArray,
       restartIndicesArray,
       snapshotObjectiveVector(objectiveVector),
@@ -437,21 +447,26 @@ export function updateIteratePaths(
 export function clearIterateState(): void {
   setState(
     {
-      ...buildIterateStatePatch([], undefined, undefined, null),
+      ...buildIterateStatePatch(
+        EMPTY_ITERATE_PATH,
+        undefined,
+        undefined,
+        null,
+      ),
       highlightIteratePathIndex: null,
     },
     { viewportDirty: { iterate: true } },
   );
 }
 
-export function addTraceToBuffer(iteratesArray: Float64Array[]): void {
+export function addTraceToBuffer(path: IteratePath): void {
   const state = getState();
-  if (!state.traceEnabled || iteratesArray.length === 0) return;
+  if (!state.traceEnabled || path.count === 0) return;
   setState(
     {
       traceBuffer: appendedTraceBuffer(
         state,
-        iteratesArray,
+        path,
         snapshotObjectiveVector(state.objectiveVector),
       ),
     },
@@ -470,9 +485,10 @@ export function computeIterateZ(
   return totalValue - objectiveValue;
 }
 
-// computeIterateZ for a flat trace chunk: the iterate lives at `points[base..]`
-// with the given stride. Identical math to the per-view form above.
-export function computeFlatTraceZ(
+// computeIterateZ for a flat chunk: the iterate lives at `points[base..]` with
+// the given stride. Identical math to the per-view form above; used by both the
+// iterate-path and trace render layers.
+export function computeFlatZ(
   points: Float64Array,
   base: number,
   stride: number,
@@ -496,31 +512,25 @@ export function getDisplayedIterateZ(
 }
 
 export function updateIteratePathsWithTrace(
-  iteratesArray: Float64Array[],
+  path: IteratePath,
   phasesArray?: number[],
   restartIndicesArray?: number[],
 ): void {
   const state = getState();
   const objectiveSnapshot = snapshotObjectiveVector(state.objectiveVector);
   const patch: Partial<State> = buildIterateStatePatch(
-    iteratesArray,
+    path,
     phasesArray,
     restartIndicesArray,
     objectiveSnapshot,
   );
-  if (state.traceEnabled && iteratesArray.length > 0) {
-    patch.traceBuffer = appendedTraceBuffer(
-      state,
-      iteratesArray,
-      objectiveSnapshot,
-    );
+  if (state.traceEnabled && path.count > 0) {
+    patch.traceBuffer = appendedTraceBuffer(state, path, objectiveSnapshot);
   }
   setState(patch, {
     viewportDirty: {
       iterate: true,
-      ...(state.traceEnabled && iteratesArray.length > 0
-        ? { trace: true }
-        : {}),
+      ...(state.traceEnabled && path.count > 0 ? { trace: true } : {}),
     },
   });
 }
@@ -530,20 +540,16 @@ function snapshotObjectiveVector(objectiveVector: PointXY | null) {
 }
 
 
-const EMPTY_TRACE_POINTS = new Float64Array(0);
-
-// Collapse a solve's per-iterate Float64Array views into one flat chunk. Packed
-// pdhg/ipm results are already a contiguous stride-3 block in one transferred
-// buffer, so that buffer is exposed as a single view with no copy (and is later
-// handed back to the worker pool on eviction). Other solvers' iterates live in
-// independent buffers and are flattened once here.
-function buildTracePoints(iteratesArray: Float64Array[]): {
-  points: Float64Array;
-  count: number;
-  stride: number;
-} {
+// Collapse a solver's per-iterate Float64Array views into one flat IteratePath.
+// Packed pdhg/ipm results are already a contiguous stride-3 block in one
+// transferred buffer, so that buffer is exposed as a single view with no copy
+// (and is later handed back to the worker pool). Other solvers' iterates live
+// in independent buffers and are flattened once here.
+export function flattenIteratesToPath(
+  iteratesArray: Float64Array[],
+): IteratePath {
   const count = iteratesArray.length;
-  if (count === 0) return { points: EMPTY_TRACE_POINTS, count: 0, stride: 3 };
+  if (count === 0) return EMPTY_ITERATE_PATH;
   const first = iteratesArray[0]!;
   const stride = first.length >= 3 ? 3 : 2;
   const last = iteratesArray[count - 1]!;
@@ -554,11 +560,7 @@ function buildTracePoints(iteratesArray: Float64Array[]): {
     first.buffer === last.buffer &&
     last.byteOffset === (count - 1) * stride * F8
   ) {
-    return {
-      points: new Float64Array(first.buffer, 0, count * stride),
-      count,
-      stride,
-    };
+    return { points: new Float64Array(first.buffer, 0, count * stride), count, stride };
   }
   const points = new Float64Array(count * stride);
   for (let i = 0; i < count; i++) {
@@ -572,14 +574,15 @@ function buildTracePoints(iteratesArray: Float64Array[]): {
 
 function appendedTraceBuffer(
   state: State,
-  iteratesArray: Float64Array[],
+  path: IteratePath,
   objectiveSnapshot: PointXY | null,
 ): TraceEntry[] {
-  const built = buildTracePoints(iteratesArray);
+  // The trace chunk shares the iterate path's flat buffer (one object, no copy);
+  // the chunk outlives the iterate path in the ring and is recycled on eviction.
   const entry: TraceEntry = {
-    points: built.points,
-    count: built.count,
-    stride: built.stride,
+    points: path.points,
+    count: path.count,
+    stride: path.stride,
     objectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };
   const raw = [...state.traceBuffer, entry];
@@ -592,18 +595,17 @@ function appendedTraceBuffer(
 }
 
 function buildIterateStatePatch(
-  iteratesArray: Float64Array[],
+  path: IteratePath,
   phasesArray: number[] | undefined,
   restartIndicesArray: number[] | undefined,
   objectiveSnapshot: PointXY | null,
 ): Partial<State> {
-  // Path entries and phase/restart arrays are never mutated after creation
-  // (replay re-references entries while growing a fresh iteratePath array),
-  // so the "original" fields can share them instead of deep-copying — at
-  // high maxit the copies cost milliseconds and megabytes per solve.
+  // The flat path and phase/restart arrays are never mutated after creation
+  // (replay grows a fresh IteratePath over the same shared buffer), so the
+  // "original" fields can share them instead of deep-copying.
   return {
-    originalIteratePath: iteratesArray,
-    iteratePath: iteratesArray,
+    originalIteratePath: path,
+    iteratePath: path,
     iteratePhases: phasesArray ?? [],
     originalIteratePhases: phasesArray ?? [],
     iterateRestartIndices: restartIndicesArray ?? [],

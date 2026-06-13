@@ -92,7 +92,7 @@ export function mountAnimationControlsPanel(
   root.append(rot);
   function render(s: State) {
     const hasComputedLines = hasPolytopeLines(s.polytope);
-    const hasSolution = (s.originalIteratePath?.length ?? 0) > 0;
+    const hasSolution = (s.originalIteratePath?.count ?? 0) > 0;
     const hasObjective = s.objectiveVector !== null;
     const isRotating = s.rotateObjectiveMode;
     const isAnimating = s.animationIntervalId !== null && !isRotating;

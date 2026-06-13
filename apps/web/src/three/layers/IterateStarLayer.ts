@@ -1,4 +1,4 @@
-import { computeIterateZ, type State } from "@/features/core/store";
+import { computeFlatZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { BufferAttribute, Points, PointsMaterial } from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
@@ -81,22 +81,24 @@ export class IterateStarLayer implements Layer {
 
     const replayInProgress = raw.animationIntervalId !== null;
     const replayComplete =
-      raw.originalIteratePath.length === 0 ||
-      raw.iteratePath.length >= raw.originalIteratePath.length;
+      raw.originalIteratePath.count === 0 ||
+      raw.iteratePath.count >= raw.originalIteratePath.count;
     if (replayInProgress && !replayComplete) {
       this.object3D.visible = false;
       return;
     }
 
-    const entry = raw.iteratePath[raw.iteratePath.length - 1];
-    if (!entry || !shouldRenderSnapshotMode(snap.mode, raw)) {
+    const { points, count, stride } = raw.iteratePath;
+    if (count === 0 || !shouldRenderSnapshotMode(snap.mode, raw)) {
       this.object3D.visible = false;
       return;
     }
 
+    const base = (count - 1) * stride;
     const is3D = snap.mode === "3d";
     const z = is3D
-      ? ((computeIterateZ(entry, raw.iterateObjectiveVector) * raw.zScale) /
+      ? ((computeFlatZ(points, base, stride, raw.iterateObjectiveVector) *
+          raw.zScale) /
           100) *
         snap.transitionZMultiplier
       : 0;
@@ -105,7 +107,10 @@ export class IterateStarLayer implements Layer {
     this.object3D.geometry.dispose();
     this.object3D.geometry.setAttribute(
       "position",
-      new BufferAttribute(new Float32Array([entry[0]!, entry[1]!, z]), 3),
+      new BufferAttribute(
+        new Float32Array([points[base]!, points[base + 1]!, z]),
+        3,
+      ),
     );
     this.object3D.visible = true;
   }

@@ -1,17 +1,14 @@
-import { computeFlatTraceZ, getDisplayedIterateZ } from "@/features/core/store";
+import { computeFlatZ, type IteratePath } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 
-type TraceEntry = {
-  points: Float64Array;
-  count: number;
-  stride: number;
+type TraceEntry = IteratePath & {
   objectiveVector: PointXY | null;
 };
 
 type ZoomFitInputs = {
   vertices: PointXY[];
-  iteratePath: Float64Array[];
-  originalIteratePath: Float64Array[];
+  iteratePath: IteratePath;
+  originalIteratePath: IteratePath;
   iterateObjectiveVector: PointXY | null;
   originalIterateObjectiveVector: PointXY | null;
   traceBuffer: TraceEntry[];
@@ -57,13 +54,12 @@ export function collectZoomFitBounds({
     if (y > maxY) maxY = y;
   };
 
-  const addPath = (
-    path: Float64Array[],
-    objectiveOverride: PointXY | null,
-  ) => {
-    for (const entry of path) {
-      addPoint(entry[0]!, entry[1]!);
-      const z = getDisplayedIterateZ(entry, objectiveOverride);
+  const addPath = (path: IteratePath, objectiveOverride: PointXY | null) => {
+    const { points, count, stride } = path;
+    for (let i = 0; i < count; i++) {
+      const base = i * stride;
+      addPoint(points[base]!, points[base + 1]!);
+      const z = computeFlatZ(points, base, stride, objectiveOverride);
       hasZ = true;
       if (z < minZ) minZ = z;
       if (z > maxZ) maxZ = z;
@@ -82,15 +78,7 @@ export function collectZoomFitBounds({
   addPath(iteratePath, iterateObjectiveVector);
   addPath(originalIteratePath, originalIterateObjectiveVector);
   for (const traceEntry of traceBuffer) {
-    const { points, count, stride, objectiveVector } = traceEntry;
-    for (let i = 0; i < count; i++) {
-      const base = i * stride;
-      addPoint(points[base]!, points[base + 1]!);
-      const z = computeFlatTraceZ(points, base, stride, objectiveVector);
-      hasZ = true;
-      if (z < minZ) minZ = z;
-      if (z > maxZ) maxZ = z;
-    }
+    addPath(traceEntry, traceEntry.objectiveVector);
   }
 
   if (!objectiveHidden) {

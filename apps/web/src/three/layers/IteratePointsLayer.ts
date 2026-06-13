@@ -1,4 +1,4 @@
-import { computeIterateZ, type State } from "@/features/core/store";
+import { computeFlatZ, type State } from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { BufferAttribute, DynamicDrawUsage, Points, PointsMaterial } from "three";
 import { makePointsGeo } from "../helpers/makePointsGeo";
@@ -81,21 +81,20 @@ export class IteratePointsLayer implements Layer {
     };
 
     if (
-      raw.iteratePath.length === 0 ||
+      raw.iteratePath.count === 0 ||
       !shouldRenderSnapshotMode(snap.mode, raw)
     ) {
       this.object3D.visible = false;
       return;
     }
 
+    const { points, count, stride } = raw.iteratePath;
     const hasPhases =
-      raw.iteratePhases.length === raw.iteratePath.length &&
-      raw.iteratePhases.length > 0;
+      raw.iteratePhases.length === count && raw.iteratePhases.length > 0;
 
     // grow-only attributes updated in place: rotation replaces the path
     // dozens of times per second, and allocating buffers per step churns
     // the GC and the GL driver (visible as periodic frame spikes)
-    const count = raw.iteratePath.length;
     const geometry = this.object3D.geometry;
     let posAttr = geometry.getAttribute("position") as
       | BufferAttribute
@@ -117,10 +116,15 @@ export class IteratePointsLayer implements Layer {
     const colors = hasPhases ? (colorAttr!.array as Float32Array) : null;
 
     for (let i = 0; i < count; i++) {
-      const entry = raw.iteratePath[i]!;
-      positions[i * 3] = entry[0]!;
-      positions[i * 3 + 1] = entry[1]!;
-      positions[i * 3 + 2] = computeIterateZ(entry, raw.iterateObjectiveVector);
+      const base = i * stride;
+      positions[i * 3] = points[base]!;
+      positions[i * 3 + 1] = points[base + 1]!;
+      positions[i * 3 + 2] = computeFlatZ(
+        points,
+        base,
+        stride,
+        raw.iterateObjectiveVector,
+      );
 
       if (colors) {
         const phase = raw.iteratePhases[i]!;

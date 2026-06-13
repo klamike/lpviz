@@ -6,6 +6,7 @@ import { simplex } from "@lpviz/solver-engine/simplex";
 import { recycleResultBuffers } from "./resultBufferPool";
 import { packSolverResponse } from "./resultPacking";
 
+import type { IteratePath } from "@/features/core/store";
 import type {
   CentralPathResult,
   IPMResult,
@@ -57,12 +58,22 @@ export type SolverWorkerRecycleMessage = {
 
 type SolverWorkerInbound = SolverWorkerRequest | SolverWorkerRecycleMessage;
 
+// What executeSolver emits on the worker: each iterate is one Float64Array, as
+// the solver engines produce them. packSolverResponse consumes this shape.
+export type SolverEngineSuccessResponse =
+  | { id: number; solver: "ipm"; success: true; result: IPMResult }
+  | { id: number; solver: "simplex"; success: true; result: SimplexResult }
+  | { id: number; solver: "pdhg"; success: true; result: PDHGResult }
+  | { id: number; solver: "central"; success: true; result: CentralPathResult };
+
+// What the client sees after unpacking: pdhg/ipm iterates are one flat
+// IteratePath (no per-iterate views); simplex/central pass through unchanged.
 export type SolverWorkerSuccessResponse =
   | {
       id: number;
       solver: "ipm";
       success: true;
-      result: IPMResult;
+      result: IPMResult<IteratePath>;
     }
   | {
       id: number;
@@ -74,7 +85,7 @@ export type SolverWorkerSuccessResponse =
       id: number;
       solver: "pdhg";
       success: true;
-      result: PDHGResult;
+      result: PDHGResult<IteratePath>;
     }
   | {
       id: number;
@@ -185,7 +196,7 @@ const ctx = self as unknown as Worker;
 
 async function executeSolver(
   data: SolverWorkerRequest,
-): Promise<SolverWorkerSuccessResponse> {
+): Promise<SolverEngineSuccessResponse> {
   const { id } = data;
   if (data.solver === "ipm") {
     return {

@@ -1,8 +1,10 @@
 import {
   addTraceToBuffer,
+  flattenIteratesToPath,
   getState,
   updateIteratePaths,
   updateIteratePathsWithTrace,
+  type IteratePath,
 } from "@/features/core/store";
 import type { ResultTextBlock } from "@/features/solver/types";
 import { fmtE, fmtF, fmtInt, fmtStr } from "@lpviz/solver-engine/fmt";
@@ -53,10 +55,14 @@ interface BlocksResultPayload {
 }
 
 export type ResultRenderPayload = VirtualResultPayload | BlocksResultPayload;
-export interface IPMResult {
+
+// Generic over the iterates representation: the worker/solver side emits one
+// Float64Array per iterate (the default); after the worker packs and the client
+// unpacks, the iterates are one flat IteratePath (no per-iterate views).
+export interface IPMResult<I = Float64Array[]> {
   iterates: {
     solution: {
-      x: Float64Array[];
+      x: I;
       header: string;
       rows: ResultRowsView<Extract<VirtualResultRow, { kind: "ipm" }>>;
       footer?: string;
@@ -73,8 +79,8 @@ export interface SimplexResult {
   status?: "optimal" | "unbounded" | "infeasible" | "unavailable";
 }
 
-export interface PDHGResult {
-  iterations: Float64Array[];
+export interface PDHGResult<I = Float64Array[]> {
+  iterations: I;
   header: string;
   rows: ResultRowsView<Extract<VirtualResultRow, { kind: "pdhg" }>>;
   footer: string;
@@ -90,28 +96,17 @@ export interface CentralPathResult {
 }
 
 export function applyIPMResult(
-  result: IPMResult,
+  result: IPMResult<IteratePath>,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
   const sol = result.iterates.solution;
-  const { objectiveVector } = getState();
-  // worker-packed results arrive with the display z already baked in
-  const hasBakedZ = (sol.x[0]?.length ?? 0) >= 3;
+  // worker-packed results arrive flat with the display z already baked in
   applyCanonicalIterateResult(
     {
       iterations: sol.x,
       header: sol.header,
       rows: sol.rows,
       footer: sol.footer,
-      zFrom: hasBakedZ
-        ? undefined
-        : (xy, index) => {
-            const obj = objectiveVector
-              ? objectiveVector.x * xy[0] + objectiveVector.y * xy[1]
-              : 0;
-            const mu = sol.mu?.[index] ?? 0;
-            return obj + mu;
-          },
     },
     updateResult,
   );
@@ -133,7 +128,7 @@ export function applySimplexResult(
           ...Array.from({ length: result.iterations.length }, () => 1),
         ]
       : undefined;
-  updateIteratePathsWithTrace(iterations, phases);
+  updateIteratePathsWithTrace(flattenIteratesToPath(iterations), phases);
   updateResult({
     type: "blocks",
     blocks: generateSimplexBlocks(
@@ -147,13 +142,10 @@ export function applySimplexResult(
 }
 
 export function applyPDHGResult(
-  result: PDHGResult,
+  result: PDHGResult<IteratePath>,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
-  const epsArray = result.eps;
-  const [cx, cy] = getObjectiveVector();
-  // worker-packed results arrive with the display z already baked in
-  const hasBakedZ = (result.iterations[0]?.length ?? 0) >= 3;
+  // worker-packed results arrive flat with the display z already baked in
   applyCanonicalIterateResult(
     {
       iterations: result.iterations,
@@ -162,14 +154,6 @@ export function applyPDHGResult(
       footer: result.footer,
       phases: result.phases,
       restartIndices: result.restartIndices,
-      zFrom: hasBakedZ
-        ? undefined
-        : (xy, index) => {
-            const eps =
-              epsArray && epsArray[index] !== undefined ? epsArray[index]! : 0;
-            const pObj = cx * xy[0] + cy * xy[1];
-            return pObj + 500 * eps;
-          },
     },
     updateResult,
   );
@@ -179,9 +163,10 @@ export function applyCentralPathResult(
   result: CentralPathResult,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
+  const path = flattenIteratesToPath(result.iterations);
   applyCanonicalIterateResult(
     {
-      iterations: result.iterations,
+      iterations: path,
       header: result.logs[0] ?? "",
       // central-path logs carry no footer line (the footer below is synthesized)
       rows: result.logs.slice(1),
@@ -192,17 +177,16 @@ export function applyCentralPathResult(
   );
 
   const { traceEnabled } = getState();
-  if (traceEnabled && result.iterations.length > 0) {
-    addTraceToBuffer(result.iterations);
+  if (traceEnabled && path.count > 0) {
+    addTraceToBuffer(path);
   }
 }
 
 type CanonicalIterateResult = {
-  iterations: Float64Array[];
+  iterations: IteratePath;
   header: string;
   rows: ResultRowsView;
   footer?: string;
-  zFrom?: (xy: Float64Array, index: number) => number;
   updateTrace?: boolean;
   phases?: number[];
   restartIndices?: number[];
@@ -223,23 +207,16 @@ function applyCanonicalIterateResult(
     header,
     rows,
     footer,
-    zFrom,
     updateTrace = true,
     phases,
     restartIndices,
   }: CanonicalIterateResult,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
-  const iteratesWithZ = zFrom
-    ? iterations.map((xy, index) =>
-        Float64Array.of(xy[0]!, xy[1]!, zFrom(xy, index)),
-      )
-    : iterations;
-
   if (updateTrace) {
-    updateIteratePathsWithTrace(iteratesWithZ, phases, restartIndices);
+    updateIteratePathsWithTrace(iterations, phases, restartIndices);
   } else {
-    updateIteratePaths(iteratesWithZ, phases, restartIndices);
+    updateIteratePaths(iterations, phases, restartIndices);
   }
 
   updateResult(buildIteratePayload({ header, rows, footer }));
@@ -315,12 +292,6 @@ function generateSimplexBlocks(
     ),
     ...(phase2Footer ? [createBlock("iterate-footer", phase2Footer)] : []),
   ];
-}
-
-function getObjectiveVector(): [number, number] {
-  const { objectiveVector } = getState();
-  if (!objectiveVector) throw new Error("Objective vector is not set");
-  return [objectiveVector.x, objectiveVector.y];
 }
 
 function buildIteratePayload({

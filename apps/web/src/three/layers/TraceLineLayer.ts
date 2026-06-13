@@ -1,5 +1,5 @@
 import type { State } from "@/features/core/store";
-import { computeFlatTraceZ } from "@/features/core/store";
+import { computeFlatZ } from "@/features/core/store";
 import { Group } from "three";
 import { PathRibbon } from "../helpers/pathRibbon";
 import { RENDER_ORDER } from "../helpers/renderOrder";
@@ -25,7 +25,7 @@ function buildEntryPoints(entry: TraceEntry): Float32Array {
     const o = i * 3;
     pointScratch[o] = points[base]!;
     pointScratch[o + 1] = points[base + 1]!;
-    pointScratch[o + 2] = computeFlatTraceZ(points, base, stride, objectiveVector);
+    pointScratch[o + 2] = computeFlatZ(points, base, stride, objectiveVector);
   }
   return pointScratch;
 }

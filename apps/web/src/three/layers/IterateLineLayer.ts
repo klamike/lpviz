@@ -1,4 +1,8 @@
-import { computeIterateZ, type State } from "@/features/core/store";
+import {
+  computeFlatZ,
+  type IteratePath,
+  type State,
+} from "@/features/core/store";
 import type { PointXY } from "@lpviz/math/types";
 import { Group } from "three";
 import { PathRibbon } from "../helpers/pathRibbon";
@@ -15,20 +19,21 @@ let pointScratch = new Float32Array(0);
 let colorScratch = new Uint8Array(0);
 
 function buildPositions(
-  path: Float64Array[],
+  path: IteratePath,
   objectiveVector: PointXY | null,
 ): Float32Array {
-  if (pointScratch.length < path.length * 3) {
-    pointScratch = new Float32Array(path.length * 3);
+  const { points, count, stride } = path;
+  if (pointScratch.length < count * 3) {
+    pointScratch = new Float32Array(count * 3);
   }
-  for (let i = 0; i < path.length; i++) {
-    const entry = path[i]!;
+  for (let i = 0; i < count; i++) {
+    const src = i * stride;
     const base = i * 3;
-    pointScratch[base] = entry[0]!;
-    pointScratch[base + 1] = entry[1]!;
+    pointScratch[base] = points[src]!;
+    pointScratch[base + 1] = points[src + 1]!;
     // raw z: zScale and the 2D/3D transition flattening are applied via
     // object3D.scale.z, so neither rebuilds the path
-    pointScratch[base + 2] = computeIterateZ(entry, objectiveVector);
+    pointScratch[base + 2] = computeFlatZ(points, src, stride, objectiveVector);
   }
   return pointScratch;
 }
@@ -94,7 +99,7 @@ export class IterateLineLayer implements Layer {
     };
 
     if (
-      raw.iteratePath.length < 2 ||
+      raw.iteratePath.count < 2 ||
       !shouldRenderSnapshotMode(snap.mode, raw)
     ) {
       this.object3D.visible = false;
@@ -112,11 +117,11 @@ export class IterateLineLayer implements Layer {
     }
 
     const hasPhases =
-      raw.iteratePhases.length === raw.iteratePath.length &&
+      raw.iteratePhases.length === raw.iteratePath.count &&
       raw.iteratePhases.length > 0;
     this.ribbon.setPath(
       buildPositions(raw.iteratePath, raw.iterateObjectiveVector),
-      raw.iteratePath.length,
+      raw.iteratePath.count,
       hasPhases ? buildPhaseColors(raw.iteratePhases) : null,
     );
     this.ribbon.mesh.visible = true;

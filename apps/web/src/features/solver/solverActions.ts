@@ -454,11 +454,13 @@ export function createSolverActions(
     if (snap.rotateObjectiveMode) return;
     if (snap.animationIntervalId !== null)
       clearInterval(snap.animationIntervalId);
-    const iterates = [...snap.originalIteratePath];
-    const phases = [...snap.originalIteratePhases];
+    // Replay grows a fresh IteratePath over the same flat buffer each step
+    // (just bumping `count`), so no per-frame iterate copying is needed.
+    const orig = snap.originalIteratePath;
+    const origPhases = snap.originalIteratePhases;
     setState(
       {
-        iteratePath: [],
+        iteratePath: { points: orig.points, count: 0, stride: orig.stride },
         iteratePhases: [],
         iterateObjectiveVector: snap.originalIterateObjectiveVector,
         highlightIteratePathIndex: null,
@@ -470,17 +472,20 @@ export function createSolverActions(
     let i = 0;
     const id = window.setInterval(() => {
       if (getState().animationIntervalId !== id) return;
-      if (i >= iterates.length) {
+      if (i >= orig.count) {
         clearInterval(id);
         setState({ animationIntervalId: null }, { viewportDirty: {} });
         return;
       }
-      const s = getState();
       setState(
         {
-          iteratePath: [...s.iteratePath, iterates[i]!],
-          ...(phases.length > 0
-            ? { iteratePhases: [...s.iteratePhases, phases[i]!] }
+          iteratePath: {
+            points: orig.points,
+            count: i + 1,
+            stride: orig.stride,
+          },
+          ...(origPhases.length > 0
+            ? { iteratePhases: origPhases.slice(0, i + 1) }
             : {}),
           ...(!iterateHoverActive ? { highlightIteratePathIndex: i } : {}),
         },

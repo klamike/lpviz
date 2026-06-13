@@ -1,6 +1,6 @@
 import type { State } from "@/features/core/store";
 import {
-  computeFlatTraceZ,
+  computeFlatZ,
   MAX_TRACE_POINT_SPRITES,
 } from "@/features/core/store";
 import {
@@ -29,7 +29,7 @@ function buildTracePathPositions(entry: State["traceBuffer"][number]) {
     const base = i * stride;
     positions[i * 3] = points[base]!;
     positions[i * 3 + 1] = points[base + 1]!;
-    positions[i * 3 + 2] = computeFlatTraceZ(points, base, stride, objectiveVector);
+    positions[i * 3 + 2] = computeFlatZ(points, base, stride, objectiveVector);
   }
   return positions;
 }
