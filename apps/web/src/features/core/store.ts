@@ -67,13 +67,13 @@ export interface IteratePath {
   stride: number;
 }
 
-export const EMPTY_ITERATE_PATH: IteratePath = {
+const EMPTY_ITERATE_PATH: IteratePath = {
   points: new Float64Array(0),
   count: 0,
   stride: 3,
 };
 
-export interface TraceEntry extends IteratePath {
+interface TraceEntry extends IteratePath {
   objectiveVector: PointXY | null;
 }
 
@@ -458,20 +458,9 @@ export function addTraceToBuffer(path: IteratePath): void {
   );
 }
 
-export function computeIterateZ(
-  entry: Float64Array,
-  objectiveVector: PointXY | null,
-): number {
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * entry[0]! + objectiveVector.y * entry[1]!
-    : 0;
-  const totalValue = entry[2] !== undefined ? entry[2]! : objectiveValue;
-  return totalValue - objectiveValue;
-}
-
-// computeIterateZ for a flat chunk: the iterate lives at `points[base..]` with
-// the given stride. Identical math to the per-view form above; used by both the
-// iterate-path and trace render layers.
+// Display z for one iterate at points[base..base+stride): the baked total
+// (component [2], present for pdhg/ipm) minus the current objective value, so
+// 2D-projected solves render flat and the 3D height tracks the extra term.
 export function computeFlatZ(
   points: Float64Array,
   base: number,
@@ -492,7 +481,7 @@ export function getDisplayedIterateZ(
   const { objectiveVector: currentObjective } = getState();
   const objectiveVector =
     objectiveOverride === undefined ? currentObjective : objectiveOverride;
-  return computeIterateZ(entry, objectiveVector);
+  return computeFlatZ(entry, 0, entry.length, objectiveVector);
 }
 
 export function updateIteratePathsWithTrace(
@@ -522,30 +511,16 @@ export function updateIteratePathsWithTrace(
 function snapshotObjectiveVector(objectiveVector: PointXY | null) {
   return objectiveVector ? { ...objectiveVector } : null;
 }
-
-
-// Collapse a solver's per-iterate Float64Array views into one flat IteratePath.
-// Packed pdhg/ipm results are already a contiguous stride-3 block in one
-// transferred buffer, so that buffer is exposed as a single view with no copy
-// (and is later handed back to the worker pool). Other solvers' iterates live
-// in independent buffers and are flattened once here.
+// Collapse a solver's per-iterate Float64Arrays into one flat IteratePath
+// (simplex / central path, whose iterates live in independent buffers). Packed
+// pdhg/ipm results never come through here — they arrive already flat from the
+// worker (see unpackIteratePath).
 export function flattenIteratesToPath(
   iteratesArray: Float64Array[],
 ): IteratePath {
   const count = iteratesArray.length;
   if (count === 0) return EMPTY_ITERATE_PATH;
-  const first = iteratesArray[0]!;
-  const stride = first.length >= 3 ? 3 : 2;
-  const last = iteratesArray[count - 1]!;
-  const F8 = Float64Array.BYTES_PER_ELEMENT;
-  if (
-    first.length === stride &&
-    first.byteOffset === 0 &&
-    first.buffer === last.buffer &&
-    last.byteOffset === (count - 1) * stride * F8
-  ) {
-    return { points: new Float64Array(first.buffer, 0, count * stride), count, stride };
-  }
+  const stride = iteratesArray[0]!.length >= 3 ? 3 : 2;
   const points = new Float64Array(count * stride);
   for (let i = 0; i < count; i++) {
     const it = iteratesArray[i]!;
@@ -561,8 +536,7 @@ function appendedTraceBuffer(
   path: IteratePath,
   objectiveSnapshot: PointXY | null,
 ): TraceEntry[] {
-  // The trace chunk shares the iterate path's flat buffer (one object, no copy);
-  // the chunk outlives the iterate path in the ring and is recycled on eviction.
+  // The trace chunk shares the iterate path's flat buffer (one object, no copy).
   const entry: TraceEntry = {
     points: path.points,
     count: path.count,
