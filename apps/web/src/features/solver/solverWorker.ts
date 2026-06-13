@@ -49,41 +49,18 @@ export type SolverWorkerPayload =
 
 type SolverWorkerRequest = SolverWorkerPayload & { id: number };
 
-// What executeSolver emits on the worker: each iterate is one Float64Array, as
-// the solver engines produce them. packSolverResponse consumes this shape.
-export type SolverEngineSuccessResponse =
-  | { id: number; solver: "ipm"; success: true; result: IPMResult }
+// `I` is the iterates representation for pdhg/ipm: the worker emits one
+// Float64Array per iterate (SolverEngineSuccessResponse), then packs/transfers
+// so the client receives one flat IteratePath (SolverWorkerSuccessResponse).
+// simplex/central are small and pass through unchanged.
+type SolverSuccessResponse<I> =
+  | { id: number; solver: "ipm"; success: true; result: IPMResult<I> }
   | { id: number; solver: "simplex"; success: true; result: SimplexResult }
-  | { id: number; solver: "pdhg"; success: true; result: PDHGResult }
+  | { id: number; solver: "pdhg"; success: true; result: PDHGResult<I> }
   | { id: number; solver: "central"; success: true; result: CentralPathResult };
 
-// What the client sees after unpacking: pdhg/ipm iterates are one flat
-// IteratePath (no per-iterate views); simplex/central pass through unchanged.
-export type SolverWorkerSuccessResponse =
-  | {
-      id: number;
-      solver: "ipm";
-      success: true;
-      result: IPMResult<IteratePath>;
-    }
-  | {
-      id: number;
-      solver: "simplex";
-      success: true;
-      result: SimplexResult;
-    }
-  | {
-      id: number;
-      solver: "pdhg";
-      success: true;
-      result: PDHGResult<IteratePath>;
-    }
-  | {
-      id: number;
-      solver: "central";
-      success: true;
-      result: CentralPathResult;
-    };
+export type SolverEngineSuccessResponse = SolverSuccessResponse<Float64Array[]>;
+export type SolverWorkerSuccessResponse = SolverSuccessResponse<IteratePath>;
 
 type SolverWorkerErrorResponse = {
   id: number;

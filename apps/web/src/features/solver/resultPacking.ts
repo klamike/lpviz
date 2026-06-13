@@ -9,11 +9,11 @@ import type {
 // Solver results at high maxit are tens of thousands of small Float64Arrays
 // plus as many row objects; structured-cloning that shape costs tens of
 // milliseconds of main-thread time per solve (per rotation step). Instead the
-// worker packs everything numeric into a few large typed arrays, transfers
-// their buffers (zero copy), and the client rebuilds the original result
-// shape from cheap subarray views. The display z (objective-dependent) is
-// baked into a third component here, on the worker, so the client never
-// needs the per-iterate mapping pass.
+// worker packs everything numeric into a few large typed arrays and transfers
+// their buffers (zero copy): the client takes the iterations buffer as one
+// flat IteratePath and materializes row objects lazily on access. The display
+// z (objective-dependent) is baked into a third component here, on the worker,
+// so the client never needs the per-iterate mapping pass.
 
 type PackedRowsColumns = {
   x: Float64Array;
