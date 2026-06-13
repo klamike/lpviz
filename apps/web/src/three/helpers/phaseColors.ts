@@ -1,6 +1,6 @@
 import { Color } from "three";
 
-export const PHASE_COLORS = [
+const PHASE_COLORS = [
   "#377eb8",
   "#800080",
   "#4daf4a",

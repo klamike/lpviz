@@ -3,7 +3,7 @@ import type { ResultTextBlock } from "@/features/solver/types";
 // Result rows materialize (format) lazily on access so a 100k-iteration solve
 // doesn't pay for formatting rows that are never scrolled into view. Plain
 // arrays satisfy this shape, which keeps empty-state assignments simple.
-export type VirtualRowBlocks = {
+type VirtualRowBlocks = {
   length: number;
   at(index: number): ResultTextBlock | undefined;
 };

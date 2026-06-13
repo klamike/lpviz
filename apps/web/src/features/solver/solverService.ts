@@ -54,7 +54,7 @@ type VirtualResultRow =
 
 // Rows materialize lazily through this view so that a 100k-iteration result
 // never pays for building row objects that are not scrolled into view.
-export type ResultRowsView<T = VirtualResultRow> = {
+type ResultRowsView<T = VirtualResultRow> = {
   length: number;
   at(index: number): T | undefined;
 };
@@ -112,7 +112,7 @@ export interface CentralPathResult {
   tsolve: number;
 }
 
-export function applyIPMResult(
+function applyIPMResult(
   result: IPMResult<IteratePath>,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
@@ -129,7 +129,7 @@ export function applyIPMResult(
   );
 }
 
-export function applySimplexResult(
+function applySimplexResult(
   result: SimplexResult,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
@@ -158,7 +158,7 @@ export function applySimplexResult(
   });
 }
 
-export function applyPDHGResult(
+function applyPDHGResult(
   result: PDHGResult<IteratePath>,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
@@ -176,7 +176,7 @@ export function applyPDHGResult(
   );
 }
 
-export function applyCentralPathResult(
+function applyCentralPathResult(
   result: CentralPathResult,
   updateResult: (payload: ResultRenderPayload) => void,
 ) {
