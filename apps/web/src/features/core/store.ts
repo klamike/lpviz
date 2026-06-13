@@ -485,6 +485,7 @@ export function updateIteratePaths(
   restartIndicesArray?: number[],
 ): void {
   const { objectiveVector } = getState();
+  // viewportDirty derived from the changed iterate fields (see FIELD_DIRTY)
   setState(
     buildIterateStatePatch(
       path,
@@ -492,38 +493,26 @@ export function updateIteratePaths(
       restartIndicesArray,
       snapshotObjectiveVector(objectiveVector),
     ),
-    { viewportDirty: { iterate: true } },
   );
 }
 
 export function clearIterateState(): void {
-  setState(
-    {
-      ...buildIterateStatePatch(
-        EMPTY_ITERATE_PATH,
-        undefined,
-        undefined,
-        null,
-      ),
-      highlightIteratePathIndex: null,
-    },
-    { viewportDirty: { iterate: true } },
-  );
+  setState({
+    ...buildIterateStatePatch(EMPTY_ITERATE_PATH, undefined, undefined, null),
+    highlightIteratePathIndex: null,
+  });
 }
 
 export function addTraceToBuffer(path: IteratePath): void {
   const state = getState();
   if (!state.traceEnabled || path.count === 0) return;
-  setState(
-    {
-      traceBuffer: appendedTraceBuffer(
-        state,
-        path,
-        snapshotObjectiveVector(state.objectiveVector),
-      ),
-    },
-    { viewportDirty: { trace: true } },
-  );
+  setState({
+    traceBuffer: appendedTraceBuffer(
+      state,
+      path,
+      snapshotObjectiveVector(state.objectiveVector),
+    ),
+  });
 }
 
 // Display z for one iterate at points[base..base+stride): the baked total
@@ -568,12 +557,8 @@ export function updateIteratePathsWithTrace(
   if (state.traceEnabled && path.count > 0) {
     patch.traceBuffer = appendedTraceBuffer(state, path, objectiveSnapshot);
   }
-  setState(patch, {
-    viewportDirty: {
-      iterate: true,
-      ...(state.traceEnabled && path.count > 0 ? { trace: true } : {}),
-    },
-  });
+  // iterate (+ trace, if a chunk was appended) derived from the patched fields
+  setState(patch);
 }
 
 function snapshotObjectiveVector(objectiveVector: PointXY | null) {
@@ -640,19 +625,18 @@ function buildIterateStatePatch(
 
 export function resetTraceState(): void {
   if (getState().traceBuffer.length === 0) return;
-  setState({ traceBuffer: [] }, { viewportDirty: { trace: true } });
+  setState({ traceBuffer: [] });
 }
 
 export function setTraceCapacity(maxTraceCount: number): void {
   const { traceBuffer } = getState();
-  setState(
-    {
-      maxTraceCount,
-      traceBuffer:
-        traceBuffer.length > maxTraceCount
-          ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
-          : traceBuffer,
-    },
-    { viewportDirty: { trace: true } },
-  );
+  // a repaint is derived only when traceBuffer actually changes (eviction);
+  // a capacity-only bump draws the same chunks
+  setState({
+    maxTraceCount,
+    traceBuffer:
+      traceBuffer.length > maxTraceCount
+        ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
+        : traceBuffer,
+  });
 }
