@@ -1,4 +1,5 @@
 import {
+  ALL_VIEWPORT_DIRTY,
   DEFAULT_VIEW_ANGLE,
   getDisplayedIterateZ,
   getState,
@@ -73,14 +74,6 @@ import {
 
 const VIEWPORT_NAVIGATION_IDLE_MS = 100;
 
-const ALL_VIEWPORT_DIRTY_FLAGS: ViewportDirtyFlags = {
-  grid: true,
-  polytope: true,
-  constraints: true,
-  objective: true,
-  trace: true,
-  iterate: true,
-};
 
 const getGridPanKey = (snapshot: ViewportRenderSnapshot) =>
   snapshot.mode === "2d"
@@ -92,7 +85,7 @@ function getSnapshotViewportDirtyFlags(
   next: ViewportRenderSnapshot,
 ): ViewportDirtyFlags {
   if (prev.mode !== next.mode) {
-    return ALL_VIEWPORT_DIRTY_FLAGS;
+    return ALL_VIEWPORT_DIRTY;
   }
 
   if (prev.transitionZMultiplier !== next.transitionZMultiplier) {

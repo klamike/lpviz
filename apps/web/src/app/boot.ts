@@ -1,6 +1,6 @@
 import type { AppContext } from "@/app/appContext";
 import type { AppActions } from "@/features/core/actions";
-import { setState } from "@/features/core/store";
+import { ALL_VIEWPORT_DIRTY, setState } from "@/features/core/store";
 import { createHistoryService } from "@/features/history/historyService";
 import { createPolytopeService } from "@/features/polytope-editor/polytopeService";
 import type { GalleryProblem } from "@/features/problem-gallery/problems";
@@ -109,16 +109,7 @@ export function boot(root: HTMLElement) {
           rotateObjectiveMode: false,
           animationIntervalId: null,
         },
-        {
-          viewportDirty: {
-            grid: true,
-            polytope: true,
-            constraints: true,
-            objective: true,
-            trace: true,
-            iterate: true,
-          },
-        },
+        { viewportDirty: ALL_VIEWPORT_DIRTY },
       );
       canvasManager?.set2DPanEnabled(true);
       polytope.send();

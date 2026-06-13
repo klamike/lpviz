@@ -86,6 +86,17 @@ export type ViewportDirtyFlags = Partial<{
   iterate: boolean;
 }>;
 
+// Repaint everything — for whole-problem swaps (gallery load, shared-state
+// import) and mode switches where deriving per-field flags would be noise.
+export const ALL_VIEWPORT_DIRTY: ViewportDirtyFlags = {
+  grid: true,
+  polytope: true,
+  constraints: true,
+  objective: true,
+  trace: true,
+  iterate: true,
+};
+
 type StateChangeMeta = {
   viewportDirty?: ViewportDirtyFlags;
 };
@@ -311,7 +322,7 @@ class LpvizStore {
     this.values = initialValues;
   }
 
-  getState(): State {
+  getState(): Readonly<State> {
     return this.values;
   }
 
@@ -425,7 +436,7 @@ class LpvizStore {
 
 const lpvizStore = new LpvizStore(initialState);
 
-export function getState(): State {
+export function getState(): Readonly<State> {
   return lpvizStore.getState();
 }
 

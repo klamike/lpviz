@@ -1,4 +1,9 @@
-import { getState, setState, type SolverMode } from "@/features/core/store";
+import {
+  ALL_VIEWPORT_DIRTY,
+  getState,
+  setState,
+  type SolverMode,
+} from "@/features/core/store";
 import {
   buildSharedStatePatch,
   expandSharedAppState,
@@ -46,16 +51,7 @@ export function applyUrlParamsOnce({
         inequalitiesMessage: null,
         highlightIndex: null,
       },
-      {
-        viewportDirty: {
-          grid: true,
-          polytope: true,
-          constraints: true,
-          objective: true,
-          trace: true,
-          iterate: true,
-        },
-      },
+      { viewportDirty: ALL_VIEWPORT_DIRTY },
     );
     applySharedSettings(sharedState.settings);
     const state = getState();
