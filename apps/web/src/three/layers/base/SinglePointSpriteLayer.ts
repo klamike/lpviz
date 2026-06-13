@@ -52,11 +52,7 @@ export abstract class SinglePointSpriteLayer extends LayerBase {
   protected abstract selectorDeps(raw: State): readonly unknown[];
 
   protected override everyFrame(ctx: SceneContext): void {
-    const raw = ctx.getState();
-    // raw z is baked into the position; zScale and the 2D/3D flattening ride on
-    // scale.z (the 2D ortho camera ignores z), so neither rebuilds geometry
-    this.object3D.scale.z =
-      (raw.zScale / 100) * ctx.getSnapshot().transitionZMultiplier;
+    this.applyZScale(ctx);
   }
 
   protected dependencies(ctx: SceneContext): readonly unknown[] {

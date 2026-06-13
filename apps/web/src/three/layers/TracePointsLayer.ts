@@ -135,9 +135,7 @@ export class TracePointsLayer extends LayerBase {
   }
 
   protected override everyFrame(ctx: SceneContext): void {
-    const raw = ctx.getState();
-    this.object3D.scale.z =
-      (raw.zScale / 100) * ctx.getSnapshot().transitionZMultiplier;
+    this.applyZScale(ctx);
   }
 
   protected dependencies(ctx: SceneContext): readonly unknown[] {

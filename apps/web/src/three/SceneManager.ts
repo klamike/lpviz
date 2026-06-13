@@ -36,6 +36,9 @@ export class SceneManager {
   private impostors: Partial<Record<RenderPassName, ImpostorStrategy>> = {
     traceLines: this.traceImpostor,
   };
+  // reused across frames so the render loop allocates no Map per frame; holds
+  // each impostor's prepared result between the prepare pass and the draw pass
+  private readonly substitutions = new Map<RenderPassName, ImpostorResult>();
 
   private camera: Camera | null = null;
   private dirty = true;
@@ -280,7 +283,8 @@ export class SceneManager {
     // Prepare all impostors first: their offscreen baking (cache rebuild, 3D
     // depth pre-pass) must run before any canvas pass renders, or a mid-loop
     // render-target switch drops the composited result.
-    const substitutions = new Map<RenderPassName, ImpostorResult>();
+    const substitutions = this.substitutions;
+    substitutions.clear();
     for (const pass of RENDER_PASSES) {
       const impostor = this.impostors[pass];
       if (impostor) {

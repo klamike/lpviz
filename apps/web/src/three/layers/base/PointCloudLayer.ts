@@ -61,11 +61,7 @@ export abstract class PointCloudLayer extends LayerBase {
   }
 
   protected override everyFrame(ctx: SceneContext): void {
-    // raw z is baked into the buffer; zScale and the 2D/3D transition flatten
-    // ride on scale.z so neither rebuilds geometry
-    const raw = ctx.getState();
-    this.object3D.scale.z =
-      (raw.zScale / 100) * ctx.getSnapshot().transitionZMultiplier;
+    this.applyZScale(ctx);
   }
 
   protected hide(): void {

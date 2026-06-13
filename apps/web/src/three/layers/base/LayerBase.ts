@@ -36,6 +36,14 @@ export abstract class LayerBase implements Layer {
   /** Cheap per-frame work (e.g. object3D.scale.z). Runs every update. */
   protected everyFrame(_ctx: SceneContext): void {}
 
+  // Raw z is baked into the geometry; zScale and the 2D/3D flatten ride on
+  // scale.z (the 2D ortho camera ignores z) so neither rebuilds geometry. Layers
+  // whose z follows the view opt in by calling this from everyFrame.
+  protected applyZScale(ctx: SceneContext): void {
+    this.object3D.scale.z =
+      (ctx.getState().zScale / 100) * ctx.getSnapshot().transitionZMultiplier;
+  }
+
   abstract dispose(): void;
 }
 
