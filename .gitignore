@@ -1,7 +1,3 @@
-# ignore bun lock files. we set compat bounds in package.json
-bun.lock
-bun.lockb
-
 # Editor settings
 .vscode/settings.json
 
