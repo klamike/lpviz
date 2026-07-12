@@ -1,3 +1,4 @@
+import { getState } from "@/features/core/store";
 import { el } from "@/ui/dom";
 import { usageTipsList } from "@/ui/usageTips";
 
@@ -7,10 +8,7 @@ export function mountHelpButton(parent: HTMLElement) {
     id: "helpPanel",
     attrs: { role: "dialog", "aria-label": "Usage tips" },
   });
-  panel.append(
-    el("div", { className: "help-panel__title", text: "Usage Tips" }),
-    usageTipsList(),
-  );
+  panel.append(el("div", { className: "help-panel__title", text: "Usage Tips" }), usageTipsList(getState().problemMode));
   const button = el("button", {
     id: "helpButton",
     attrs: {

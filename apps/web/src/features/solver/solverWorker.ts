@@ -1,4 +1,4 @@
-import type { Lines, VecN, Vertices } from "@lpviz/math/types";
+import type { LinesND, VecN, Vertices } from "@lpviz/math/types";
 import { centralPath } from "@lpviz/solver-engine/centralPath";
 import { ipm } from "@lpviz/solver-engine/ipm";
 import { pdhg } from "@lpviz/solver-engine/pdhg";
@@ -6,17 +6,12 @@ import { simplex } from "@lpviz/solver-engine/simplex";
 import { packSolverResponse } from "./resultPacking";
 
 import type { IteratePath } from "@/features/core/store";
-import type {
-  CentralPathResult,
-  IPMResult,
-  PDHGResult,
-  SimplexResult,
-} from "./solverService";
+import type { CentralPathResult, IPMResult, PDHGResult, SimplexResult } from "./solverService";
 
 export type SolverWorkerPayload =
   | {
       solver: "ipm";
-      lines: Lines;
+      lines: LinesND;
       objective: VecN;
       alphaMax: number;
       correctorThreshold: number;
@@ -24,13 +19,13 @@ export type SolverWorkerPayload =
     }
   | {
       solver: "simplex";
-      lines: Lines;
+      lines: LinesND;
       objective: VecN;
       dual: boolean;
     }
   | {
       solver: "pdhg";
-      lines: Lines;
+      lines: LinesND;
       objective: VecN;
       ineq: boolean;
       halpern: boolean;
@@ -42,9 +37,12 @@ export type SolverWorkerPayload =
   | {
       solver: "central";
       vertices: Vertices;
-      lines: Lines;
+      lines: LinesND;
       objective: VecN;
       niter: number;
+      // 3-variable mode supplies its own strictly-interior start (the 2D
+      // centroid/feasible-point search inside centralPath is planar only)
+      interiorPoint?: number[];
     };
 
 type SolverWorkerRequest = SolverWorkerPayload & { id: number };
@@ -53,11 +51,7 @@ type SolverWorkerRequest = SolverWorkerPayload & { id: number };
 // Float64Array per iterate (SolverEngineSuccessResponse), then packs/transfers
 // so the client receives one flat IteratePath (SolverWorkerSuccessResponse).
 // simplex/central are small and pass through unchanged.
-type SolverSuccessResponse<I> =
-  | { id: number; solver: "ipm"; success: true; result: IPMResult<I> }
-  | { id: number; solver: "simplex"; success: true; result: SimplexResult }
-  | { id: number; solver: "pdhg"; success: true; result: PDHGResult<I> }
-  | { id: number; solver: "central"; success: true; result: CentralPathResult };
+type SolverSuccessResponse<I> = { id: number; solver: "ipm"; success: true; result: IPMResult<I> } | { id: number; solver: "simplex"; success: true; result: SimplexResult } | { id: number; solver: "pdhg"; success: true; result: PDHGResult<I> } | { id: number; solver: "central"; success: true; result: CentralPathResult };
 
 export type SolverEngineSuccessResponse = SolverSuccessResponse<Float64Array[]>;
 export type SolverWorkerSuccessResponse = SolverSuccessResponse<IteratePath>;
@@ -68,9 +62,7 @@ type SolverWorkerErrorResponse = {
   error: string;
 };
 
-export type SolverWorkerResponse =
-  | SolverWorkerSuccessResponse
-  | SolverWorkerErrorResponse;
+export type SolverWorkerResponse = SolverWorkerSuccessResponse | SolverWorkerErrorResponse;
 
 const DEFAULT_TOLERANCE = 1e-5;
 
@@ -84,10 +76,7 @@ const DEFAULT_BASE_OPTIONS: BaseSolverOptions = {
   verbose: false,
 };
 
-async function wrapSolverCall<T>(
-  solverName: string,
-  solverFunction: () => T | Promise<T>,
-): Promise<T> {
+async function wrapSolverCall<T>(solverName: string, solverFunction: () => T | Promise<T>): Promise<T> {
   try {
     return await solverFunction();
   } catch (error) {
@@ -96,32 +85,21 @@ async function wrapSolverCall<T>(
   }
 }
 
-async function runCentralPath(
-  vertices: Vertices,
-  lines: Lines,
-  objective: VecN,
-  niter: number,
-) {
+async function runCentralPath(vertices: Vertices, lines: LinesND, objective: VecN, niter: number, interiorPoint?: number[]) {
   return wrapSolverCall("Central Path", () => {
-    const options = { ...DEFAULT_BASE_OPTIONS, niter };
+    const options = { ...DEFAULT_BASE_OPTIONS, niter, interiorPoint };
     return centralPath(vertices, lines, objective, options);
   });
 }
 
-async function runSimplex(lines: Lines, objective: VecN, dual: boolean) {
+async function runSimplex(lines: LinesND, objective: VecN, dual: boolean) {
   return wrapSolverCall("Simplex", () => {
     const options = { tol: DEFAULT_TOLERANCE, verbose: false, dual };
     return simplex(lines, objective, options);
   });
 }
 
-async function runIPM(
-  lines: Lines,
-  objective: VecN,
-  alphamax: number,
-  correctorThreshold: number,
-  maxit: number,
-) {
+async function runIPM(lines: LinesND, objective: VecN, alphamax: number, correctorThreshold: number, maxit: number) {
   return wrapSolverCall("IPM", () => {
     const options = {
       ...DEFAULT_BASE_OPTIONS,
@@ -136,16 +114,7 @@ async function runIPM(
   });
 }
 
-async function runPDHG(
-  lines: Lines,
-  objective: VecN,
-  ineq: boolean,
-  halpern: boolean,
-  maxit: number,
-  eta: number,
-  tau: number,
-  colorByBasis: boolean,
-) {
+async function runPDHG(lines: LinesND, objective: VecN, ineq: boolean, halpern: boolean, maxit: number, eta: number, tau: number, colorByBasis: boolean) {
   return wrapSolverCall("PDHG", () => {
     const options = {
       ...DEFAULT_BASE_OPTIONS,
@@ -162,22 +131,14 @@ async function runPDHG(
 
 const ctx = self as unknown as Worker;
 
-async function executeSolver(
-  data: SolverWorkerRequest,
-): Promise<SolverEngineSuccessResponse> {
+async function executeSolver(data: SolverWorkerRequest): Promise<SolverEngineSuccessResponse> {
   const { id } = data;
   if (data.solver === "ipm") {
     return {
       id,
       solver: "ipm",
       success: true,
-      result: await runIPM(
-        data.lines,
-        data.objective,
-        data.alphaMax,
-        data.correctorThreshold,
-        data.maxit,
-      ),
+      result: await runIPM(data.lines, data.objective, data.alphaMax, data.correctorThreshold, data.maxit),
     };
   }
   if (data.solver === "simplex") {
@@ -193,16 +154,7 @@ async function executeSolver(
       id,
       solver: "pdhg",
       success: true,
-      result: await runPDHG(
-        data.lines,
-        data.objective,
-        data.ineq,
-        data.halpern,
-        data.maxit,
-        data.eta,
-        data.tau,
-        data.colorByBasis,
-      ),
+      result: await runPDHG(data.lines, data.objective, data.ineq, data.halpern, data.maxit, data.eta, data.tau, data.colorByBasis),
     };
   }
   if (data.solver === "central") {
@@ -210,36 +162,25 @@ async function executeSolver(
       id,
       solver: "central",
       success: true,
-      result: await runCentralPath(
-        data.vertices,
-        data.lines,
-        data.objective,
-        data.niter,
-      ),
+      result: await runCentralPath(data.vertices, data.lines, data.objective, data.niter, data.interiorPoint),
     };
   }
   const exhaustive: never = data;
   throw new Error(`Unsupported solver: ${JSON.stringify(exhaustive)}`);
 }
 
-ctx.addEventListener(
-  "message",
-  async (event: MessageEvent<SolverWorkerRequest>) => {
-    const data = event.data;
-    if (!data) return;
+ctx.addEventListener("message", async (event: MessageEvent<SolverWorkerRequest>) => {
+  const data = event.data;
+  if (!data) return;
 
-    try {
-      const { wire, transfer } = packSolverResponse(
-        await executeSolver(data),
-        data,
-      );
-      ctx.postMessage(wire, transfer);
-    } catch (error) {
-      ctx.postMessage({
-        id: data.id,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  },
-);
+  try {
+    const { wire, transfer } = packSolverResponse(await executeSolver(data), data);
+    ctx.postMessage(wire, transfer);
+  } catch (error) {
+    ctx.postMessage({
+      id: data.id,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});

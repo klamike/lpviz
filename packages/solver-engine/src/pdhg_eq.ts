@@ -1,12 +1,5 @@
-import {
-  createDenseMatrix,
-  dot,
-  infinityNorm,
-  linesToDenseAb,
-  matVec,
-  transposedMatVec,
-} from "@lpviz/math/blas";
-import type { Lines, Vec2Ns, VecN } from "@lpviz/math/types";
+import { createDenseMatrix, dot, infinityNorm, linesToDenseAb, matVec, transposedMatVec } from "@lpviz/math/blas";
+import type { LinesND, Vec2Ns, VecN } from "@lpviz/math/types";
 import { formatMilliseconds } from "./time";
 
 const MAX_ITERATIONS_LIMIT = 100_000;
@@ -26,32 +19,15 @@ const HALPERN_SUFFICIENT_REDUCTION = 0.2;
 const HALPERN_NECESSARY_REDUCTION = 0.5;
 const HALPERN_ARTIFICIAL_RESTART_THRESHOLD = 0.36;
 
-function computeSlackBasisPhase(
-  xk: Float64Array,
-  m: number,
-  slackOffset: number,
-) {
+function computeSlackBasisPhase(xk: Float64Array, m: number, slackOffset: number) {
   let phase = 0;
   for (let i = 0; i < m; i++) {
-    phase =
-      (phase * 33 +
-        (Math.abs(xk[slackOffset + i]!) <= BASIS_THRESHOLD ? 1 : 0)) >>>
-      0;
+    phase = (phase * 33 + (Math.abs(xk[slackOffset + i]!) <= BASIS_THRESHOLD ? 1 : 0)) >>> 0;
   }
   return phase;
 }
 
-function pdhgEpsilon(
-  A: ReturnType<typeof createDenseMatrix>,
-  b: Float64Array,
-  c: Float64Array,
-  xk: Float64Array,
-  yk: Float64Array,
-  axScratch: Float64Array,
-  atYScratch: Float64Array,
-  bNorm: number,
-  cNorm: number,
-) {
+function pdhgEpsilon(A: ReturnType<typeof createDenseMatrix>, b: Float64Array, c: Float64Array, xk: Float64Array, yk: Float64Array, axScratch: Float64Array, atYScratch: Float64Array, bNorm: number, cNorm: number) {
   matVec(A, xk, axScratch);
   let primalResidual = 0;
   for (let i = 0; i < axScratch.length; i++) {
@@ -69,19 +45,10 @@ function pdhgEpsilon(
   const cTx = dot(c, xk);
   const bTy = dot(b, yk);
   const dualityGap = Math.abs(cTx + bTy) / (1 + Math.abs(cTx) + Math.abs(bTy));
-  return Math.max(
-    primalResidual / (1 + bNorm),
-    dualResidual / (1 + cNorm),
-    dualityGap,
-  );
+  return Math.max(primalResidual / (1 + bNorm), dualResidual / (1 + cNorm), dualityGap);
 }
 
-function computeFixedPointError(
-  currentX: Float64Array,
-  nextX: Float64Array,
-  currentY: Float64Array,
-  nextY: Float64Array,
-) {
+function computeFixedPointError(currentX: Float64Array, nextX: Float64Array, currentY: Float64Array, nextY: Float64Array) {
   let error = 0;
   for (let i = 0; i < currentX.length; i++) {
     const delta = Math.abs(nextX[i]! - currentX[i]!);
@@ -94,40 +61,20 @@ function computeFixedPointError(
   return error;
 }
 
-function shouldRestartHalpern(
-  innerIteration: number,
-  totalIteration: number,
-  fixedPointError: number,
-  initialFixedPointError: number,
-  lastTrialFixedPointError: number,
-) {
+function shouldRestartHalpern(innerIteration: number, totalIteration: number, fixedPointError: number, initialFixedPointError: number, lastTrialFixedPointError: number) {
   if (!Number.isFinite(initialFixedPointError) || innerIteration < 2) {
     return false;
   }
-  if (
-    fixedPointError <=
-    HALPERN_SUFFICIENT_REDUCTION * initialFixedPointError
-  ) {
+  if (fixedPointError <= HALPERN_SUFFICIENT_REDUCTION * initialFixedPointError) {
     return true;
   }
-  if (
-    fixedPointError <= HALPERN_NECESSARY_REDUCTION * initialFixedPointError &&
-    fixedPointError > lastTrialFixedPointError
-  ) {
+  if (fixedPointError <= HALPERN_NECESSARY_REDUCTION * initialFixedPointError && fixedPointError > lastTrialFixedPointError) {
     return true;
   }
-  return (
-    innerIteration >=
-    Math.ceil(HALPERN_ARTIFICIAL_RESTART_THRESHOLD * totalIteration)
-  );
+  return innerIteration >= Math.ceil(HALPERN_ARTIFICIAL_RESTART_THRESHOLD * totalIteration);
 }
 
-function pdhgStandardForm(
-  A: ReturnType<typeof createDenseMatrix>,
-  b: Float64Array,
-  c: Float64Array,
-  options: PDHGEqOptions,
-) {
+function pdhgStandardForm(A: ReturnType<typeof createDenseMatrix>, b: Float64Array, c: Float64Array, options: PDHGEqOptions) {
   const { maxit, eta, tau, tol, verbose, colorByBasis, halpern } = options;
 
   const { rows: m, cols: n } = A;
@@ -153,18 +100,8 @@ function pdhgStandardForm(
   let initialFixedPointError = Number.POSITIVE_INFINITY;
   let lastTrialFixedPointError = Number.POSITIVE_INFINITY;
 
-  let epsilonK = pdhgEpsilon(
-    A,
-    b,
-    c,
-    xk,
-    yk,
-    axScratch,
-    atYScratch,
-    bNorm,
-    cNorm,
-  );
-  const header = " Iter        x        y        Obj     Infeas        eps";
+  let epsilonK = pdhgEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
+  const header = nOrig >= 3 ? " Iter        x        y        z        Obj     Infeas        eps" : " Iter        x        y        Obj     Infeas        eps";
 
   const rows: Array<{
     kind: "pdhg";
@@ -172,6 +109,7 @@ function pdhgStandardForm(
     restart?: boolean;
     x: number;
     y: number;
+    z?: number;
     objective: number;
     infeasibility: number;
     epsilon: number;
@@ -197,7 +135,7 @@ function pdhgStandardForm(
       const residual = Math.abs(axScratch[i]! - b[i]!);
       if (residual > pFeas) pFeas = residual;
     }
-    const row = {
+    const row: (typeof rows)[number] = {
       kind: "pdhg" as const,
       iteration: k,
       restart: false,
@@ -207,6 +145,7 @@ function pdhgStandardForm(
       infeasibility: pFeas,
       epsilon: epsilonK,
     };
+    if (nOrig >= 3) row.z = (xk[2] ?? 0) - (xk[nOrig + 2] ?? 0);
     if (verbose) console.log(row);
     rows.push(row);
     eps.push(epsilonK);
@@ -235,15 +174,7 @@ function pdhgStandardForm(
         initialFixedPointError = fixedPointError;
       }
 
-      if (
-        shouldRestartHalpern(
-          innerIteration,
-          k,
-          fixedPointError,
-          initialFixedPointError,
-          lastTrialFixedPointError,
-        )
-      ) {
+      if (shouldRestartHalpern(innerIteration, k, fixedPointError, initialFixedPointError, lastTrialFixedPointError)) {
         xk.set(nextX);
         yk.set(nextY);
         anchorX.set(nextX);
@@ -274,17 +205,7 @@ function pdhgStandardForm(
     }
     k++;
 
-    epsilonK = pdhgEpsilon(
-      A,
-      b,
-      c,
-      xk,
-      yk,
-      axScratch,
-      atYScratch,
-      bNorm,
-      cNorm,
-    );
+    epsilonK = pdhgEpsilon(A, b, c, xk, yk, axScratch, atYScratch, bNorm, cNorm);
     if (!Number.isFinite(epsilonK)) {
       break;
     }
@@ -292,10 +213,7 @@ function pdhgStandardForm(
 
   const solveTime = performance.now() - startTime;
   const formattedSolveTime = formatMilliseconds(solveTime);
-  const footer =
-    epsilonK <= tol
-      ? `Converged to optimal solution in ${formattedSolveTime} / ${iterates.length} iterations`
-      : `Did not converge after ${iterates.length} iterations in ${formattedSolveTime}`;
+  const footer = epsilonK <= tol ? `Converged to optimal solution in ${formattedSolveTime} / ${iterates.length} iterations` : `Did not converge after ${iterates.length} iterations in ${formattedSolveTime}`;
   if (verbose) console.log(footer);
 
   return {
@@ -309,16 +227,8 @@ function pdhgStandardForm(
   };
 }
 
-export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
-  const {
-    maxit = 1000,
-    eta = 0.25,
-    tau = 0.25,
-    verbose = false,
-    tol = 1e-4,
-    colorByBasis = false,
-    halpern = false,
-  } = options;
+export function pdhgEq(lines: LinesND, objective: VecN, options: PDHGEqOptions) {
+  const { maxit = 1000, eta = 0.25, tau = 0.25, verbose = false, tol = 1e-4, colorByBasis = false, halpern = false } = options;
   if (maxit > MAX_ITERATIONS_LIMIT) {
     throw new Error(`maxit > ${MAX_ITERATIONS_LIMIT} not allowed`);
   }

@@ -24,6 +24,12 @@ export type SharedAppState = {
   settings: ShareSettings;
   zScale?: number;
   is3DMode?: boolean;
+  // 3-variable problems (lpviz.net/3d): the solid's vertices (its faces are
+  // the derived convex hull) and the 3D objective. Older 3D links carried
+  // H-rep `planes` instead; decode accepts either.
+  vertices3?: { x: number; y: number; z: number }[];
+  planes?: number[][];
+  objective3?: { x: number; y: number; z: number } | null;
 };
 
 const shareKeyMap = {
@@ -34,6 +40,9 @@ const shareKeyMap = {
   settings: "g",
   zScale: "l",
   is3DMode: "b",
+  vertices3: "u",
+  planes: "n",
+  objective3: "w",
   x: "x",
   y: "y",
   alphaMax: "a",
@@ -51,9 +60,7 @@ const shareKeyMap = {
   objectiveRotationSpeed: "q",
 } as const;
 
-const expandedShareKeyMap = Object.fromEntries(
-  Object.entries(shareKeyMap).map(([key, value]) => [value, key]),
-) as Record<string, string>;
+const expandedShareKeyMap = Object.fromEntries(Object.entries(shareKeyMap).map(([key, value]) => [value, key])) as Record<string, string>;
 
 const FORBIDDEN_SHARE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
@@ -62,15 +69,11 @@ function transformShareObject<T>(value: T, keyMap: Record<string, string>): T {
     return value;
   }
   if (Array.isArray(value)) {
-    return value.map((item) =>
-      transformShareObject(item, keyMap),
-    ) as unknown as T;
+    return value.map((item) => transformShareObject(item, keyMap)) as unknown as T;
   }
 
   const result = Object.create(null) as Record<string, unknown>;
-  for (const [key, nestedValue] of Object.entries(
-    value as Record<string, unknown>,
-  )) {
+  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
     const mappedKey = keyMap[key] || key;
     if (FORBIDDEN_SHARE_KEYS.has(mappedKey)) {
       continue;
@@ -90,52 +93,48 @@ export function expandSharedAppState<T>(value: T): T {
 
 // The shared payload is the only untrusted input path in the app: a crafted
 // link must not be able to push NaN or arbitrary values into the store.
-const COMPLETION_MODES: ReadonlySet<string> = new Set([
-  "draft",
-  "closed",
-  "open",
-]);
-const SOLVER_MODES: ReadonlySet<string> = new Set([
-  "central",
-  "ipm",
-  "simplex",
-  "pdhg",
-]);
+const COMPLETION_MODES: ReadonlySet<string> = new Set(["draft", "closed", "open"]);
+const SOLVER_MODES: ReadonlySet<string> = new Set(["central", "ipm", "simplex", "pdhg"]);
 
-const isFinitePoint = (value: unknown): value is { x: number; y: number } =>
-  typeof value === "object" &&
-  value !== null &&
-  Number.isFinite((value as { x: unknown }).x) &&
-  Number.isFinite((value as { y: unknown }).y);
+const isFinitePoint = (value: unknown): value is { x: number; y: number } => typeof value === "object" && value !== null && Number.isFinite((value as { x: unknown }).x) && Number.isFinite((value as { y: unknown }).y);
 
-export function buildSharedStatePatch(
-  sharedState: SharedAppState,
-): Partial<State> {
-  const mappedVertices = Array.isArray(sharedState.vertices)
-    ? sharedState.vertices
-        .filter(isFinitePoint)
-        .map((vertex) => ({ x: vertex.x, y: vertex.y }))
-    : [];
-  const completionMode =
-    sharedState.completionMode !== undefined &&
-    COMPLETION_MODES.has(sharedState.completionMode)
-      ? sharedState.completionMode
-      : mappedVertices.length > 2
-        ? "closed"
-        : "draft";
-  const solverMode = SOLVER_MODES.has(sharedState.solverMode)
-    ? sharedState.solverMode
-    : "central";
+const isFinitePoint3 = (value: unknown): value is { x: number; y: number; z: number } => isFinitePoint(value) && Number.isFinite((value as unknown as { z: unknown }).z);
+
+// a valid shared plane is a 4-tuple of finite numbers [a,b,c,d]
+const isFinitePlane = (value: unknown): value is number[] => Array.isArray(value) && value.length === 4 && value.every((entry) => Number.isFinite(entry));
+
+export function extractSharedPlanes(sharedState: SharedAppState): number[][] | null {
+  if (!Array.isArray(sharedState.planes)) return null;
+  const planes = sharedState.planes.filter(isFinitePlane);
+  return planes.length >= 4 ? planes.map((p) => p.slice()) : null;
+}
+
+export function extractSharedVertices3(sharedState: SharedAppState): { x: number; y: number; z: number }[] | null {
+  if (!Array.isArray(sharedState.vertices3)) return null;
+  const points = sharedState.vertices3.filter(isFinitePoint3).map((p) => ({ x: p.x, y: p.y, z: p.z }));
+  return points.length >= 4 ? points : null;
+}
+
+export function extractSharedObjective3(sharedState: SharedAppState): { x: number; y: number; z: number } | null {
+  return isFinitePoint3(sharedState.objective3)
+    ? {
+        x: sharedState.objective3.x,
+        y: sharedState.objective3.y,
+        z: sharedState.objective3.z,
+      }
+    : null;
+}
+
+export function buildSharedStatePatch(sharedState: SharedAppState): Partial<State> {
+  const mappedVertices = Array.isArray(sharedState.vertices) ? sharedState.vertices.filter(isFinitePoint).map((vertex) => ({ x: vertex.x, y: vertex.y })) : [];
+  const completionMode = sharedState.completionMode !== undefined && COMPLETION_MODES.has(sharedState.completionMode) ? sharedState.completionMode : mappedVertices.length > 2 ? "closed" : "draft";
+  const solverMode = SOLVER_MODES.has(sharedState.solverMode) ? sharedState.solverMode : "central";
 
   return {
     vertices: mappedVertices,
     completionMode,
-    objectiveVector: isFinitePoint(sharedState.objective)
-      ? { x: sharedState.objective.x, y: sharedState.objective.y }
-      : null,
+    objectiveVector: isFinitePoint(sharedState.objective) ? { x: sharedState.objective.x, y: sharedState.objective.y } : null,
     solverMode,
-    ...(Number.isFinite(sharedState.zScale)
-      ? { zScale: Math.max(0.01, Math.min(100, sharedState.zScale!)) }
-      : {}),
+    ...(Number.isFinite(sharedState.zScale) ? { zScale: Math.max(0.01, Math.min(100, sharedState.zScale!)) } : {}),
   };
 }

@@ -6,7 +6,10 @@ import { ControlsController } from "@/three/controllers/ControlsController";
 import { SharedMaterialsController } from "@/three/controllers/SharedMaterialsController";
 import { TransitionController } from "@/three/controllers/TransitionController";
 import { ConstraintHighlightLayer } from "@/three/layers/ConstraintHighlightLayer";
+import { ExtrudeHandleLayer } from "@/three/layers/ExtrudeHandleLayer";
 import { GridLayer } from "@/three/layers/GridLayer";
+import { Objective3DLayer } from "@/three/layers/Objective3DLayer";
+import { Polytope3DLayer } from "@/three/layers/Polytope3DLayer";
 import { IterateHighlightLayer } from "@/three/layers/IterateHighlightLayer";
 import { IterateLineLayer } from "@/three/layers/IterateLineLayer";
 import { IteratePointsLayer } from "@/three/layers/IteratePointsLayer";
@@ -19,11 +22,7 @@ import { PolytopeVerticesLayer } from "@/three/layers/PolytopeVerticesLayer";
 import { TraceLineLayer } from "@/three/layers/TraceLineLayer";
 import { TracePointsLayer } from "@/three/layers/TracePointsLayer";
 
-export function mountCanvasGL(
-  parent: HTMLElement,
-  onBridgeReady: (bridge: ViewportBridge) => void,
-  onBridgeDispose?: () => void,
-) {
+export function mountCanvasGL(parent: HTMLElement, onBridgeReady: (bridge: ViewportBridge) => void, onBridgeDispose?: () => void) {
   const canvas = document.createElement("canvas");
   canvas.className = "canvas-stage__gl-canvas";
   canvas.tabIndex = 0;
@@ -34,21 +33,7 @@ export function mountCanvasGL(
   const cameraCtl = new CameraController(mgr);
   const controlsCtl = new ControlsController(mgr);
   const materialsCtl = new SharedMaterialsController(mgr);
-  const layers: Layer[] = [
-    new GridLayer(),
-    new PolytopeBaseLayer(),
-    new PolytopeRubberBandLayer(),
-    new ObjectiveLayer(),
-    new ConstraintHighlightLayer(),
-    new PolytopeVerticesLayer(),
-    new TraceLineLayer(),
-    new TracePointsLayer(),
-    new IterateLineLayer(),
-    new IteratePointsLayer(),
-    new IterateRestartPointsLayer(),
-    new IterateHighlightLayer(),
-    new IterateStarLayer(),
-  ];
+  const layers: Layer[] = [new GridLayer(), new PolytopeBaseLayer(), new Polytope3DLayer(), new PolytopeRubberBandLayer(), new ObjectiveLayer(), new Objective3DLayer(), new ExtrudeHandleLayer(), new ConstraintHighlightLayer(), new PolytopeVerticesLayer(), new TraceLineLayer(), new TracePointsLayer(), new IterateLineLayer(), new IteratePointsLayer(), new IterateRestartPointsLayer(), new IterateHighlightLayer(), new IterateStarLayer()];
   for (const l of layers) mgr.addLayer(l);
   onBridgeReady({
     getCanvasElement: () => canvas,
