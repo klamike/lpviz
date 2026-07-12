@@ -9,6 +9,7 @@ type VirtualRowBlocks = {
 };
 import type { Line, PointXY, PointXYZ } from "@lpviz/math/types";
 import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
+import type { Plane3, Polytope3Representation } from "@lpviz/polytope/polytope3";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "@lpviz/viewport/defaults";
 
 export const MAX_TRACE_POINT_SPRITES = 1200;
@@ -16,24 +17,24 @@ export { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE };
 
 export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
 export type CompletionMode = "draft" | "closed" | "open";
-type CompletedInteraction =
-  | "none"
-  | "dragged-point"
-  | "dragged-objective"
-  | "dragged-constraint";
-export type DrawingPhase =
-  | "empty"
-  | "sketching_polytope"
-  | "awaiting_objective"
-  | "objective_preview"
-  | "ready_for_solvers";
-type ConstraintDragOperation =
-  | { kind: "closed-line"; lineIndex: number; lines: Line[] }
-  | { kind: "open-vertices"; vertexIndices: [number, number] };
+// Which problem the app is editing: the classic 2-variable LP, or the
+// 3-variable LP served at /3d. Fixed at boot from the URL path.
+type ProblemMode = "2d" | "3d";
+// CAD-style build phases for the 3-variable editor: sketch the base polygon on
+// the ground plane, extrude it to a prism, pick the objective direction, then
+// solve ("ready" keeps faces editable via push/pull and vertex chamfer).
+export type Editor3Phase = "sketch" | "extrude" | "objective" | "ready";
+type CompletedInteraction = "none" | "dragged-point" | "dragged-objective" | "dragged-constraint";
+export type DrawingPhase = "empty" | "sketching_polytope" | "awaiting_objective" | "objective_preview" | "ready_for_solvers";
+type ConstraintDragOperation = { kind: "closed-line"; lineIndex: number; lines: Line[] } | { kind: "open-vertices"; vertexIndices: [number, number] };
 export type HistoryEntry = {
   vertices: PointXY[];
   objectiveVector: PointXY | null;
   completionMode: CompletionMode;
+  // present only in 3D problem mode (undo/redo spans extrude and solid edits)
+  vertices3?: PointXYZ[];
+  objectiveVector3?: PointXYZ | null;
+  editor3Phase?: Editor3Phase;
 };
 export type DragViewAnchor3D = { x: number; y: number; z: number };
 
@@ -45,7 +46,25 @@ export type DragTarget =
       start: PointXY;
       normal: PointXY;
     }
-  | { kind: "objective"; viewAnchor3D?: DragViewAnchor3D };
+  | { kind: "objective"; viewAnchor3D?: DragViewAnchor3D }
+  // 3D problem mode: extrude-handle drag sets the prism height; face3 is a
+  // push/pull along the picked face's fixed normal (anchor lies on the face,
+  // so newD = anchorD + distance dragged along the normal); vertex3 drags a
+  // solid vertex on the camera-facing plane through its start position;
+  // objective3 re-aims the 3D objective arrow the same way.
+  | { kind: "extrude-handle" }
+  | {
+      kind: "face3";
+      anchorPoint: PointXYZ;
+      normal: PointXYZ;
+      anchorD: number;
+    }
+  // `axis` constrains the drag to a line through `anchor` (set for handles
+  // inserted on a face, so pulling them out follows the face normal instead
+  // of the camera plane — a camera-plane drag usually lands them uselessly
+  // inside the solid)
+  | { kind: "vertex3"; index: number; anchor: PointXYZ; axis?: PointXYZ }
+  | { kind: "objective3" };
 export type EditorInteractionState =
   | { kind: "idle" }
   | {
@@ -116,41 +135,42 @@ const ITERATE_DIRTY: ViewportDirtyFlags = { iterate: true };
 const TRACE_DIRTY: ViewportDirtyFlags = { trace: true };
 // the objective marker is occluded by the polytope floor in 3D, so a moved
 // objective repaints the polytope too while in (or transitioning to) 3D
-const objectiveDirty = (s: State): ViewportDirtyFlags =>
-  s.is3DMode || s.isTransitioning3D
-    ? { polytope: true, objective: true }
-    : { objective: true };
+const objectiveDirty = (s: State): ViewportDirtyFlags => (s.is3DMode || s.isTransitioning3D ? { polytope: true, objective: true } : { objective: true });
 
-const FIELD_DIRTY: Partial<Record<keyof State, (s: State) => ViewportDirtyFlags>> =
-  {
-    vertices: () => POLYTOPE_DIRTY,
-    polytope: () => POLYTOPE_DIRTY,
-    completionMode: () => POLYTOPE_DIRTY,
-    interiorPoint: () => POLYTOPE_DIRTY,
-    objectiveVector: objectiveDirty,
-    currentObjective: objectiveDirty,
-    objectiveHidden: () => ({ objective: true }),
-    highlightIndex: () => ({ constraints: true }),
-    iteratePath: () => ITERATE_DIRTY,
-    iteratePhases: () => ITERATE_DIRTY,
-    iterateRestartIndices: () => ITERATE_DIRTY,
-    iterateObjectiveVector: () => ITERATE_DIRTY,
-    highlightIteratePathIndex: () => ITERATE_DIRTY,
-    traceBuffer: () => TRACE_DIRTY,
-    traceEnabled: () => TRACE_DIRTY,
-    // zScale rescales every world-anchored layer's height
-    zScale: () => ({
-      polytope: true,
-      objective: true,
-      trace: true,
-      iterate: true,
-    }),
-  };
+const FIELD_DIRTY: Partial<Record<keyof State, (s: State) => ViewportDirtyFlags>> = {
+  vertices: () => POLYTOPE_DIRTY,
+  polytope: () => POLYTOPE_DIRTY,
+  completionMode: () => POLYTOPE_DIRTY,
+  interiorPoint: () => POLYTOPE_DIRTY,
+  vertices3: () => POLYTOPE_DIRTY,
+  planes: () => POLYTOPE_DIRTY,
+  polytope3: () => POLYTOPE_DIRTY,
+  editor3Phase: () => POLYTOPE_DIRTY,
+  extrudePreviewHeight: () => POLYTOPE_DIRTY,
+  hoveredFaceIndex: () => ({ constraints: true }),
+  objectiveVector3: () => ({ objective: true }),
+  currentObjective3: () => ({ objective: true }),
+  objectiveVector: objectiveDirty,
+  currentObjective: objectiveDirty,
+  objectiveHidden: () => ({ objective: true }),
+  highlightIndex: () => ({ constraints: true }),
+  iteratePath: () => ITERATE_DIRTY,
+  iteratePhases: () => ITERATE_DIRTY,
+  iterateRestartIndices: () => ITERATE_DIRTY,
+  iterateObjectiveVector: () => ITERATE_DIRTY,
+  highlightIteratePathIndex: () => ITERATE_DIRTY,
+  traceBuffer: () => TRACE_DIRTY,
+  traceEnabled: () => TRACE_DIRTY,
+  // zScale rescales every world-anchored layer's height
+  zScale: () => ({
+    polytope: true,
+    objective: true,
+    trace: true,
+    iterate: true,
+  }),
+};
 
-export function deriveViewportDirty(
-  state: State,
-  changedKeys: readonly (keyof State)[],
-): ViewportDirtyFlags | null {
+export function deriveViewportDirty(state: State, changedKeys: readonly (keyof State)[]): ViewportDirtyFlags | null {
   let flags: ViewportDirtyFlags | null = null;
   for (const key of changedKeys) {
     const derive = FIELD_DIRTY[key];
@@ -196,6 +216,21 @@ const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
 };
 
 export type State = {
+  problemMode: ProblemMode;
+  editor3Phase: Editor3Phase;
+  // 3-variable problem. `vertices3` is the source of truth (V-rep, like the
+  // 2D editor); `polytope3` is its convex hull and `planes` mirrors
+  // polytope3.planes for hit-testing/solving. The 2D `vertices`/`polytope`
+  // fields double as the sketch-phase base polygon.
+  vertices3: PointXYZ[];
+  planes: Plane3[];
+  polytope3: Polytope3Representation | null;
+  objectiveVector3: PointXYZ | null;
+  currentObjective3: PointXYZ | null;
+  // live prism height while the extrude handle is being dragged (null = idle)
+  extrudePreviewHeight: number | null;
+  hoveredFaceIndex: number | null;
+
   vertices: PointXY[];
   completionMode: CompletionMode;
   interiorPoint: PointXY | null;
@@ -251,6 +286,16 @@ export type State = {
 };
 
 const initialState: State = {
+  problemMode: "2d",
+  editor3Phase: "sketch",
+  vertices3: [],
+  planes: [],
+  polytope3: null,
+  objectiveVector3: null,
+  currentObjective3: null,
+  extrudePreviewHeight: null,
+  hoveredFaceIndex: null,
+
   vertices: [],
   completionMode: "draft",
   interiorPoint: null,
@@ -337,8 +382,7 @@ class LpvizStore {
       const value = partial[key];
       if (Object.is(this.values[key], value)) continue;
       nextValues ??= { ...this.values };
-      (nextValues as Record<keyof State, State[keyof State]>)[key] =
-        value as State[keyof State];
+      (nextValues as Record<keyof State, State[keyof State]>)[key] = value as State[keyof State];
       changedKeys.push(key);
     }
 
@@ -354,9 +398,7 @@ class LpvizStore {
 
     // viewportDirty is the union of what the changed fields imply and anything
     // the caller passed explicitly (see FIELD_DIRTY)
-    const derived = nextValues
-      ? deriveViewportDirty(this.values, changedKeys)
-      : null;
+    const derived = nextValues ? deriveViewportDirty(this.values, changedKeys) : null;
     if (meta === undefined && derived === null) return;
     let merged: StateChangeMeta = meta ?? {};
     if (derived !== null) {
@@ -369,11 +411,7 @@ class LpvizStore {
     for (let i = 0; i < listeners.length; i++) listeners[i]!(merged);
   }
 
-  on<K extends keyof State>(
-    keys: readonly K[],
-    fn: (values: StateValues<K>) => void,
-    signal: AbortSignal,
-  ): void {
+  on<K extends keyof State>(keys: readonly K[], fn: (values: StateValues<K>) => void, signal: AbortSignal): void {
     if (signal.aborted) return;
 
     let scheduled = false;
@@ -446,22 +484,27 @@ export function setState(patch: Partial<State>, meta?: StateChangeMeta): void {
   lpvizStore.patch(patch, meta);
 }
 
-export function on<K extends keyof State>(
-  keys: readonly K[],
-  fn: (values: StateValues<K>) => void,
-  signal: AbortSignal,
-): void {
+export function on<K extends keyof State>(keys: readonly K[], fn: (values: StateValues<K>) => void, signal: AbortSignal): void {
   lpvizStore.on(keys, fn, signal);
 }
 
-export function onMeta(
-  fn: (meta?: StateChangeMeta) => void,
-  signal: AbortSignal,
-): void {
+export function onMeta(fn: (meta?: StateChangeMeta) => void, signal: AbortSignal): void {
   lpvizStore.onMeta(fn, signal);
 }
 
 export function computeDrawingPhase(state: State): DrawingPhase {
+  if (state.problemMode === "3d") {
+    switch (state.editor3Phase) {
+      case "sketch":
+        return state.vertices.length === 0 ? "empty" : "sketching_polytope";
+      case "extrude":
+        return "sketching_polytope";
+      case "objective":
+        return state.currentObjective3 !== null ? "objective_preview" : "awaiting_objective";
+      case "ready":
+        return "ready_for_solvers";
+    }
+  }
   const verticesCount = state.vertices.length;
   const regionFinished = state.completionMode !== "draft";
   const hasObjective = state.objectiveVector !== null;
@@ -473,9 +516,7 @@ export function computeDrawingPhase(state: State): DrawingPhase {
     return "sketching_polytope";
   }
   if (!hasObjective) {
-    return state.currentObjective !== null
-      ? "objective_preview"
-      : "awaiting_objective";
+    return state.currentObjective !== null ? "objective_preview" : "awaiting_objective";
   }
   return "ready_for_solvers";
 }
@@ -488,21 +529,10 @@ export function prepareAnimationInterval(): void {
   }
 }
 
-export function updateIteratePaths(
-  path: IteratePath,
-  phasesArray?: number[],
-  restartIndicesArray?: number[],
-): void {
+export function updateIteratePaths(path: IteratePath, phasesArray?: number[], restartIndicesArray?: number[]): void {
   const { objectiveVector } = getState();
   // viewportDirty derived from the changed iterate fields (see FIELD_DIRTY)
-  setState(
-    buildIterateStatePatch(
-      path,
-      phasesArray,
-      restartIndicesArray,
-      snapshotObjectiveVector(objectiveVector),
-    ),
-  );
+  setState(buildIterateStatePatch(path, phasesArray, restartIndicesArray, snapshotObjectiveVector(objectiveVector)));
 }
 
 export function clearIterateState(): void {
@@ -516,53 +546,29 @@ export function addTraceToBuffer(path: IteratePath): void {
   const state = getState();
   if (!state.traceEnabled || path.count === 0) return;
   setState({
-    traceBuffer: appendedTraceBuffer(
-      state,
-      path,
-      snapshotObjectiveVector(state.objectiveVector),
-    ),
+    traceBuffer: appendedTraceBuffer(state, path, snapshotObjectiveVector(state.objectiveVector)),
   });
 }
 
 // Display z for one iterate at points[base..base+stride): the baked total
 // (component [2], present for pdhg/ipm) minus the current objective value, so
 // 2D-projected solves render flat and the 3D height tracks the extra term.
-export function computeFlatZ(
-  points: Float64Array,
-  base: number,
-  stride: number,
-  objectiveVector: PointXY | null,
-): number {
-  const objectiveValue = objectiveVector
-    ? objectiveVector.x * points[base]! + objectiveVector.y * points[base + 1]!
-    : 0;
+export function computeFlatZ(points: Float64Array, base: number, stride: number, objectiveVector: PointXY | null): number {
+  const objectiveValue = objectiveVector ? objectiveVector.x * points[base]! + objectiveVector.y * points[base + 1]! : 0;
   const totalValue = stride >= 3 ? points[base + 2]! : objectiveValue;
   return totalValue - objectiveValue;
 }
 
-export function getDisplayedIterateZ(
-  entry: Float64Array,
-  objectiveOverride?: PointXY | null,
-): number {
+export function getDisplayedIterateZ(entry: Float64Array, objectiveOverride?: PointXY | null): number {
   const { objectiveVector: currentObjective } = getState();
-  const objectiveVector =
-    objectiveOverride === undefined ? currentObjective : objectiveOverride;
+  const objectiveVector = objectiveOverride === undefined ? currentObjective : objectiveOverride;
   return computeFlatZ(entry, 0, entry.length, objectiveVector);
 }
 
-export function updateIteratePathsWithTrace(
-  path: IteratePath,
-  phasesArray?: number[],
-  restartIndicesArray?: number[],
-): void {
+export function updateIteratePathsWithTrace(path: IteratePath, phasesArray?: number[], restartIndicesArray?: number[]): void {
   const state = getState();
   const objectiveSnapshot = snapshotObjectiveVector(state.objectiveVector);
-  const patch: Partial<State> = buildIterateStatePatch(
-    path,
-    phasesArray,
-    restartIndicesArray,
-    objectiveSnapshot,
-  );
+  const patch: Partial<State> = buildIterateStatePatch(path, phasesArray, restartIndicesArray, objectiveSnapshot);
   if (state.traceEnabled && path.count > 0) {
     patch.traceBuffer = appendedTraceBuffer(state, path, objectiveSnapshot);
   }
@@ -577,9 +583,7 @@ function snapshotObjectiveVector(objectiveVector: PointXY | null) {
 // (simplex / central path, whose iterates live in independent buffers). Packed
 // pdhg/ipm results never come through here — they arrive already flat from the
 // worker (see unpackIteratePath).
-export function flattenIteratesToPath(
-  iteratesArray: Float64Array[],
-): IteratePath {
+export function flattenIteratesToPath(iteratesArray: Float64Array[]): IteratePath {
   const count = iteratesArray.length;
   if (count === 0) return EMPTY_ITERATE_PATH;
   const stride = iteratesArray[0]!.length >= 3 ? 3 : 2;
@@ -593,11 +597,7 @@ export function flattenIteratesToPath(
   return { points, count, stride };
 }
 
-function appendedTraceBuffer(
-  state: State,
-  path: IteratePath,
-  objectiveSnapshot: PointXY | null,
-): TraceEntry[] {
+function appendedTraceBuffer(state: State, path: IteratePath, objectiveSnapshot: PointXY | null): TraceEntry[] {
   // The trace chunk shares the iterate path's flat buffer (one object, no copy).
   const entry: TraceEntry = {
     points: path.points,
@@ -606,17 +606,10 @@ function appendedTraceBuffer(
     objectiveVector: snapshotObjectiveVector(objectiveSnapshot),
   };
   const raw = [...state.traceBuffer, entry];
-  return raw.length > state.maxTraceCount
-    ? raw.slice(raw.length - state.maxTraceCount)
-    : raw;
+  return raw.length > state.maxTraceCount ? raw.slice(raw.length - state.maxTraceCount) : raw;
 }
 
-function buildIterateStatePatch(
-  path: IteratePath,
-  phasesArray: number[] | undefined,
-  restartIndicesArray: number[] | undefined,
-  objectiveSnapshot: PointXY | null,
-): Partial<State> {
+function buildIterateStatePatch(path: IteratePath, phasesArray: number[] | undefined, restartIndicesArray: number[] | undefined, objectiveSnapshot: PointXY | null): Partial<State> {
   // The flat path and phase/restart arrays are never mutated after creation
   // (replay grows a fresh IteratePath over the same shared buffer), so the
   // "original" fields can share them instead of deep-copying.
@@ -642,9 +635,6 @@ export function setTraceCapacity(maxTraceCount: number): void {
   // a capacity-only bump draws the same chunks
   setState({
     maxTraceCount,
-    traceBuffer:
-      traceBuffer.length > maxTraceCount
-        ? traceBuffer.slice(traceBuffer.length - maxTraceCount)
-        : traceBuffer,
+    traceBuffer: traceBuffer.length > maxTraceCount ? traceBuffer.slice(traceBuffer.length - maxTraceCount) : traceBuffer,
   });
 }
