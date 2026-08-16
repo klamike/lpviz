@@ -20,7 +20,7 @@ export function mountProblemPanel(parent: HTMLElement, ctx: AppContext) {
   const topResult = el("div", { id: "topResult" });
   const nullState = el("div", {
     id: "nullStateMessage",
-    attrs: { "aria-label": "lpviz logo" },
+    attrs: { role: "img", "aria-label": "lpviz logo" },
   });
   renderNullStateLogo(nullState);
   const maximize = el("div", { id: "maximize", text: "maximize" });

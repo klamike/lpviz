@@ -49,6 +49,7 @@ export default defineConfig({
   plugins: [docsCleanUrls()],
   build: {
     outDir: "dist",
+    sourcemap: true,
     rollupOptions: {
       input: "index.html",
     },

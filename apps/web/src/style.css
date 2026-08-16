@@ -3,7 +3,9 @@
   ================================ */
 @font-face {
   font-family: "JuliaMono";
-  src: url("./assets/JuliaMono-Light.woff2") format("woff2");
+  /* subset build (ASCII + Latin-1 + Greek + math/arrows/box-drawing); see
+     public/fonts/. Bump the version suffix when regenerating. */
+  src: url("/fonts/JuliaMono-Light.v1.woff2") format("woff2");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
