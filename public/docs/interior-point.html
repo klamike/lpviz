@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Interior Point Methods, Visualized — lpviz Docs</title>
+    <meta
+      name="description"
+      content="How primal-dual interior point methods solve linear programs: the central path, Mehrotra's predictor-corrector, fraction-to-boundary steps, and infeasible starts — visualized interactively in lpviz."
+    />
+    <link rel="canonical" href="https://lpviz.net/docs/interior-point" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="lpviz" />
+    <meta property="og:title" content="Interior Point Methods, Visualized" />
+    <meta property="og:description" content="Watch a Mehrotra predictor-corrector interior point method arc through the interior of a polytope you draw, and learn what every knob does." />
+    <meta property="og:url" content="https://lpviz.net/docs/interior-point" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Interior Point Methods, Visualized — lpviz" />
+    <meta name="twitter:description" content="The central path, predictor-corrector steps, and infeasible starts, animated on polytopes you draw." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "Interior Point Methods, Visualized",
+            "description": "How primal-dual interior point methods for linear programming work, and how lpviz implements a Mehrotra-style predictor-corrector method.",
+            "url": "https://lpviz.net/docs/interior-point",
+            "author": [
+              { "@type": "Person", "name": "Evan Grand" },
+              { "@type": "Person", "name": "Michael Klamkin" }
+            ],
+            "isPartOf": { "@type": "CollectionPage", "@id": "https://lpviz.net/docs/" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "lpviz", "item": "https://lpviz.net/" },
+              { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lpviz.net/docs/" },
+              { "@type": "ListItem", "position": 3, "name": "Interior Point", "item": "https://lpviz.net/docs/interior-point" }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav aria-label="Documentation">
+        <a class="brand" href="/">lpviz</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/simplex">Simplex</a>
+        <a href="/docs/interior-point" class="is-active" aria-current="page">Interior Point</a>
+        <a href="/docs/pdhg">PDHG</a>
+        <a href="/docs/central-path">Central Path</a>
+      </nav>
+    </header>
+    <main>
+      <article>
+        <p class="breadcrumbs"><a href="/docs/">Docs</a> / Interior Point</p>
+        <h1>Interior point methods</h1>
+        <p class="lede">Where <a href="/docs/simplex">Simplex</a> crawls the boundary, an interior point method (IPM) cuts straight through the middle: it keeps every iterate strictly inside the constraints and follows a smooth arc to the optimum. <a href="https://lpviz.net/">lpviz</a> implements a Mehrotra-style primal-dual predictor–corrector method — the algorithm at the core of most modern LP solvers.</p>
+
+        <figure>
+          <svg viewBox="0 0 340 230" width="340" height="230" role="img" aria-labelledby="ipm-fig">
+            <title id="ipm-fig">A smooth interior point trajectory starting outside a polygon, entering it, and curving through the interior to the optimal vertex.</title>
+            <polygon points="38,150 66,58 168,28 268,66 286,140 160,202" fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+            <path d="M 95 218 C 118 176, 132 148, 155 130 C 200 116 240 94 264 72" fill="none" stroke="var(--ipm)" stroke-width="2" />
+            <g fill="var(--ipm)">
+              <circle cx="95" cy="218" r="3.5" /><circle cx="112" cy="185" r="3" /><circle cx="130" cy="155" r="3" /><circle cx="155" cy="130" r="3" /><circle cx="190" cy="118" r="3" /><circle cx="228" cy="100" r="3" /><circle cx="252" cy="82" r="3" />
+            </g>
+            <circle cx="268" cy="66" r="4.5" fill="currentColor" />
+          </svg>
+          <figcaption>An infeasible start: the first iterates may sit outside the region, then the path bends inward and converges to the optimal vertex.</figcaption>
+        </figure>
+
+        <h2 id="idea">The idea</h2>
+        <p>For the LP <span class="mono">maximize <var>c</var>ᵀ<var>x</var> s.t. <var>A</var><var>x</var> ≤ <var>b</var></span>, introduce a slack <var>s</var> = <var>b</var> − <var>A</var><var>x</var> ≥ 0 and a dual multiplier <var>y</var><sub>i</sub> ≥ 0 for each constraint. A point is optimal exactly when the KKT conditions hold:</p>
+        <p class="eq"><var>A</var><var>x</var> + <var>s</var> = <var>b</var>,&nbsp;&nbsp;&nbsp;<var>A</var>ᵀ<var>y</var> = <var>c</var>,&nbsp;&nbsp;&nbsp;<var>s</var><sub>i</sub> <var>y</var><sub>i</sub> = 0 for all <var>i</var>,&nbsp;&nbsp;&nbsp;<var>s</var>, <var>y</var> ≥ 0.</p>
+        <p>The hard part is <em>complementarity</em> (<var>s</var><sub>i</sub><var>y</var><sub>i</sub> = 0): it forces every constraint to be either exactly tight or carry zero price, which is combinatorial. IPMs relax it to <var>s</var><sub>i</sub><var>y</var><sub>i</sub> = µ for a positive parameter µ, solve that smooth system approximately with Newton's method, and drive µ → 0. The solutions of the relaxed system, traced over µ, form the <a href="/docs/central-path">central path</a> — the smooth curve the iterates loosely follow. This is what makes IPMs polynomial-time in theory (the line of work started by Karmarkar in 1984) and remarkably consistent in practice: iteration counts barely grow with problem size.</p>
+
+        <h2 id="algorithm">What one iteration does</h2>
+        <p>lpviz's IPM keeps a triple (<var>x</var>, <var>s</var>, <var>y</var>) with <var>s</var>, <var>y</var> &gt; 0 and, at every iteration, measures the average complementarity µ = <var>s</var>ᵀ<var>y</var>/<var>m</var>, then:</p>
+        <ol>
+          <li><strong>Predictor.</strong> Solve the Newton (KKT) system for the <em>affine-scaling</em> direction — the step aiming straight at µ = 0 — via a dense LU factorization of the full (<var>n</var> + 2<var>m</var>)-dimensional system.</li>
+          <li><strong>Step length.</strong> Compute the largest steps that keep <var>s</var> and <var>y</var> strictly positive (the <em>fraction-to-boundary</em> rule), separately for the primal and dual.</li>
+          <li><strong>Corrector (adaptive).</strong> If the predictor can move nearly unimpeded — both step ratios at least the <em>corrector threshold</em> — lpviz just takes the affine step. Otherwise it adds Mehrotra's corrector: a second solve with the same matrix that (a) recenters toward the central path with weight σ = (µ<sub>aff</sub>/µ)³, where µ<sub>aff</sub> is the complementarity the predictor would reach, and (b) compensates for the second-order error Δ<var>s</var><sub>i</sub>Δ<var>y</var><sub>i</sub> the linearization ignores. When the predictor did well, σ is tiny (barely center); when it got blocked, σ approaches 1 (retreat toward the path).</li>
+          <li><strong>Move.</strong> Update (<var>x</var>, <var>s</var>, <var>y</var>) using the fraction-to-boundary steps scaled by the <strong>α<sub>max</sub></strong> slider.</li>
+        </ol>
+        <p>Convergence is declared when the primal residual, the dual residual, and the relative duality gap are all below 10⁻⁵.</p>
+
+        <h3 id="infeasible-start">Infeasible start</h3>
+        <p>The method starts at <var>x</var> = 0 (the canvas origin) with <var>s</var> = <var>y</var> = 1 — which typically does <em>not</em> satisfy <var>A</var><var>x</var> + <var>s</var> = <var>b</var>. That's deliberate: this is an <em>infeasible-start</em> IPM, and the Newton steps shrink the constraint violation and the duality gap simultaneously. Watch the <strong>Infeas</strong> column of the log: it decays to zero alongside µ. If your polygon doesn't contain the origin, the first few iterates visibly sit outside the region before the path dives in.</p>
+
+        <h2 id="controls">The controls</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Control</th><th>Default</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>α<sub>max</sub> (max step size ratio)</td>
+                <td>0.1</td>
+                <td>Scales every step. The default is intentionally tiny so you get a long, smooth trajectory to look at. Real solvers use ≈ 0.99; try it to see the algorithm converge in a dozen iterations, cutting corners the small-step arc never would. At exactly 1, iterates may land on the boundary itself.</td>
+              </tr>
+              <tr>
+                <td>Corrector threshold</td>
+                <td>0.9</td>
+                <td>The step quality above which the corrector is skipped. Raise it toward 0.999 and nearly every iteration is corrected — the path stays well-centered. Lower it and the method degenerates toward pure affine scaling — greedier steps that hug the boundary and can stall near corners.</td>
+              </tr>
+              <tr>
+                <td>Maximum iterations</td>
+                <td>1,000</td>
+                <td>Iteration cap (log scale, up to 100k). Small α<sub>max</sub> values need more iterations to converge.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="log">Reading the log</h2>
+        <pre><code> Iter        x        y        Obj     Infeas          µ
+    1     0.00     0.00    0.0e+0    2.4e+1    1.0e+0
+    2     1.13     0.62    1.4e+1    1.1e+1    4.2e-1</code></pre>
+        <ul>
+          <li><strong>Obj</strong>: current objective value <var>c</var>ᵀ<var>x</var> — unlike Simplex it need not increase monotonically, especially while infeasible.</li>
+          <li><strong>Infeas</strong>: the primal residual ‖<var>b</var> − <var>A</var><var>x</var> − <var>s</var>‖<sub>∞</sub> — how far the iterate is from satisfying the constraints.</li>
+          <li><strong>µ</strong>: average complementarity <var>s</var>ᵀ<var>y</var>/<var>m</var> — the "distance along the central path"; optimality is µ → 0.</li>
+        </ul>
+
+        <h2 id="behavior">Behavior to watch for</h2>
+        <ul>
+          <li><strong>It shadows the central path.</strong> Enable <em>Trace</em>, run IPM with α<sub>max</sub> = 0.1, then run <a href="/docs/central-path">Central Path</a> on the same region: the IPM arc runs alongside the central path in a loose neighborhood — the theory made visible.</li>
+          <li><strong>Geometry-independent iteration counts.</strong> Switch between <em>Pentagon</em> and <em>Many Facets</em> with α<sub>max</sub> ≈ 0.99: the iteration count barely changes, while <a href="/docs/simplex">Simplex</a> pivot counts scale with the number of vertices crossed.</li>
+          <li><strong>The endgame is superlinear.</strong> Look at the µ column: once the iterate is near the optimum, µ collapses by orders of magnitude per iteration.</li>
+          <li><strong>It converges to the analytic center of the optimal face.</strong> Make the objective exactly perpendicular to an edge (so a whole edge is optimal): IPM lands in the middle of that edge, while Simplex picks one of its endpoint vertices.</li>
+        </ul>
+
+        <nav class="pager" aria-label="Continue reading">
+          <a href="/docs/simplex"><span class="dir">← Previous</span>The Simplex Method</a>
+          <a class="next" href="/docs/pdhg"><span class="dir">Next →</span>PDHG</a>
+        </nav>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <div>
+        <a href="https://lpviz.net/">lpviz.net</a> · <a href="https://github.com/lpviz/lpviz">GitHub</a> · <a href="https://arxiv.org/abs/2604.27518">Paper (arXiv:2604.27518)</a> · Free &amp; open source, MIT licensed. All solvers run in your browser.
+      </div>
+    </footer>
+  </body>
+</html>

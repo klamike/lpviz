@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Simplex Method, Visualized — lpviz Docs</title>
+    <meta
+      name="description"
+      content="How the Simplex method solves linear programs by walking from vertex to vertex: two-phase setup, Bland's anti-cycling rule, degenerate pivots, and dual simplex — visualized interactively in lpviz."
+    />
+    <link rel="canonical" href="https://lpviz.net/docs/simplex" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="lpviz" />
+    <meta property="og:title" content="The Simplex Method, Visualized" />
+    <meta property="og:description" content="Watch the Simplex algorithm pivot from vertex to vertex of a polytope you draw: two phases, Bland's rule, unboundedness, and dual simplex, explained." />
+    <meta property="og:url" content="https://lpviz.net/docs/simplex" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="The Simplex Method, Visualized — lpviz" />
+    <meta name="twitter:description" content="Two-phase simplex, Bland's rule, and dual simplex on polytopes you draw." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "The Simplex Method, Visualized",
+            "description": "How the Simplex method solves linear programs by pivoting between vertices, and how lpviz implements and visualizes it.",
+            "url": "https://lpviz.net/docs/simplex",
+            "author": [
+              { "@type": "Person", "name": "Evan Grand" },
+              { "@type": "Person", "name": "Michael Klamkin" }
+            ],
+            "isPartOf": { "@type": "CollectionPage", "@id": "https://lpviz.net/docs/" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "lpviz", "item": "https://lpviz.net/" },
+              { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lpviz.net/docs/" },
+              { "@type": "ListItem", "position": 3, "name": "Simplex", "item": "https://lpviz.net/docs/simplex" }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav aria-label="Documentation">
+        <a class="brand" href="/">lpviz</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/simplex" class="is-active" aria-current="page">Simplex</a>
+        <a href="/docs/interior-point">Interior Point</a>
+        <a href="/docs/pdhg">PDHG</a>
+        <a href="/docs/central-path">Central Path</a>
+      </nav>
+    </header>
+    <main>
+      <article>
+        <p class="breadcrumbs"><a href="/docs/">Docs</a> / Simplex</p>
+        <h1>The Simplex method</h1>
+        <p class="lede">The Simplex method solves a linear program by walking along the edges of the feasible region, hopping from vertex to vertex so that the objective improves at every step. In <a href="https://lpviz.net/">lpviz</a>, that walk is drawn right on the polytope you sketched.</p>
+
+        <figure>
+          <svg viewBox="0 0 340 230" width="340" height="230" role="img" aria-labelledby="simplex-fig">
+            <title id="simplex-fig">A convex polygon whose vertices are visited one at a time by the Simplex method, ending at the optimal vertex.</title>
+            <polygon points="38,150 66,58 168,28 268,66 286,140 160,202" fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+            <path d="M 150 120 L 38 150" fill="none" stroke="var(--simplex)" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.7" />
+            <polyline points="38,150 66,58 168,28 268,66" fill="none" stroke="var(--simplex)" stroke-width="2" />
+            <g fill="var(--simplex)">
+              <circle cx="150" cy="120" r="3" /><circle cx="38" cy="150" r="3.5" /><circle cx="66" cy="58" r="3.5" /><circle cx="168" cy="28" r="3.5" />
+            </g>
+            <circle cx="268" cy="66" r="4.5" fill="currentColor" />
+          </svg>
+          <figcaption>Phase 1 (dashed) finds a first vertex; Phase 2 pivots along edges to the optimum (black dot).</figcaption>
+        </figure>
+
+        <h2 id="idea">The idea</h2>
+        <p>A linear objective over a convex polytope always attains its maximum at a vertex (a <em>basic feasible solution</em>). So instead of searching the whole region, Simplex searches only vertices — and only ever moves to an adjacent vertex that improves the objective. Since a polytope has finitely many vertices and the objective strictly improves (with a suitable pivot rule), the method terminates at an optimal vertex, or proves along the way that the LP is unbounded or infeasible.</p>
+        <p>Invented by George Dantzig in 1947, Simplex remains a workhorse of practical optimization. Its geometry is exactly what lpviz shows: each iterate in the log is a vertex, and consecutive iterates share an edge.</p>
+
+        <h2 id="setup">How lpviz sets up the problem</h2>
+        <p>Your drawing defines the LP <span class="mono">maximize <var>c</var>ᵀ<var>x</var> s.t. <var>A</var><var>x</var> ≤ <var>b</var></span>, with one row per edge. Simplex operates on <em>standard form</em> (equality constraints, nonnegative variables), so lpviz converts first:</p>
+        <ul>
+          <li>Each coordinate is split as <var>x</var> = <var>x</var>⁺ − <var>x</var>⁻ with <var>x</var>⁺, <var>x</var>⁻ ≥ 0, since points on the canvas may have negative coordinates.</li>
+          <li>Each inequality gains a slack variable: <var>a</var><sub>i</sub>ᵀ<var>x</var> + <var>s</var><sub>i</sub> = <var>b</var><sub>i</sub>, <var>s</var><sub>i</sub> ≥ 0. Geometrically, <var>s</var><sub>i</sub> is the distance-like margin to constraint <var>i</var>; a vertex of your polygon is exactly a point where enough slacks are zero.</li>
+        </ul>
+        <p>A <em>basis</em> is a choice of <var>m</var> variables (one per constraint) allowed to be nonzero; solving the basis system yields the vertex it represents. The bit-string in the iteration log is this basis: one <code>0</code>/<code>1</code> per standard-form variable, with <code>1</code> marking a basic variable.</p>
+
+        <h3 id="two-phases">Two phases</h3>
+        <p>Simplex needs a feasible vertex to start from, and finding one is itself an LP. lpviz uses the classic <strong>two-phase method</strong>:</p>
+        <ol>
+          <li><strong>Phase 1</strong> adds one artificial variable per constraint and maximizes minus their sum. Artificials measure constraint violation, so driving them to zero lands on a genuine vertex of your region. If the Phase 1 optimum is negative, no feasible point exists and the LP is declared infeasible. Any artificials still lingering in the basis at value zero are pivoted out before Phase 2.</li>
+          <li><strong>Phase 2</strong> starts from that vertex and optimizes the true objective <var>c</var>ᵀ<var>x</var>.</li>
+        </ol>
+        <p>Both phases are shown: the Phase 1 iterates are drawn in a different color than the Phase 2 path, and the sidebar log separates the two blocks. On many drawings Phase 1 is short — but tilt or translate your region and you can watch it grow.</p>
+
+        <h2 id="pivoting">The pivot loop</h2>
+        <p>At each iteration, Simplex computes the <em>reduced cost</em> of every nonbasic variable — the rate at which the objective would improve per unit increase of that variable. Then:</p>
+        <ol>
+          <li><strong>Entering variable:</strong> lpviz uses <strong>Bland's rule</strong> — pick the lowest-index variable with positive reduced cost. Bland's rule is not the fastest pivot rule, but it provably never cycles, so the visualization can never loop forever on a degenerate drawing.</li>
+          <li><strong>Leaving variable (ratio test):</strong> increase the entering variable until some basic variable hits zero; the minimum ratio decides which one leaves (ties broken again by smallest index). Geometrically, this is sliding along an edge until the next constraint becomes tight.</li>
+          <li><strong>Unboundedness:</strong> if no basic variable ever hits zero, the edge is a ray on which the objective grows forever — the log reports <em>LP is unbounded</em>. You can trigger this by leaving the region open in the objective direction.</li>
+        </ol>
+        <p><strong>Degenerate pivots</strong> happen when the minimum ratio is zero: the basis changes but the vertex does not move. In the log you'll see consecutive iterations with identical coordinates but different basis strings — the algorithm is reindexing the same corner before it can leave it. Vertices where more than <var>n</var> constraints meet (easy to create by dragging edges) produce exactly this.</p>
+
+        <h2 id="dual">Dual simplex mode</h2>
+        <p>Every LP has a <em>dual</em>: for <span class="mono">max <var>c</var>ᵀ<var>x</var> s.t. <var>A</var><var>x</var> ≤ <var>b</var></span>, the dual is <span class="mono">min <var>b</var>ᵀ<var>y</var> s.t. <var>A</var>ᵀ<var>y</var> = <var>c</var>, <var>y</var> ≥ 0</span> — one dual variable per constraint, and equal optimal values (strong duality). With <em>Dual simplex mode</em> checked, lpviz runs the same two-phase primal algorithm on the dual problem, then maps every dual basis back into your picture: the basic dual variables select which constraints are tight, and the displayed point is the intersection of those constraint lines (complementary slackness in action).</p>
+        <p>The behavior looks completely different from primal simplex. The path hops between intersections of constraint lines that are usually <em>outside</em> the feasible region — "super-optimal" points that satisfy the optimality conditions but not feasibility — and only becomes feasible at the very last step, which is the optimum. The status logic flips accordingly: an infeasible dual means your (nonempty) primal is unbounded, and an unbounded dual means the primal is infeasible.</p>
+
+        <h2 id="log">Reading the log</h2>
+        <pre><code> Iter        x        y        Obj  basis
+    1    -8.00    -5.00   -7.1e+1  10010…
+    2     8.00    -4.00    4.4e+1  10001…</code></pre>
+        <ul>
+          <li><strong>x, y</strong> (and <strong>z</strong> in 3-variable mode): the current vertex.</li>
+          <li><strong>Obj</strong>: the objective value <var>c</var>ᵀ<var>x</var> — non-decreasing across Phase 2 rows.</li>
+          <li><strong>basis</strong>: the 0/1 membership of every standard-form variable in the current basis. Hover any row to highlight its vertex on the canvas.</li>
+        </ul>
+
+        <h2 id="behavior">Behavior to watch for</h2>
+        <ul>
+          <li><strong>Pivot counts track geometry.</strong> The number of iterations is the number of edges walked. On the <em>Many Facets</em> preset (28 edges), click <em>Rotate Objective</em>: as the objective sweeps, the start-to-optimum walk length changes, and the path wraps different amounts of the boundary.</li>
+          <li><strong>Worst cases exist.</strong> Simplex is exponential in the worst case (the Klee–Minty cube), yet astonishingly fast in practice — a tension you can feel by comparing round regions with skewed ones like <em>Slanted Strip</em> or <em>Tight Corner</em>.</li>
+          <li><strong>Compare with <a href="/docs/interior-point">IPM</a>.</strong> Simplex cost per iteration is a basis update; IPM pays for a full Newton system but takes few iterations regardless of how many vertices the region has. On <em>Many Facets</em>, count iterations for both.</li>
+          <li><strong>Dual vs. primal.</strong> Enable <em>Trace</em>, run primal simplex, switch on dual mode, and run again: one path crawls the inside of the boundary, the other leaps around the exterior scaffolding of constraint intersections — both finish at the same vertex.</li>
+        </ul>
+
+        <nav class="pager" aria-label="Continue reading">
+          <a href="/docs/"><span class="dir">← Back to</span>Docs overview</a>
+          <a class="next" href="/docs/interior-point"><span class="dir">Next →</span>Interior Point Methods</a>
+        </nav>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <div>
+        <a href="https://lpviz.net/">lpviz.net</a> · <a href="https://github.com/lpviz/lpviz">GitHub</a> · <a href="https://arxiv.org/abs/2604.27518">Paper (arXiv:2604.27518)</a> · Free &amp; open source, MIT licensed. All solvers run in your browser.
+      </div>
+    </footer>
+  </body>
+</html>

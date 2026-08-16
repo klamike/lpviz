@@ -758,6 +758,21 @@ body {
   border-bottom: 1px solid #e6e6e6;
 }
 
+.help-panel__docs-link {
+  display: block;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e6e6e6;
+  font-family: "JuliaMono", monospace;
+  font-size: 0.85rem;
+  color: #1a1a1a;
+  text-decoration: none;
+}
+
+.help-panel__docs-link:hover {
+  text-decoration: underline;
+}
+
 .usage-tips-list {
   display: flex;
   flex-direction: column;

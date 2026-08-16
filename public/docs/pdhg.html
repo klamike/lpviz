@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDHG for Linear Programming, Visualized — lpviz Docs</title>
+    <meta
+      name="description"
+      content="How the primal-dual hybrid gradient (PDHG) method solves linear programs with only matrix-vector products: step sizes, spiraling dynamics, Halpern acceleration with restarts, and basis identification — visualized in lpviz."
+    />
+    <link rel="canonical" href="https://lpviz.net/docs/pdhg" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="lpviz" />
+    <meta property="og:title" content="PDHG for Linear Programming, Visualized" />
+    <meta property="og:description" content="The first-order method behind GPU LP solvers like PDLP: watch PDHG spiral into the optimum, diverge when step sizes are too big, and accelerate with Halpern restarts." />
+    <meta property="og:url" content="https://lpviz.net/docs/pdhg" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="PDHG, Visualized — lpviz" />
+    <meta name="twitter:description" content="Primal-dual hybrid gradient dynamics, Halpern restarts, and basis identification on LPs you draw." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "PDHG for Linear Programming, Visualized",
+            "description": "How the primal-dual hybrid gradient method solves linear programs, and how lpviz implements and visualizes it, including Halpern acceleration with restarts.",
+            "url": "https://lpviz.net/docs/pdhg",
+            "author": [
+              { "@type": "Person", "name": "Evan Grand" },
+              { "@type": "Person", "name": "Michael Klamkin" }
+            ],
+            "isPartOf": { "@type": "CollectionPage", "@id": "https://lpviz.net/docs/" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "lpviz", "item": "https://lpviz.net/" },
+              { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lpviz.net/docs/" },
+              { "@type": "ListItem", "position": 3, "name": "PDHG", "item": "https://lpviz.net/docs/pdhg" }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav aria-label="Documentation">
+        <a class="brand" href="/">lpviz</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/simplex">Simplex</a>
+        <a href="/docs/interior-point">Interior Point</a>
+        <a href="/docs/pdhg" class="is-active" aria-current="page">PDHG</a>
+        <a href="/docs/central-path">Central Path</a>
+      </nav>
+    </header>
+    <main>
+      <article>
+        <p class="breadcrumbs"><a href="/docs/">Docs</a> / PDHG</p>
+        <h1>PDHG: primal-dual hybrid gradient</h1>
+        <p class="lede">PDHG solves a linear program using nothing but matrix–vector products and projections — no factorizations, no linear systems. That simplicity is why it powers modern GPU-scale solvers like Google's PDLP. In <a href="https://lpviz.net/">lpviz</a> you can watch its signature behavior up close: iterates that <em>spiral</em> into the optimum.</p>
+
+        <figure>
+          <svg viewBox="0 0 340 230" width="340" height="230" role="img" aria-labelledby="pdhg-fig">
+            <title id="pdhg-fig">A trajectory spiraling in decreasing loops toward the optimal vertex of a polygon.</title>
+            <polygon points="38,150 66,58 168,28 268,66 286,140 160,202" fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+            <path d="M 150 100 C 140 40, 260 10, 292 60 C 310 90, 270 120, 245 100 C 225 84, 245 50, 272 56 C 288 60, 284 78, 270 72" fill="none" stroke="var(--pdhg)" stroke-width="2" />
+            <g fill="var(--pdhg)">
+              <circle cx="150" cy="100" r="3.5" /><circle cx="216" cy="24" r="3" /><circle cx="292" cy="60" r="3" /><circle cx="245" cy="100" r="3" /><circle cx="255" cy="55" r="3" /><circle cx="284" cy="78" r="3" />
+            </g>
+            <circle cx="268" cy="66" r="4.5" fill="currentColor" />
+          </svg>
+          <figcaption>Primal-dual dynamics behave like a damped oscillator around the saddle point: the primal shadow of the iterates spirals inward.</figcaption>
+        </figure>
+
+        <h2 id="idea">The idea</h2>
+        <p>Instead of attacking <span class="mono">maximize <var>c</var>ᵀ<var>x</var> s.t. <var>A</var><var>x</var> ≤ <var>b</var></span> directly, PDHG works on its <em>saddle-point</em> (Lagrangian) formulation with a dual price <var>y</var><sub>i</sub> ≥ 0 per constraint. The primal player nudges <var>x</var> uphill on the objective minus what the current prices charge for constraint violation; the dual player raises the price of any constraint that is violated. In lpviz's default <em>inequality mode</em>, one iteration is:</p>
+        <p class="eq">
+          <var>y</var><sub>k+1</sub> = [<var>y</var><sub>k</sub> + τ(<var>A</var><var>x</var><sub>k</sub> − <var>b</var>)]₊<br />
+          <var>ȳ</var> = 2<var>y</var><sub>k+1</sub> − <var>y</var><sub>k</sub>&nbsp;&nbsp;<span style="opacity: 0.65">(extrapolation)</span><br />
+          <var>x</var><sub>k+1</sub> = <var>x</var><sub>k</sub> + η(<var>c</var> − <var>A</var>ᵀ<var>ȳ</var>)
+        </p>
+        <p>where [·]₊ clips negatives to zero (prices can't go negative). The extrapolation step — using the <em>reflected</em> dual 2<var>y</var><sub>k+1</sub> − <var>y</var><sub>k</sub> rather than <var>y</var><sub>k+1</sub> itself — is what makes the scheme convergent (this is the Chambolle–Pock method, 2011). Each iteration costs exactly one multiply by <var>A</var> and one by <var>A</var>ᵀ, which is why PDHG scales to LPs with billions of nonzeros where factorization-based methods (<a href="/docs/simplex">Simplex</a>, <a href="/docs/interior-point">IPM</a>) run out of memory.</p>
+        <p>Unchecking <em>Inequality mode</em> switches to the textbook <em>standard-form</em> variant: the problem is rewritten with split variables and slacks (<var>x</var> = <var>x</var>⁺ − <var>x</var>⁻, <var>A</var><var>x</var> + <var>s</var> = <var>b</var>, all variables ≥ 0), the projection moves to the primal update, and the extrapolation moves to the primal side. The LP is the same, but the splitting geometry — and therefore the trajectory you see — is different.</p>
+
+        <h2 id="steps">Step sizes and divergence</h2>
+        <p>The sliders η (primal) and τ (dual) are the two step sizes, 0.25 by default. PDHG converges when η·τ·‖<var>A</var>‖² &lt; 1; beyond that the spiral stops contracting and the iterates fly apart. lpviz doesn't hide this — push both sliders toward 0.75 on a region with long constraint vectors and you can watch the divergence live (the run halts once the residuals overflow). Divergence from too-aggressive step sizes is a real failure mode first-order methods must manage; production solvers pick and adapt these step sizes automatically.</p>
+
+        <h2 id="convergence">Convergence and termination</h2>
+        <p>PDHG is a <em>first-order</em> method: cheap iterations, but many of them. The average iterate converges at a sublinear O(1/k) rate, and you'll see the signature long tail — early iterations cover most of the distance, then the spiral tightens excruciatingly slowly. lpviz stops when the scaled KKT error</p>
+        <p class="eq">ε = max( primal infeasibility, dual infeasibility, duality gap )</p>
+        <p>drops below 10⁻⁵ (each term relative-scaled) or when the iteration cap is hit. The <strong>eps</strong> column of the log tracks ε, and <strong>Infeas</strong> shows the raw constraint violation of the current point — unlike Simplex, PDHG iterates are only feasible in the limit.</p>
+
+        <h2 id="halpern">Halpern acceleration and restarts</h2>
+        <p>The <em>Halpern</em> checkbox enables the acceleration scheme used by recent PDLP-family research (restarted Halpern PDHG). Instead of taking the raw PDHG step <var>T</var>(<var>z</var><sub>k</sub>), the iterate is blended with a fixed <em>anchor</em> point:</p>
+        <p class="eq"><var>z</var><sub>k+1</sub> = <sup>k</sup>⁄<sub>k+1</sub> · <var>T</var>(<var>z</var><sub>k</sub>) + <sup>1</sup>⁄<sub>k+1</sub> · <var>z</var><sub>anchor</sub></p>
+        <p>The pull toward the anchor damps the spiraling, and periodically the anchor is <em>restarted</em> to the current iterate. lpviz restarts adaptively, when the fixed-point residual has dropped to 20% of its value at the last restart, when it has dropped below 50% and begins rising again, or after a fixed fraction of the total iteration budget. Restart iterations are marked with an <code>r</code> in the log and highlighted along the path. With restarts, the convergence rate on LPs improves from sublinear to linear — flip Halpern on and off with <em>Trace</em> enabled and compare both the shape of the path (straighter, punctuated segments vs. a smooth spiral) and the final iteration counts.</p>
+
+        <h2 id="basis">Color by basis</h2>
+        <p><em>Color by basis</em> colors each iterate by a fingerprint of its <em>active set</em> — which constraints currently have a positive dual price (inequality mode) or which variables sit at zero (standard-form mode). The color typically flickers early, then locks in well before the numbers converge: the iterates have identified which constraints will be tight at the optimum — the optimal <em>basis</em> — even though the point itself is still spiraling. This "basis identification" behavior is exactly what advanced implementations exploit to jump to an exact solution early.</p>
+
+        <h2 id="controls">The controls</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Control</th><th>Default</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td>η (primal step size)</td><td>0.25</td><td>How far <var>x</var> moves per iteration. Larger is faster until η·τ·‖<var>A</var>‖² ≥ 1, then divergence.</td></tr>
+              <tr><td>τ (dual step size)</td><td>0.25</td><td>How fast constraint prices react. Interacts with η via the same stability product.</td></tr>
+              <tr><td>Maximum iterations</td><td>1,000</td><td>Iteration cap (log scale, up to 100k). PDHG routinely needs thousands on hard geometry.</td></tr>
+              <tr><td>Inequality mode</td><td>on</td><td>Run directly on <var>A</var><var>x</var> ≤ <var>b</var>; off = standard-form reformulation with split variables and slacks.</td></tr>
+              <tr><td>Halpern</td><td>off</td><td>Anchored acceleration with adaptive restarts (<code>r</code> rows in the log).</td></tr>
+              <tr><td>Color by basis</td><td>off</td><td>Color iterates by active-set fingerprint to watch basis identification.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="behavior">Behavior to watch for</h2>
+        <ul>
+          <li><strong>The spiral is the saddle.</strong> The primal iterate orbits the optimum because it is one half of a primal-dual pair circling a saddle point; what looks like overshooting is the dual prices catching up. The x/y numbers oscillate above and below their limits.</li>
+          <li><strong>Conditioning bites.</strong> On the <em>Needle</em> preset (a long, thin region), the spiral flattens into a slow crawl — first-order methods inherit the geometry of the problem. Compare with <a href="/docs/interior-point">IPM</a>, which barely notices.</li>
+          <li><strong>Cheap iterations, many of them.</strong> PDHG might take 50× more iterations than IPM on the same drawing, yet each iteration is only two matrix–vector products. That trade is the entire story of first-order LP solvers.</li>
+          <li><strong>Restarts change the shape.</strong> With Halpern on, the path advances in near-straight "sprints" between restart markers instead of circling.</li>
+        </ul>
+
+        <nav class="pager" aria-label="Continue reading">
+          <a href="/docs/interior-point"><span class="dir">← Previous</span>Interior Point Methods</a>
+          <a class="next" href="/docs/central-path"><span class="dir">Next →</span>The Central Path</a>
+        </nav>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <div>
+        <a href="https://lpviz.net/">lpviz.net</a> · <a href="https://github.com/lpviz/lpviz">GitHub</a> · <a href="https://arxiv.org/abs/2604.27518">Paper (arXiv:2604.27518)</a> · Free &amp; open source, MIT licensed. All solvers run in your browser.
+      </div>
+    </footer>
+  </body>
+</html>

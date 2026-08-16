@@ -1,0 +1,16 @@
+# lpviz
+
+> lpviz (https://lpviz.net) is a free, open-source, interactive web app for visualizing linear programming solvers. Users draw a feasible region (a polytope), aim a linear objective, and watch four algorithms solve the LP iteration by iteration: the Simplex method, a Mehrotra-style primal-dual interior point method (IPM), the primal-dual hybrid gradient method (PDHG, with optional Halpern acceleration and restarts), and a direct trace of the central path via log-barrier Newton steps. All computation runs client-side in the browser. A 3-variable mode is available at https://lpviz.net/3d.
+
+## Documentation
+
+- [Docs overview](https://lpviz.net/docs/): the LP formulation (maximize c'x subject to Ax <= b), quick start, solver comparison, 3D modes, sharing, FAQ
+- [The Simplex Method](https://lpviz.net/docs/simplex): vertex pivoting, two-phase setup, Bland's anti-cycling rule, degenerate pivots, dual simplex mode
+- [Interior Point Methods](https://lpviz.net/docs/interior-point): KKT conditions, Mehrotra predictor-corrector, fraction-to-boundary steps, infeasible starts, the alpha_max and corrector-threshold controls
+- [PDHG](https://lpviz.net/docs/pdhg): saddle-point formulation, step-size stability, spiraling dynamics, Halpern acceleration with adaptive restarts, basis identification
+- [The Central Path](https://lpviz.net/docs/central-path): the logarithmic barrier, analytic centers, Newton path-tracing, connection to interior point methods
+
+## Source and citation
+
+- [GitHub repository](https://github.com/lpviz/lpviz): TypeScript source for the app and all four solvers (MIT licensed)
+- [Paper](https://arxiv.org/abs/2604.27518): Grand, E. and Klamkin, M., "lpviz: Interactive Linear Programming Visualization", arXiv:2604.27518 (2026)

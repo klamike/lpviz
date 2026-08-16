@@ -7,9 +7,15 @@ export function mountHelpButton(parent: HTMLElement) {
     id: "helpPanel",
     attrs: { role: "dialog", "aria-label": "Usage tips" },
   });
+  const docsLink = el("a", {
+    className: "help-panel__docs-link",
+    attrs: { href: "/docs/" },
+    text: "Docs: how each solver works →",
+  });
   panel.append(
     el("div", { className: "help-panel__title", text: "Usage Tips" }),
     usageTipsList(),
+    docsLink,
   );
   const button = el("button", {
     id: "helpButton",
