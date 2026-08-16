@@ -3,7 +3,9 @@
   ================================ */
 @font-face {
   font-family: "JuliaMono";
-  src: url("./assets/JuliaMono-Light.woff2") format("woff2");
+  /* subset build (ASCII + Latin-1 + Greek + math/arrows/box-drawing); see
+     public/fonts/. Bump the version suffix when regenerating. */
+  src: url("/fonts/JuliaMono-Light.v1.woff2") format("woff2");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -756,6 +758,21 @@ body {
   padding-bottom: 12px;
   margin-bottom: 4px;
   border-bottom: 1px solid #e6e6e6;
+}
+
+.help-panel__docs-link {
+  display: block;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e6e6e6;
+  font-family: "JuliaMono", monospace;
+  font-size: 0.85rem;
+  color: #1a1a1a;
+  text-decoration: none;
+}
+
+.help-panel__docs-link:hover {
+  text-decoration: underline;
 }
 
 .usage-tips-list {

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Central Path and Log Barrier, Visualized — lpviz Docs</title>
+    <meta
+      name="description"
+      content="The central path of a linear program: how the logarithmic barrier turns constraints into a smooth landscape, how Newton's method traces the path from analytic center to optimum, and what it reveals about interior point methods."
+    />
+    <link rel="canonical" href="https://lpviz.net/docs/central-path" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="lpviz" />
+    <meta property="og:title" content="The Central Path and Log Barrier, Visualized" />
+    <meta property="og:description" content="Trace the smooth curve connecting the analytic center of a polytope to its optimal vertex, computed with Newton's method on the log-barrier problem." />
+    <meta property="og:url" content="https://lpviz.net/docs/central-path" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="The Central Path, Visualized — lpviz" />
+    <meta name="twitter:description" content="Log barriers, analytic centers, and the smooth road to the optimum of a linear program." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "The Central Path and Log Barrier, Visualized",
+            "description": "What the central path of a linear program is, how lpviz traces it with Newton's method on log-barrier subproblems, and how it relates to interior point methods.",
+            "url": "https://lpviz.net/docs/central-path",
+            "isPartOf": { "@type": "CollectionPage", "@id": "https://lpviz.net/docs/" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "lpviz", "item": "https://lpviz.net/" },
+              { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lpviz.net/docs/" },
+              { "@type": "ListItem", "position": 3, "name": "Central Path", "item": "https://lpviz.net/docs/central-path" }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav aria-label="Documentation">
+        <a class="brand" href="/">lpviz</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/simplex">Simplex</a>
+        <a href="/docs/interior-point">Interior Point</a>
+        <a href="/docs/pdhg">PDHG</a>
+        <a href="/docs/central-path" class="is-active" aria-current="page">Central Path</a>
+      </nav>
+    </header>
+    <main>
+      <article>
+        <p class="breadcrumbs"><a href="/docs/">Docs</a> / Central Path</p>
+        <h1>The central path</h1>
+        <p class="lede">The central path is the smooth curve that <a href="/docs/interior-point">interior point methods</a> chase: it starts at the most "central" point of your feasible region and ends at the optimum. Unlike the other buttons in <a href="https://lpviz.net/">lpviz</a>, this one doesn't visualize a practical solver — it computes the ideal object itself.</p>
+
+        <figure>
+          <svg viewBox="0 0 340 230" width="340" height="230" role="img" aria-labelledby="cp-fig">
+            <title id="cp-fig">A smooth curve inside a polygon running from its analytic center to the optimal vertex, with points clustered at both ends.</title>
+            <polygon points="38,150 66,58 168,28 268,66 286,140 160,202" fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+            <path d="M 160 120 C 200 116 240 96 264 70" fill="none" stroke="var(--central)" stroke-width="2" />
+            <g fill="var(--central)">
+              <circle cx="160" cy="120" r="3.5" /><circle cx="164.7" cy="119.5" r="2.5" /><circle cx="171.7" cy="118.4" r="2.5" /><circle cx="183.2" cy="115.9" r="2.5" /><circle cx="200.1" cy="110.8" r="2.5" /><circle cx="221.7" cy="101.4" r="2.5" /><circle cx="238.9" cy="91.3" r="2.5" /><circle cx="252.1" cy="81.3" r="2.5" /><circle cx="259.9" cy="74.2" r="2.5" />
+            </g>
+            <circle cx="268" cy="66" r="4.5" fill="currentColor" />
+          </svg>
+          <figcaption>Equal steps in log µ: the dots bunch where the path lingers (near the analytic center and the optimum) and spread out where it moves.</figcaption>
+        </figure>
+
+        <h2 id="barrier">The log barrier</h2>
+        <p>Take the LP <span class="mono">maximize <var>c</var>ᵀ<var>x</var> s.t. <var>a</var><sub>i</sub>ᵀ<var>x</var> ≤ <var>b</var><sub>i</sub></span> and replace the hard constraints with a <em>logarithmic barrier</em>. For a parameter µ &gt; 0, solve</p>
+        <p class="eq">maximize&nbsp;&nbsp;<var>c</var>ᵀ<var>x</var> + µ&nbsp;Σ<sub>i</sub> log(<var>b</var><sub>i</sub> − <var>a</var><sub>i</sub>ᵀ<var>x</var>)</p>
+        <p>The log of each slack acts as an infinitely tall wall at the boundary: as the point approaches any constraint, its slack goes to zero and the barrier term plunges to −∞. The objective is strictly concave, so each µ has a <em>unique</em> maximizer <var>x</var>*(µ) strictly inside the region. The curve of these maximizers, traced as µ varies, is the <strong>central path</strong>:</p>
+        <ul>
+          <li><strong>µ → ∞:</strong> the objective term becomes irrelevant and <var>x</var>*(µ) approaches the <em>analytic center</em> — the point maximizing the product of slacks, the region's barrier-native notion of "middle". Notice it doesn't depend on <var>c</var>.</li>
+          <li><strong>µ → 0:</strong> the barrier fades and <var>x</var>*(µ) converges to an optimal point — specifically the analytic center of the optimal face (the midpoint of an optimal edge, or a vertex if the optimum is unique).</li>
+        </ul>
+
+        <h2 id="algorithm">How lpviz traces it</h2>
+        <p>The <em>N</em> slider picks how many points to compute (default 75, up to 100). lpviz spaces N values of µ evenly on a log scale from 10³ down to 10⁻⁵ and, for each one, maximizes the barrier objective with <strong>damped Newton's method</strong>:</p>
+        <ol>
+          <li>Form the gradient <var>c</var> − µ Σ <var>a</var><sub>i</sub>/<var>s</var><sub>i</sub> and Hessian curvature µ Σ <var>a</var><sub>i</sub><var>a</var><sub>i</sub>ᵀ/<var>s</var><sub>i</sub>² from the current slacks <var>s</var><sub>i</sub> = <var>b</var><sub>i</sub> − <var>a</var><sub>i</sub>ᵀ<var>x</var>, and solve for the Newton step.</li>
+          <li>Backtrack the step (halving, with an Armijo sufficient-increase test) until it improves the barrier objective while staying strictly feasible — the barrier itself rejects any step that would cross the boundary.</li>
+          <li>Stop when the gradient's ∞-norm falls below 10⁻⁴.</li>
+        </ol>
+        <p>Each solve is <em>warm-started</em> from the previous µ's optimizer, which is exactly why path-following works: neighboring points on the path are close, so a few Newton steps suffice. The very first solve starts from the centroid of your polygon (or the interior point supplied in 3-variable mode) — the method needs a strictly feasible starting point, which is also why the Central Path button disables when your region is unbounded in the objective direction (the path would escape to infinity).</p>
+
+        <h2 id="reading">Reading the picture</h2>
+        <ul>
+          <li><strong>Dot spacing is information.</strong> The µ values are evenly spaced in log scale, so wherever dots cluster the path is barely moving. Typically it idles near the analytic center at large µ, sprints through a transition band where the objective overtakes the barrier, and creeps into the optimum.</li>
+          <li><strong>The log</strong> lists each point with its µ and objective value <var>c</var>ᵀ<var>x</var>, which increases monotonically along the path as µ decreases.</li>
+          <li><strong>In the 3D view</strong>, the central path curve is lifted by the full barrier objective <var>c</var>ᵀ<var>x</var> + µ Σ log(·) — the smoothed landscape it actually climbs — while solver paths are lifted by the plain objective.</li>
+        </ul>
+
+        <h2 id="ipm-connection">Connection to interior point methods</h2>
+        <p>A path-following <a href="/docs/interior-point">IPM</a> never computes <var>x</var>*(µ) exactly; it takes one Newton-ish step per µ and stays within a loose neighborhood of the path. To see this correspondence, enable <em>Trace</em>, run Central Path, then run IPM with a small α<sub>max</sub>: the two curves shadow each other, converging to the same point of the optimal face. Central Path is the platonic route; IPM is the practical approximation with error bars.</p>
+
+        <h2 id="behavior">Behavior to watch for</h2>
+        <ul>
+          <li><strong>The flower.</strong> Enable <em>Trace</em> and click <em>Rotate Objective</em>: as <var>c</var> sweeps a circle, every central path grows from the <em>same</em> root — the analytic center, which doesn't depend on <var>c</var> — and bends to a different vertex. The resulting bouquet is lpviz's signature picture.</li>
+          <li><strong>Optimal faces, not just vertices.</strong> Aim <var>c</var> exactly perpendicular to an edge: the path ends at the middle (analytic center) of that optimal edge, not at one of its endpoints like <a href="/docs/simplex">Simplex</a> would.</li>
+          <li><strong>Centrality vs. shape.</strong> The analytic center is not the centroid: drag one edge to have many nearly-parallel copies (or load <em>Flat Facets</em>) and watch the whole path get pushed away from the crowded side — every constraint contributes its own log term, so redundant constraints still bend the path.</li>
+          <li><strong>Small N tells the story too.</strong> Set N = 2: you get just the two ends of the path — the analytic center and (nearly) the optimum.</li>
+        </ul>
+
+        <nav class="pager" aria-label="Continue reading">
+          <a href="/docs/pdhg"><span class="dir">← Previous</span>PDHG</a>
+          <a class="next" href="/docs/"><span class="dir">Back to</span>Docs overview</a>
+        </nav>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <div>
+        <a href="https://lpviz.net/">lpviz.net</a> · <a href="https://github.com/lpviz/lpviz">GitHub</a> · <a href="https://arxiv.org/abs/2604.27518">Paper (arXiv:2604.27518)</a> · Free &amp; open source, MIT licensed. All solvers run in your browser.
+      </div>
+    </footer>
+  </body>
+</html>

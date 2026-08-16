@@ -13,8 +13,8 @@ function githubIcon(): SVGSVGElement {
   svg.classList.add("github-icon");
   svg.setAttribute("xmlns", SVG_NS);
   svg.setAttribute("viewBox", "0 0 98 96");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-labelledby", "githubTitle");
+  // decorative: the wrapping link carries the accessible name
+  svg.setAttribute("aria-hidden", "true");
 
   const path = document.createElementNS(SVG_NS, "path");
   path.setAttribute("fill-rule", "evenodd");
