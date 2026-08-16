@@ -17,17 +17,6 @@
 
 <p align="right"><i>Inspired by <a href="https://www.youtube.com/watch?v=ijD2KSXWDyo">advanced methods for establishing convexity</a>.</i></p>
 
-## Documentation
-
-The docs at [lpviz.net/docs](https://lpviz.net/docs/) explain each algorithm and the behavior you'll see on screen:
-
-- [The Simplex Method](https://lpviz.net/docs/simplex) — vertex pivoting, the two-phase setup, Bland's rule, and dual simplex mode
-- [Interior Point Methods](https://lpviz.net/docs/interior-point) — the Mehrotra-style predictor–corrector IPM and its controls
-- [PDHG](https://lpviz.net/docs/pdhg) — primal-dual hybrid gradient dynamics, Halpern acceleration with restarts, and basis identification
-- [The Central Path](https://lpviz.net/docs/central-path) — the log barrier, analytic centers, and Newton path-tracing
-
-The docs are static pages in [`public/docs/`](public/docs/), deployed with the app.
-
 ## Installation
 
 You can use `lpviz` now at [https://lpviz.net](https://lpviz.net). If you'd like to run it locally instead, follow the instructions below.
