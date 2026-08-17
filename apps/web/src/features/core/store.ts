@@ -226,7 +226,6 @@ export type SolverSettings = {
   centralPathIter: number;
   maxitEllipsoid: number;
   ellipsoidDeepCuts: boolean;
-  ellipsoidParallelCuts: boolean;
   ellipsoidRayShoot: boolean;
   ellipsoidQueryPoint: EllipsoidQueryPoint;
   ellipsoidInitialScale: number;
@@ -250,9 +249,6 @@ export const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
   centralPathIter: 75,
   maxitEllipsoid: 500,
   ellipsoidDeepCuts: true,
-  // measured to converge slower than a single deep cut under a sliding
-  // objective, so opt-in (see parallelCutShape)
-  ellipsoidParallelCuts: false,
   ellipsoidRayShoot: true,
   ellipsoidQueryPoint: "ellipsoid",
   ellipsoidInitialScale: 1.5,

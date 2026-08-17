@@ -19,7 +19,6 @@ export type ShareSettings = {
   centralPathIter?: number;
   maxitEllipsoid?: number;
   ellipsoidDeepCuts?: boolean;
-  ellipsoidParallelCuts?: boolean;
   ellipsoidRayShoot?: boolean;
   ellipsoidQueryPoint?: EllipsoidQueryPoint;
   ellipsoidInitialScale?: number;
@@ -65,7 +64,6 @@ const shareKeyMap = {
   ellipsoidDeepCuts: "u",
   ellipsoidRayShoot: "z",
   // every lowercase letter is taken; uppercase never collides with them
-  ellipsoidParallelCuts: "P",
   ellipsoidQueryPoint: "Q",
   ellipsoidInitialScale: "w",
   objectiveAngleStep: "r",

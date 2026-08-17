@@ -189,7 +189,6 @@ export function createSolverControls({
         collectShared([
           "maxitEllipsoid",
           "ellipsoidDeepCuts",
-          "ellipsoidParallelCuts",
           "ellipsoidRayShoot",
           "ellipsoidQueryPoint",
           "ellipsoidInitialScale",
@@ -198,7 +197,6 @@ export function createSolverControls({
         applyShared(settings, [
           "maxitEllipsoid",
           "ellipsoidDeepCuts",
-          "ellipsoidParallelCuts",
           "ellipsoidRayShoot",
           "ellipsoidQueryPoint",
           "ellipsoidInitialScale",
@@ -214,7 +212,6 @@ export function createSolverControls({
           ...base,
           maxit: Math.max(1, ss.maxitEllipsoid || 1),
           deepCuts: ss.ellipsoidDeepCuts,
-          parallelCuts: ss.ellipsoidParallelCuts,
           rayShoot: ss.ellipsoidRayShoot,
           queryPoint: ss.ellipsoidQueryPoint,
           initialScale: ss.ellipsoidInitialScale,
