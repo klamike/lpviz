@@ -16,6 +16,13 @@ interface SimplexOptions {
   tol: number;
   verbose: boolean;
   dual: boolean;
+  /**
+   * Optional warm start: a vertex of {Ax <= b} to begin Phase 2 from,
+   * skipping Phase 1. Primal mode only — a primal point determines a
+   * dual-feasible basis only when it is already optimal (by complementary
+   * slackness), so dual simplex mode ignores it.
+   */
+  startVertex?: number[];
 }
 
 function createDenseMatrix(rows: number, cols: number, fill = 0): DenseMatrix {
@@ -625,8 +632,63 @@ function primalPointFromSplitTableau(tableauX: Vec2N, n: number) {
   return point;
 }
 
+// Turn a user-supplied vertex of {Ax <= b} directly into a feasible Phase-2
+// basis for the split standard form [A, -A, I]. The dual side needs no
+// initialization: primal simplex derives its dual estimate y = B^-T c_B from
+// the basis, and dual feasibility is exactly what Phase 2 works toward.
+// Returns null unless the point verifiably is a nondegenerate basic feasible
+// solution — exactly n tight rows, every other slack positive, nonsingular
+// basis matrix whose basic solution is feasible and reproduces the vertex —
+// so a bad start degrades to the ordinary two-phase run, never a wrong path.
+function warmStartBasisFromVertex(
+  A: DenseMatrix,
+  b: Float64Array,
+  cPhase2: Float64Array,
+  aPhase2: DenseMatrix,
+  vertex: number[],
+  tol: number,
+): boolean[] | null {
+  const m = A.rows;
+  const n = A.cols;
+  const active: number[] = [];
+  for (let i = 0; i < m; i++) {
+    let ax = 0;
+    const rowOffset = i * n;
+    for (let j = 0; j < n; j++) ax += A.data[rowOffset + j]! * vertex[j]!;
+    const slack = b[i]! - ax;
+    const scale = 1 + Math.abs(b[i]!);
+    if (slack < -tol * scale) return null; // infeasible point
+    if (slack <= tol * scale) active.push(i);
+  }
+  // basic variables = one split coordinate per dimension + one slack per
+  // inactive row; that totals m exactly when |active| = n (a nondegenerate
+  // vertex). Interior points and degenerate corners fall back to Phase 1.
+  if (active.length !== n) return null;
+
+  const basis: boolean[] = new Array(2 * n + m).fill(false);
+  for (let j = 0; j < n; j++) basis[vertex[j]! >= 0 ? j : n + j] = true;
+  const activeSet = new Set(active);
+  for (let i = 0; i < m; i++) if (!activeSet.has(i)) basis[2 * n + i] = true;
+
+  try {
+    const state = buildBasisState(cPhase2, aPhase2, b, basis);
+    for (let i = 0; i < state.xB.length; i++) {
+      if (state.xB[i]! < -tol) return null; // basis is not primal feasible
+    }
+    for (let j = 0; j < n; j++) {
+      const value = (state.xTableau[j] ?? 0) - (state.xTableau[n + j] ?? 0);
+      if (Math.abs(value - vertex[j]!) > 1e-6 * (1 + Math.abs(vertex[j]!))) {
+        return null; // basic solution does not reproduce the vertex
+      }
+    }
+  } catch {
+    return null; // singular basis matrix
+  }
+  return basis;
+}
+
 export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
-  const { tol, verbose, dual } = opts;
+  const { tol, verbose, dual, startVertex } = opts;
   const { A: aOriginal, b } = linesToDenseAb(lines);
   const m = aOriginal.rows;
   const n = aOriginal.cols;
@@ -666,6 +728,43 @@ export function simplex(lines: Lines, objective: VecN, opts: SimplexOptions) {
     scaleMatrix(aOriginal, -1),
     identity,
   );
+
+  const warmBasis =
+    startVertex && startVertex.length === n
+      ? warmStartBasisFromVertex(
+          aOriginal,
+          b,
+          cPhase2,
+          aPhase2,
+          startVertex,
+          tol,
+        )
+      : null;
+  if (warmBasis) {
+    if (verbose) console.log("Warm start (Phase 1 skipped)");
+    const { iterations, logs, status } = simplexCore(
+      cPhase2,
+      aPhase2,
+      b,
+      warmBasis,
+      {
+        tol,
+        verbose,
+        phase1: false,
+        nOrig: n,
+        m,
+      },
+    );
+    return {
+      iterations: iterations.map((tableauX: Vec2N) =>
+        primalPointFromSplitTableau(tableauX, n),
+      ),
+      phase1Iterations: [],
+      logs: [["Skipped — warm start from the dragged start vertex.\n"], logs],
+      mode: "primal" as const,
+      status,
+    };
+  }
 
   if (verbose) console.log("Phase One");
   const {

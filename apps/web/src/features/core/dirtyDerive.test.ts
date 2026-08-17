@@ -80,7 +80,16 @@ describe("deriveViewportDirty (field -> layers)", () => {
 
   test("pure UI / solver-config fields repaint nothing", () => {
     expect(deriveViewportDirty(st({}), ["resultDisplayMode"])).toBeNull();
-    expect(deriveViewportDirty(st({}), ["solverMode"])).toBeNull();
     expect(deriveViewportDirty(st({}), ["maxTraceCount"])).toBeNull();
+  });
+
+  test("the start marker repaints the iterate overlay", () => {
+    // switching solvers shows/hides/snaps the start marker
+    expect(deriveViewportDirty(st({}), ["solverMode"])).toEqual({
+      iterate: true,
+    });
+    expect(deriveViewportDirty(st({}), ["solverStartPoint"])).toEqual({
+      iterate: true,
+    });
   });
 });

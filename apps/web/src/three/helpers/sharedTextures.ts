@@ -80,6 +80,30 @@ function createStarTexture() {
   return texture;
 }
 
+function createRingTexture() {
+  const deviceRatio = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const size = 32 * deviceRatio * 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Failed to create ring texture context");
+  }
+
+  context.clearRect(0, 0, size, size);
+  context.strokeStyle = "#ffffff";
+  context.lineWidth = size * 0.11;
+  context.beginPath();
+  context.arc(size / 2, size / 2, size * 0.34, 0, Math.PI * 2);
+  context.stroke();
+
+  const texture = new CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
 export const SHARED_CIRCLE_TEXTURE = createCircleTexture();
+export const SHARED_RING_TEXTURE = createRingTexture();
 export const SHARED_SQUARE_TEXTURE = createSquareTexture();
 export const SHARED_STAR_TEXTURE = createStarTexture();

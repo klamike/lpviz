@@ -18,6 +18,7 @@ interface PDHGIneqOptions {
   verbose: boolean;
   colorByBasis: boolean;
   halpern: boolean;
+  startPoint?: number[];
 }
 
 const BASIS_THRESHOLD = 1e-10;
@@ -127,6 +128,7 @@ export function pdhgIneq(
     tol = 1e-4,
     colorByBasis = false,
     halpern = false,
+    startPoint,
   } = options;
   if (maxit > MAX_ITERATIONS_LIMIT) {
     throw new Error(`maxit > ${MAX_ITERATIONS_LIMIT} not allowed`);
@@ -150,6 +152,15 @@ export function pdhgIneq(
   const axScratch = new Float64Array(m);
   const atYScratch = new Float64Array(n);
   const extrapolatedYScratch = new Float64Array(m);
+  if (startPoint && startPoint.length === n) {
+    // Warm start: relocate only the primal point (and the Halpern anchor
+    // that must sit on it) and keep the cold start's y = 1, so a start at
+    // the default position reproduces the cold trajectory exactly. PDHG
+    // converges globally from any (x0, y0 >= 0) once eta*tau*||A||^2 < 1,
+    // so the cold dual is as safe here as it is at the origin.
+    xk.set(startPoint);
+    anchorX.set(xk);
+  }
   let k = 1;
   let innerIteration = 1;
   let initialFixedPointError = Number.POSITIVE_INFINITY;

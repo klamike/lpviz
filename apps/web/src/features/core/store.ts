@@ -8,7 +8,10 @@ type VirtualRowBlocks = {
   at(index: number): ResultTextBlock | undefined;
 };
 import type { Line, PointXY, PointXYZ } from "@lpviz/math/types";
-import type { PolytopeRepresentation } from "@lpviz/polytope/polytopeTypes";
+import {
+  hasPolytopeLines,
+  type PolytopeRepresentation,
+} from "@lpviz/polytope/polytopeTypes";
 import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "@lpviz/viewport/defaults";
 
 export const MAX_TRACE_POINT_SPRITES = 1200;
@@ -20,7 +23,8 @@ type CompletedInteraction =
   | "none"
   | "dragged-point"
   | "dragged-objective"
-  | "dragged-constraint";
+  | "dragged-constraint"
+  | "dragged-start";
 export type DrawingPhase =
   | "empty"
   | "sketching_polytope"
@@ -45,7 +49,16 @@ export type DragTarget =
       start: PointXY;
       normal: PointXY;
     }
-  | { kind: "objective"; viewAnchor3D?: DragViewAnchor3D };
+  | { kind: "objective"; viewAnchor3D?: DragViewAnchor3D }
+  | {
+      kind: "solver-start";
+      // marker minus pointer-ray point at grab time: the ring can render
+      // lifted off the z = 0 drag plane (it rides the path's convergence
+      // lift in 3D), so dragging moves the marker relative to the ray
+      // point instead of teleporting it there
+      grabOffset?: PointXY;
+      viewAnchor3D?: DragViewAnchor3D;
+    };
 export type EditorInteractionState =
   | { kind: "idle" }
   | {
@@ -125,6 +138,9 @@ const FIELD_DIRTY: Partial<Record<keyof State, (s: State) => ViewportDirtyFlags>
   {
     vertices: () => POLYTOPE_DIRTY,
     polytope: () => POLYTOPE_DIRTY,
+    // the start marker renders in the iterate overlay pass
+    solverStartPoint: () => ITERATE_DIRTY,
+    solverMode: () => ITERATE_DIRTY,
     completionMode: () => POLYTOPE_DIRTY,
     interiorPoint: () => POLYTOPE_DIRTY,
     objectiveVector: objectiveDirty,
@@ -215,6 +231,9 @@ export type State = {
 
   solverMode: SolverMode;
   solverSettings: SolverSettings;
+  // Where IPM/PDHG/primal-simplex begin iterating; null = the solver default
+  // (origin). Draggable via the canvas marker.
+  solverStartPoint: PointXY | null;
   iteratePath: IteratePath;
   iteratePhases: number[];
   highlightIteratePathIndex: number | null;
@@ -270,6 +289,7 @@ const initialState: State = {
 
   solverMode: "central",
   solverSettings: { ...DEFAULT_SOLVER_SETTINGS },
+  solverStartPoint: null,
   iteratePath: EMPTY_ITERATE_PATH,
   iteratePhases: [],
   highlightIteratePathIndex: null,
@@ -478,6 +498,56 @@ export function computeDrawingPhase(state: State): DrawingPhase {
       : "awaiting_objective";
   }
   return "ready_for_solvers";
+}
+
+// Solver default start: IPM/PDHG begin at the origin, and Phase-1 simplex's
+// first displayed iterate is the origin too (all structural variables start
+// nonbasic), so one marker default is truthful for all three.
+const DEFAULT_SOLVER_START: Readonly<PointXY> = { x: 0, y: 0 };
+
+/** Whether the draggable start marker applies to the current solver/problem. */
+function solverStartPointApplies(state: State): boolean {
+  if (computeDrawingPhase(state) !== "ready_for_solvers") return false;
+  if (!hasPolytopeLines(state.polytope)) return false;
+  if (state.polytope.kind !== "bounded" && state.polytope.kind !== "unbounded")
+    return false;
+  if (state.solverMode === "ipm" || state.solverMode === "pdhg") return true;
+  // dual simplex has no safe start-point interpretation: a primal point only
+  // determines a dual-feasible basis when it is already optimal
+  return state.solverMode === "simplex" && !state.solverSettings.simplexDualMode;
+}
+
+/** Nearest vertex of the feasible region, or null if there are none. */
+export function nearestPolytopeVertex(
+  state: State,
+  point: PointXY,
+): PointXY | null {
+  if (!hasPolytopeLines(state.polytope)) return null;
+  let best: PointXY | null = null;
+  let bestDistance = Infinity;
+  for (const vertex of state.polytope.vertices) {
+    const distance = Math.hypot(vertex[0]! - point.x, vertex[1]! - point.y);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = { x: vertex[0]!, y: vertex[1]! };
+    }
+  }
+  return best;
+}
+
+/**
+ * The marker position to draw: the dragged point (snapped to the nearest
+ * region vertex in simplex mode, which is how simplex consumes it), or the
+ * solver default when nothing has been dragged yet. Null when hidden.
+ */
+export function displayedSolverStartPoint(state: State): PointXY | null {
+  if (!solverStartPointApplies(state)) return null;
+  const point = state.solverStartPoint;
+  if (!point) return { ...DEFAULT_SOLVER_START };
+  if (state.solverMode === "simplex") {
+    return nearestPolytopeVertex(state, point) ?? point;
+  }
+  return point;
 }
 
 export function prepareAnimationInterval(): void {

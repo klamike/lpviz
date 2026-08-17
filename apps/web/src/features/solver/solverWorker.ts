@@ -18,6 +18,7 @@ export type SolverWorkerPayload =
       solver: "ipm";
       lines: Lines;
       objective: VecN;
+      startPoint?: number[];
       alphaMax: number;
       correctorThreshold: number;
       maxit: number;
@@ -26,12 +27,14 @@ export type SolverWorkerPayload =
       solver: "simplex";
       lines: Lines;
       objective: VecN;
+      startVertex?: number[];
       dual: boolean;
     }
   | {
       solver: "pdhg";
       lines: Lines;
       objective: VecN;
+      startPoint?: number[];
       ineq: boolean;
       halpern: boolean;
       maxit: number;
@@ -108,9 +111,14 @@ async function runCentralPath(
   });
 }
 
-async function runSimplex(lines: Lines, objective: VecN, dual: boolean) {
+async function runSimplex(
+  lines: Lines,
+  objective: VecN,
+  dual: boolean,
+  startVertex?: number[],
+) {
   return wrapSolverCall("Simplex", () => {
-    const options = { tol: DEFAULT_TOLERANCE, verbose: false, dual };
+    const options = { tol: DEFAULT_TOLERANCE, verbose: false, dual, startVertex };
     return simplex(lines, objective, options);
   });
 }
@@ -121,6 +129,7 @@ async function runIPM(
   alphamax: number,
   correctorThreshold: number,
   maxit: number,
+  startPoint?: number[],
 ) {
   return wrapSolverCall("IPM", () => {
     const options = {
@@ -131,6 +140,7 @@ async function runIPM(
       alphaMax: alphamax,
       correctorThreshold,
       maxit,
+      startPoint,
     };
     return ipm(lines, objective, options);
   });
@@ -145,6 +155,7 @@ async function runPDHG(
   eta: number,
   tau: number,
   colorByBasis: boolean,
+  startPoint?: number[],
 ) {
   return wrapSolverCall("PDHG", () => {
     const options = {
@@ -155,6 +166,7 @@ async function runPDHG(
       eta,
       tau,
       colorByBasis,
+      startPoint,
     };
     return pdhg(lines, objective, options);
   });
@@ -177,6 +189,7 @@ async function executeSolver(
         data.alphaMax,
         data.correctorThreshold,
         data.maxit,
+        data.startPoint,
       ),
     };
   }
@@ -185,7 +198,12 @@ async function executeSolver(
       id,
       solver: "simplex",
       success: true,
-      result: await runSimplex(data.lines, data.objective, data.dual),
+      result: await runSimplex(
+        data.lines,
+        data.objective,
+        data.dual,
+        data.startVertex,
+      ),
     };
   }
   if (data.solver === "pdhg") {
@@ -202,6 +220,7 @@ async function executeSolver(
         data.eta,
         data.tau,
         data.colorByBasis,
+        data.startPoint,
       ),
     };
   }

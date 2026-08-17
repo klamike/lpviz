@@ -16,6 +16,7 @@ import { ObjectiveLayer } from "@/three/layers/ObjectiveLayer";
 import { PolytopeBaseLayer } from "@/three/layers/PolytopeBaseLayer";
 import { PolytopeRubberBandLayer } from "@/three/layers/PolytopeRubberBandLayer";
 import { PolytopeVerticesLayer } from "@/three/layers/PolytopeVerticesLayer";
+import { SolverStartLayer } from "@/three/layers/SolverStartLayer";
 import { TraceLineLayer } from "@/three/layers/TraceLineLayer";
 import { TracePointsLayer } from "@/three/layers/TracePointsLayer";
 
@@ -48,6 +49,7 @@ export function mountCanvasGL(
     new IterateRestartPointsLayer(),
     new IterateHighlightLayer(),
     new IterateStarLayer(),
+    new SolverStartLayer(),
   ];
   for (const l of layers) mgr.addLayer(l);
   onBridgeReady({

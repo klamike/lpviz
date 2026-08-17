@@ -43,6 +43,10 @@ const USAGE_TIP_SECTIONS: UsageTipSection[] = [
       { label: "Replay iterations", desc: "click <strong>Animate</strong>" },
       { label: "Keep a trace", desc: "toggle the <strong>Trace</strong> box" },
       { label: "Tune a solver", desc: "adjust its sliders" },
+      {
+        label: "Move the start",
+        desc: "drag the gray ring; right-click it to reset",
+      },
     ],
   },
   {
