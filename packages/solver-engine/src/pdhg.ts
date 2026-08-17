@@ -11,6 +11,8 @@ interface PDHGOptions {
   tol: number;
   verbose: boolean;
   colorByBasis: boolean;
+  /** Optional primal warm start; safe from any x0 (duals derived per mode). */
+  startPoint?: number[];
 }
 
 export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
@@ -23,6 +25,7 @@ export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
     verbose = false,
     tol = 1e-4,
     colorByBasis = false,
+    startPoint,
   } = options;
   const solverOptions = {
     maxit,
@@ -32,6 +35,7 @@ export function pdhg(lines: Lines, objective: VecN, options: PDHGOptions) {
     tol,
     colorByBasis,
     halpern,
+    startPoint,
   };
   return ineq
     ? pdhgIneq(lines, objective, solverOptions)

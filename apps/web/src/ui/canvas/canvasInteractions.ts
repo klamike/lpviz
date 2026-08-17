@@ -25,6 +25,7 @@ import {
   getDragStartTarget,
   getLocalFromClient,
   getLogicalFromClient,
+  solverStartNearLocalPoint,
   type ConstraintDragTarget,
 } from "@/features/polytope-editor/interactionState";
 import type { ViewportApi } from "@/features/viewport/runtime";
@@ -36,11 +37,14 @@ export function attachCanvasInteractions({
   saveHistory,
   sendPolytope,
   handleUndoRedo,
+  onSolverStartMoved,
 }: {
   canvasManager: ViewportApi;
   saveHistory: SaveHistory;
   sendPolytope: () => void;
   handleUndoRedo: HandleUndoRedo;
+  /** Re-solve the active solver after the start marker moved or reset. */
+  onSolverStartMoved: () => void;
 }): () => void {
   let pendingDragHistory: HistoryEntry | null = null;
   let lastTap: {
@@ -311,6 +315,20 @@ export function attachCanvasInteractions({
       return;
     }
 
+    if (dragTarget.kind === "solver-start") {
+      // store the raw point; the marker layer and the solver request both
+      // derive the effective start (simplex snaps it to the nearest vertex)
+      const off = dragTarget.grabOffset;
+      setState({
+        solverStartPoint: off
+          ? { x: logicalCoords.x + off.x, y: logicalCoords.y + off.y }
+          : logicalCoords,
+      });
+      onSolverStartMoved();
+      canvasManager.draw();
+      return;
+    }
+
     setState(
       { objectiveVector: logicalCoords },
     );
@@ -341,8 +359,12 @@ export function attachCanvasInteractions({
     const target = getDragStartTarget(canvasManager, state, clientX, clientY);
     if (!target) return false;
 
-    if (target.kind === "objective") {
-      pendingDragHistory = captureHistoryEntry(state);
+    if (target.kind === "objective" || target.kind === "solver-start") {
+      // the start marker is not part of the drawing, so it never enters the
+      // undo history
+      if (target.kind === "objective") {
+        pendingDragHistory = captureHistoryEntry(state);
+      }
       setState(
         {
           editorInteraction: { kind: "dragging", target },
@@ -421,11 +443,16 @@ export function attachCanvasInteractions({
               ? "dragged-point"
               : interaction.target.kind === "constraint"
                 ? "dragged-constraint"
-                : "dragged-objective",
+                : interaction.target.kind === "solver-start"
+                  ? "dragged-start"
+                  : "dragged-objective",
         },
         { viewportDirty: {} },
       );
-      sendPolytope();
+      // a moved start marker changes no geometry, and re-sending the polytope
+      // would reset any accumulated trace (comparing paths from different
+      // starts is the point of dragging it)
+      if (interaction.target.kind !== "solver-start") sendPolytope();
     }
 
     cleanupDragState();
@@ -548,6 +575,20 @@ export function attachCanvasInteractions({
       event.clientX,
       event.clientY,
     );
+
+    // right-clicking the start marker resets it to the solver default
+    if (
+      state.solverStartPoint &&
+      solverStartNearLocalPoint(canvasManager, state, local.x, local.y)
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setState({ solverStartPoint: null });
+      onSolverStartMoved();
+      canvasManager.draw();
+      return;
+    }
+
     const {
       geometry: { vertices: displayVertices },
     } = getEditorContext(state);

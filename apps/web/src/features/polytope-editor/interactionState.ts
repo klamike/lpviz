@@ -3,13 +3,16 @@ import type {
   DragViewAnchor3D,
   State,
 } from "@/features/core/store";
-import { getState } from "@/features/core/store";
+import { displayedSolverStartPoint, getState } from "@/features/core/store";
 import { getEditorContext } from "@/features/polytope-editor/editorSession";
 import type { ViewportApi } from "@/features/viewport/runtime";
 import { type BoundingBox, VRep } from "@lpviz/math/geometry";
 import type { PointXY } from "@lpviz/math/types";
 
 const VERTEX_HIT_RADIUS = 12;
+// tighter than the vertex radius: in simplex mode the marker sits on a
+// vertex, and grabbing just outside the ring must still drag the vertex
+const SOLVER_START_HIT_RADIUS = 10;
 const DRAG_THRESHOLD_PX = 5;
 const EPS = 1e-10;
 
@@ -224,6 +227,23 @@ export function getDragStartTarget(
     }
   }
 
+  const startPoint = solverStartNearLocalPoint(
+    canvasManager,
+    state,
+    local.x,
+    local.y,
+  );
+  if (startPoint) {
+    return {
+      kind: "solver-start",
+      grabOffset: {
+        x: startPoint.x - logicalCoords.x,
+        y: startPoint.y - logicalCoords.y,
+      },
+      viewAnchor3D: getViewAnchor3D(state, startPoint),
+    };
+  }
+
   const vertexIndex = findVertexNearLocalPoint(
     canvasManager,
     local.x,
@@ -305,6 +325,25 @@ export function getDragStartTarget(
   }
 
   return null;
+}
+
+export function solverStartNearLocalPoint(
+  canvasManager: ViewportApi,
+  state: State,
+  localX: number,
+  localY: number,
+): PointXY | null {
+  const startPoint = displayedSolverStartPoint(state);
+  if (!startPoint) return null;
+  // project at the marker's drawn height: in 3D the ring rides at the first
+  // iterate's z (its baked total, points[2]), matching SolverStartLayer
+  const { points, count, stride } = state.iteratePath;
+  const zTotal = count > 0 && stride >= 3 ? points[2]! : undefined;
+  const screen = canvasManager.toCanvasCoords(startPoint.x, startPoint.y, zTotal);
+  return Math.hypot(localX - screen.x, localY - screen.y) <=
+    SOLVER_START_HIT_RADIUS
+    ? startPoint
+    : null;
 }
 
 export function exceedsDragThreshold(

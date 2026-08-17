@@ -37,6 +37,8 @@ export function mountCanvasStage(
             saveHistory: ctx.services.history.save,
             sendPolytope: ctx.services.polytope.send,
             handleUndoRedo: ctx.services.history.handleUndoRedo,
+            onSolverStartMoved: () =>
+              ctx.actions.recomputeIfModeActive(getState().solverMode),
           });
           ctx.services.viewport.syncViewportLayout(
             ctx.getViewportSidebarWidth(),

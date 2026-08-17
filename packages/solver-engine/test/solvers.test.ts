@@ -243,3 +243,138 @@ describe("centralPath", () => {
     }
   });
 });
+
+describe("draggable start point", () => {
+  const ipmOpts = (startPoint?: number[]) => ({
+    eps_p: 1e-6,
+    eps_d: 1e-6,
+    eps_opt: 1e-6,
+    maxit: 500,
+    alphaMax: 0.9,
+    correctorThreshold: 0.9,
+    verbose: false,
+    startPoint,
+  });
+
+  test("ipm starts at the given point and still converges", () => {
+    for (const start of [
+      [-5.5, -4.5], // interior
+      [3, 7], // far outside (infeasible start)
+    ]) {
+      const r = ipm(SQUARE, Float64Array.of(1, 1), ipmOpts(start));
+      const sol = r.iterates.solution;
+      expect(sol.x[0]![0]!).toBeCloseTo(start[0]!, 12);
+      expect(sol.x[0]![1]!).toBeCloseTo(start[1]!, 12);
+      expect(sol.footer!.startsWith("Converged")).toBe(true);
+      const last = sol.x[sol.x.length - 1]!;
+      expect(last[0]!).toBeCloseTo(-4, 3);
+      expect(last[1]!).toBeCloseTo(-4, 3);
+    }
+  });
+
+  test("a start at the default origin reproduces the cold trajectory", () => {
+    // The marker relocates only the primal start; every other initialization
+    // matches the cold start, so startPoint [0,0] must be bitwise identical
+    // to passing no start point at all.
+    const coldIpm = ipm(SQUARE, Float64Array.of(1, 1), ipmOpts(undefined));
+    const warmIpm = ipm(SQUARE, Float64Array.of(1, 1), ipmOpts([0, 0]));
+    expect(warmIpm.iterates.solution.x).toEqual(coldIpm.iterates.solution.x);
+    expect(warmIpm.iterates.solution.s).toEqual(coldIpm.iterates.solution.s);
+    expect(warmIpm.iterates.solution.y).toEqual(coldIpm.iterates.solution.y);
+
+    for (const ineq of [true, false]) {
+      const cold = pdhg(SQUARE, Float64Array.of(1, 1), {
+        ...pdhgDefaults,
+        ineq,
+      });
+      const warm = pdhg(SQUARE, Float64Array.of(1, 1), {
+        ...pdhgDefaults,
+        ineq,
+        startPoint: [0, 0],
+      });
+      expect(warm.iterations).toEqual(cold.iterations);
+    }
+  });
+
+  test("pdhg ineq mode starts at the given point and converges", () => {
+    for (const start of [
+      [-5, -5],
+      [2, 2], // outside (the dual keeps the cold start's y = 1)
+    ]) {
+      const r = pdhg(SQUARE, Float64Array.of(1, 1), {
+        ...pdhgDefaults,
+        ineq: true,
+        startPoint: start,
+      });
+      expect(r.iterations[0]![0]!).toBeCloseTo(start[0]!, 12);
+      expect(r.iterations[0]![1]!).toBeCloseTo(start[1]!, 12);
+      expect(r.footer.startsWith("Converged")).toBe(true);
+      const last = r.iterations[r.iterations.length - 1]!;
+      expect(last[0]!).toBeCloseTo(-4, 2);
+      expect(last[1]!).toBeCloseTo(-4, 2);
+    }
+  });
+
+  test("pdhg eq mode maps a negative start through the split exactly", () => {
+    const r = pdhg(SQUARE, Float64Array.of(1, 1), {
+      ...pdhgDefaults,
+      ineq: false,
+      startPoint: [-5.5, -4.5],
+    });
+    expect(r.iterations[0]![0]!).toBeCloseTo(-5.5, 12);
+    expect(r.iterations[0]![1]!).toBeCloseTo(-4.5, 12);
+    expect(r.footer.startsWith("Converged")).toBe(true);
+    const last = r.iterations[r.iterations.length - 1]!;
+    expect(last[0]!).toBeCloseTo(-4, 2);
+    expect(last[1]!).toBeCloseTo(-4, 2);
+  });
+
+  test("pdhg halpern accepts a warm start", () => {
+    const r = pdhg(SQUARE, Float64Array.of(1, 1), {
+      ...pdhgDefaults,
+      ineq: true,
+      halpern: true,
+      startPoint: [-5, -5],
+    });
+    expect(r.iterations[0]![0]!).toBeCloseTo(-5, 12);
+    expect(r.footer.startsWith("Converged")).toBe(true);
+  });
+
+  test("simplex warm starts from a vertex and skips Phase 1", () => {
+    const r = simplex(SQUARE, Float64Array.of(1, 1), {
+      tol: 1e-9,
+      verbose: false,
+      dual: false,
+      startVertex: [-6, -6],
+    });
+    expect(r.status).toBe("optimal");
+    expect(r.phase1Iterations!.length).toBe(0);
+    expect(r.logs[0]![0]!).toContain("warm start");
+    const first = r.iterations[0]!;
+    expect(first[0]!).toBeCloseTo(-6, 6);
+    expect(first[1]!).toBeCloseTo(-6, 6);
+    const last = r.iterations[r.iterations.length - 1]!;
+    expect(last[0]!).toBeCloseTo(-4, 6);
+    expect(last[1]!).toBeCloseTo(-4, 6);
+  });
+
+  test("simplex falls back to Phase 1 when the start is not a vertex", () => {
+    for (const start of [
+      [-5, -5], // interior
+      [0, 0], // infeasible
+      [-4, -5], // on a facet but not a corner
+    ]) {
+      const r = simplex(SQUARE, Float64Array.of(1, 1), {
+        tol: 1e-9,
+        verbose: false,
+        dual: false,
+        startVertex: start,
+      });
+      expect(r.status).toBe("optimal");
+      expect(r.phase1Iterations!.length).toBeGreaterThan(0);
+      const last = r.iterations[r.iterations.length - 1]!;
+      expect(last[0]!).toBeCloseTo(-4, 6);
+      expect(last[1]!).toBeCloseTo(-4, 6);
+    }
+  });
+});

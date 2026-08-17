@@ -673,7 +673,8 @@ export async function createViewportRuntime({
       const viewAnchor3D =
         editorInteraction.kind === "dragging" &&
         (editorInteraction.target.kind === "point" ||
-          editorInteraction.target.kind === "objective")
+          editorInteraction.target.kind === "objective" ||
+          editorInteraction.target.kind === "solver-start")
           ? editorInteraction.target.viewAnchor3D
           : undefined;
       return toLogicalCoords3D(managerSnapshot, getViewportRect(), x, y, {

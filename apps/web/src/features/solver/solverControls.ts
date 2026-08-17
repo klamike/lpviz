@@ -1,5 +1,6 @@
 import {
   getState,
+  nearestPolytopeVertex,
   type SolverMode,
   type SolverSettings,
   type State,
@@ -43,6 +44,13 @@ function objectiveBase(state: State) {
       state.objectiveVector.y,
     ),
   };
+}
+
+// The dragged start point as a solver payload, or absent when never set (the
+// solvers then keep their exact legacy initialization).
+function startPointPayload(state: State): { startPoint?: number[] } {
+  const point = state.solverStartPoint;
+  return point ? { startPoint: [point.x, point.y] } : {};
 }
 
 const messageBlocks = (
@@ -130,6 +138,7 @@ export function createSolverControls({
         return {
           solver: "ipm",
           ...base,
+          ...startPointPayload(s),
           alphaMax: ss.alphaMax,
           correctorThreshold: ss.correctorThreshold,
           maxit: Math.max(1, ss.maxitIPM || 1),
@@ -152,9 +161,16 @@ export function createSolverControls({
       buildRequest: (s) => {
         const base = objectiveBase(s);
         if (!base) return null;
+        // Simplex consumes the start as a vertex (the marker snaps to one);
+        // dual mode has no safe start-point interpretation and ignores it.
+        const snapped =
+          !s.solverSettings.simplexDualMode && s.solverStartPoint
+            ? nearestPolytopeVertex(s, s.solverStartPoint)
+            : null;
         return {
           solver: "simplex",
           ...base,
+          ...(snapped ? { startVertex: [snapped.x, snapped.y] } : {}),
           dual: s.solverSettings.simplexDualMode,
         };
       },
@@ -188,6 +204,7 @@ export function createSolverControls({
         return {
           solver: "pdhg",
           ...base,
+          ...startPointPayload(s),
           ineq: ss.pdhgIneqMode,
           halpern: ss.pdhgHalpernMode,
           maxit: Math.max(1, ss.maxitPDHG || 1),

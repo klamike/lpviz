@@ -19,6 +19,7 @@ interface PDHGEqOptions {
   verbose: boolean;
   colorByBasis: boolean;
   halpern: boolean;
+  startPoint?: number[];
 }
 
 const BASIS_THRESHOLD = 1e-10;
@@ -127,6 +128,7 @@ function pdhgStandardForm(
   b: Float64Array,
   c: Float64Array,
   options: PDHGEqOptions,
+  chi0?: Float64Array,
 ) {
   const { maxit, eta, tau, tol, verbose, colorByBasis, halpern } = options;
 
@@ -148,6 +150,15 @@ function pdhgStandardForm(
   const axScratch = new Float64Array(m);
   const atYScratch = new Float64Array(n);
   const extrapolatedXScratch = new Float64Array(n);
+  if (chi0 && chi0.length === n) {
+    // Warm start in the split variables (see pdhgEq for how chi0 is built).
+    // The equality duals stay at 0: they are sign-free, complementary
+    // slackness pins nothing for equality rows, and any y0 is safe by
+    // nonexpansiveness of the PDHG operator — zero is the neutral
+    // "no price information" choice.
+    xk.set(chi0);
+    anchorX.set(chi0);
+  }
   let k = 1;
   let innerIteration = 1;
   let initialFixedPointError = Number.POSITIVE_INFINITY;
@@ -318,6 +329,7 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
     tol = 1e-4,
     colorByBasis = false,
     halpern = false,
+    startPoint,
   } = options;
   if (maxit > MAX_ITERATIONS_LIMIT) {
     throw new Error(`maxit > ${MAX_ITERATIONS_LIMIT} not allowed`);
@@ -347,6 +359,21 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
     cHat[i] = -objective[i]!;
     cHat[nOrig + i] = objective[i]!;
   }
+  // Warm start mapped into the split variables chi = [x^+; x^-; s] >= 0:
+  // x^+ - x^- = x0 exactly, so the displayed first iterate is the chosen
+  // point. The slack block stays at the cold start's zeros — like the cold
+  // start, the equality residual is left for the iteration to close — so a
+  // start at the default position reproduces the cold trajectory exactly,
+  // and chi0 >= 0 (the splitting's hard constraint) holds by construction.
+  let chi0: Float64Array | undefined;
+  if (startPoint && startPoint.length === nOrig) {
+    chi0 = new Float64Array(2 * nOrig + m);
+    for (let j = 0; j < nOrig; j++) {
+      const value = startPoint[j]!;
+      if (value >= 0) chi0[j] = value;
+      else chi0[nOrig + j] = -value;
+    }
+  }
   const {
     iterations: chiIterates,
     header,
@@ -355,15 +382,21 @@ export function pdhgEq(lines: Lines, objective: VecN, options: PDHGEqOptions) {
     eps,
     phases,
     restartIndices,
-  } = pdhgStandardForm(AHat, b, cHat, {
-    maxit,
-    eta,
-    tau,
-    verbose,
-    tol,
-    colorByBasis,
-    halpern,
-  });
+  } = pdhgStandardForm(
+    AHat,
+    b,
+    cHat,
+    {
+      maxit,
+      eta,
+      tau,
+      verbose,
+      tol,
+      colorByBasis,
+      halpern,
+    },
+    chi0,
+  );
 
   // x = x^+ - x^-
   const xIterates = chiIterates.map((chi) => {

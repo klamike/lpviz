@@ -29,4 +29,5 @@ export const RENDER_ORDER = {
   iterateHighlight: 26,
 
   iterateStar: 24,
+  solverStart: 25,
 } as const;

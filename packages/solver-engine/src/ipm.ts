@@ -22,6 +22,8 @@ interface IPMOptions {
   alphaMax: number;
   correctorThreshold: number;
   verbose: boolean;
+  /** Optional primal warm start; need not be feasible (infeasible-start method). */
+  startPoint?: number[];
 }
 
 interface IPMSolutionData {
@@ -51,6 +53,7 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
     alphaMax,
     correctorThreshold,
     verbose,
+    startPoint,
   } = opts;
 
   if (maxit > MAX_ITERATIONS_LIMIT) {
@@ -78,6 +81,7 @@ export function ipm(lines: Lines, objective: VecN, opts: IPMOptions) {
       alphaMax,
       correctorThreshold,
       verbose,
+      startPoint,
     },
   );
 }
@@ -96,6 +100,7 @@ function ipmCore(
     alphaMax,
     correctorThreshold,
     verbose,
+    startPoint,
   } = opts;
   const m = A.rows;
   const n = A.cols;
@@ -114,6 +119,20 @@ function ipmCore(
   let x = new Float64Array(n);
   let s = new Float64Array(m).fill(1);
   let y = new Float64Array(m).fill(1);
+  if (startPoint && startPoint.length === n) {
+    // Warm start from a user-chosen x0: relocate only the primal point and
+    // keep the cold start's s = y = 1, so a start at the default position
+    // reproduces the cold trajectory exactly. Feasibility of x0 is not
+    // required — this is an infeasible-start method — but strict positivity
+    // of (s, y) is: both sit on the diagonal of the Newton system and the
+    // fraction-to-boundary rule only preserves positivity it starts with.
+    // The centered choice satisfies it, gives every complementarity product
+    // s_i*y_i = 1 (a tiny product makes the first affine directions explode),
+    // and keeps the initial mu = 1 on scale for sigma = (mu_aff/mu)^3. The
+    // cold start never zeroes the primal residual either (s = 1, not b - Ax),
+    // so residuals are the solver's job in both cases.
+    x.set(startPoint);
+  }
 
   const ax = new Float64Array(m);
   const aty = new Float64Array(n);
