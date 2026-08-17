@@ -7,6 +7,7 @@ type VirtualRowBlocks = {
   length: number;
   at(index: number): ResultTextBlock | undefined;
 };
+import { DEFAULT_REPLAY_DURATION_MS } from "@/features/solver/replayDuration";
 import type { Line, PointXY, PointXYZ } from "@lpviz/math/types";
 import {
   hasPolytopeLines,
@@ -17,7 +18,21 @@ import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "@lpviz/viewport/defaults";
 export const MAX_TRACE_POINT_SPRITES = 1200;
 export { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE };
 
-export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
+export type SolverMode =
+  | "central"
+  | "ipm"
+  | "simplex"
+  | "pdhg"
+  | "ellipsoid";
+// Which point of the localizing set the ellipsoid mode queries next. "ellipsoid"
+// is the ellipsoid method proper (localize with a covering ellipsoid, query its
+// center); the rest localize with a polyhedron of accumulated cuts and differ
+// only in which interior point they pick. See @lpviz/solver-engine/cuttingPlane.
+export type EllipsoidQueryPoint =
+  | "ellipsoid"
+  | "chebyshev"
+  | "analytic"
+  | "volumetric";
 export type CompletionMode = "draft" | "closed" | "open";
 type CompletedInteraction =
   | "none"
@@ -86,6 +101,25 @@ const EMPTY_ITERATE_PATH: IteratePath = {
   stride: 3,
 };
 
+// The ellipsoid method's per-iteration ellipse, parallel to the iterate path:
+// element `i` is [cx, cy, p11, p12, p22] — the center and the symmetric shape
+// matrix P of { x : (x - c)' P^-1 (x - c) <= 1 }. Null for every other solver.
+export interface EllipsoidPath {
+  data: Float64Array;
+  count: number;
+  stride: number;
+}
+
+// The cutting-plane query points localize with a polyhedron rather than an
+// ellipsoid, so they also emit that polygon per iteration: element `i` spans
+// points[offsets[i] * 2 .. offsets[i + 1] * 2). Null for the ellipsoid method,
+// whose localizing set is the ellipse already in EllipsoidPath.
+export interface LocalizingSetPath {
+  points: Float64Array;
+  offsets: Uint32Array;
+  count: number;
+}
+
 interface TraceEntry extends IteratePath {
   objectiveVector: PointXY | null;
 }
@@ -148,10 +182,15 @@ const FIELD_DIRTY: Partial<Record<keyof State, (s: State) => ViewportDirtyFlags>
     objectiveHidden: () => ({ objective: true }),
     highlightIndex: () => ({ constraints: true }),
     iteratePath: () => ITERATE_DIRTY,
+    iterateEllipsoids: () => ITERATE_DIRTY,
+    iterateLocalizingSets: () => ITERATE_DIRTY,
     iteratePhases: () => ITERATE_DIRTY,
     iterateRestartIndices: () => ITERATE_DIRTY,
     iterateObjectiveVector: () => ITERATE_DIRTY,
     highlightIteratePathIndex: () => ITERATE_DIRTY,
+    // the optimum star is hidden for the duration of a replay, so starting or
+    // stopping one changes what the iterate pass draws (see IterateStarLayer)
+    replayActive: () => ITERATE_DIRTY,
     traceBuffer: () => TRACE_DIRTY,
     traceEnabled: () => TRACE_DIRTY,
     // zScale rescales every world-anchored layer's height
@@ -189,12 +228,23 @@ export type SolverSettings = {
   pdhgHalpernMode: boolean;
   pdhgColorByBasis: boolean;
   centralPathIter: number;
+  maxitEllipsoid: number;
+  ellipsoidDeepCuts: boolean;
+  ellipsoidRayShoot: boolean;
+  ellipsoidQueryPoint: EllipsoidQueryPoint;
+  ellipsoidInitialScale: number;
   objectiveAngleStep: number;
   objectiveRotationSpeed: number;
+  // Total wall-clock length of an "Animate" replay in milliseconds — not a
+  // per-step delay: the replay maps elapsed time onto the whole iterate path,
+  // so it takes just as long at 20 iterates as at 20,000 (see
+  // replayController). Adjusted with the +/- keys; the name is left over from
+  // when it was a per-step delay.
   replaySpeed: number;
 };
 
-const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
+// exported so share links can omit any setting still at its default
+export const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
   alphaMax: 0.1,
   correctorThreshold: 0.9,
   maxitIPM: 1000,
@@ -206,9 +256,14 @@ const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
   pdhgHalpernMode: false,
   pdhgColorByBasis: false,
   centralPathIter: 75,
+  maxitEllipsoid: 500,
+  ellipsoidDeepCuts: true,
+  ellipsoidRayShoot: true,
+  ellipsoidQueryPoint: "ellipsoid",
+  ellipsoidInitialScale: 1.5,
   objectiveAngleStep: 0.1,
   objectiveRotationSpeed: 1,
-  replaySpeed: 10,
+  replaySpeed: DEFAULT_REPLAY_DURATION_MS,
 };
 
 export type State = {
@@ -235,10 +290,15 @@ export type State = {
   // (origin). Draggable via the canvas marker.
   solverStartPoint: PointXY | null;
   iteratePath: IteratePath;
+  iterateEllipsoids: EllipsoidPath | null;
+  iterateLocalizingSets: LocalizingSetPath | null;
   iteratePhases: number[];
   highlightIteratePathIndex: number | null;
   rotateObjectiveMode: boolean;
-  animationIntervalId: number | null;
+  // "an Animate replay is playing out" — the replay's RAF handle stays private
+  // to replayController (it changes every frame, and a store field that churned
+  // at 60Hz would invalidate every selector keyed on it)
+  replayActive: boolean;
   originalIteratePath: IteratePath;
   originalIteratePhases: number[];
   iterateRestartIndices: number[];
@@ -291,10 +351,12 @@ const initialState: State = {
   solverSettings: { ...DEFAULT_SOLVER_SETTINGS },
   solverStartPoint: null,
   iteratePath: EMPTY_ITERATE_PATH,
+  iterateEllipsoids: null,
+  iterateLocalizingSets: null,
   iteratePhases: [],
   highlightIteratePathIndex: null,
   rotateObjectiveMode: false,
-  animationIntervalId: null,
+  replayActive: false,
   originalIteratePath: EMPTY_ITERATE_PATH,
   originalIteratePhases: [],
   iterateRestartIndices: [],
@@ -550,18 +612,12 @@ export function displayedSolverStartPoint(state: State): PointXY | null {
   return point;
 }
 
-export function prepareAnimationInterval(): void {
-  const { animationIntervalId } = getState();
-  if (animationIntervalId !== null) {
-    clearInterval(animationIntervalId);
-    setState({ animationIntervalId: null });
-  }
-}
-
 export function updateIteratePaths(
   path: IteratePath,
   phasesArray?: number[],
   restartIndicesArray?: number[],
+  ellipsoids?: EllipsoidPath | null,
+  localizingSets?: LocalizingSetPath | null,
 ): void {
   const { objectiveVector } = getState();
   // viewportDirty derived from the changed iterate fields (see FIELD_DIRTY)
@@ -571,6 +627,8 @@ export function updateIteratePaths(
       phasesArray,
       restartIndicesArray,
       snapshotObjectiveVector(objectiveVector),
+      ellipsoids ?? null,
+      localizingSets ?? null,
     ),
   );
 }
@@ -624,6 +682,8 @@ export function updateIteratePathsWithTrace(
   path: IteratePath,
   phasesArray?: number[],
   restartIndicesArray?: number[],
+  ellipsoids?: EllipsoidPath | null,
+  localizingSets?: LocalizingSetPath | null,
 ): void {
   const state = getState();
   const objectiveSnapshot = snapshotObjectiveVector(state.objectiveVector);
@@ -632,6 +692,8 @@ export function updateIteratePathsWithTrace(
     phasesArray,
     restartIndicesArray,
     objectiveSnapshot,
+    ellipsoids ?? null,
+    localizingSets ?? null,
   );
   if (state.traceEnabled && path.count > 0) {
     patch.traceBuffer = appendedTraceBuffer(state, path, objectiveSnapshot);
@@ -686,6 +748,8 @@ function buildIterateStatePatch(
   phasesArray: number[] | undefined,
   restartIndicesArray: number[] | undefined,
   objectiveSnapshot: PointXY | null,
+  ellipsoids: EllipsoidPath | null = null,
+  localizingSets: LocalizingSetPath | null = null,
 ): Partial<State> {
   // The flat path and phase/restart arrays are never mutated after creation
   // (replay grows a fresh IteratePath over the same shared buffer), so the
@@ -693,6 +757,10 @@ function buildIterateStatePatch(
   return {
     originalIteratePath: path,
     iteratePath: path,
+    // every solver but the ellipsoid method passes none, which clears the
+    // previous solve's ellipses
+    iterateEllipsoids: ellipsoids,
+    iterateLocalizingSets: localizingSets,
     iteratePhases: phasesArray ?? [],
     originalIteratePhases: phasesArray ?? [],
     iterateRestartIndices: restartIndicesArray ?? [],

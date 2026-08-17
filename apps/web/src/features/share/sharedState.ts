@@ -1,4 +1,9 @@
-import type { CompletionMode, SolverMode, State } from "@/features/core/store";
+import type {
+  CompletionMode,
+  EllipsoidQueryPoint,
+  SolverMode,
+  State,
+} from "@/features/core/store";
 
 export type ShareSettings = {
   alphaMax?: number;
@@ -12,6 +17,11 @@ export type ShareSettings = {
   pdhgHalpernMode?: boolean;
   pdhgColorByBasis?: boolean;
   centralPathIter?: number;
+  maxitEllipsoid?: number;
+  ellipsoidDeepCuts?: boolean;
+  ellipsoidRayShoot?: boolean;
+  ellipsoidQueryPoint?: EllipsoidQueryPoint;
+  ellipsoidInitialScale?: number;
   objectiveAngleStep?: number;
   objectiveRotationSpeed?: number;
 };
@@ -22,10 +32,15 @@ export type SharedAppState = {
   objective: { x: number; y: number } | null;
   solverMode: SolverMode;
   settings: ShareSettings;
+  /** Null means the solver's own default start, not "no start point". */
+  solverStartPoint?: { x: number; y: number } | null;
   zScale?: number;
   is3DMode?: boolean;
 };
 
+// Decode-only since links became base64url (see compactUrl.ts): this maps the
+// short keys of the older JSONCrush payloads back to their full names, so links
+// shared before that change still open.
 const shareKeyMap = {
   vertices: "v",
   completionMode: "k",
@@ -47,6 +62,12 @@ const shareKeyMap = {
   pdhgHalpernMode: "j",
   pdhgColorByBasis: "h",
   centralPathIter: "c",
+  maxitEllipsoid: "n",
+  ellipsoidDeepCuts: "u",
+  ellipsoidRayShoot: "z",
+  // every lowercase letter is taken; uppercase never collides with them
+  ellipsoidQueryPoint: "Q",
+  ellipsoidInitialScale: "w",
   objectiveAngleStep: "r",
   objectiveRotationSpeed: "q",
 } as const;
@@ -80,10 +101,6 @@ function transformShareObject<T>(value: T, keyMap: Record<string, string>): T {
   return result as T;
 }
 
-export function compactSharedAppState<T>(value: T): T {
-  return transformShareObject(value, shareKeyMap);
-}
-
 export function expandSharedAppState<T>(value: T): T {
   return transformShareObject(value, expandedShareKeyMap);
 }
@@ -100,6 +117,7 @@ const SOLVER_MODES: ReadonlySet<string> = new Set([
   "ipm",
   "simplex",
   "pdhg",
+  "ellipsoid",
 ]);
 
 const isFinitePoint = (value: unknown): value is { x: number; y: number } =>
@@ -134,6 +152,11 @@ export function buildSharedStatePatch(
       ? { x: sharedState.objective.x, y: sharedState.objective.y }
       : null,
     solverMode,
+    // always written, so loading a link clears a start point left over from
+    // whatever the user was doing before
+    solverStartPoint: isFinitePoint(sharedState.solverStartPoint)
+      ? { x: sharedState.solverStartPoint.x, y: sharedState.solverStartPoint.y }
+      : null,
     ...(Number.isFinite(sharedState.zScale)
       ? { zScale: Math.max(0.01, Math.min(100, sharedState.zScale!)) }
       : {}),

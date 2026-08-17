@@ -38,9 +38,16 @@ const USAGE_TIP_SECTIONS: UsageTipSection[] = [
     tips: [
       {
         label: "Run a solver",
-        desc: "pick IPM, PDHG, Simplex, or Central Path",
+        desc: "pick IPM, PDHG, Simplex, Ellipsoid, or Central Path",
       },
-      { label: "Replay iterations", desc: "click <strong>Animate</strong>" },
+      {
+        label: "Replay iterations",
+        desc: "click <strong>Animate</strong> (again to stop)",
+      },
+      {
+        label: "Animation length",
+        desc: "press <kbd>+</kbd> / <kbd>-</kbd>",
+      },
       { label: "Keep a trace", desc: "toggle the <strong>Trace</strong> box" },
       { label: "Tune a solver", desc: "adjust its sliders" },
       {
@@ -60,6 +67,7 @@ const USAGE_TIP_SECTIONS: UsageTipSection[] = [
         label: "Highlight an iterate",
         desc: "hover its row in the bottom panel",
       },
+      { label: "See more log rows", desc: "scroll the sidebar" },
     ],
   },
   {
