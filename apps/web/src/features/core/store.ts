@@ -17,7 +17,21 @@ import { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE } from "@lpviz/viewport/defaults";
 export const MAX_TRACE_POINT_SPRITES = 1200;
 export { DEFAULT_VIEW_ANGLE, DEFAULT_Z_SCALE };
 
-export type SolverMode = "central" | "ipm" | "simplex" | "pdhg";
+export type SolverMode =
+  | "central"
+  | "ipm"
+  | "simplex"
+  | "pdhg"
+  | "ellipsoid";
+// Which point of the localizing set the ellipsoid mode queries next. "ellipsoid"
+// is the ellipsoid method proper (localize with a covering ellipsoid, query its
+// center); the rest localize with a polyhedron of accumulated cuts and differ
+// only in which interior point they pick. See @lpviz/solver-engine/cuttingPlane.
+export type EllipsoidQueryPoint =
+  | "ellipsoid"
+  | "chebyshev"
+  | "analytic"
+  | "volumetric";
 export type CompletionMode = "draft" | "closed" | "open";
 type CompletedInteraction =
   | "none"
@@ -86,6 +100,25 @@ const EMPTY_ITERATE_PATH: IteratePath = {
   stride: 3,
 };
 
+// The ellipsoid method's per-iteration ellipse, parallel to the iterate path:
+// element `i` is [cx, cy, p11, p12, p22] — the center and the symmetric shape
+// matrix P of { x : (x - c)' P^-1 (x - c) <= 1 }. Null for every other solver.
+export interface EllipsoidPath {
+  data: Float64Array;
+  count: number;
+  stride: number;
+}
+
+// The cutting-plane query points localize with a polyhedron rather than an
+// ellipsoid, so they also emit that polygon per iteration: element `i` spans
+// points[offsets[i] * 2 .. offsets[i + 1] * 2). Null for the ellipsoid method,
+// whose localizing set is the ellipse already in EllipsoidPath.
+export interface LocalizingSetPath {
+  points: Float64Array;
+  offsets: Uint32Array;
+  count: number;
+}
+
 interface TraceEntry extends IteratePath {
   objectiveVector: PointXY | null;
 }
@@ -148,6 +181,8 @@ const FIELD_DIRTY: Partial<Record<keyof State, (s: State) => ViewportDirtyFlags>
     objectiveHidden: () => ({ objective: true }),
     highlightIndex: () => ({ constraints: true }),
     iteratePath: () => ITERATE_DIRTY,
+    iterateEllipsoids: () => ITERATE_DIRTY,
+    iterateLocalizingSets: () => ITERATE_DIRTY,
     iteratePhases: () => ITERATE_DIRTY,
     iterateRestartIndices: () => ITERATE_DIRTY,
     iterateObjectiveVector: () => ITERATE_DIRTY,
@@ -189,12 +224,19 @@ export type SolverSettings = {
   pdhgHalpernMode: boolean;
   pdhgColorByBasis: boolean;
   centralPathIter: number;
+  maxitEllipsoid: number;
+  ellipsoidDeepCuts: boolean;
+  ellipsoidParallelCuts: boolean;
+  ellipsoidRayShoot: boolean;
+  ellipsoidQueryPoint: EllipsoidQueryPoint;
+  ellipsoidInitialScale: number;
   objectiveAngleStep: number;
   objectiveRotationSpeed: number;
   replaySpeed: number;
 };
 
-const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
+// exported so share links can omit any setting still at its default
+export const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
   alphaMax: 0.1,
   correctorThreshold: 0.9,
   maxitIPM: 1000,
@@ -206,6 +248,14 @@ const DEFAULT_SOLVER_SETTINGS: SolverSettings = {
   pdhgHalpernMode: false,
   pdhgColorByBasis: false,
   centralPathIter: 75,
+  maxitEllipsoid: 500,
+  ellipsoidDeepCuts: true,
+  // measured to converge slower than a single deep cut under a sliding
+  // objective, so opt-in (see parallelCutShape)
+  ellipsoidParallelCuts: false,
+  ellipsoidRayShoot: true,
+  ellipsoidQueryPoint: "ellipsoid",
+  ellipsoidInitialScale: 1.5,
   objectiveAngleStep: 0.1,
   objectiveRotationSpeed: 1,
   replaySpeed: 10,
@@ -235,6 +285,8 @@ export type State = {
   // (origin). Draggable via the canvas marker.
   solverStartPoint: PointXY | null;
   iteratePath: IteratePath;
+  iterateEllipsoids: EllipsoidPath | null;
+  iterateLocalizingSets: LocalizingSetPath | null;
   iteratePhases: number[];
   highlightIteratePathIndex: number | null;
   rotateObjectiveMode: boolean;
@@ -291,6 +343,8 @@ const initialState: State = {
   solverSettings: { ...DEFAULT_SOLVER_SETTINGS },
   solverStartPoint: null,
   iteratePath: EMPTY_ITERATE_PATH,
+  iterateEllipsoids: null,
+  iterateLocalizingSets: null,
   iteratePhases: [],
   highlightIteratePathIndex: null,
   rotateObjectiveMode: false,
@@ -562,6 +616,8 @@ export function updateIteratePaths(
   path: IteratePath,
   phasesArray?: number[],
   restartIndicesArray?: number[],
+  ellipsoids?: EllipsoidPath | null,
+  localizingSets?: LocalizingSetPath | null,
 ): void {
   const { objectiveVector } = getState();
   // viewportDirty derived from the changed iterate fields (see FIELD_DIRTY)
@@ -571,6 +627,8 @@ export function updateIteratePaths(
       phasesArray,
       restartIndicesArray,
       snapshotObjectiveVector(objectiveVector),
+      ellipsoids ?? null,
+      localizingSets ?? null,
     ),
   );
 }
@@ -624,6 +682,8 @@ export function updateIteratePathsWithTrace(
   path: IteratePath,
   phasesArray?: number[],
   restartIndicesArray?: number[],
+  ellipsoids?: EllipsoidPath | null,
+  localizingSets?: LocalizingSetPath | null,
 ): void {
   const state = getState();
   const objectiveSnapshot = snapshotObjectiveVector(state.objectiveVector);
@@ -632,6 +692,8 @@ export function updateIteratePathsWithTrace(
     phasesArray,
     restartIndicesArray,
     objectiveSnapshot,
+    ellipsoids ?? null,
+    localizingSets ?? null,
   );
   if (state.traceEnabled && path.count > 0) {
     patch.traceBuffer = appendedTraceBuffer(state, path, objectiveSnapshot);
@@ -686,6 +748,8 @@ function buildIterateStatePatch(
   phasesArray: number[] | undefined,
   restartIndicesArray: number[] | undefined,
   objectiveSnapshot: PointXY | null,
+  ellipsoids: EllipsoidPath | null = null,
+  localizingSets: LocalizingSetPath | null = null,
 ): Partial<State> {
   // The flat path and phase/restart arrays are never mutated after creation
   // (replay grows a fresh IteratePath over the same shared buffer), so the
@@ -693,6 +757,10 @@ function buildIterateStatePatch(
   return {
     originalIteratePath: path,
     iteratePath: path,
+    // every solver but the ellipsoid method passes none, which clears the
+    // previous solve's ellipses
+    iterateEllipsoids: ellipsoids,
+    iterateLocalizingSets: localizingSets,
     iteratePhases: phasesArray ?? [],
     originalIteratePhases: phasesArray ?? [],
     iterateRestartIndices: restartIndicesArray ?? [],
